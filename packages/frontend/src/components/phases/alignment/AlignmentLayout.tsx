@@ -26,10 +26,10 @@ interface CardState {
 }
 
 const SECTION_META: Record<SectionType, { icon: string; label: string }> = {
-  context: { icon: "📄", label: "Context" },
-  proposal: { icon: "💡", label: "Proposal" },
-  implementation: { icon: "🔧", label: "Implementation" },
-  risks: { icon: "⚠️", label: "Risks & Alternatives" },
+  context: { icon: "description", label: "Context" },
+  proposal: { icon: "lightbulb", label: "Proposal" },
+  implementation: { icon: "build", label: "Implementation" },
+  risks: { icon: "warning", label: "Risks & Alternatives" },
 };
 
 const SECTION_ORDER: SectionType[] = [
@@ -122,22 +122,22 @@ export function AlignmentLayout({
   return (
     <div className="h-full pt-[64px] flex flex-col items-center justify-center px-6">
       <div className="max-w-3xl w-full">
-        <div className="text-center mb-8">
-          <h2 className="text-lg font-semibold text-on-surface mb-2">
-            Validate the document direction
-          </h2>
-          <p className="text-sm text-on-surface-variant/60">
-            Approve or adjust the summary of each section before generating the
-            full document.
-          </p>
-        </div>
-
         {!hasSummaries ? (
           <div className="flex justify-center mt-12 animate-fade-in">
             <ForgeLoader steps={ALIGNMENT_STEPS} stepInterval={3500} />
           </div>
         ) : (
           <>
+            <div className="text-center mb-8">
+              <h2 className="text-lg font-semibold text-on-surface mb-2">
+                Validate the document direction
+              </h2>
+              <p className="text-sm text-on-surface-variant/60">
+                Approve or adjust the summary of each section before generating the
+                full document.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {SECTION_ORDER.map((type) => (
                 <SummaryCard

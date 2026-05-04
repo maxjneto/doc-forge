@@ -35,7 +35,7 @@ export function SummaryCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-base">{icon}</span>
+          <span className="material-symbols-outlined text-[18px] text-primary/70">{icon}</span>
           <h3 className="text-sm font-semibold text-on-surface">{label}</h3>
         </div>
         {status === "approved" && (
