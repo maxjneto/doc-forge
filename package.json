@@ -1,0 +1,20 @@
+{
+  "name": "docforge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "DocForge - AI-powered document generation platform",
+  "scripts": {
+    "dev": "npm run dev:frontend",
+    "dev:frontend": "npm -w @docforge/frontend run dev",
+    "dev:backend": "npm -w @docforge/backend run dev",
+    "build": "npm -w @docforge/frontend run build",
+    "lint": "npm -w @docforge/frontend run lint",
+    "preview": "npm -w @docforge/frontend run preview",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "npm -w @docforge/backend run migrate",
+    "infra:up": "docker compose up -d"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

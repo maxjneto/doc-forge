@@ -1,0 +1,170 @@
+import type {
+  Document,
+  Section,
+  SectionVersion,
+  ChatMessage,
+  DiscoveryQuestion,
+} from "@/types";
+
+export const API_BASE =
+  import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api";
+
+// ─── Response mappers (snake_case → camelCase) ───────────────
+
+export function mapDocument(raw: Record<string, unknown>): Document {
+  return {
+    id: String(raw.id),
+    title: raw.title as string,
+    currentPhase: raw.current_phase as Document["currentPhase"],
+    globalContext: (raw.global_context as string) ?? null,
+    userPreferences: (raw.user_preferences as string) ?? null,
+    createdAt: raw.created_at as string,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+export function mapSection(
+  raw: Record<string, unknown>,
+  documentId?: string
+): Section {
+  return {
+    id: String(raw.id),
+    documentId: documentId ?? String(raw.document_id ?? ""),
+    sectionType: raw.section_type as Section["sectionType"],
+    status: raw.status as Section["status"],
+    summary: (raw.summary as string) ?? null,
+    activeVersionContent: (raw.active_version_content as string) ?? null,
+  };
+}
+
+export function mapVersion(raw: Record<string, unknown>): SectionVersion {
+  return {
+    id: String(raw.id),
+    sectionId: String(raw.section_id),
+    parentVersionId: raw.parent_version_id
+      ? String(raw.parent_version_id)
+      : null,
+    versionName: raw.version_name as string,
+    content: raw.content as string,
+    isActive: raw.is_active as boolean,
+    createdAt: raw.created_at as string,
+  };
+}
+
+export function mapChatMessage(raw: Record<string, unknown>): ChatMessage {
+  return {
+    id: String(raw.id),
+    documentId: String(raw.document_id),
+    sectionId: String(raw.section_id),
+    role: raw.role as ChatMessage["role"],
+    content: raw.content as string,
+    createdAt: raw.created_at as string,
+  };
+}
+
+export function mapDiscoveryQuestion(
+  raw: Record<string, unknown>,
+  documentId?: string
+): DiscoveryQuestion {
+  return {
+    id: String(raw.id),
+    documentId: documentId ?? String(raw.document_id ?? ""),
+    question: raw.question as string,
+    answer: (raw.answer as string) ?? null,
+    skipped: raw.skipped as boolean,
+  };
+}
+
+// ─── API helpers ─────────────────────────────────────────────
+
+export async function apiCreateDocument(
+  title: string,
+  documentContext: string,
+  userPreferences?: string
+): Promise<Document> {
+  const res = await fetch(`${API_BASE}/documents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title,
+      document_context: documentContext,
+      user_preferences: userPreferences ?? null,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to create document");
+  return mapDocument(await res.json());
+}
+
+export async function apiAnswerQuestion(
+  documentId: string,
+  question: string,
+  answer: string | null
+) {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, answer }),
+  });
+  if (!res.ok) throw new Error("Failed to answer question");
+  return res.json();
+}
+
+export async function apiSendEvent(
+  documentId: string,
+  eventType: string,
+  data: Record<string, unknown>
+) {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event_type: eventType, data }),
+  });
+  if (!res.ok) throw new Error("Failed to send event");
+  return res.json();
+}
+
+export async function apiFetchVersions(
+  sectionId: string
+): Promise<SectionVersion[]> {
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/versions`);
+  if (!res.ok) throw new Error("Failed to fetch versions");
+  const data = await res.json();
+  return (data as Record<string, unknown>[]).map(mapVersion);
+}
+
+export async function apiFetchMessages(
+  sectionId: string
+): Promise<ChatMessage[]> {
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/chat`);
+  if (!res.ok) throw new Error("Failed to fetch messages");
+  const data = await res.json();
+  return (data as Record<string, unknown>[]).map(mapChatMessage);
+}
+
+export async function apiRestoreVersion(
+  sectionId: string,
+  versionId: string
+) {
+  const res = await fetch(
+    `${API_BASE}/sections/${sectionId}/versions/${versionId}/restore`,
+    { method: "POST" }
+  );
+  if (!res.ok) throw new Error("Failed to restore version");
+  return res.json();
+}
+
+export async function apiUpdateCompletedDocument(
+  documentId: string,
+  sections: Array<{
+    section_type: Section["sectionType"];
+    content: string;
+  }>
+) {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/completed-content`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sections }),
+  });
+  if (!res.ok) throw new Error("Failed to save completed document");
+  return res.json();
+}
