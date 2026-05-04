@@ -7,6 +7,7 @@ from sqlalchemy import or_, select
 
 from app.inngest_client import inngest_client
 from app.workflows.helpers import generate_section_root, process_edit, process_question, process_analysis
+from app.workflows.credits import weekly_credit_reset
 from app.database import async_session
 from app.models import DiscoveryQuestion
 from app.services import db as db_service
@@ -511,4 +512,5 @@ ALL_FUNCTIONS = [
     handle_section_action,
     run_audit_fn,
     complete_document,
+    weekly_credit_reset,
 ]

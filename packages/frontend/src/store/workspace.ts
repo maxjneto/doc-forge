@@ -13,6 +13,8 @@ import {
   apiRestoreVersion,
 } from "@/utils/api";
 
+type GetToken = () => Promise<string | null>;
+
 // Stable empty references to avoid infinite re-renders in selectors
 const EMPTY_VERSIONS: SectionVersion[] = [];
 const EMPTY_MESSAGES: ChatMessage[] = [];
@@ -31,6 +33,10 @@ export type ViewMode = "editing" | "readonly" | "locked";
 // ─── Store Shape ─────────────────────────────────────────────
 
 interface WorkspaceState {
+  // Auth
+  getToken: GetToken | null;
+  setGetToken: (fn: GetToken) => void;
+
   // Data
   documentId: string | null;
   sections: Section[];
@@ -85,6 +91,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   sendingMessageBySection: {},
   awaitingAgentBySection: {},
 
+  // Auth
+  getToken: null,
+  setGetToken: (fn) => set({ getToken: fn }),
+
   // UI defaults
   activeSection: "context",
   editorMode: "preview",
@@ -113,14 +123,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   // ─── Async Data Fetching ─────────────────────────────────
 
   fetchVersions: async (sectionId) => {
-    const versions = await apiFetchVersions(sectionId);
+    const { getToken } = get();
+    if (!getToken) return;
+    const versions = await apiFetchVersions(sectionId, getToken);
     set((state) => ({
       versions: { ...state.versions, [sectionId]: versions },
     }));
   },
 
   fetchMessages: async (sectionId) => {
-    const apiMessages = await apiFetchMessages(sectionId);
+    const { getToken } = get();
+    if (!getToken) return;
+    const apiMessages = await apiFetchMessages(sectionId, getToken);
     const state = get();
     const current = state.messages[sectionId] ?? [];
 
@@ -162,7 +176,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const lastApiMsg = apiMessages[apiMessages.length - 1];
     const lastCurrentReal = current.filter((m) => !m.id.startsWith("pending-")).pop();
     if (lastApiMsg?.role === "agent" && lastApiMsg.id !== lastCurrentReal?.id) {
-      const versions = await apiFetchVersions(sectionId);
+      const versions = await apiFetchVersions(sectionId, getToken);
       set((state) => ({
         versions: { ...state.versions, [sectionId]: versions },
       }));
@@ -195,6 +209,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }),
 
   restoreVersion: async (sectionId, versionId) => {
+    const { getToken } = get();
+    if (!getToken) return;
     // Optimistic update
     set((state) => {
       const sectionVersions = state.versions[sectionId];
@@ -210,7 +226,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       };
     });
 
-    await apiRestoreVersion(sectionId, versionId);
+    await apiRestoreVersion(sectionId, versionId, getToken);
   },
 
   sendMessage: async (content, actionType) => {
@@ -218,7 +234,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const section = state.sections.find(
       (s) => s.sectionType === state.activeSection
     );
-    if (!section || !state.documentId) return;
+    if (!section || !state.documentId || !state.getToken) return;
 
     // Optimistic user message
     const userMsg: ChatMessage = {
@@ -263,7 +279,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     try {
-      await apiSendEvent(state.documentId, "section_action", eventData);
+      await apiSendEvent(state.documentId, "section_action", eventData, state.getToken!);
       // Message polling in WorkspaceLayout will pick up the agent response
     } catch (error) {
       set((state) => ({
@@ -285,12 +301,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   finalizeSection: async (sectionId) => {
     const state = get();
-    if (!state.documentId) return;
+    if (!state.documentId || !state.getToken) return;
 
     await apiSendEvent(state.documentId, "section_action", {
       action_type: "finalize",
       section_id: sectionId,
-    });
+    }, state.getToken);
     // Polling from DocumentPage will update section status
   },
 

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     INNGEST_DEV_SERVER_URL: str = "http://127.0.0.1:8288"
     IS_PRODUCTION: bool = False
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CLERK_JWKS_URL: str = ""
 
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 

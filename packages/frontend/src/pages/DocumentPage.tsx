@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import type { Phase } from "@/types";
 import { useDocument } from "@/hooks/useDocument";
 import { usePhase } from "@/hooks/usePhase";
@@ -15,13 +16,14 @@ import { TopBar } from "@/components/shared";
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const isNew = urlId === "new";
 
   // For new documents, documentId starts as null until created
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
   const activeDocId = isNew ? createdDocId : (urlId ?? null);
 
-  const { document, sections, discoveryQuestions, auditProblems, loading, refreshNow } = useDocument(activeDocId);
+  const { document, sections, discoveryQuestions, auditProblems, loading, refreshNow } = useDocument(activeDocId, getToken);
 
   const currentPhase: Phase = document?.currentPhase ?? "discovery";
   const { config } = usePhase(currentPhase);

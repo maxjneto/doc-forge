@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { ChatPanel } from "./ChatPanel";
 import { EditorPanel } from "./EditorPanel";
 import { TimelinePanel } from "./TimelinePanel";
@@ -11,11 +12,18 @@ interface WorkspaceLayoutProps {
 }
 
 export function WorkspaceLayout({ documentId, sections }: WorkspaceLayoutProps) {
+  const { getToken } = useAuth();
   const hydrate = useWorkspaceStore((s) => s.hydrate);
+  const setGetToken = useWorkspaceStore((s) => s.setGetToken);
   const activeSection = useWorkspaceStore((s) => s.activeSection);
   const getActiveSection = useWorkspaceStore((s) => s.getActiveSection);
   const fetchVersions = useWorkspaceStore((s) => s.fetchVersions);
   const fetchMessages = useWorkspaceStore((s) => s.fetchMessages);
+
+  // Register auth token in store
+  useEffect(() => {
+    setGetToken(getToken);
+  }, [getToken, setGetToken]);
 
   // Hydrate store with polling data
   useEffect(() => {

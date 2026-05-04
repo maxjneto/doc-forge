@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import type { Section, SectionType } from "@/types";
 import { apiUpdateCompletedDocument } from "@/utils/api";
 import { MarkdownRenderer } from "@/components/shared";
@@ -53,6 +54,7 @@ function parseMergedMarkdown(markdown: string): Record<SectionType, string> | nu
 type PanelMode = "source" | "preview";
 
 export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayoutProps) {
+  const { getToken } = useAuth();
   const initialContent = useMemo(() => buildMergedMarkdown(sections), [sections]);
   const [content, setContent] = useState(initialContent);
   const [mode, setMode] = useState<PanelMode>("preview");
@@ -87,7 +89,7 @@ export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayo
         { section_type: "proposal", content: parsed.proposal },
         { section_type: "implementation", content: parsed.implementation },
         { section_type: "risks", content: parsed.risks },
-      ]);
+      ], getToken);
       setDirty(false);
       setSaved(true);
       onSaved?.();

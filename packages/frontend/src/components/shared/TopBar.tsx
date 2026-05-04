@@ -1,13 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { Icon } from "./Icon";
+import { UserButton } from "@clerk/clerk-react";
 import type { Phase } from "@/types";
 
 interface TopBarProps {
   phase?: Phase;
   phaseLabel?: string;
+  credits?: number;
 }
 
-export function TopBar({ phaseLabel }: TopBarProps) {
+export function TopBar({ phaseLabel, credits }: TopBarProps) {
   const { pathname } = useLocation();
   const isHome = pathname === "/";
   const isDocument = pathname.startsWith("/document/");
@@ -46,16 +47,24 @@ export function TopBar({ phaseLabel }: TopBarProps) {
         </Link>
       </nav>
 
-      {/* Right: phase label + settings */}
+      {/* Right: credits + phase label + user */}
       <div className="flex items-center gap-4">
+        {credits !== undefined && (
+          <span
+            className={`text-xs font-semibold uppercase tracking-wider ${
+              credits > 0 ? "text-primary-container" : "text-on-surface-variant/40"
+            }`}
+            title="Weekly credits remaining"
+          >
+            {credits} cr
+          </span>
+        )}
         {phaseLabel && (
           <span className="text-xs uppercase tracking-wider text-on-surface-variant/60 font-medium">
             fase: {phaseLabel}
           </span>
         )}
-        <button className="hover:text-on-surface transition-colors">
-          <Icon name="settings" className="text-on-surface-variant/60" />
-        </button>
+        <UserButton />
       </div>
     </header>
   );

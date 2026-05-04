@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import type { Section, SectionType } from "@/types";
 import { apiSendEvent } from "@/utils/api";
 import { ForgeLoader } from "@/components/shared";
@@ -42,6 +43,7 @@ export function AlignmentLayout({
   documentId,
   sections,
 }: AlignmentLayoutProps) {
+  const { getToken } = useAuth();
   const [cards, setCards] = useState<Record<SectionType, CardState>>(() => {
     const initial: Record<string, CardState> = {};
     for (const type of SECTION_ORDER) {
@@ -105,7 +107,7 @@ export function AlignmentLayout({
     await apiSendEvent(documentId, "approved_alignment", {
       all_approved: false,
       rejected: [{ section: type, reason }],
-    });
+    }, getToken);
     // Polling will update sections with new summaries → useEffect above resets status
   };
 
@@ -113,7 +115,7 @@ export function AlignmentLayout({
     setConfirming(true);
     await apiSendEvent(documentId, "approved_alignment", {
       all_approved: true,
-    });
+    }, getToken);
     // Polling will detect phase change to "generation" → DocumentPage switches layout
   };
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 import type { Document } from "@/types";
-import { API_BASE, mapDocument } from "@/utils/api";
+import { API_BASE, mapDocument, apiFetchMe } from "@/utils/api";
 import { TopBar } from "@/components/shared";
 import { Icon } from "@/components/shared";
 
@@ -16,13 +17,17 @@ const PHASE_LABELS: Record<string, string> = {
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [credits, setCredits] = useState<number | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDocs() {
       try {
-        const res = await fetch(`${API_BASE}/documents`);
+        const token = await getToken();
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/documents`, { headers });
         if (!res.ok) throw new Error("Failed to fetch documents");
         const data = await res.json();
         setDocuments(
@@ -32,12 +37,23 @@ export function HomePage() {
         setError(err instanceof Error ? err.message : "Failed to load documents");
       }
     }
+
+    async function fetchUser() {
+      try {
+        const user = await apiFetchMe(getToken);
+        setCredits(user.credits);
+      } catch {
+        // non-critical
+      }
+    }
+
     fetchDocs();
-  }, []);
+    fetchUser();
+  }, [getToken]);
 
   return (
     <div className="min-h-screen bg-background text-on-surface flex flex-col">
-      <TopBar />
+      <TopBar credits={credits} />
 
       <main className="flex-grow pt-[70px] pb-32 px-4 md:px-8 w-full max-w-[1000px] mx-auto flex flex-col gap-6">
         {/* Page header */}
@@ -52,7 +68,9 @@ export function HomePage() {
           </div>
           <button
             onClick={() => navigate("/document/new")}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-container text-white rounded self-start sm:self-auto hover:shadow-[0_0_15px_rgba(255,87,26,0.4)] transition-all duration-300 active:scale-95"
+            disabled={credits === 0}
+            title={credits === 0 ? "No credits remaining. Resets weekly." : undefined}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-container text-white rounded self-start sm:self-auto hover:shadow-[0_0_15px_rgba(255,87,26,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
           >
             <Icon name="add" className="text-[18px]" />
             <span className="text-xs uppercase tracking-wider font-medium">

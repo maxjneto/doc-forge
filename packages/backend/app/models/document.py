@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Text, DateTime, func
+from sqlalchemy import String, Text, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -13,6 +13,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[str] = mapped_column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     current_phase: Mapped[str] = mapped_column(String(30), nullable=False, default="discovery")
     document_context: Mapped[str] = mapped_column(Text, nullable=False)
@@ -26,3 +27,4 @@ class Document(Base):
     sections = relationship("Section", back_populates="document", cascade="all, delete-orphan")
     discovery_questions = relationship("DiscoveryQuestion", back_populates="document", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="document", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="documents")

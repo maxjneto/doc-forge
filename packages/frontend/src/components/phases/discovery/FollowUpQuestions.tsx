@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import type { DiscoveryQuestion } from "@/types";
 import { apiAnswerQuestion } from "@/utils/api";
 
@@ -13,6 +14,7 @@ export function FollowUpQuestions({
   questions,
   onComplete,
 }: FollowUpQuestionsProps) {
+  const { getToken } = useAuth();
   const [answers, setAnswers] = useState<Record<string, { answer: string | null; answered: boolean }>>({});
   const [currentInput, setCurrentInput] = useState("");
 
@@ -33,7 +35,7 @@ export function FollowUpQuestions({
     }));
     setCurrentInput("");
 
-    await apiAnswerQuestion(documentId, question.question, answer);
+    await apiAnswerQuestion(documentId, question.question, answer, getToken);
 
     // If this was the last question, complete
     const remaining = questions.filter(

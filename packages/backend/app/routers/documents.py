@@ -2,14 +2,16 @@ import uuid
 import datetime
 
 import inngest
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth import get_current_user
 from app.database import get_db
 from app.models import Document, Section, DiscoveryQuestion
+from app.models.user import User
 from app.schemas.document import (
     DocumentCreate,
     DocumentResponse,
@@ -27,23 +29,34 @@ router = APIRouter(tags=["documents"])
 
 
 @router.get("/documents", response_model=DocumentListResponse)
-async def list_documents(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Document).order_by(Document.updated_at.desc()))
+async def list_documents(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Document)
+        .where(Document.user_id == current_user.id)
+        .order_by(Document.updated_at.desc())
+    )
     documents = result.scalars().all()
-    logger.debug("[router] list_documents | count={}", len(documents))
+    logger.debug("[router] list_documents | user_id={} count={}", current_user.id, len(documents))
     return DocumentListResponse(documents=[DocumentResponse.model_validate(d) for d in documents])
 
 
 @router.get("/documents/{document_id}", response_model=DocumentDetailResponse)
-async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    logger.debug("[router] get_document | doc_id={}", document_id)
+async def get_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.debug("[router] get_document | doc_id={} user_id={}", document_id, current_user.id)
     result = await db.execute(
         select(Document)
         .options(
             selectinload(Document.sections).selectinload(Section.versions),
             selectinload(Document.discovery_questions),
         )
-        .where(Document.id == document_id)
+        .where(Document.id == document_id, Document.user_id == current_user.id)
     )
     doc = result.scalar_one_or_none()
     if not doc:
@@ -75,12 +88,24 @@ async def get_document(document_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
-async def create_document(payload: DocumentCreate, db: AsyncSession = Depends(get_db)):
-    logger.info("[router] create_document | title='{}'", payload.title)
+async def create_document(
+    payload: DocumentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info("[router] create_document | title='{}' user_id={}", payload.title, current_user.id)
+
+    if current_user.credits < 1:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="No credits remaining. Credits reset weekly.",
+        )
+
     doc = Document(
         title=payload.title,
         document_context=payload.document_context,
         user_preferences=payload.user_preferences,
+        user_id=current_user.id,
     )
     db.add(doc)
     await db.commit()
@@ -109,6 +134,14 @@ async def create_document(payload: DocumentCreate, db: AsyncSession = Depends(ge
         logger.error(f"Failed to dispatch Inngest event for document {doc.id}: {e}")
         raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
 
+    # Deduct credit after successful dispatch
+    await db.execute(
+        update(User)
+        .where(User.id == current_user.id)
+        .values(credits=User.credits - 1)
+    )
+    await db.commit()
+
     return DocumentResponse.model_validate(doc)
 
 
@@ -117,12 +150,19 @@ async def answer_question(
     document_id: uuid.UUID,
     payload: AnswerQuestionRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     logger.info(
         "[router] answer_question | doc_id={} skipped={}",
         document_id,
         payload.answer is None,
     )
+    # Verify ownership
+    doc_result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not doc_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
     # Mark the question as answered or skipped
     result = await db.execute(
         select(DiscoveryQuestion).where(
@@ -164,12 +204,19 @@ async def dispatch_event(
     document_id: uuid.UUID,
     payload: EventRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     logger.info(
         "[router] dispatch_event | doc_id={} event_type={}",
         document_id,
         payload.event_type,
     )
+    # Verify ownership
+    doc_result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not doc_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
     event_map = {
         "approved_alignment": "docforge/user.approved_alignment",
         "section_action": "docforge/user.section_action",
@@ -197,11 +244,12 @@ async def update_completed_document_content(
     document_id: uuid.UUID,
     payload: CompletedDocumentUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     logger.info("[router] update_completed_document_content | doc_id={}", document_id)
 
     result = await db.execute(
-        select(Document).where(Document.id == document_id)
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
     )
     doc = result.scalar_one_or_none()
     if not doc:

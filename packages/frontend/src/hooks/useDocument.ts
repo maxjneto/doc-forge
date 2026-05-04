@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Document, Section, DiscoveryQuestion, AuditProblem } from "@/types";
 import { API_BASE, mapDocument, mapSection, mapDiscoveryQuestion } from "@/utils/api";
 
+type GetToken = () => Promise<string | null>;
+
 interface DocumentState {
   document: Document | null;
   sections: Section[];
@@ -11,7 +13,7 @@ interface DocumentState {
   error: string | null;
 }
 
-export function useDocument(documentId: string | null) {
+export function useDocument(documentId: string | null, getToken?: GetToken) {
   const [state, setState] = useState<DocumentState>({
     document: null,
     sections: [],
@@ -27,7 +29,9 @@ export function useDocument(documentId: string | null) {
     if (!documentId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/documents/${documentId}`);
+      const token = getToken ? await getToken() : null;
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`${API_BASE}/documents/${documentId}`, { headers });
       if (!res.ok) throw new Error("Failed to fetch document");
       const data = await res.json();
 
@@ -59,7 +63,7 @@ export function useDocument(documentId: string | null) {
         error: err instanceof Error ? err.message : "Unknown error",
       }));
     }
-  }, [documentId]);
+  }, [documentId, getToken]);
 
   // Start polling
   useEffect(() => {

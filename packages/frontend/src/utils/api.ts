@@ -77,14 +77,33 @@ export function mapDiscoveryQuestion(
 
 // ─── API helpers ─────────────────────────────────────────────
 
+type GetToken = () => Promise<string | null>;
+
+async function authHeaders(getToken: GetToken, extra?: Record<string, string>) {
+  const token = await getToken();
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
+
+export async function apiFetchMe(getToken: GetToken) {
+  const res = await fetch(`${API_BASE}/users/me`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch user");
+  return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number }>;
+}
+
 export async function apiCreateDocument(
   title: string,
   documentContext: string,
-  userPreferences?: string
+  getToken: GetToken,
+  userPreferences?: string,
 ): Promise<Document> {
   const res = await fetch(`${API_BASE}/documents`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({
       title,
       document_context: documentContext,
@@ -98,11 +117,12 @@ export async function apiCreateDocument(
 export async function apiAnswerQuestion(
   documentId: string,
   question: string,
-  answer: string | null
+  answer: string | null,
+  getToken: GetToken,
 ) {
   const res = await fetch(`${API_BASE}/documents/${documentId}/answer`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({ question, answer }),
   });
   if (!res.ok) throw new Error("Failed to answer question");
@@ -112,11 +132,12 @@ export async function apiAnswerQuestion(
 export async function apiSendEvent(
   documentId: string,
   eventType: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  getToken: GetToken,
 ) {
   const res = await fetch(`${API_BASE}/documents/${documentId}/events`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({ event_type: eventType, data }),
   });
   if (!res.ok) throw new Error("Failed to send event");
@@ -124,18 +145,24 @@ export async function apiSendEvent(
 }
 
 export async function apiFetchVersions(
-  sectionId: string
+  sectionId: string,
+  getToken: GetToken,
 ): Promise<SectionVersion[]> {
-  const res = await fetch(`${API_BASE}/sections/${sectionId}/versions`);
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/versions`, {
+    headers: await authHeaders(getToken),
+  });
   if (!res.ok) throw new Error("Failed to fetch versions");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapVersion);
 }
 
 export async function apiFetchMessages(
-  sectionId: string
+  sectionId: string,
+  getToken: GetToken,
 ): Promise<ChatMessage[]> {
-  const res = await fetch(`${API_BASE}/sections/${sectionId}/chat`);
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/chat`, {
+    headers: await authHeaders(getToken),
+  });
   if (!res.ok) throw new Error("Failed to fetch messages");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapChatMessage);
@@ -143,11 +170,12 @@ export async function apiFetchMessages(
 
 export async function apiRestoreVersion(
   sectionId: string,
-  versionId: string
+  versionId: string,
+  getToken: GetToken,
 ) {
   const res = await fetch(
     `${API_BASE}/sections/${sectionId}/versions/${versionId}/restore`,
-    { method: "POST" }
+    { method: "POST", headers: await authHeaders(getToken) }
   );
   if (!res.ok) throw new Error("Failed to restore version");
   return res.json();
@@ -158,11 +186,12 @@ export async function apiUpdateCompletedDocument(
   sections: Array<{
     section_type: Section["sectionType"];
     content: string;
-  }>
+  }>,
+  getToken: GetToken,
 ) {
   const res = await fetch(`${API_BASE}/documents/${documentId}/completed-content`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({ sections }),
   });
   if (!res.ok) throw new Error("Failed to save completed document");

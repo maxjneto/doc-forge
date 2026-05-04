@@ -4,3 +4,4 @@ export { PhaseTransition } from "./PhaseTransition";
 export { MarkdownRenderer } from "./MarkdownRenderer";
 export { ForgeLoader } from "./ForgeLoader";
 export type { ForgeLoaderStep } from "./ForgeLoader";
+export { ProtectedRoute } from "./ProtectedRoute";

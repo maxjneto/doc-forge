@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.document import Document
 from app.models.section import Section, SectionVersion
 from app.models.chat import ChatMessage
@@ -6,6 +7,7 @@ from app.models.base import Base
 
 __all__ = [
     "Base",
+    "User",
     "Document",
     "Section",
     "SectionVersion",

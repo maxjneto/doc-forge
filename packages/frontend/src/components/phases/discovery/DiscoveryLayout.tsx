@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import type { DiscoveryQuestion } from "@/types";
 import { apiCreateDocument } from "@/utils/api";
 import { InitialInput } from "./InitialInput";
@@ -18,6 +19,7 @@ export function DiscoveryLayout({
   questions,
   onDocumentCreated,
 }: DiscoveryLayoutProps) {
+  const { getToken } = useAuth();
   const getInitialSubState = (): DiscoverySubState => {
     if (!documentId) return "input";
     if (questions.length > 0) return "questions";
@@ -36,7 +38,7 @@ export function DiscoveryLayout({
   const handleSubmitInput = async (context: string, preferences: string) => {
     setSubState("processing");
 
-    const doc = await apiCreateDocument("New RFC", context, preferences);
+    const doc = await apiCreateDocument("New RFC", context, getToken, preferences);
     onDocumentCreated?.(doc.id);
     // Polling will now start in DocumentPage and feed questions back via props
   };
