@@ -149,26 +149,33 @@ async def run_discovery(ctx: inngest.Context):
 
                 await step.run(f"save-questions-{iteration}", _save_questions)
 
-            # Wait for one answer per question in this round
-            round_answers: list[dict] = []
-            for q_idx, question in enumerate(questions):
-                answer_event = await step.wait_for_event(
-                    f"wait-user-answer-{iteration}-{q_idx}",
-                    event="docforge/user.answered_question",
-                    timeout=datetime.timedelta(days=7),
-                    if_exp="event.data.document_id == async.data.document_id",
-                )
-                logger.info(
-                    "[orchestrator] user answered | doc_id={} iteration={} q_idx={}",
-                    doc_id, iteration, q_idx,
-                )
-                round_answers.append({
-                    "question": answer_event.data["question"],
-                    "answer": answer_event.data.get("answer"),
-                })
+            # Single wait per round — the answer router fires this event once
+            # every pending question for the document is resolved, regardless
+            # of how quickly the user answered them.
+            await step.wait_for_event(
+                f"wait-round-complete-{iteration}",
+                event="docforge/user.discovery_round_complete",
+                timeout=datetime.timedelta(days=7),
+                if_exp="async.data.document_id == event.data.document_id",
+            )
+            logger.info(
+                "[orchestrator] round {} complete | doc_id={}",
+                iteration,
+                doc_id,
+            )
 
-            # If all questions in this round were skipped, stop asking
-            all_skipped = all(a["answer"] is None for a in round_answers)
+            # If every question was skipped (no real answers), stop asking
+            async def _check_all_skipped():
+                async with async_session() as db:
+                    result = await db.execute(
+                        select(DiscoveryQuestion).where(
+                            DiscoveryQuestion.document_id == uuid.UUID(doc_id),
+                            DiscoveryQuestion.answer.is_not(None),
+                        )
+                    )
+                    return result.scalars().first() is None
+
+            all_skipped = await step.run(f"check-all-skipped-{iteration}", _check_all_skipped)
             if all_skipped:
                 logger.info(
                     "[orchestrator] all questions skipped, forcing sufficiency | doc_id={}",

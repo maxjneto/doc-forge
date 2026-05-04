@@ -180,20 +180,26 @@ async def answer_question(
             question.answer = payload.answer
         await db.commit()
 
-    # Dispatch Inngest event
+    # Check if all discovery questions for this document are now resolved.
+    # If so, fire the round-complete signal so the orchestrator can proceed.
     try:
-        await inngest_client.send(
-            inngest.Event(
-                name="docforge/user.answered_question",
-                data={
-                    "document_id": str(document_id),
-                    "question": payload.question,
-                    "answer": payload.answer,
-                },
+        pending_result = await db.execute(
+            select(DiscoveryQuestion).where(
+                DiscoveryQuestion.document_id == document_id,
+                DiscoveryQuestion.answer.is_(None),
+                DiscoveryQuestion.skipped == False,
             )
         )
+        pending = pending_result.scalars().first()
+        if pending is None:
+            await inngest_client.send(
+                inngest.Event(
+                    name="docforge/user.discovery_round_complete",
+                    data={"document_id": str(document_id)},
+                )
+            )
     except Exception as e:
-        logger.error(f"Failed to dispatch Inngest event for answer on {document_id}: {e}")
+        logger.error(f"Failed to dispatch round-complete event for {document_id}: {e}")
         raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
 
     return {"status": "ok"}
