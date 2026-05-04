@@ -145,6 +145,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       (m) => !apiContentSet.has(m.content)
     );
 
+    // Guard against stale responses from concurrent in-flight fetches
+    const currentConfirmed = current.filter((m) => !m.id.startsWith("pending-"));
+    if (apiMessages.length < currentConfirmed.length) return;
+
     const merged = [...apiMessages, ...stillPending];
 
     // Only update if data changed
