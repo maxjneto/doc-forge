@@ -150,7 +150,7 @@ export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayo
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar">
             {mode === "preview" ? (
               <div className="px-12 pt-10 pb-8 max-w-[800px] mx-auto">
                 <MarkdownRenderer content={content} variant="editor" />

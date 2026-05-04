@@ -11,7 +11,7 @@ import { GenerationLayout } from "@/components/phases/generation/GenerationLayou
 import { CompletedLayout } from "@/components/phases/completed";
 import { WorkspaceLayout } from "@/components/workspace";
 import { AuditLayout } from "@/components/phases/audit/AuditLayout";
-import { TopBar } from "@/components/shared";
+import { ForgeLoader, TopBar } from "@/components/shared";
 
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
@@ -67,10 +67,23 @@ export function DocumentPage() {
           />
         )}
         {currentPhase === "refinement" && (
-          <WorkspaceLayout
-            documentId={activeDocId!}
-            sections={sections}
-          />
+          sections.every((s) => s.status === "finalized") ? (
+            <div className="h-full pt-[64px] flex items-center justify-center px-6">
+              <ForgeLoader
+                steps={[
+                  { message: "Finalizing your document...", detail: "Preparing the completed draft" },
+                  { message: "Running quality checks...", detail: "Verifying section consistency" },
+                  { message: "Wrapping up...", detail: "Almost there" },
+                ]}
+                stepInterval={3500}
+              />
+            </div>
+          ) : (
+            <WorkspaceLayout
+              documentId={activeDocId!}
+              sections={sections}
+            />
+          )
         )}
         {currentPhase === "audit" && (
           <AuditLayout
