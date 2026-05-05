@@ -1,5 +1,5 @@
-import { useAuth, RedirectToSignIn } from "@clerk/clerk-react";
-import { Outlet } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
+import { Navigate, Outlet } from "react-router-dom";
 
 export function ProtectedRoute() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -9,7 +9,7 @@ export function ProtectedRoute() {
   }
 
   if (!isSignedIn) {
-    return <RedirectToSignIn />;
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

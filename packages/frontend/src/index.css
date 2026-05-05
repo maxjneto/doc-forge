@@ -49,6 +49,7 @@
   --color-primary-fixed-dim: #ffb59e;
   --color-surface-container-low: #1b1c1c;
   --color-secondary-container: #474746;
+  --color-forge-orange: #FF4D00;
 
   /* Spacing */
   --spacing-xl: 48px;
@@ -109,6 +110,26 @@ body {
 
 .active-glow-primary {
   box-shadow: 0 0 15px rgba(255, 77, 0, 0.28);
+}
+
+.forge-btn {
+  background: #FF4D00;
+  color: white;
+  box-shadow: 0 0 15px rgba(255, 77, 0, 0.4);
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+.forge-btn:hover {
+  background: white;
+  color: black;
+  box-shadow: 0 0 20px rgba(255, 77, 0, 0.6);
+}
+
+.stage-card {
+  border: 1px solid #262626;
+  transition: border-color 0.3s;
+}
+.stage-card:hover {
+  border-color: rgba(255, 77, 0, 0.4);
 }
 
 /* Animations */
