@@ -9,6 +9,6 @@
     "lint": "ruff check .",
     "lint:fix": "ruff check --fix .",
     "format": "ruff format .",
-    "test": "pytest tests/ -v"
+    "test": "python -m pytest tests/ -v"
   }
 }
