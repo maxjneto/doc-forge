@@ -1,18 +1,18 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DocumentCreate(BaseModel):
-    title: str
-    document_context: str
-    user_preferences: str | None = None
+    title: str = Field(max_length=200)
+    document_context: str = Field(max_length=20000)
+    user_preferences: str | None = Field(default=None, max_length=2000)
 
 
 class CompletedSectionUpdate(BaseModel):
-    section_type: str
-    content: str
+    section_type: str = Field(max_length=50)
+    content: str = Field(max_length=100000)
 
 
 class CompletedDocumentUpdateRequest(BaseModel):
