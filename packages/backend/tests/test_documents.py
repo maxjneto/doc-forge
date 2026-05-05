@@ -1,0 +1,81 @@
+"""Tests for document creation and credit system."""
+
+import pytest
+from unittest.mock import AsyncMock, patch
+from sqlalchemy import select
+
+from app.models.user import User
+from .conftest import TestSession
+
+
+@pytest.mark.asyncio
+async def test_create_document_success(client_factory):
+    """Document creation succeeds with credits available."""
+    user = User(id="user_credits", email="c@test.com", name="C", credits=3)
+
+    async with client_factory(user) as client:
+        with patch("app.routers.documents.inngest_client") as mock_inngest:
+            mock_inngest.send = AsyncMock()
+            res = await client.post(
+                "/api/documents",
+                json={"title": "My RFC", "document_context": "Build an API"},
+            )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["title"] == "My RFC"
+    assert data["current_phase"] == "discovery"
+
+
+@pytest.mark.asyncio
+async def test_create_document_no_credits_rejected(client_factory):
+    """Document creation fails when user has no credits."""
+    user = User(id="user_broke", email="broke@test.com", name="Broke", credits=0)
+
+    async with client_factory(user) as client:
+        with patch("app.routers.documents.inngest_client") as mock_inngest:
+            mock_inngest.send = AsyncMock()
+            res = await client.post(
+                "/api/documents",
+                json={"title": "Denied", "document_context": "No credits"},
+            )
+    assert res.status_code == 402
+    assert "credits" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_credit_deduction_is_atomic(client_factory):
+    """After creating a document, credit count decreases by exactly 1."""
+    user = User(id="user_atomic", email="atom@test.com", name="Atom", credits=2)
+
+    async with client_factory(user) as client:
+        with patch("app.routers.documents.inngest_client") as mock_inngest:
+            mock_inngest.send = AsyncMock()
+            res = await client.post(
+                "/api/documents",
+                json={"title": "First", "document_context": "ctx"},
+            )
+            assert res.status_code == 201
+
+    # Verify credit was deducted in the DB
+    async with TestSession() as session:
+        result = await session.execute(select(User).where(User.id == "user_atomic"))
+        db_user = result.scalar_one()
+        assert db_user.credits == 1
+
+
+@pytest.mark.asyncio
+async def test_create_document_dispatches_inngest_event(client_factory):
+    """Document creation dispatches the docforge/document.started event."""
+    user = User(id="user_evt", email="evt@test.com", name="Evt", credits=5)
+
+    async with client_factory(user) as client:
+        with patch("app.routers.documents.inngest_client") as mock_inngest:
+            mock_inngest.send = AsyncMock()
+            res = await client.post(
+                "/api/documents",
+                json={"title": "Event test", "document_context": "ctx"},
+            )
+            assert res.status_code == 201
+            mock_inngest.send.assert_called_once()
+            event = mock_inngest.send.call_args[0][0]
+            assert event.name == "docforge/document.started"
