@@ -63,7 +63,7 @@ export function TopBar({ phaseLabel, credits }: TopBarProps) {
         )}
         {phaseLabel && (
           <span className="text-xs uppercase tracking-wider text-on-surface-variant/60 font-medium">
-            fase: {phaseLabel}
+            PHASE: {phaseLabel}
           </span>
         )}
         <UserButton />
