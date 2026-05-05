@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import type { Document } from "@/types";
 import { API_BASE, mapDocument, apiFetchMe } from "@/utils/api";
-import { TopBar } from "@/components/shared";
-import { Icon } from "@/components/shared";
+import { TopBar, Icon, NewDocumentDialog } from "@/components/shared";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
@@ -21,6 +20,7 @@ export function HomePage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [credits, setCredits] = useState<number | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [showNewDocDialog, setShowNewDocDialog] = useState(false);
 
   useEffect(() => {
     async function fetchDocs() {
@@ -67,7 +67,7 @@ export function HomePage() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/document/new")}
+            onClick={() => setShowNewDocDialog(true)}
             disabled={credits === 0}
             title={credits === 0 ? "No credits remaining. Resets weekly." : undefined}
             className="flex items-center gap-2 px-4 py-2 bg-primary-container text-white rounded self-start sm:self-auto hover:shadow-[0_0_15px_rgba(255,87,26,0.4)] transition-all duration-300 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
@@ -156,6 +156,10 @@ export function HomePage() {
           ))}
         </section>
       </main>
+
+      {showNewDocDialog && (
+        <NewDocumentDialog onClose={() => setShowNewDocDialog(false)} />
+      )}
 
       <footer className="mt-auto py-6 flex justify-between items-center px-4 md:px-8 w-full max-w-[1000px] mx-auto border-t border-inverse-on-surface">
         <div className="flex items-center gap-2 text-secondary opacity-60">
