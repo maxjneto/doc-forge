@@ -1,6 +1,4 @@
-# DocForge — AI-Powered Document Generator
-
-> Automate the full lifecycle of technical document creation through a structured, AI-driven multi-phase workflow.
+# DocForge - AI Powered Document Generator
 
 ![React](https://img.shields.io/badge/React-19-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
@@ -8,9 +6,13 @@
 ![Inngest](https://img.shields.io/badge/Inngest-Orchestration-purple)
 ![Clerk](https://img.shields.io/badge/Auth-Clerk-black)
 
-**[Live Demo](PENDING_URL)**
+Automate the full lifecycle of technical document creation through a structured, AI-driven multi-phase workflow.
 
-<!-- SCREENSHOT OR GIF HERE -->
+ **[Live Demo](PENDING_URL)**
+ 
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/b79e2a6e-23b5-4914-a186-aa8490da3090" autoplay loop muted playsinline width="100%"></video>
+</div>
 
 > **Experimental / MVP** — This project is a work-in-progress. It may be modified, suspended, or discontinued at any time without prior notice.
 
@@ -122,7 +124,7 @@ Copy the example files and fill in the required values:
 | `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL` |
 | `packages/frontend/.env` | `VITE_API_BASE`, `VITE_CLERK_PUBLISHABLE_KEY` |
 
-See [`packages/backend/.env.example`](packages/backend/.env.example) and [`packages/frontend/.env.example`](packages/frontend/.env.example) for full reference.
+See [`packages/backend/.env.example`](packages/backend/.env.example) and [`.env.example`](.env.example) for full reference.
 
 ---
 
