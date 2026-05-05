@@ -135,6 +135,7 @@ async def run_discovery(ctx: inngest.Context):
             await step.run("save-context", _save_context)
         else:
             questions = analysis.get("follow_up_questions", [])[:3]
+            saved_ids: list[str] = []
             if questions:
                 logger.info(
                     "[orchestrator] saving {} questions | doc_id={}",
@@ -144,10 +145,13 @@ async def run_discovery(ctx: inngest.Context):
 
                 async def _save_questions(qs=questions):
                     async with async_session() as db:
+                        saved = []
                         for q in qs:
-                            await db_service.save_discovery_question(db, doc_id, q)
+                            dq = await db_service.save_discovery_question(db, doc_id, q)
+                            saved.append(str(dq.id))
+                        return saved
 
-                await step.run(f"save-questions-{iteration}", _save_questions)
+                saved_ids = await step.run(f"save-questions-{iteration}", _save_questions)
 
             # Single wait per round — the answer router fires this event once
             # every pending question for the document is resolved, regardless
@@ -164,12 +168,12 @@ async def run_discovery(ctx: inngest.Context):
                 doc_id,
             )
 
-            # If every question was skipped (no real answers), stop asking
-            async def _check_all_skipped():
+            # If every question in this round was skipped (no real answers), stop asking
+            async def _check_all_skipped(ids=saved_ids):
                 async with async_session() as db:
                     result = await db.execute(
                         select(DiscoveryQuestion).where(
-                            DiscoveryQuestion.document_id == uuid.UUID(doc_id),
+                            DiscoveryQuestion.id.in_([uuid.UUID(i) for i in ids]),
                             DiscoveryQuestion.answer.is_not(None),
                         )
                     )
