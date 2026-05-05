@@ -175,7 +175,7 @@ export function TimelinePanel() {
       {/* Meta info */}
       <div className="mt-auto pt-6 border-t border-outline-variant/20">
         <div className="flex items-center justify-between text-[10px] font-mono text-on-surface-variant/40 tracking-wider uppercase">
-          <span>v2.4.1</span>
+          <span>Demo</span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500/60 shadow-[0_0_8px_rgba(34,197,94,0.3)]" />
             Live

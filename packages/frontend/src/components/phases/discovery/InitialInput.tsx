@@ -25,7 +25,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
         {/* Context Card */}
         <div className="panel-depth rounded-xl p-6 bg-surface-container-low">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-base">📄</span>
+            <span className="material-symbols-outlined text-[18px] text-on-surface-variant/60">description</span>
             <h3 className="text-sm font-semibold text-on-surface">Context</h3>
           </div>
           <p className="text-xs text-on-surface-variant/60 mb-3">
@@ -42,7 +42,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
         {/* Preferences Card */}
         <div className="panel-depth rounded-xl p-6 bg-surface-container-low">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-base">⚙️</span>
+            <span className="material-symbols-outlined text-[18px] text-on-surface-variant/60">tune</span>
             <h3 className="text-sm font-semibold text-on-surface">Preferences</h3>
           </div>
           <p className="text-xs text-on-surface-variant/60 mb-3">
