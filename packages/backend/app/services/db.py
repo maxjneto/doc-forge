@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -8,8 +8,11 @@ from app.models import Document, Section, SectionVersion, ChatMessage, Discovery
 
 
 async def set_phase(db: AsyncSession, doc_id: uuid.UUID, phase: str) -> None:
+    """INTERNAL: caller must validate document ownership before invoking."""
     await db.execute(
-        update(Document).where(Document.id == doc_id).values(current_phase=phase)
+        update(Document)
+        .where(Document.id == doc_id)
+        .values(current_phase=phase, updated_at=func.now())
     )
     await db.commit()
 
@@ -19,24 +22,31 @@ async def set_error_phase(
     doc_id: uuid.UUID,
     error_message: str | None,
 ) -> None:
+    """INTERNAL: caller must validate document ownership before invoking."""
     await db.execute(
         update(Document)
         .where(Document.id == doc_id)
-        .values(current_phase="error", error_message=error_message)
+        .values(current_phase="error", error_message=error_message, updated_at=func.now())
     )
     await db.commit()
 
 
 async def save_global_context(db: AsyncSession, doc_id: uuid.UUID, context: str) -> None:
+    """INTERNAL: caller must validate document ownership before invoking."""
     await db.execute(
-        update(Document).where(Document.id == doc_id).values(global_context=context)
+        update(Document)
+        .where(Document.id == doc_id)
+        .values(global_context=context, updated_at=func.now())
     )
     await db.commit()
 
 
 async def save_user_preferences(db: AsyncSession, doc_id: uuid.UUID, preferences: str) -> None:
+    """INTERNAL: caller must validate document ownership before invoking."""
     await db.execute(
-        update(Document).where(Document.id == doc_id).values(user_preferences=preferences)
+        update(Document)
+        .where(Document.id == doc_id)
+        .values(user_preferences=preferences, updated_at=func.now())
     )
     await db.commit()
 
@@ -73,18 +83,24 @@ async def save_discovery_question(db: AsyncSession, doc_id: uuid.UUID, question:
 
 
 async def finalize_section(db: AsyncSession, section_id: uuid.UUID) -> None:
+    """INTERNAL: caller must validate section ownership before invoking."""
     await db.execute(
-        update(Section).where(Section.id == section_id).values(status="finalized")
+        update(Section)
+        .where(Section.id == section_id)
+        .values(status="finalized", updated_at=func.now())
     )
     await db.commit()
 
 
 async def start_refinement(db: AsyncSession, doc_id: uuid.UUID) -> None:
-    """Transition all drafting sections to refining status when Phase 4 starts."""
+    """Transition all drafting sections to refining status when Phase 4 starts.
+
+    INTERNAL: caller must validate document ownership before invoking.
+    """
     await db.execute(
         update(Section)
         .where(Section.document_id == doc_id, Section.status == "drafting")
-        .values(status="refining")
+        .values(status="refining", updated_at=func.now())
     )
     await db.commit()
 
@@ -100,26 +116,37 @@ async def all_sections_finalized(db: AsyncSession, doc_id: uuid.UUID) -> bool:
 
 
 async def reopen_sections(db: AsyncSession, doc_id: uuid.UUID, section_types: list[str]) -> None:
+    """INTERNAL: caller must validate document ownership before invoking."""
     await db.execute(
         update(Section)
         .where(Section.document_id == doc_id, Section.section_type.in_(section_types))
-        .values(status="refining")
+        .values(status="refining", updated_at=func.now())
     )
     await db.commit()
 
 
 async def save_audit_problems(db: AsyncSession, doc_id: uuid.UUID, problems: list[dict]) -> None:
-    """Store audit problems on the document for frontend display."""
+    """Store audit problems on the document for frontend display.
+
+    INTERNAL: caller must validate document ownership before invoking.
+    """
     await db.execute(
-        update(Document).where(Document.id == doc_id).values(audit_problems=problems)
+        update(Document)
+        .where(Document.id == doc_id)
+        .values(audit_problems=problems, updated_at=func.now())
     )
     await db.commit()
 
 
 async def clear_audit_problems(db: AsyncSession, doc_id: uuid.UUID) -> None:
-    """Clear audit problems when audit passes."""
+    """Clear audit problems when audit passes.
+
+    INTERNAL: caller must validate document ownership before invoking.
+    """
     await db.execute(
-        update(Document).where(Document.id == doc_id).values(audit_problems=None)
+        update(Document)
+        .where(Document.id == doc_id)
+        .values(audit_problems=None, updated_at=func.now())
     )
     await db.commit()
 
@@ -150,6 +177,7 @@ async def create_section_version(
     content: str,
     parent_version_id: uuid.UUID | None = None,
 ) -> SectionVersion:
+    """INTERNAL: caller must validate section ownership before invoking."""
     # Deactivate current active version
     await db.execute(
         update(SectionVersion)
@@ -171,6 +199,7 @@ async def create_section_version(
 
 
 async def restore_version(db: AsyncSession, section_id: uuid.UUID, version_id: uuid.UUID) -> SectionVersion:
+    """INTERNAL: caller must validate section ownership before invoking."""
     # Deactivate current active
     await db.execute(
         update(SectionVersion)

@@ -66,7 +66,7 @@ async def _decode_token(token: str) -> dict:
             options={"verify_aud": False},
         )
     except JWTError as exc:
-        logger.warning("[auth] JWT decode failed: {} | token_prefix={}", exc, token[:20])
+        logger.warning("[auth] JWT decode failed: {}", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -95,7 +95,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    logger.debug("[auth] get_current_user called | token_prefix={}", credentials.credentials[:20])
+    logger.debug("[auth] get_current_user called")
     payload = await _decode_token(credentials.credentials)
 
     user_id: str | None = payload.get("sub")
@@ -122,7 +122,7 @@ async def get_current_user(
         db.add(user)
         await db.commit()
         await db.refresh(user)
-        logger.info("[auth] new user created | user_id={} email={}", user_id, email)
+        logger.info("[auth] new user created | user_id={}", user_id)
     else:
         # Sync name/email if changed
         if user.email != email or user.name != name:
