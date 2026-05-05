@@ -95,11 +95,18 @@ async def create_document(
 ):
     logger.info("[router] create_document | title='{}' user_id={}", payload.title, current_user.id)
 
-    if current_user.credits < 1:
+    # Atomically deduct credit — prevents race conditions with concurrent requests
+    result = await db.execute(
+        update(User)
+        .where(User.id == current_user.id, User.credits >= 1)
+        .values(credits=User.credits - 1)
+    )
+    if result.rowcount == 0:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="No credits remaining. Credits reset weekly.",
         )
+    await db.commit()
 
     doc = Document(
         title=payload.title,
@@ -133,14 +140,6 @@ async def create_document(
     except Exception as e:
         logger.error(f"Failed to dispatch Inngest event for document {doc.id}: {e}")
         raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
-
-    # Deduct credit after successful dispatch
-    await db.execute(
-        update(User)
-        .where(User.id == current_user.id)
-        .values(credits=User.credits - 1)
-    )
-    await db.commit()
 
     return DocumentResponse.model_validate(doc)
 
