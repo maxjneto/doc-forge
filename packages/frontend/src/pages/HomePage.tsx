@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import type { Document } from "@/types";
 import { API_BASE, mapDocument, apiFetchMe } from "@/utils/api";
-import { TopBar, Icon, NewDocumentDialog } from "@/components/shared";
+import { TopBar, Icon, NewDocumentDialog, AppFooter } from "@/components/shared";
 
 const PHASE_LABELS: Record<string, string> = {
   discovery: "Discovery",
@@ -161,14 +161,7 @@ export function HomePage() {
         <NewDocumentDialog onClose={() => setShowNewDocDialog(false)} />
       )}
 
-      <footer className="mt-auto py-6 flex justify-between items-center px-4 md:px-8 w-full max-w-[1000px] mx-auto border-t border-inverse-on-surface">
-        <div className="flex items-center gap-2 text-secondary opacity-60">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary-container shadow-[0_0_8px_rgba(255,87,26,0.5)]" />
-          <span className="text-[11px] font-semibold uppercase tracking-widest">
-            Forge System Ready
-          </span>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

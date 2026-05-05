@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { HomePage, DocumentPage, LoadingPage, LandingPage } from "./pages";
+import { HomePage, DocumentPage, LoadingPage, LandingPage, LegalPage } from "./pages";
 import { ProtectedRoute } from "./components/shared";
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
@@ -15,6 +15,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/legal/:doc" element={<LegalPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/document/:id" element={<DocumentPage />} />

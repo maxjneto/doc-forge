@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, useClerk } from "@clerk/clerk-react";
+import { AppFooter } from "@/components/shared";
 
 export function LandingPage() {
   const { isSignedIn } = useAuth();
@@ -46,7 +47,7 @@ export function LandingPage() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "4px 16px", borderRadius: "9999px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(10,10,10,0.5)", backdropFilter: "blur(12px)" }}>
               <span className="animate-pulse" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#FF4D00", display: "inline-block" }} />
               <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", color: "#c8c6c5", textTransform: "uppercase" }}>
-                Beta Live
+                Live Demo
               </span>
             </div>
 
@@ -87,23 +88,7 @@ export function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", background: "#0A0A0A", padding: "24px 32px", marginTop: "auto" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto", display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-            <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", color: "#c8c6c5", textTransform: "uppercase" }}>
-              All Systems Operational
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: "24px" }}>
-            {["Privacy", "Terms", "Contact"].map((link) => (
-              <a key={link} href="#" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", color: "#c8c6c5", textDecoration: "none", textTransform: "uppercase" }}>
-                {link}
-              </a>
-            ))}
-          </div>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }
