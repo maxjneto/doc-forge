@@ -280,6 +280,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       eventData.prompt = content;
     } else if (actionType === "analyze_user_edit") {
       eventData.user_text = get().getActiveVersionContent();
+      eventData.message = content;
     }
 
     try {

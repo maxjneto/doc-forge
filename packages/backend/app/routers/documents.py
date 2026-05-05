@@ -4,13 +4,13 @@ import datetime
 import inngest
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Document, Section, DiscoveryQuestion
+from app.models import Document, Section, DiscoveryQuestion, ChatMessage
 from app.models.user import User
 from app.schemas.document import (
     DocumentCreate,
@@ -230,6 +230,25 @@ async def dispatch_event(
     event_name = event_map.get(payload.event_type)
     if not event_name:
         raise HTTPException(status_code=400, detail=f"Unknown event_type: {payload.event_type}")
+
+    if payload.event_type == "section_action":
+        action_type = payload.data.get("action_type")
+        if action_type in ("ask_question", "request_edit", "analyze_user_edit"):
+            try:
+                section_uuid = uuid.UUID(str(payload.data.get("section_id", "")))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid section_id")
+            count_result = await db.execute(
+                select(func.count()).select_from(ChatMessage).where(
+                    ChatMessage.section_id == section_uuid,
+                    ChatMessage.role == "user",
+                )
+            )
+            if count_result.scalar() >= 10:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Message limit reached for this section (10/10).",
+                )
 
     event_data = {**payload.data, "document_id": str(document_id)}
 

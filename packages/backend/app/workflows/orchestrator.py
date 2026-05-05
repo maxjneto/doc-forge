@@ -393,7 +393,7 @@ async def handle_section_action(ctx: inngest.Context):
 
     elif action == "analyze_user_edit":
         async def _analyze_edit():
-            await process_analysis(section_id, ctx.event.data["user_text"])
+            await process_analysis(section_id, ctx.event.data["user_text"], ctx.event.data.get("message", ""))
         await step.run("analyze-edit", _analyze_edit)
 
     elif action == "ask_question":

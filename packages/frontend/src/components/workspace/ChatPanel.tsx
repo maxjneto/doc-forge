@@ -68,6 +68,8 @@ export function ChatPanel() {
 
   const isInteractive = viewMode === "editing";
   const isProcessing = isSendingMessage || isAwaitingAgent;
+  const userMessageCount = messages.filter((m) => m.role === "user").length;
+  const isAtLimit = userMessageCount >= 10;
 
   useEffect(() => {
     const node = historyRef.current;
@@ -77,7 +79,7 @@ export function ChatPanel() {
 
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || isProcessing) return;
+    if (!trimmed || isProcessing || isAtLimit) return;
 
     setInput("");
 
@@ -119,17 +121,31 @@ export function ChatPanel() {
       {/* Chat Input */}
       {isInteractive && (
         <div className="p-4 border-t border-outline-variant/20 bg-surface/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-on-surface-variant/40 font-medium uppercase tracking-wide">
+              Messages per section
+            </span>
+            <span className={`text-[10px] font-semibold tabular-nums ${
+              userMessageCount >= 10
+                ? "text-red-400"
+                : userMessageCount >= 8
+                ? "text-orange-400"
+                : "text-on-surface-variant/40"
+            }`}>
+              {userMessageCount}/10
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2 mb-3">
             {quickActions.map((qa) => (
               <button
                 key={qa.action}
                 onClick={() => setActiveAction(qa.action)}
-                disabled={isProcessing}
+                disabled={isProcessing || isAtLimit}
                 className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium border rounded transition-all ${
                   activeAction === qa.action
                     ? "text-primary bg-primary/10 border-primary/30"
                     : "text-on-surface-variant/70 hover:text-on-surface bg-surface-container-high/30 hover:bg-surface-container-high border-outline-variant/10"
-                } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                } ${isProcessing || isAtLimit ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Icon name={qa.icon} className="!text-[14px]" />
                 {qa.label}
@@ -142,18 +158,32 @@ export function ChatPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isProcessing ? "Processing your message..." : "Send a message..."}
-              disabled={isProcessing}
-              className="w-full bg-surface-container-high/50 border border-outline-variant/20 text-on-surface text-sm rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/40"
+              maxLength={1000}
+              placeholder={
+                isAtLimit
+                  ? "Message limit reached."
+                  : isProcessing
+                  ? "Processing your message..."
+                  : "Send a message..."
+              }
+              disabled={isProcessing || isAtLimit}
+              className="w-full bg-surface-container-high/50 border border-outline-variant/20 text-on-surface text-sm rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/40 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               onClick={() => { void handleSend(); }}
-              disabled={isProcessing}
+              disabled={isProcessing || isAtLimit}
               className="absolute right-2 p-1.5 text-on-surface-variant/60 hover:text-primary transition-colors flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Icon name="arrow_upward" className="!text-sm" />
             </button>
           </div>
+          {input.length > 700 && (
+            <p className={`text-[10px] mt-1 text-right tabular-nums ${
+              input.length >= 1000 ? "text-red-400" : "text-on-surface-variant/40"
+            }`}>
+              {input.length}/1000
+            </p>
+          )}
         </div>
       )}
     </aside>

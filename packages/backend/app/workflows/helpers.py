@@ -92,6 +92,9 @@ async def process_edit(section_id: str, prompt: str) -> None:
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
 
+        # Persist user message before AI call so created_at ordering is correct
+        await db_service.add_chat_message(db, doc.id, section.id, "user", prompt)
+
         ai_result = await refine_section(
             section_type=section.section_type,
             general_context=doc.global_context or "",
@@ -101,9 +104,6 @@ async def process_edit(section_id: str, prompt: str) -> None:
             user_message=prompt,
             forced_tool_name="request_edit",
         )
-
-        # Persist user message in chat
-        await db_service.add_chat_message(db, doc.id, section.id, "user", prompt)
 
         if ai_result.get("tool") == "request_edit":
             logger.info(
@@ -150,6 +150,9 @@ async def process_question(section_id: str, message: str) -> None:
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
 
+        # Save user message before AI call so created_at ordering is correct
+        await db_service.add_chat_message(db, doc.id, section.id, "user", message)
+
         ai_result = await refine_section(
             section_type=section.section_type,
             general_context=doc.global_context or "",
@@ -160,14 +163,11 @@ async def process_question(section_id: str, message: str) -> None:
             forced_tool_name="answer_question",
         )
 
-        # Save user message
-        await db_service.add_chat_message(db, doc.id, section.id, "user", message)
-
         if ai_result.get("tool") == "answer_question":
             await db_service.add_chat_message(db, doc.id, section.id, "agent", ai_result["reply"])
 
 
-async def process_analysis(section_id: str, user_text: str) -> None:
+async def process_analysis(section_id: str, user_text: str, message: str = "") -> None:
     """Process user-edited text and provide AI analysis."""
     from app.ai.refinement import refine_section
 
@@ -194,13 +194,16 @@ async def process_analysis(section_id: str, user_text: str) -> None:
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
 
+        user_message = message or "Analyze this text and point out issues or improvements."
+        await db_service.add_chat_message(db, doc.id, section.id, "user", user_message)
+
         ai_result = await refine_section(
             section_type=section.section_type,
             general_context=doc.global_context or "",
             current_content=user_text,
             cross_section_context=await cross_context,
             chat_history=chat_history,
-            user_message="Analyze this text and point out issues or improvements.",
+            user_message=user_message,
             forced_tool_name="analyze_document",
         )
 
