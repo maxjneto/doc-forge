@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     IS_PRODUCTION: bool = False
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
     CLERK_JWKS_URL: str = ""
+    # Clerk does not include `aud` in tokens by default; `azp` (authorized party)
+    # is the equivalent claim — set to your frontend origin(s) in production.
+    CLERK_AUTHORIZED_PARTIES: list[str] = ["http://localhost:5173"]
 
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 

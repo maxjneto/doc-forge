@@ -56,14 +56,15 @@ async def _get_jwks() -> dict:
 async def _decode_token(token: str) -> dict:
     jwks = await _get_jwks()
     try:
+        # Clerk does not include `aud` in session tokens by default, so
+        # audience verification is disabled. Instead, we validate `azp`
+        # (authorized party) below, which serves the same security purpose.
         payload = jwt.decode(
             token,
             jwks,
             algorithms=["RS256"],
             options={"verify_aud": False},
         )
-        logger.debug("[auth] JWT decoded | sub={} claims={}", payload.get("sub"), list(payload.keys()))
-        return payload
     except JWTError as exc:
         logger.warning("[auth] JWT decode failed: {} | token_prefix={}", exc, token[:20])
         raise HTTPException(
@@ -71,6 +72,21 @@ async def _decode_token(token: str) -> dict:
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Validate `azp` (authorized party) to ensure the token was issued by our
+    # frontend and not by a different application sharing the same Clerk instance.
+    azp: str | None = payload.get("azp")
+    allowed = settings.CLERK_AUTHORIZED_PARTIES
+    if azp and allowed and azp not in allowed:
+        logger.warning("[auth] azp rejected | azp={} allowed={}", azp, allowed)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token authorized party not permitted",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    logger.debug("[auth] JWT decoded | sub={} azp={} claims={}", payload.get("sub"), azp, list(payload.keys()))
+    return payload
 
 
 # ─── Dependency ──────────────────────────────────────────────
