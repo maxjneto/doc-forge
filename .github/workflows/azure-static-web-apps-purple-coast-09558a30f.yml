@@ -25,6 +25,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Create frontend .env
+        working-directory: packages/frontend
+        run: |
+          echo "VITE_API_BASE=${{ secrets.VITE_API_BASE }}" >> .env
+          echo "VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}" >> .env
+
       - name: Install and Build Frontend
         working-directory: packages/frontend
         run: |
