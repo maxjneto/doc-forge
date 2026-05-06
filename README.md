@@ -124,7 +124,7 @@ Copy the example files and fill in the required values:
 | `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL` |
 | `packages/frontend/.env` | `VITE_API_BASE`, `VITE_CLERK_PUBLISHABLE_KEY` |
 
-See [`packages/backend/.env.example`](packages/backend/.env.example) and [`.env.example`](.env.example) for full reference.
+See [`packages/backend/.env.example`](packages/backend/.env.example) and [`packages/frontend/.env.example`](packages/frontend/.env.example) for full reference.
 
 ---
 
