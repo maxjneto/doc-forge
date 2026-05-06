@@ -1,0 +1,49 @@
+name: Trigger auto deployment for docforge-backend
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/docforge-backend-AutoDeployTrigger-c067e256-7bfd-4a6b-9d1a-1c7e65c16e94.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.DOCFORGEBACKEND_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.DOCFORGEBACKEND_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.DOCFORGEBACKEND_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: docforgeregistry.azurecr.io
+          registryUsername: ${{ secrets.DOCFORGEBACKEND_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.DOCFORGEBACKEND_REGISTRY_PASSWORD }}
+          containerAppName: docforge-backend
+          resourceGroup: rg-docforge
+          imageToBuild: docforgeregistry.azurecr.io/docforge-backend:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
