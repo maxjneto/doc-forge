@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { act } from "@testing-library/react";
 
 // Inline store creation for isolated test — avoids import side-effects
-import { create } from "zustand";
 import type { SectionType } from "@/types";
 import { SECTION_LABELS } from "@/store/workspace";
 
