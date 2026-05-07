@@ -8,7 +8,7 @@
 
 Automate the full lifecycle of technical document creation through a structured, AI-driven multi-phase workflow.
 
- **[Live Demo](PENDING_URL)**
+ **[Live Demo](https://doc-forge.dev)**
  
 <div align="center">
   <video src="https://github.com/user-attachments/assets/b79e2a6e-23b5-4914-a186-aa8490da3090" autoplay loop muted playsinline width="100%"></video>
