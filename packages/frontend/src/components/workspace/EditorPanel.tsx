@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
-import { useWorkspaceStore } from "@/store";
+import { useWorkspaceStore, SECTION_LABELS } from "@/store";
 import { Icon, MarkdownRenderer } from "../shared";
+import type { SectionType } from "@/types";
 
 type EditorMode = "source" | "preview";
 
@@ -90,23 +91,44 @@ function SourceEditor({
   );
 }
 
-// ─── Locked Overlay ──────────────────────────────────────────
+// ─── Section Tab Strip ───────────────────────────────────────
 
-function LockedOverlay() {
+const SECTION_ORDER: SectionType[] = ["context", "proposal", "implementation", "risks"];
+
+function SectionTabStrip() {
+  const sections = useWorkspaceStore((s) => s.sections);
+  const activeSection = useWorkspaceStore((s) => s.activeSection);
+  const setActiveSection = useWorkspaceStore((s) => s.setActiveSection);
+
   return (
-    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ textAlign: "center", width: "320px" }}>
-        <div className="w-12 h-12 rounded-full bg-surface-container-high/50 border border-outline-variant/20 flex items-center justify-center mx-auto mb-4">
-          <Icon name="lock" className="text-on-surface-variant/40 !text-xl" />
-        </div>
-        <h3 className="text-sm font-semibold text-on-surface/80 mb-2">
-          Section not yet available
-        </h3>
-        <p className="text-xs text-on-surface-variant/50 leading-relaxed">
-          You need to finalize the previous section before working on this one.
-          Follow the order: Context → Proposal → Implementation → Risks.
-        </p>
-      </div>
+    <div className="flex items-center gap-1 px-4 py-2 border-b border-outline-variant/20 bg-surface/30 overflow-x-auto hide-scrollbar">
+      {SECTION_ORDER.map((type) => {
+        const section = sections.find((s) => s.sectionType === type);
+        const status = section?.status ?? "pending";
+        const isActive = activeSection === type;
+        const isFinalized = status === "finalized";
+
+        return (
+          <button
+            key={type}
+            onClick={() => setActiveSection(type)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
+              isActive
+                ? "bg-primary/10 text-primary border border-primary/25"
+                : "text-on-surface-variant/60 hover:text-on-surface hover:bg-surface-container-high/40 border border-transparent"
+            }`}
+          >
+            {isFinalized ? (
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+            ) : isActive ? (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full bg-on-surface-variant/25 shrink-0" />
+            )}
+            {SECTION_LABELS[type]}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -120,19 +142,11 @@ export function EditorPanel() {
   const viewMode = useWorkspaceStore((s) => s.getActiveViewMode());
   const updateContent = useWorkspaceStore((s) => s.updateActiveContent);
 
-  const isReadonly = viewMode === "readonly";
-  const isLocked = viewMode === "locked";
-
-  if (isLocked) {
-    return (
-      <section className="w-[60%] h-full relative bg-surface/10">
-        <LockedOverlay />
-      </section>
-    );
-  }
+  const isReadonly = viewMode === "readonly" || viewMode === "locked";
 
   return (
     <section className="w-[60%] h-full flex flex-col relative bg-surface/10">
+      <SectionTabStrip />
       <EditorToolbar
         mode={editorMode}
         onModeChange={setEditorMode}

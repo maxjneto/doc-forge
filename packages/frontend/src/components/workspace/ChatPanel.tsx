@@ -53,7 +53,6 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
 const quickActions: { icon: string; label: string; action: SectionActionType }[] = [
   { icon: "help", label: "Ask Question", action: "ask_question" },
   { icon: "edit_note", label: "Request Edits", action: "request_edit" },
-  { icon: "analytics", label: "Manual Analysis", action: "analyze_user_edit" },
 ];
 
 export function ChatPanel() {

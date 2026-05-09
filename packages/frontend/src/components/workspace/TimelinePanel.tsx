@@ -105,8 +105,13 @@ export function TimelinePanel() {
   const versions = useWorkspaceStore((s) => s.getActiveSectionVersions());
   const restoreVersion = useWorkspaceStore((s) => s.restoreVersion);
   const finalizeSection = useWorkspaceStore((s) => s.finalizeSection);
+  const createVersionSnapshot = useWorkspaceStore((s) => s.createVersionSnapshot);
   const getActiveSection = useWorkspaceStore((s) => s.getActiveSection);
   const viewMode = useWorkspaceStore((s) => s.getActiveViewMode());
+
+  const isAwaitingAgent = useWorkspaceStore((s) => s.getActiveSectionIsAwaitingAgent());
+  const isSendingMessage = useWorkspaceStore((s) => s.getActiveSectionIsSendingMessage());
+  const isAIPending = isAwaitingAgent || isSendingMessage;
 
   const currentSection = getActiveSection();
 
@@ -118,6 +123,11 @@ export function TimelinePanel() {
   const handleFinalize = () => {
     if (!currentSection) return;
     finalizeSection(currentSection.id);
+  };
+
+  const handleNewVersion = () => {
+    if (!currentSection || viewMode !== "editing" || isAIPending) return;
+    void createVersionSnapshot(currentSection.id);
   };
 
   return (
@@ -159,9 +169,20 @@ export function TimelinePanel() {
         </div>
       </div>
 
-      {/* Finish Section button */}
+      {/* New Version + Finish Section buttons */}
       {currentSection && viewMode === "editing" && currentSection.status !== "finalized" && (
-        <div className="mt-6 pt-4 border-t border-outline-variant/10">
+        <div className="mt-6 pt-4 border-t border-outline-variant/10 flex flex-col gap-2">
+          <button
+            onClick={handleNewVersion}
+            disabled={isAIPending}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-on-surface-variant/70 hover:text-on-surface bg-surface-container-high/40 hover:bg-surface-container-high/70 border border-outline-variant/20 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface-container-high/40 disabled:hover:text-on-surface-variant/70"
+          >
+            <Icon
+              name={isAIPending ? "autorenew" : "fork_right"}
+              className={`!text-[16px] ${isAIPending ? "animate-spin" : ""}`}
+            />
+            New Version
+          </button>
           <button
             onClick={handleFinalize}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 border border-primary/20 rounded-lg transition-all"
