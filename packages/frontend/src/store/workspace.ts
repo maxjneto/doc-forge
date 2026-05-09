@@ -11,6 +11,7 @@ import {
   apiFetchMessages,
   apiSendEvent,
   apiRestoreVersion,
+  apiCreateVersionSnapshot,
 } from "@/utils/api";
 
 type GetToken = () => Promise<string | null>;
@@ -63,6 +64,7 @@ interface WorkspaceState {
 
   // Version actions
   restoreVersion: (sectionId: string, versionId: string) => Promise<void>;
+  createVersionSnapshot: (sectionId: string) => Promise<void>;
 
   // Chat actions
   sendMessage: (content: string, actionType: SectionActionType) => Promise<void>;
@@ -212,6 +214,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       };
     }),
 
+  createVersionSnapshot: async (sectionId) => {
+    const { getToken } = get();
+    if (!getToken) return;
+    await apiCreateVersionSnapshot(sectionId, getToken);
+    const versions = await apiFetchVersions(sectionId, getToken);
+    set((state) => ({
+      versions: { ...state.versions, [sectionId]: versions },
+    }));
+  },
+
   restoreVersion: async (sectionId, versionId) => {
     const { getToken } = get();
     if (!getToken) return;
@@ -278,9 +290,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       eventData.message = content;
     } else if (actionType === "request_edit") {
       eventData.prompt = content;
-    } else if (actionType === "analyze_user_edit") {
-      eventData.user_text = get().getActiveVersionContent();
-      eventData.message = content;
     }
 
     try {
@@ -346,7 +355,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return s?.status === "finalized";
     });
 
-    return allBeforeFinalized ? "editing" : "locked";
+    return allBeforeFinalized ? "editing" : "readonly";
   },
 
   getActiveVersionContent: () => {

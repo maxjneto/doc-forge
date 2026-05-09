@@ -61,7 +61,6 @@ export interface ChatMessage {
 export type SectionActionType =
   | "ask_question"
   | "request_edit"
-  | "analyze_user_edit"
   | "finalize";
 
 export interface SectionAction {
@@ -69,7 +68,6 @@ export interface SectionAction {
   sectionId: string;
   message?: string;
   prompt?: string;
-  userText?: string;
 }
 
 // ─── Discovery (Phase 1) ─────────────────────────────────────
@@ -97,4 +95,14 @@ export interface AuditProblem {
   section: string;
   issue: string;
   severity: string;
+}
+
+export interface AuditFinding {
+  id: string;
+  documentId: string;
+  sectionType: SectionType;
+  description: string;
+  severity: "high" | "low";
+  dismissed: boolean;
+  createdAt: string;
 }

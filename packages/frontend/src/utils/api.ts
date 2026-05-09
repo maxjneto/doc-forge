@@ -4,6 +4,7 @@ import type {
   SectionVersion,
   ChatMessage,
   DiscoveryQuestion,
+  AuditFinding,
 } from "@/types";
 
 export const API_BASE =
@@ -179,6 +180,54 @@ export async function apiRestoreVersion(
   );
   if (!res.ok) throw new Error("Failed to restore version");
   return res.json();
+}
+
+function mapAuditFinding(raw: Record<string, unknown>): AuditFinding {
+  return {
+    id: String(raw.id),
+    documentId: String(raw.document_id),
+    sectionType: raw.section_type as AuditFinding["sectionType"],
+    description: raw.description as string,
+    severity: raw.severity as AuditFinding["severity"],
+    dismissed: raw.dismissed as boolean,
+    createdAt: raw.created_at as string,
+  };
+}
+
+export async function apiFetchAuditFindings(
+  documentId: string,
+  getToken: GetToken,
+): Promise<AuditFinding[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/audit-findings`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch audit findings");
+  const data = await res.json();
+  return (data as Record<string, unknown>[]).map(mapAuditFinding);
+}
+
+export async function apiDismissAuditFinding(
+  documentId: string,
+  findingId: string,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/documents/${documentId}/audit-findings/${findingId}/dismiss`,
+    { method: "POST", headers: await authHeaders(getToken) },
+  );
+  if (!res.ok) throw new Error("Failed to dismiss audit finding");
+}
+
+export async function apiCreateVersionSnapshot(
+  sectionId: string,
+  getToken: GetToken,
+): Promise<SectionVersion> {
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/versions/snapshot`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to create version snapshot");
+  return mapVersion(await res.json());
 }
 
 export async function apiUpdateCompletedDocument(
