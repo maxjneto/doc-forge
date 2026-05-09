@@ -4,7 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion, AuditFinding
+from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion, AuditFinding, DocumentContract, PromptTemplate
 from app.schemas.sse import SSEEvent
 from app.services import sse as sse_service
 
@@ -331,6 +331,77 @@ async def dismiss_audit_finding(db: AsyncSession, finding_id: uuid.UUID) -> None
         .values(dismissed=True)
     )
     await db.commit()
+
+
+async def get_prompt_template(
+    db: AsyncSession,
+    document_type_id: uuid.UUID,
+    phase: str,
+    section_key: str | None = None,
+) -> PromptTemplate | None:
+    """Fetch the most-specific prompt template: section-specific first, then phase-wide fallback."""
+    if section_key:
+        result = await db.execute(
+            select(PromptTemplate).where(
+                PromptTemplate.document_type_id == document_type_id,
+                PromptTemplate.phase == phase,
+                PromptTemplate.section_key == section_key,
+            )
+        )
+        tmpl = result.scalar_one_or_none()
+        if tmpl:
+            return tmpl
+
+    result = await db.execute(
+        select(PromptTemplate).where(
+            PromptTemplate.document_type_id == document_type_id,
+            PromptTemplate.phase == phase,
+            PromptTemplate.section_key.is_(None),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def save_document_contract(
+    db: AsyncSession,
+    doc_id: uuid.UUID,
+    contract: dict,
+    raw_contract: str | None = None,
+) -> DocumentContract:
+    """Upsert the document contract. Only one contract per document is allowed."""
+    result = await db.execute(
+        select(DocumentContract).where(DocumentContract.document_id == doc_id)
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.entities = contract.get("entities")
+        existing.decisions = contract.get("decisions")
+        existing.terminology = contract.get("terminology")
+        existing.constraints = contract.get("constraints")
+        existing.raw_contract = raw_contract
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+
+    doc_contract = DocumentContract(
+        document_id=doc_id,
+        entities=contract.get("entities"),
+        decisions=contract.get("decisions"),
+        terminology=contract.get("terminology"),
+        constraints=contract.get("constraints"),
+        raw_contract=raw_contract,
+    )
+    db.add(doc_contract)
+    await db.commit()
+    await db.refresh(doc_contract)
+    return doc_contract
+
+
+async def get_document_contract(db: AsyncSession, doc_id: uuid.UUID) -> DocumentContract | None:
+    result = await db.execute(
+        select(DocumentContract).where(DocumentContract.document_id == doc_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_document_detail(db: AsyncSession, doc_id: uuid.UUID):

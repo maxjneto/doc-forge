@@ -8,7 +8,7 @@ from loguru import logger
 from app.logging_config import setup_logging
 from app.config import settings
 from app.inngest_client import inngest_client
-from app.routers import documents, sections
+from app.routers import documents, sections, document_types
 from app.routers import users as users_router
 from app.workflows.orchestrator import ALL_FUNCTIONS
 
@@ -48,6 +48,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(documents.router, prefix="/api")
 app.include_router(sections.router, prefix="/api")
 app.include_router(users_router.router, prefix="/api")
+app.include_router(document_types.router, prefix="/api")
 
 inngest.fast_api.serve(app, inngest_client, ALL_FUNCTIONS)
 
