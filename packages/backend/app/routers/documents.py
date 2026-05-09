@@ -3,6 +3,7 @@ import datetime
 
 import inngest
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ from app.schemas.document import (
 from app.schemas.events import AnswerQuestionRequest, EventRequest
 from app.inngest_client import inngest_client
 from app.services import db as db_service
+from app.services import sse as sse_service
 
 router = APIRouter(tags=["documents"])
 
@@ -84,6 +86,30 @@ async def get_document(
         sections=sections,
         discovery_questions=discovery_questions,
         audit_problems=doc.audit_problems,
+    )
+
+
+@router.get("/documents/{document_id}/stream")
+async def stream_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.debug("[router] stream_document | doc_id={} user_id={}", document_id, current_user.id)
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return StreamingResponse(
+        sse_service.event_stream(str(document_id)),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )
 
 

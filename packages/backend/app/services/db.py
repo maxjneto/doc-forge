@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion
+from app.schemas.sse import SSEEvent
+from app.services import sse as sse_service
 
 
 async def set_phase(db: AsyncSession, doc_id: uuid.UUID, phase: str) -> None:
@@ -15,6 +17,10 @@ async def set_phase(db: AsyncSession, doc_id: uuid.UUID, phase: str) -> None:
         .values(current_phase=phase, updated_at=func.now())
     )
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="phase_changed",
+        payload={"doc_id": str(doc_id), "phase": phase},
+    ))
 
 
 async def set_error_phase(
@@ -29,6 +35,10 @@ async def set_error_phase(
         .values(current_phase="error", error_message=error_message, updated_at=func.now())
     )
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="error",
+        payload={"doc_id": str(doc_id), "message": error_message},
+    ))
 
 
 async def save_global_context(db: AsyncSession, doc_id: uuid.UUID, context: str) -> None:
@@ -72,6 +82,10 @@ async def save_summaries(db: AsyncSession, doc_id: uuid.UUID, summaries: dict[st
             )
             db.add(section)
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="section_updated",
+        payload={"doc_id": str(doc_id), "change": "summaries"},
+    ))
 
 
 async def save_discovery_question(db: AsyncSession, doc_id: uuid.UUID, question: str) -> DiscoveryQuestion:
@@ -79,10 +93,18 @@ async def save_discovery_question(db: AsyncSession, doc_id: uuid.UUID, question:
     db.add(q)
     await db.commit()
     await db.refresh(q)
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="document_updated",
+        payload={"doc_id": str(doc_id), "change": "discovery_question"},
+    ))
     return q
 
 
-async def finalize_section(db: AsyncSession, section_id: uuid.UUID) -> None:
+async def finalize_section(
+    db: AsyncSession,
+    section_id: uuid.UUID,
+    doc_id: uuid.UUID | None = None,
+) -> None:
     """INTERNAL: caller must validate section ownership before invoking."""
     await db.execute(
         update(Section)
@@ -90,6 +112,11 @@ async def finalize_section(db: AsyncSession, section_id: uuid.UUID) -> None:
         .values(status="finalized", updated_at=func.now())
     )
     await db.commit()
+    if doc_id is not None:
+        sse_service.publish(str(doc_id), SSEEvent(
+            type="section_updated",
+            payload={"doc_id": str(doc_id), "section_id": str(section_id), "status": "finalized"},
+        ))
 
 
 async def start_refinement(db: AsyncSession, doc_id: uuid.UUID) -> None:
@@ -103,6 +130,10 @@ async def start_refinement(db: AsyncSession, doc_id: uuid.UUID) -> None:
         .values(status="refining", updated_at=func.now())
     )
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="section_updated",
+        payload={"doc_id": str(doc_id), "change": "start_refinement"},
+    ))
 
 
 async def all_sections_finalized(db: AsyncSession, doc_id: uuid.UUID) -> bool:
@@ -123,6 +154,10 @@ async def reopen_sections(db: AsyncSession, doc_id: uuid.UUID, section_types: li
         .values(status="refining", updated_at=func.now())
     )
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="section_updated",
+        payload={"doc_id": str(doc_id), "section_types": section_types},
+    ))
 
 
 async def save_audit_problems(db: AsyncSession, doc_id: uuid.UUID, problems: list[dict]) -> None:
@@ -136,6 +171,10 @@ async def save_audit_problems(db: AsyncSession, doc_id: uuid.UUID, problems: lis
         .values(audit_problems=problems, updated_at=func.now())
     )
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="audit_results",
+        payload={"doc_id": str(doc_id), "has_problems": True, "count": len(problems)},
+    ))
 
 
 async def clear_audit_problems(db: AsyncSession, doc_id: uuid.UUID) -> None:
@@ -149,6 +188,10 @@ async def clear_audit_problems(db: AsyncSession, doc_id: uuid.UUID) -> None:
         .values(audit_problems=None, updated_at=func.now())
     )
     await db.commit()
+    sse_service.publish(str(doc_id), SSEEvent(
+        type="audit_results",
+        payload={"doc_id": str(doc_id), "has_problems": False},
+    ))
 
 
 async def add_chat_message(
@@ -176,6 +219,7 @@ async def create_section_version(
     version_name: str,
     content: str,
     parent_version_id: uuid.UUID | None = None,
+    doc_id: uuid.UUID | None = None,
 ) -> SectionVersion:
     """INTERNAL: caller must validate section ownership before invoking."""
     # Deactivate current active version
@@ -195,6 +239,11 @@ async def create_section_version(
     db.add(version)
     await db.commit()
     await db.refresh(version)
+    if doc_id is not None:
+        sse_service.publish(str(doc_id), SSEEvent(
+            type="section_updated",
+            payload={"doc_id": str(doc_id), "section_id": str(section_id)},
+        ))
     return version
 
 

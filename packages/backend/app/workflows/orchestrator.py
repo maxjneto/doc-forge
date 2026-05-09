@@ -404,7 +404,7 @@ async def handle_section_action(ctx: inngest.Context):
     elif action == "finalize":
         async def _finalize():
             async with async_session() as db:
-                await db_service.finalize_section(db, section_id)
+                await db_service.finalize_section(db, section_id, doc_id=uuid.UUID(doc_id))
 
         await step.run("finalize-section", _finalize)
 

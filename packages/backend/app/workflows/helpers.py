@@ -58,7 +58,7 @@ async def generate_section_root(doc_id: str, section_type: str) -> None:
 
         # Create first version
         await db_service.create_section_version(
-            db, section.id, "Initial", content
+            db, section.id, "Initial", content, doc_id=uuid.UUID(doc_id)
         )
 
         # Update section status
@@ -118,6 +118,7 @@ async def process_edit(section_id: str, prompt: str) -> None:
                 ai_result["version_name"],
                 cleaned_markdown,
                 parent_version_id=active_version.id,
+                doc_id=doc.id,
             )
             await db_service.add_chat_message(
                 db, doc.id, section.id, "agent",
@@ -189,6 +190,7 @@ async def process_analysis(section_id: str, user_text: str, message: str = "") -
             "Manual edit",
             user_text,
             parent_version_id=active_version.id if active_version else None,
+            doc_id=doc.id,
         )
 
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
