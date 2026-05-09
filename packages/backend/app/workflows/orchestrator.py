@@ -73,6 +73,7 @@ async def run_discovery(ctx: inngest.Context):
     doc_id = ctx.event.data["document_id"]
     document_context = ctx.event.data["document_context"]
     user_preferences = ctx.event.data["user_preferences"]
+    document_type_id = ctx.event.data.get("document_type_id")
 
     logger.info("[orchestrator] DISCOVERY start | doc_id={}", doc_id)
 
@@ -199,7 +200,7 @@ async def run_discovery(ctx: inngest.Context):
         "emit-discovery-completed",
         inngest.Event(
             name="docforge/discovery.completed",
-            data={"document_id": doc_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id},
         ),
     )
 
@@ -215,6 +216,7 @@ async def run_discovery(ctx: inngest.Context):
 async def run_alignment(ctx: inngest.Context):
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
+    document_type_id = ctx.event.data.get("document_type_id")
 
     logger.info("[orchestrator] ALIGNMENT start | doc_id={}", doc_id)
 
@@ -263,6 +265,22 @@ async def run_alignment(ctx: inngest.Context):
                 iteration,
                 doc_id,
             )
+
+            async def _extract_contract(s=summaries):
+                from app.ai.contract import extract_document_contract
+                async with async_session() as db:
+                    doc = await db_service.get_document_detail(db, doc_id)
+                contract = await extract_document_contract(
+                    global_context=doc.global_context or "",
+                    summaries=s.get("summaries", {}),
+                    user_preferences=doc.user_preferences,
+                )
+                import json as _json
+                raw = _json.dumps(contract)
+                async with async_session() as db:
+                    await db_service.save_document_contract(db, uuid.UUID(doc_id), contract, raw)
+
+            await step.run("extract-contract", _extract_contract)
         else:
             logger.info(
                 "[orchestrator] alignment rejected sections={} | doc_id={}",
@@ -276,7 +294,7 @@ async def run_alignment(ctx: inngest.Context):
         "emit-alignment-completed",
         inngest.Event(
             name="docforge/alignment.completed",
-            data={"document_id": doc_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id},
         ),
     )
 
@@ -292,6 +310,7 @@ async def run_alignment(ctx: inngest.Context):
 async def run_generation(ctx: inngest.Context):
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
+    document_type_id = ctx.event.data.get("document_type_id")
 
     logger.info("[orchestrator] GENERATION start | doc_id={}", doc_id)
 
@@ -301,31 +320,32 @@ async def run_generation(ctx: inngest.Context):
 
     await step.run("set-phase-generation", _set_generation)
 
-    # Step 1: Generate 'context' first (no dependencies)
-    async def _generate_context():
-        logger.info("[orchestrator] generating section context | doc_id={}", doc_id)
-        await generate_section_root(doc_id, "context")
+    # Determine section order from SectionDefinition (falls back to RFC default)
+    async def _get_section_order():
+        if not document_type_id:
+            return ["context", "proposal", "implementation", "risks"]
+        from sqlalchemy import select as _select
+        from app.models.document_type import SectionDefinition
+        async with async_session() as db:
+            result = await db.execute(
+                _select(SectionDefinition)
+                .where(SectionDefinition.document_type_id == uuid.UUID(document_type_id))
+                .order_by(SectionDefinition.order)
+            )
+            defs = result.scalars().all()
+        return [sd.section_key for sd in defs] if defs else ["context", "proposal", "implementation", "risks"]
 
-    await step.run("generate-context", _generate_context)
+    section_order = await step.run("get-section-order", _get_section_order)
 
-    # Step 2: Generate proposal, implementation, and risks in isolated steps
-    async def _generate_proposal():
-        logger.info("[orchestrator] generating section proposal | doc_id={}", doc_id)
-        await generate_section_root(doc_id, "proposal")
+    # Generate sections in order — first section has no cross-section deps,
+    # each subsequent one can reference those already generated.
+    for i, section_key in enumerate(section_order):
+        async def _generate(sk=section_key):
+            logger.info("[orchestrator] generating section {} | doc_id={}", sk, doc_id)
+            await generate_section_root(doc_id, sk)
+        await step.run(f"generate-{section_key}", _generate)
 
-    async def _generate_implementation():
-        logger.info("[orchestrator] generating section implementation | doc_id={}", doc_id)
-        await generate_section_root(doc_id, "implementation")
-
-    async def _generate_risks():
-        logger.info("[orchestrator] generating section risks | doc_id={}", doc_id)
-        await generate_section_root(doc_id, "risks")
-
-    await step.run("generate-proposal", _generate_proposal)
-    await step.run("generate-implementation", _generate_implementation)
-    await step.run("generate-risks", _generate_risks)
-
-    # Step 3: Cross-section coherence refinement pass
+    # Cross-section coherence refinement pass
     async def _coherence_pass():
         from app.ai.generation import refine_cross_references
         await refine_cross_references(doc_id)
@@ -338,7 +358,7 @@ async def run_generation(ctx: inngest.Context):
         "emit-generation-completed",
         inngest.Event(
             name="docforge/generation.completed",
-            data={"document_id": doc_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id},
         ),
     )
 
@@ -355,6 +375,7 @@ async def start_refinement_phase(ctx: inngest.Context):
     """Set up refinement phase. Actions are handled by handle_section_action."""
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
+    document_type_id = ctx.event.data.get("document_type_id")
 
     logger.info("[orchestrator] REFINEMENT start | doc_id={}", doc_id)
 
@@ -373,7 +394,13 @@ async def start_refinement_phase(ctx: inngest.Context):
     on_failure=workflow_on_failure,
 )
 async def handle_section_action(ctx: inngest.Context):
-    """Process a single section action. Stateless — one invocation per user action."""
+    """Process a single section action. Stateless — one invocation per user action.
+
+    Concurrency design (M3-T13): SECTION_CONCURRENCY limits 1 active AI call per section.
+    The lock is acquired at invocation start and released when the function returns.
+    No step.wait_for_event is used here, so the lock is NEVER held across user think-time.
+    Each new user action triggers a fresh invocation — no persistent loop, no stale locks.
+    """
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
     section_id = ctx.event.data["section_id"]
@@ -415,11 +442,12 @@ async def handle_section_action(ctx: inngest.Context):
                 "[orchestrator] all sections finalized, triggering audit | doc_id={}",
                 doc_id,
             )
+            doc_type_id = ctx.event.data.get("document_type_id")
             await step.send_event(
                 "emit-refinement-completed",
                 inngest.Event(
                     name="docforge/document.refinement_completed",
-                    data={"document_id": doc_id},
+                    data={"document_id": doc_id, "document_type_id": doc_type_id},
                 ),
             )
 
@@ -435,6 +463,7 @@ async def handle_section_action(ctx: inngest.Context):
 async def run_audit_fn(ctx: inngest.Context):
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
+    document_type_id = ctx.event.data.get("document_type_id")
 
     logger.info("[orchestrator] AUDIT start | doc_id={}", doc_id)
 
@@ -474,7 +503,7 @@ async def run_audit_fn(ctx: inngest.Context):
         "emit-audit-completed",
         inngest.Event(
             name="docforge/document.audit_completed",
-            data={"document_id": doc_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id},
         ),
     )
 

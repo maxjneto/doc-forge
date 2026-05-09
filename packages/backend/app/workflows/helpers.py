@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.database import async_session
 from app.models import Section, ChatMessage
 from app.services import db as db_service
-from app.ai.output_cleaner import strip_outer_markdown_fence
+from app.ai.output_cleaner import clean_section_output
 
 
 async def _get_chat_history(db, section_id: uuid.UUID) -> list[dict]:
@@ -48,13 +48,26 @@ async def generate_section_root(doc_id: str, section_type: str) -> None:
         # Build cross-section context
         cross_section_context = _build_cross_section_context(doc.sections, section_type)
 
+        # Fetch document contract if available
+        db_contract = await db_service.get_document_contract(db, uuid.UUID(doc_id))
+        contract_dict = None
+        if db_contract:
+            contract_dict = {
+                "entities": db_contract.entities,
+                "decisions": db_contract.decisions,
+                "terminology": db_contract.terminology,
+                "constraints": db_contract.constraints,
+            }
+
         content = await generate_section(
             section_type=section_type,
             general_context=doc.global_context or "",
             user_preferences=doc.user_preferences or "",
             section_summary=section.summary or "",
             cross_section_context=cross_section_context,
+            document_contract=contract_dict,
         )
+        content = clean_section_output(content, section_type)
 
         # Create first version
         await db_service.create_section_version(
@@ -70,6 +83,18 @@ async def generate_section_root(doc_id: str, section_type: str) -> None:
             section_type,
             len(content or ""),
         )
+
+
+async def _get_contract_dict(db, doc_id: uuid.UUID) -> dict | None:
+    db_contract = await db_service.get_document_contract(db, doc_id)
+    if not db_contract:
+        return None
+    return {
+        "entities": db_contract.entities,
+        "decisions": db_contract.decisions,
+        "terminology": db_contract.terminology,
+        "constraints": db_contract.constraints,
+    }
 
 
 async def process_edit(section_id: str, prompt: str) -> None:
@@ -91,19 +116,40 @@ async def process_edit(section_id: str, prompt: str) -> None:
         doc = section.document
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
+        contract_dict = await _get_contract_dict(db, doc.id)
 
         # Persist user message before AI call so created_at ordering is correct
         await db_service.add_chat_message(db, doc.id, section.id, "user", prompt)
 
-        ai_result = await refine_section(
-            section_type=section.section_type,
-            general_context=doc.global_context or "",
-            current_content=active_version.content,
-            cross_section_context=await cross_context,
-            chat_history=chat_history,
-            user_message=prompt,
-            forced_tool_name="request_edit",
-        )
+        # LLM-based intent guardrail — rejects off-topic or injected messages
+        from app.services.guardrails import validate_message_intent
+        intent_err = await validate_message_intent(prompt, section.section_type)
+        if intent_err:
+            await db_service.add_chat_message(db, doc.id, section.id, "agent", intent_err.message)
+            return
+
+        from openai import BadRequestError
+        try:
+            ai_result = await refine_section(
+                section_type=section.section_type,
+                general_context=doc.global_context or "",
+                current_content=active_version.content,
+                cross_section_context=await cross_context,
+                chat_history=chat_history,
+                user_message=prompt,
+                forced_tool_name="request_edit",
+                document_contract=contract_dict,
+            )
+        except BadRequestError as exc:
+            body = exc.body if isinstance(exc.body, dict) else {}
+            if (body.get("error") or {}).get("code") == "content_filter":
+                logger.warning("[helpers] content filter blocked refinement edit | section_id={}", section_id)
+                await db_service.add_chat_message(
+                    db, doc.id, section.id, "agent",
+                    "Your request was blocked by the content policy. Please keep edit requests focused on the document.",
+                )
+                return
+            raise
 
         if ai_result.get("tool") == "request_edit":
             logger.info(
@@ -111,7 +157,7 @@ async def process_edit(section_id: str, prompt: str) -> None:
                 section_id,
                 ai_result.get("version_name"),
             )
-            cleaned_markdown = strip_outer_markdown_fence(ai_result.get("new_markdown"))
+            cleaned_markdown = clean_section_output(ai_result.get("new_markdown"), section.section_type)
             await db_service.create_section_version(
                 db,
                 section.id,
@@ -147,19 +193,40 @@ async def process_question(section_id: str, message: str) -> None:
         doc = section.document
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
+        contract_dict = await _get_contract_dict(db, doc.id)
 
         # Save user message before AI call so created_at ordering is correct
         await db_service.add_chat_message(db, doc.id, section.id, "user", message)
 
-        ai_result = await refine_section(
-            section_type=section.section_type,
-            general_context=doc.global_context or "",
-            current_content=active_version.content,
-            cross_section_context=await cross_context,
-            chat_history=chat_history,
-            user_message=message,
-            forced_tool_name="answer_question",
-        )
+        # LLM-based intent guardrail — rejects off-topic or injected messages
+        from app.services.guardrails import validate_message_intent
+        intent_err = await validate_message_intent(message, section.section_type)
+        if intent_err:
+            await db_service.add_chat_message(db, doc.id, section.id, "agent", intent_err.message)
+            return
+
+        from openai import BadRequestError
+        try:
+            ai_result = await refine_section(
+                section_type=section.section_type,
+                general_context=doc.global_context or "",
+                current_content=active_version.content,
+                cross_section_context=await cross_context,
+                chat_history=chat_history,
+                user_message=message,
+                forced_tool_name="answer_question",
+                document_contract=contract_dict,
+            )
+        except BadRequestError as exc:
+            body = exc.body if isinstance(exc.body, dict) else {}
+            if (body.get("error") or {}).get("code") == "content_filter":
+                logger.warning("[helpers] content filter blocked refinement question | section_id={}", section_id)
+                await db_service.add_chat_message(
+                    db, doc.id, section.id, "agent",
+                    "Your request was blocked by the content policy. Please keep questions focused on the document.",
+                )
+                return
+            raise
 
         if ai_result.get("tool") == "answer_question":
             await db_service.add_chat_message(db, doc.id, section.id, "agent", ai_result["reply"])

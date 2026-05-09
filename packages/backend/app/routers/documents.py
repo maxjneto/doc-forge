@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Document, Section, DiscoveryQuestion, ChatMessage, AuditFinding
+from app.models.document_type import DocumentType, SectionDefinition
 from app.models.user import User
 from app.schemas.document import (
     DocumentCreate,
@@ -27,6 +28,7 @@ from app.schemas.events import AnswerQuestionRequest, EventRequest
 from app.inngest_client import inngest_client
 from app.services import db as db_service
 from app.services import sse as sse_service
+from app.services.guardrails import validate_document_context, validate_discovery_answer, validate_refinement_message
 
 router = APIRouter(tags=["documents"])
 
@@ -122,6 +124,21 @@ async def create_document(
 ):
     logger.info("[router] create_document | title='{}' user_id={}", payload.title, current_user.id)
 
+    # Validate input before touching DB or credits
+    err = validate_document_context(payload.document_context)
+    if err:
+        raise HTTPException(status_code=422, detail={"field": err.field, "message": err.message})
+
+    # Resolve document type
+    dt_result = await db.execute(
+        select(DocumentType)
+        .options(selectinload(DocumentType.section_definitions))
+        .where(DocumentType.slug == payload.document_type_slug, DocumentType.is_active.is_(True))
+    )
+    doc_type = dt_result.scalar_one_or_none()
+    if not doc_type:
+        raise HTTPException(status_code=400, detail=f"Unknown document type: {payload.document_type_slug}")
+
     # Atomically deduct credit — prevents race conditions with concurrent requests
     result = await db.execute(
         update(User)
@@ -140,15 +157,15 @@ async def create_document(
         document_context=payload.document_context,
         user_preferences=payload.user_preferences,
         user_id=current_user.id,
+        document_type_id=doc_type.id,
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
 
-    # Create the 4 sections
-    section_types = ["context", "proposal", "implementation", "risks"]
-    for st in section_types:
-        section = Section(document_id=doc.id, section_type=st)
+    # Create sections from SectionDefinition order
+    for sd in sorted(doc_type.section_definitions, key=lambda s: s.order):
+        section = Section(document_id=doc.id, section_type=sd.section_key)
         db.add(section)
     await db.commit()
 
@@ -161,6 +178,7 @@ async def create_document(
                     "document_id": str(doc.id),
                     "document_context": payload.document_context,
                     "user_preferences": payload.user_preferences or "",
+                    "document_type_id": str(doc_type.id),
                 },
             )
         )
@@ -183,6 +201,12 @@ async def answer_question(
         document_id,
         payload.answer is None,
     )
+
+    if payload.answer is not None:
+        err = validate_discovery_answer(payload.answer)
+        if err:
+            raise HTTPException(status_code=422, detail={"field": err.field, "message": err.message})
+
     # Verify ownership
     doc_result = await db.execute(
         select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
@@ -261,6 +285,10 @@ async def dispatch_event(
     if payload.event_type == "section_action":
         action_type = payload.data.get("action_type")
         if action_type in ("ask_question", "request_edit"):
+            msg = payload.data.get("prompt") or payload.data.get("message") or ""
+            err = validate_refinement_message(str(msg))
+            if err:
+                raise HTTPException(status_code=422, detail={"field": err.field, "message": err.message})
             try:
                 section_uuid = uuid.UUID(str(payload.data.get("section_id", "")))
             except ValueError:
