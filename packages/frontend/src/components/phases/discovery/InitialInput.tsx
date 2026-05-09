@@ -29,7 +29,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             <h3 className="text-sm font-semibold text-on-surface">Context</h3>
           </div>
           <p className="text-xs text-on-surface-variant/60 mb-3">
-            Describe the problem your RFC solves. The more details, the better.
+            Describe the problem your document solves. The more details, the better.
           </p>
           <textarea
             value={context}

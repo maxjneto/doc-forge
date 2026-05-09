@@ -5,6 +5,8 @@ import type {
   ChatMessage,
   DiscoveryQuestion,
   AuditFinding,
+  DocumentType,
+  SectionDefinition,
 } from "@/types";
 
 export const API_BASE =
@@ -101,6 +103,7 @@ export async function apiCreateDocument(
   documentContext: string,
   getToken: GetToken,
   userPreferences?: string,
+  documentTypeSlug?: string,
 ): Promise<Document> {
   const res = await fetch(`${API_BASE}/documents`, {
     method: "POST",
@@ -109,6 +112,7 @@ export async function apiCreateDocument(
       title,
       document_context: documentContext,
       user_preferences: userPreferences ?? null,
+      document_type_slug: documentTypeSlug ?? "rfc",
     }),
   });
   if (!res.ok) throw new Error("Failed to create document");
@@ -228,6 +232,34 @@ export async function apiCreateVersionSnapshot(
   });
   if (!res.ok) throw new Error("Failed to create version snapshot");
   return mapVersion(await res.json());
+}
+
+function mapSectionDefinition(raw: Record<string, unknown>): SectionDefinition {
+  return {
+    id: String(raw.id),
+    sectionKey: raw.section_key as string,
+    displayName: raw.display_name as string,
+    order: raw.order as number,
+    roleDescription: raw.role_description as string,
+  };
+}
+
+function mapDocumentType(raw: Record<string, unknown>): DocumentType {
+  return {
+    id: String(raw.id),
+    slug: raw.slug as string,
+    name: raw.name as string,
+    description: raw.description as string,
+    isActive: raw.is_active as boolean,
+    sections: ((raw.sections as Record<string, unknown>[]) ?? []).map(mapSectionDefinition),
+  };
+}
+
+export async function apiListDocumentTypes(): Promise<DocumentType[]> {
+  const res = await fetch(`${API_BASE}/document-types`);
+  if (!res.ok) throw new Error("Failed to fetch document types");
+  const data = await res.json();
+  return (data as Record<string, unknown>[]).map(mapDocumentType);
 }
 
 export async function apiUpdateCompletedDocument(

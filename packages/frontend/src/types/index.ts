@@ -70,6 +70,25 @@ export interface SectionAction {
   prompt?: string;
 }
 
+// ─── Document Types ───────────────────────────────────────────
+
+export interface SectionDefinition {
+  id: string;
+  sectionKey: string;
+  displayName: string;
+  order: number;
+  roleDescription: string;
+}
+
+export interface DocumentType {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  sections: SectionDefinition[];
+}
+
 // ─── Discovery (Phase 1) ─────────────────────────────────────
 
 export interface DiscoveryQuestion {

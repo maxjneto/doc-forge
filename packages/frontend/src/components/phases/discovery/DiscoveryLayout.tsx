@@ -12,12 +12,14 @@ interface DiscoveryLayoutProps {
   documentId: string | null;
   questions: DiscoveryQuestion[];
   onDocumentCreated?: (docId: string) => void;
+  documentTypeSlug?: string;
 }
 
 export function DiscoveryLayout({
   documentId,
   questions,
   onDocumentCreated,
+  documentTypeSlug = "rfc",
 }: DiscoveryLayoutProps) {
   const { getToken } = useAuth();
   const getInitialSubState = (): DiscoverySubState => {
@@ -38,7 +40,7 @@ export function DiscoveryLayout({
   const handleSubmitInput = async (context: string, preferences: string) => {
     setSubState("processing");
 
-    const doc = await apiCreateDocument("New RFC", context, getToken, preferences);
+    const doc = await apiCreateDocument("New RFC", context, getToken, preferences, documentTypeSlug);
     onDocumentCreated?.(doc.id);
     // Polling will now start in DocumentPage and feed questions back via props
   };

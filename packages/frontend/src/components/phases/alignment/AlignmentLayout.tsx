@@ -160,7 +160,7 @@ export function AlignmentLayout({
                   disabled={confirming}
                   className="px-6 py-3 bg-primary-container text-on-primary-container rounded-lg font-medium text-sm hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
-                  {confirming ? "Confirming..." : "Confirm and Generate Document →"}
+                  {confirming ? "Confirming..." : "Confirm and generate document →"}
                 </button>
               </div>
             )}

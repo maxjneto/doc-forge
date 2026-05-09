@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import type { Phase } from "@/types";
@@ -16,8 +16,10 @@ import { ForgeLoader, TopBar } from "@/components/shared";
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getToken } = useAuth();
   const isNew = urlId === "new";
+  const documentTypeSlug = (location.state as { documentTypeSlug?: string } | null)?.documentTypeSlug ?? "rfc";
 
   // For new documents, documentId starts as null until created
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export function DocumentPage() {
             documentId={activeDocId}
             questions={discoveryQuestions}
             onDocumentCreated={handleDocumentCreated}
+            documentTypeSlug={documentTypeSlug}
           />
         )}
         {currentPhase === "alignment" && (

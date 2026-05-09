@@ -1,48 +1,14 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiListDocumentTypes } from "@/utils/api";
+import type { DocumentType } from "@/types";
 
-interface DocType {
-  id: string;
-  label: string;
-  icon: string;
-  description: string;
-  sections: string[];
-  enabled: boolean;
-}
-
-const DOC_TYPES: DocType[] = [
-  {
-    id: "rfc",
-    label: "RFC",
-    icon: "rate_review",
-    description: "Propose and align on a technical decision or process change.",
-    sections: ["Context", "Proposal", "Implementation", "Risks"],
-    enabled: true,
-  },
-  {
-    id: "prd",
-    label: "PRD",
-    icon: "list_alt",
-    description: "Define product requirements, goals, and success metrics.",
-    sections: ["Overview", "Goals", "User Stories", "Requirements", "Success Metrics", "Timeline"],
-    enabled: false,
-  },
-  {
-    id: "tech-spec",
-    label: "Tech Spec",
-    icon: "schema",
-    description: "Detail the technical architecture and implementation design.",
-    sections: ["Overview", "Architecture", "Components", "API Design", "Data Models", "Security", "Testing"],
-    enabled: false,
-  },
-  {
-    id: "adr",
-    label: "ADR",
-    icon: "account_tree",
-    description: "Record an architectural decision and its rationale.",
-    sections: ["Context", "Decision", "Status", "Consequences", "Alternatives"],
-    enabled: false,
-  },
-];
+const ICON_MAP: Record<string, string> = {
+  rfc: "rate_review",
+  prd: "list_alt",
+  "tech-spec": "schema",
+  adr: "account_tree",
+};
 
 interface NewDocumentDialogProps {
   onClose: () => void;
@@ -50,11 +16,25 @@ interface NewDocumentDialogProps {
 
 export function NewDocumentDialog({ onClose }: NewDocumentDialogProps) {
   const navigate = useNavigate();
+  const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  function handleSelect(doc: DocType) {
-    if (!doc.enabled) return;
+  useEffect(() => {
+    apiListDocumentTypes()
+      .then((types) => {
+        setDocTypes(types);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
+
+  function handleSelect(doc: DocumentType) {
     onClose();
-    navigate("/document/new");
+    navigate("/document/new", { state: { documentTypeSlug: doc.slug } });
   }
 
   return (
@@ -96,72 +76,71 @@ export function NewDocumentDialog({ onClose }: NewDocumentDialogProps) {
           </button>
         </div>
 
-        {/* Cards — single row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-          {DOC_TYPES.map((doc) => (
-            <DocTypeCard key={doc.id} doc={doc} onSelect={handleSelect} />
-          ))}
-        </div>
+        {/* Body */}
+        {loading && (
+          <div style={{ color: "rgba(200,198,197,0.4)", fontSize: "13px", textAlign: "center", padding: "32px 0" }}>
+            Loading document types…
+          </div>
+        )}
+
+        {error && (
+          <div style={{ color: "rgba(200,198,197,0.4)", fontSize: "13px", textAlign: "center", padding: "32px 0" }}>
+            Could not load document types. Please try again.
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+            {docTypes.map((doc) => (
+              <DocTypeCard key={doc.id} doc={doc} onSelect={handleSelect} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function DocTypeCard({ doc, onSelect }: { doc: DocType; onSelect: (d: DocType) => void }) {
+function DocTypeCard({ doc, onSelect }: { doc: DocumentType; onSelect: (d: DocumentType) => void }) {
+  const icon = ICON_MAP[doc.slug] ?? "description";
+
   return (
     <div
       onClick={() => onSelect(doc)}
       style={{
         position: "relative",
         background: "linear-gradient(to bottom, #1a1b1b, #111212)",
-        border: `1px solid ${doc.enabled ? "rgba(255,77,0,0.25)" : "rgba(255,255,255,0.05)"}`,
+        border: "1px solid rgba(255,77,0,0.25)",
         borderRadius: "0.375rem",
         padding: "20px",
-        cursor: doc.enabled ? "pointer" : "not-allowed",
-        opacity: doc.enabled ? 1 : 0.45,
+        cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         gap: "12px",
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}
       onMouseEnter={(e) => {
-        if (!doc.enabled) return;
         (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,77,0,0.6)";
         (e.currentTarget as HTMLDivElement).style.boxShadow = "0 0 16px rgba(255,77,0,0.15)";
       }}
       onMouseLeave={(e) => {
-        if (!doc.enabled) return;
         (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,77,0,0.25)";
         (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
       }}
     >
-      {/* Coming soon badge */}
-      {!doc.enabled && (
-        <div style={{
-          position: "absolute", top: "10px", right: "10px",
-          fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: "rgba(200,198,197,0.45)",
-          border: "1px solid rgba(200,198,197,0.12)", borderRadius: "4px",
-          padding: "2px 6px",
-        }}>
-          Soon
-        </div>
-      )}
-
       {/* Icon + label */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <span
           className="material-symbols-outlined"
-          style={{ fontSize: "22px", color: doc.enabled ? "#FF4D00" : "rgba(200,198,197,0.45)" }}
+          style={{ fontSize: "22px", color: "#FF4D00" }}
         >
-          {doc.icon}
+          {icon}
         </span>
         <span style={{
           fontSize: "13px", fontWeight: 700, letterSpacing: "0.04em",
-          textTransform: "uppercase",
-          color: doc.enabled ? "#e3e2e2" : "rgba(200,198,197,0.55)",
+          textTransform: "uppercase", color: "#e3e2e2",
         }}>
-          {doc.label}
+          {doc.name}
         </span>
       </div>
 
@@ -174,7 +153,7 @@ function DocTypeCard({ doc, onSelect }: { doc: DocType; onSelect: (d: DocType) =
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "auto" }}>
         {doc.sections.map((s) => (
           <span
-            key={s}
+            key={s.id}
             style={{
               fontSize: "10px", fontWeight: 500, letterSpacing: "0.01em",
               color: "rgba(200,198,197,0.38)",
@@ -183,7 +162,7 @@ function DocTypeCard({ doc, onSelect }: { doc: DocType; onSelect: (d: DocType) =
               borderRadius: "3px", padding: "2px 6px",
             }}
           >
-            {s}
+            {s.displayName}
           </span>
         ))}
       </div>
