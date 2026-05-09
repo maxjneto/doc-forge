@@ -1,37 +1,63 @@
 from loguru import logger
 
-from app.ai.client import client, DEFAULT_MODEL
 from app.ai.context_builder import build_generation_context
-from app.ai.output_cleaner import strip_outer_markdown_fence
+from app.ai.guardrails import call_with_retry
+from app.ai.output_cleaner import clean_section_output, strip_outer_markdown_fence
+from app.ai.token_budget import log_usage
 
-BASE_PERSONA = """You are DocForge, a co-pilot specialized in creating technical RFCs.
-You write in a direct, technical, and concise manner.
-When requested, you generate valid Mermaid diagrams directly in Markdown.
-You NEVER fabricate information that the user has not provided."""
+BASE_PERSONA = """You are an expert technical writer producing a section of a formal technical document.
+
+Global rules:
+- Ground every claim in the provided context. NEVER invent technologies, team names, metrics, or decisions not present in the input.
+- Write with authority and precision. Avoid hedging phrases like "might", "could potentially", or "it is possible that".
+- Use active voice and present tense for describing the system; use future tense only for planned changes.
+- Output raw Markdown only. Do NOT wrap the response in triple backticks. Do NOT include a ```markdown opening fence."""
 
 GENERATION_PHASE_DIRECTIVE = (
-    "Your task is to generate the full Markdown content for the requested section, "
-    "following the approved summary as a guide. "
-    "Return raw section content only: do NOT wrap the full response in triple backticks, "
-    "and do NOT start with ```markdown."
+    "Generate the full Markdown content for the requested document section. "
+    "Follow the approved summary as the directional contract — do not deviate from it. "
+    "Produce substantive, professional content. Aim for 400-800 words unless the material demands more."
 )
 
 GENERATION_SECTION_DIRECTIVES = {
     "context": (
-        "Write in a narrative tone. Explain the problem with urgency and clarity. "
-        "Do not propose solutions here - only describe the pain."
+        "Write the Context section as a structured problem statement.\n"
+        "Required structure:\n"
+        "1. **Background** — What is the current system/process and what role does it play?\n"
+        "2. **Problem Statement** — What specific problem exists? Describe symptoms, not root causes.\n"
+        "3. **Impact** — What is the measurable or observable consequence of this problem? Who is affected?\n"
+        "4. **Motivation** — Why must this be addressed now? What is the cost of inaction?\n\n"
+        "Do NOT propose any solution. Do NOT mention the proposed technology stack. "
+        "End with a clear, one-sentence problem summary."
     ),
     "proposal": (
-        "Write in a technical-executive tone. Describe the proposed solution and key changes. "
-        "You MUST include at least one high-level architecture Mermaid diagram."
+        "Write the Proposal section as a technical executive summary of the solution.\n"
+        "Required structure:\n"
+        "1. **Overview** — One paragraph describing the proposed solution at a high level.\n"
+        "2. **Architecture Diagram** — A Mermaid diagram (graph TD or C4-style) showing the proposed architecture. This is MANDATORY.\n"
+        "3. **Key Design Decisions** — Bullet list of the 3-5 most important technical choices and WHY each was made.\n"
+        "4. **Scope** — What is in scope and explicitly what is out of scope.\n\n"
+        "The architecture Mermaid diagram is required. Use `graph TD` or `graph LR` syntax."
     ),
     "implementation": (
-        "Write in a detailed technical tone. Describe the implementation sequence, data models, "
-        "and integrations. You MUST include Mermaid diagrams (sequence, ER, or flowchart)."
+        "Write the Implementation section as a detailed technical specification.\n"
+        "Required structure:\n"
+        "1. **Implementation Phases** — Numbered phases with clear deliverables per phase.\n"
+        "2. **Component Changes** — For each affected component: what changes, how it integrates, and any API contract changes.\n"
+        "3. **Sequence Diagram** — A Mermaid sequence diagram showing the primary flow. This is MANDATORY.\n"
+        "4. **Data Model** — If DB schema changes are needed, include a Mermaid ER diagram.\n"
+        "5. **Rollout Strategy** — How will this be deployed? Feature flags, staged rollout, migration steps.\n\n"
+        "Both a sequence diagram and any applicable ER diagrams are required."
     ),
     "risks": (
-        "Write in objective bullet points. List real risks (not generic ones) and discarded alternatives "
-        "with justification."
+        "Write the Risks section as a structured risk register.\n"
+        "Required structure:\n"
+        "1. **Risk Table** — A Markdown table with columns: Risk | Likelihood | Impact | Mitigation.\n"
+        "   List only real, specific risks derived from the proposal (not generic risks like 'downtime').\n"
+        "   Minimum 3 risks, maximum 8.\n"
+        "2. **Discarded Alternatives** — For each alternative considered: name it, explain why it was rejected in 1-2 sentences.\n"
+        "3. **Open Questions** — Any unresolved decisions that must be answered before implementation begins.\n\n"
+        "Do NOT include generic risks. Every risk must be traceable to a specific decision in the Proposal or Implementation section."
     ),
 }
 
@@ -50,16 +76,18 @@ async def generate_section(
     user_preferences: str,
     section_summary: str,
     cross_section_context: str,
+    document_contract: dict | None = None,
 ) -> str:
     """Generate full markdown content for a section."""
     logger.info("[AI:generation] generating section | type={}", section_type)
     system_prompt = build_generation_system_prompt(section_type)
     user_content = build_generation_context(
-        general_context, user_preferences, section_summary, cross_section_context
+        general_context, user_preferences, section_summary, cross_section_context, document_contract
     )
 
-    response = await client.chat.completions.create(
-        model=DEFAULT_MODEL,
+    response = await call_with_retry(
+        phase="generation",
+        section_type=section_type,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
@@ -67,6 +95,7 @@ async def generate_section(
         temperature=0.5,
     )
 
+    log_usage("generation", response.usage, section_type=section_type)
     content = strip_outer_markdown_fence(response.choices[0].message.content)
     logger.info(
         "[AI:generation] section done | type={} chars={}",
@@ -78,16 +107,20 @@ async def generate_section(
 
 COHERENCE_PROMPT = f"""{BASE_PERSONA}
 
-Your task is to review a single section of an RFC for cross-reference accuracy.
-All other sections have been generated. Check that:
-- References to other sections are accurate (technologies, decisions, diagrams match)
-- No contradictions exist with the referenced sections
-- Terminology is consistent
+You are performing a cross-section coherence review on a single document section. The other sections are provided as reference.
 
-If edits are needed, return the FULL corrected Markdown for this section.
-If no changes needed, return the original content unchanged.
-Return ONLY the section Markdown, no commentary.
-Do NOT wrap the full response in triple backticks and do NOT start with ```markdown."""
+Review the target section for these issues:
+1. **Terminology consistency** — Are the same concepts named the same way as in the other sections?
+2. **Technology alignment** — Are the technologies mentioned consistent with what was decided in the Proposal?
+3. **Factual accuracy** — Does this section make claims that contradict specific statements in other sections?
+4. **Diagram accuracy** — If diagrams reference components or flows from other sections, are they consistent?
+
+Correction rules:
+- Fix only genuine inconsistencies. Do NOT rewrite content that is correct.
+- Preserve the original section structure. Do NOT add new content unless fixing an inconsistency requires it.
+- If no corrections are needed, return the original content EXACTLY unchanged.
+- Return ONLY the section Markdown. No commentary, no explanation.
+- Do NOT wrap the response in triple backticks."""
 
 
 async def refine_cross_references(doc_id: str) -> None:
@@ -142,8 +175,9 @@ async def refine_cross_references(doc_id: str) -> None:
                 f"## Other sections for reference:\n\n{reference_context}"
             )
 
-            response = await client.chat.completions.create(
-                model=DEFAULT_MODEL,
+            response = await call_with_retry(
+                phase="generation:coherence",
+                section_type=section_type,
                 messages=[
                     {"role": "system", "content": COHERENCE_PROMPT},
                     {"role": "user", "content": user_content},
@@ -151,7 +185,8 @@ async def refine_cross_references(doc_id: str) -> None:
                 temperature=0.2,
             )
 
-            refined_content = strip_outer_markdown_fence(response.choices[0].message.content)
+            log_usage("generation:coherence", response.usage, section_type=section_type)
+            refined_content = clean_section_output(response.choices[0].message.content, section_type)
 
             # Only create a new version if content actually changed
             if refined_content and refined_content.strip() != current_content.strip():
