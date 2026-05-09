@@ -81,24 +81,6 @@ REFINEMENT_TOOLS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "analyze_document",
-            "description": "Analyzes user's manual edit without overwriting.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "analysis_points": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Attention points found",
-                    }
-                },
-                "required": ["analysis_points"],
-            },
-        },
-    },
 ]
 
 

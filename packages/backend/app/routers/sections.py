@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models import Section, SectionVersion, ChatMessage, Document
 from app.models.user import User
 from app.schemas.section import SectionVersionResponse, ChatMessageResponse, VersionRestoreResponse
-from app.services.db import restore_version
+from app.services.db import restore_version, create_version_snapshot
 
 router = APIRouter(tags=["sections"])
 
@@ -62,6 +62,23 @@ async def get_section_chat(
     )
     messages = result.scalars().all()
     return [ChatMessageResponse.model_validate(m) for m in messages]
+
+
+@router.post("/sections/{section_id}/versions/snapshot", response_model=SectionVersionResponse, status_code=201)
+async def create_section_snapshot(
+    section_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info("[router] create_section_snapshot | section_id={}", section_id)
+    section = await _assert_section_ownership(section_id, current_user, db)
+
+    try:
+        version = await create_version_snapshot(db, section_id, section.document_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    return SectionVersionResponse.model_validate(version)
 
 
 @router.post("/sections/{section_id}/versions/{version_id}/restore", response_model=VersionRestoreResponse)

@@ -4,7 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion
+from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion, AuditFinding
 from app.schemas.sse import SSEEvent
 from app.services import sse as sse_service
 
@@ -247,6 +247,35 @@ async def create_section_version(
     return version
 
 
+async def create_version_snapshot(
+    db: AsyncSession,
+    section_id: uuid.UUID,
+    doc_id: uuid.UUID,
+) -> SectionVersion:
+    """Create a snapshot of the current active version with no AI involvement.
+
+    INTERNAL: caller must validate section ownership before invoking.
+    """
+    result = await db.execute(
+        select(SectionVersion)
+        .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)
+    )
+    active = result.scalar_one_or_none()
+    if not active:
+        raise ValueError("No active version found for section")
+
+    import datetime
+    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M")
+    return await create_section_version(
+        db,
+        section_id,
+        f"Snapshot {timestamp}",
+        active.content,
+        parent_version_id=active.id,
+        doc_id=doc_id,
+    )
+
+
 async def restore_version(db: AsyncSession, section_id: uuid.UUID, version_id: uuid.UUID) -> SectionVersion:
     """INTERNAL: caller must validate section ownership before invoking."""
     # Deactivate current active
@@ -264,6 +293,44 @@ async def restore_version(db: AsyncSession, section_id: uuid.UUID, version_id: u
     await db.commit()
     result = await db.execute(select(SectionVersion).where(SectionVersion.id == version_id))
     return result.scalar_one()
+
+
+async def save_audit_findings(
+    db: AsyncSession,
+    doc_id: uuid.UUID,
+    findings: list[dict],
+) -> None:
+    """Persist audit findings for a document. Each dict must have section_type, description, severity."""
+    for f in findings:
+        finding = AuditFinding(
+            document_id=doc_id,
+            section_type=f["section_type"],
+            description=f["description"],
+            severity=f["severity"],
+        )
+        db.add(finding)
+    await db.commit()
+
+
+async def get_audit_findings(
+    db: AsyncSession,
+    doc_id: uuid.UUID,
+) -> list[AuditFinding]:
+    result = await db.execute(
+        select(AuditFinding)
+        .where(AuditFinding.document_id == doc_id, AuditFinding.dismissed.is_(False))
+        .order_by(AuditFinding.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def dismiss_audit_finding(db: AsyncSession, finding_id: uuid.UUID) -> None:
+    await db.execute(
+        update(AuditFinding)
+        .where(AuditFinding.id == finding_id)
+        .values(dismissed=True)
+    )
+    await db.commit()
 
 
 async def get_document_detail(db: AsyncSession, doc_id: uuid.UUID):

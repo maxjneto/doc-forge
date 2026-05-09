@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Document, Section, DiscoveryQuestion, ChatMessage
+from app.models import Document, Section, DiscoveryQuestion, ChatMessage, AuditFinding
 from app.models.user import User
 from app.schemas.document import (
     DocumentCreate,
@@ -22,6 +22,7 @@ from app.schemas.document import (
     DiscoveryQuestionResponse,
     SectionBriefResponse,
 )
+from app.schemas.audit import AuditFindingResponse
 from app.schemas.events import AnswerQuestionRequest, EventRequest
 from app.inngest_client import inngest_client
 from app.services import db as db_service
@@ -259,7 +260,7 @@ async def dispatch_event(
 
     if payload.event_type == "section_action":
         action_type = payload.data.get("action_type")
-        if action_type in ("ask_question", "request_edit", "analyze_user_edit"):
+        if action_type in ("ask_question", "request_edit"):
             try:
                 section_uuid = uuid.UUID(str(payload.data.get("section_id", "")))
             except ValueError:
@@ -344,4 +345,48 @@ async def update_completed_document_content(
             parent_version_id=active_version.id if active_version else None,
         )
 
+    return {"status": "ok"}
+
+
+@router.get("/documents/{document_id}/audit-findings", response_model=list[AuditFindingResponse])
+async def get_audit_findings(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.debug("[router] get_audit_findings | doc_id={}", document_id)
+    doc_result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not doc_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    findings = await db_service.get_audit_findings(db, document_id)
+    return [AuditFindingResponse.model_validate(f) for f in findings]
+
+
+@router.post("/documents/{document_id}/audit-findings/{finding_id}/dismiss")
+async def dismiss_audit_finding(
+    document_id: uuid.UUID,
+    finding_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info("[router] dismiss_audit_finding | doc_id={} finding_id={}", document_id, finding_id)
+    doc_result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not doc_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    finding_result = await db.execute(
+        select(AuditFinding).where(
+            AuditFinding.id == finding_id,
+            AuditFinding.document_id == document_id,
+        )
+    )
+    if not finding_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    await db_service.dismiss_audit_finding(db, finding_id)
     return {"status": "ok"}

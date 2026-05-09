@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session
-from app.models import Document, Section, SectionVersion, ChatMessage
+from app.models import Section, ChatMessage
 from app.services import db as db_service
 from app.ai.output_cleaner import strip_outer_markdown_fence
 
@@ -126,9 +126,6 @@ async def process_edit(section_id: str, prompt: str) -> None:
             )
         elif ai_result.get("tool") == "answer_question":
             await db_service.add_chat_message(db, doc.id, section.id, "agent", ai_result["reply"])
-        elif ai_result.get("tool") == "analyze_document":
-            points = "\n".join(f"- {p}" for p in ai_result.get("analysis_points", []))
-            await db_service.add_chat_message(db, doc.id, section.id, "agent", f"Analysis:\n{points}")
 
 
 async def process_question(section_id: str, message: str) -> None:
@@ -166,52 +163,6 @@ async def process_question(section_id: str, message: str) -> None:
 
         if ai_result.get("tool") == "answer_question":
             await db_service.add_chat_message(db, doc.id, section.id, "agent", ai_result["reply"])
-
-
-async def process_analysis(section_id: str, user_text: str, message: str = "") -> None:
-    """Process user-edited text and provide AI analysis."""
-    from app.ai.refinement import refine_section
-
-    logger.info("[helpers] process_analysis | section_id={}", section_id)
-    async with async_session() as db:
-        result = await db.execute(
-            select(Section)
-            .options(selectinload(Section.versions), selectinload(Section.document))
-            .where(Section.id == uuid.UUID(section_id))
-        )
-        section = result.scalar_one()
-        active_version = next((v for v in section.versions if v.is_active), None)
-        doc = section.document
-
-        # Save user text as new version
-        await db_service.create_section_version(
-            db,
-            section.id,
-            "Manual edit",
-            user_text,
-            parent_version_id=active_version.id if active_version else None,
-            doc_id=doc.id,
-        )
-
-        cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
-        chat_history = await _get_chat_history(db, section.id)
-
-        user_message = message or "Analyze this text and point out issues or improvements."
-        await db_service.add_chat_message(db, doc.id, section.id, "user", user_message)
-
-        ai_result = await refine_section(
-            section_type=section.section_type,
-            general_context=doc.global_context or "",
-            current_content=user_text,
-            cross_section_context=await cross_context,
-            chat_history=chat_history,
-            user_message=user_message,
-            forced_tool_name="analyze_document",
-        )
-
-        if ai_result.get("tool") == "analyze_document":
-            points = "\n".join(f"- {p}" for p in ai_result.get("analysis_points", []))
-            await db_service.add_chat_message(db, doc.id, section.id, "agent", f"Analysis:\n{points}")
 
 
 def _build_cross_section_context(sections: list, target_type: str) -> str:

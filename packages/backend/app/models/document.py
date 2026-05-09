@@ -27,4 +27,5 @@ class Document(Base):
     sections = relationship("Section", back_populates="document", cascade="all, delete-orphan")
     discovery_questions = relationship("DiscoveryQuestion", back_populates="document", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="document", cascade="all, delete-orphan")
+    audit_findings = relationship("AuditFinding", back_populates="document", cascade="all, delete-orphan")
     user = relationship("User", back_populates="documents")

@@ -6,7 +6,7 @@ from loguru import logger
 from sqlalchemy import or_, select
 
 from app.inngest_client import inngest_client
-from app.workflows.helpers import generate_section_root, process_edit, process_question, process_analysis
+from app.workflows.helpers import generate_section_root, process_edit, process_question
 from app.workflows.credits import weekly_credit_reset
 from app.database import async_session
 from app.models import DiscoveryQuestion
@@ -391,11 +391,6 @@ async def handle_section_action(ctx: inngest.Context):
             await process_edit(section_id, ctx.event.data["prompt"])
         await step.run("apply-edit", _apply_edit)
 
-    elif action == "analyze_user_edit":
-        async def _analyze_edit():
-            await process_analysis(section_id, ctx.event.data["user_text"], ctx.event.data.get("message", ""))
-        await step.run("analyze-edit", _analyze_edit)
-
     elif action == "ask_question":
         async def _answer_question():
             await process_question(section_id, ctx.event.data["message"])
@@ -417,13 +412,13 @@ async def handle_section_action(ctx: inngest.Context):
 
         if all_done:
             logger.info(
-                "[orchestrator] all sections finalized, bypassing audit and emitting audit.passed | doc_id={}",
+                "[orchestrator] all sections finalized, triggering audit | doc_id={}",
                 doc_id,
             )
             await step.send_event(
-                "emit-audit-passed-bypass",
+                "emit-refinement-completed",
                 inngest.Event(
-                    name="docforge/audit.passed",
+                    name="docforge/document.refinement_completed",
                     data={"document_id": doc_id},
                 ),
             )
@@ -433,7 +428,7 @@ async def handle_section_action(ctx: inngest.Context):
 
 @inngest_client.create_function(
     fn_id="run-audit",
-    trigger=inngest.TriggerEvent(event="docforge/refinement.all_finalized"),
+    trigger=inngest.TriggerEvent(event="docforge/document.refinement_completed"),
     concurrency=DOC_CONCURRENCY,
     on_failure=workflow_on_failure,
 )
@@ -455,48 +450,40 @@ async def run_audit_fn(ctx: inngest.Context):
 
     result = await step.run("run-audit", _run_audit)
 
-    if not result["has_problems"]:
-        logger.info("[orchestrator] audit PASSED | doc_id={}", doc_id)
-        async def _clear_problems():
+    async def _save_findings(r=result):
+        findings = [
+            {
+                "section_type": p["section"],
+                "description": p["issue"],
+                "severity": p["severity"],
+            }
+            for p in r.get("problems", [])
+        ]
+        if findings:
             async with async_session() as db:
-                await db_service.clear_audit_problems(db, doc_id)
-
-        await step.run("clear-audit-problems", _clear_problems)
-
-        # Emit audit passed
-        await step.send_event(
-            "emit-audit-passed",
-            inngest.Event(
-                name="docforge/audit.passed",
-                data={"document_id": doc_id},
-            ),
-        )
-    else:
-        affected = [p["section"] for p in result["problems"]]
-        logger.warning(
-            "[orchestrator] audit FAILED | doc_id={} problem_count={} affected_sections={}",
+                await db_service.save_audit_findings(db, uuid.UUID(doc_id), findings)
+        logger.info(
+            "[orchestrator] audit findings saved | doc_id={} count={}",
             doc_id,
-            len(result["problems"]),
-            affected,
+            len(findings),
         )
 
-        async def _reopen():
-            async with async_session() as db:
-                await db_service.save_audit_problems(db, doc_id, result["problems"])
-                await db_service.reopen_sections(db, doc_id, affected)
-                await db_service.set_phase(db, doc_id, "refinement")
+    await step.run("save-findings", _save_findings)
 
-        await step.run("reopen-sections", _reopen)
-        # Sections are now in 'refining' state — handle_section_action will
-        # process user actions. When all finalized again, refinement.all_finalized
-        # triggers run_audit_fn again for re-audit.
+    await step.send_event(
+        "emit-audit-completed",
+        inngest.Event(
+            name="docforge/document.audit_completed",
+            data={"document_id": doc_id},
+        ),
+    )
 
 
 # ── COMPLETION ──────────────────────────────────────────────────
 
 @inngest_client.create_function(
     fn_id="complete-document",
-    trigger=inngest.TriggerEvent(event="docforge/audit.passed"),
+    trigger=inngest.TriggerEvent(event="docforge/document.audit_completed"),
     concurrency=DOC_CONCURRENCY,
     on_failure=workflow_on_failure,
 )

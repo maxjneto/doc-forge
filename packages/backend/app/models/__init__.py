@@ -3,6 +3,7 @@ from app.models.document import Document
 from app.models.section import Section, SectionVersion
 from app.models.chat import ChatMessage
 from app.models.discovery import DiscoveryQuestion
+from app.models.audit import AuditFinding
 from app.models.base import Base
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     "SectionVersion",
     "ChatMessage",
     "DiscoveryQuestion",
+    "AuditFinding",
 ]
