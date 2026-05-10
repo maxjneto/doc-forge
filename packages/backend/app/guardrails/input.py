@@ -103,7 +103,7 @@ _INTENT_SCHEMA = {
 }
 
 
-async def validate_message_intent(message: str, section_type: str) -> ValidationError | None:
+async def validate_message_intent(message: str, section_type: str, section_summary: str | None = None) -> ValidationError | None:
     """LLM-based intent classifier: rejects messages unrelated to document editing.
 
     Failures are swallowed — a guardrail error must never block the user.
@@ -120,7 +120,7 @@ async def validate_message_intent(message: str, section_type: str) -> Validation
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
-                    "content": f"Section: {section_type}\nMessage: {message}",
+                    "content": f"Section: {section_type}\nSummary: {section_summary}\nMessage: {message}",
                 },
             ],
             response_format=_INTENT_SCHEMA,

@@ -102,7 +102,7 @@ async def process_edit(section_id: str, prompt: str) -> None:
         await db_service.add_chat_message(db, doc.id, section.id, "user", prompt)
 
         from app.guardrails import validate_message_intent
-        intent_err = await validate_message_intent(prompt, section.section_type)
+        intent_err = await validate_message_intent(prompt, section.section_type, section.summary)
         if intent_err:
             await db_service.add_chat_message(db, doc.id, section.id, "agent", intent_err.message)
             return
@@ -179,7 +179,7 @@ async def process_question(section_id: str, message: str) -> None:
         await db_service.add_chat_message(db, doc.id, section.id, "user", message)
 
         from app.guardrails import validate_message_intent
-        intent_err = await validate_message_intent(message, section.section_type)
+        intent_err = await validate_message_intent(message, section.section_type, section.summary)
         if intent_err:
             await db_service.add_chat_message(db, doc.id, section.id, "agent", intent_err.message)
             return
