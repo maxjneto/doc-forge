@@ -36,7 +36,6 @@ async def function(ctx: inngest.Context):
 
     await step.run("set-phase-discovery", _set_discovery)
 
-    # Load ordered section definitions for this document type
     async def _load_sections():
         async with async_session() as db:
             result = await db.execute(
@@ -60,7 +59,6 @@ async def function(ctx: inngest.Context):
             "[orchestrator] DISCOVERY section={} | doc_id={}", section_key, doc_id
         )
 
-        # Resolve the Section row id for this section key
         async def _get_section_id(sk=section_key):
             async with async_session() as db:
                 result = await db.execute(
@@ -74,19 +72,10 @@ async def function(ctx: inngest.Context):
 
         section_id_str = await step.run(f"get-section-id-{section_key}", _get_section_id)
 
-        section_sufficient = False
-        iteration = 0
-
-        while not section_sufficient:
-            iteration += 1
-            logger.info(
-                "[orchestrator] discovery section={} iteration={} | doc_id={}",
-                section_key,
-                iteration,
-                doc_id,
-            )
-
-            async def _analyze_context(sk=section_key, sr=section_role, i=iteration):
+        # Build the shared analyze closure; reads answered questions scoped to section_key.
+        # Used for both the initial analysis and the post-answer finalization.
+        def _make_analyze(sk, sr):
+            async def _analyze():
                 from app.phases.discovery.ai import analyze_discovery
 
                 async with async_session() as db:
@@ -116,98 +105,60 @@ async def function(ctx: inngest.Context):
                         db=db,
                         document_type_id=uuid.UUID(document_type_id) if document_type_id else None,
                     )
+            return _analyze
 
-            analysis = await step.run(
-                f"analyze-context-{section_key}-{iteration}", _analyze_context
+        # Step 1: initial analysis — may immediately be sufficient or return questions.
+        analysis = await step.run(
+            f"analyze-context-{section_key}", _make_analyze(section_key, section_role)
+        )
+
+        if analysis["is_sufficient"]:
+            context_to_save = analysis.get("consolidated_context") or document_context
+            logger.info(
+                "[orchestrator] section={} sufficient immediately | doc_id={}", section_key, doc_id
+            )
+        else:
+            questions = analysis.get("follow_up_questions", [])[:2]
+
+            if questions:
+                logger.info(
+                    "[orchestrator] saving {} questions for section={} | doc_id={}",
+                    len(questions),
+                    section_key,
+                    doc_id,
+                )
+
+                async def _save_questions(qs=questions, sk=section_key):
+                    async with async_session() as db:
+                        for q in qs:
+                            await db_service.save_discovery_question(db, doc_id, q, section_key=sk)
+
+                await step.run(f"save-questions-{section_key}", _save_questions)
+
+            # Wait for all questions in this section to be answered/skipped.
+            # Filter by document_id only — safe because sections are processed sequentially
+            # so only one wait_for_event is active per document at any point.
+            await step.wait_for_event(
+                f"wait-round-complete-{section_key}",
+                event="docforge/user.discovery_round_complete",
+                timeout=datetime.timedelta(days=7),
+                if_exp="async.data.document_id == event.data.document_id",
+            )
+            logger.info(
+                "[orchestrator] round complete section={} | doc_id={}", section_key, doc_id
             )
 
-            if analysis["is_sufficient"]:
-                section_sufficient = True
-                logger.info(
-                    "[orchestrator] section={} sufficient after {} iterations | doc_id={}",
-                    section_key,
-                    iteration,
-                    doc_id,
-                )
+            # Step 3: finalize — re-analyze with answers now in DB to get consolidated_context.
+            final_analysis = await step.run(
+                f"finalize-context-{section_key}", _make_analyze(section_key, section_role)
+            )
+            context_to_save = final_analysis.get("consolidated_context") or document_context
 
-                async def _save_section_context(sid=section_id_str, ctx_text=analysis["consolidated_context"]):
-                    async with async_session() as db:
-                        await db_service.save_section_context(
-                            db, uuid.UUID(sid), ctx_text or ""
-                        )
+        async def _save_context(sid=section_id_str, ctx_text=context_to_save):
+            async with async_session() as db:
+                await db_service.save_section_context(db, uuid.UUID(sid), ctx_text)
 
-                await step.run(f"save-context-{section_key}", _save_section_context)
-            else:
-                questions = analysis.get("follow_up_questions", [])[:2]
-                saved_ids: list[str] = []
-                if questions:
-                    logger.info(
-                        "[orchestrator] saving {} questions for section={} | doc_id={}",
-                        len(questions),
-                        section_key,
-                        doc_id,
-                    )
-
-                    async def _save_questions(qs=questions, sk=section_key):
-                        async with async_session() as db:
-                            saved = []
-                            for q in qs:
-                                dq = await db_service.save_discovery_question(
-                                    db, doc_id, q, section_key=sk
-                                )
-                                saved.append(str(dq.id))
-                            return saved
-
-                    saved_ids = await step.run(
-                        f"save-questions-{section_key}-{iteration}", _save_questions
-                    )
-
-                await step.wait_for_event(
-                    f"wait-round-complete-{section_key}-{iteration}",
-                    event="docforge/user.discovery_round_complete",
-                    timeout=datetime.timedelta(days=7),
-                    if_exp=(
-                        "async.data.document_id == event.data.document_id"
-                        " && async.data.section_key == event.data.section_key"
-                    ),
-                )
-                logger.info(
-                    "[orchestrator] round complete section={} iteration={} | doc_id={}",
-                    section_key,
-                    iteration,
-                    doc_id,
-                )
-
-                async def _check_all_skipped(ids=saved_ids):
-                    async with async_session() as db:
-                        result = await db.execute(
-                            select(DiscoveryQuestion).where(
-                                DiscoveryQuestion.id.in_([uuid.UUID(i) for i in ids]),
-                                DiscoveryQuestion.answer.is_not(None),
-                            )
-                        )
-                        return result.scalars().first() is None
-
-                all_skipped = await step.run(
-                    f"check-all-skipped-{section_key}-{iteration}", _check_all_skipped
-                )
-                if all_skipped:
-                    logger.info(
-                        "[orchestrator] all questions skipped for section={}, forcing sufficiency | doc_id={}",
-                        section_key,
-                        doc_id,
-                    )
-                    section_sufficient = True
-
-                    async def _save_context_forced(sid=section_id_str):
-                        async with async_session() as db:
-                            await db_service.save_section_context(
-                                db, uuid.UUID(sid), document_context
-                            )
-
-                    await step.run(
-                        f"save-context-forced-{section_key}", _save_context_forced
-                    )
+        await step.run(f"save-context-{section_key}", _save_context)
 
     logger.info("[orchestrator] emitting discovery.completed | doc_id={}", doc_id)
     await step.send_event(

@@ -231,17 +231,19 @@ async def answer_question(
     )
     if not doc_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Document not found")
-    # Mark the question as answered or skipped (scoped to section_key)
+    # Mark the question as answered or skipped.
+    # section_key is NOT taken from the request — it is read from the DB row
+    # (set by the workflow when saving questions) so the client doesn't need to track it.
     result = await db.execute(
         select(DiscoveryQuestion).where(
             DiscoveryQuestion.document_id == document_id,
             DiscoveryQuestion.question == payload.question,
-            DiscoveryQuestion.section_key == payload.section_key,
             DiscoveryQuestion.answer.is_(None),
             DiscoveryQuestion.skipped == False,
         )
     )
     question = result.scalar_one_or_none()
+    section_key = question.section_key if question else None
     if question:
         if payload.answer is None:
             question.skipped = True
@@ -249,26 +251,36 @@ async def answer_question(
             question.answer = payload.answer
         await db.commit()
 
-    # Check if all discovery questions for this section are now resolved.
-    # If so, fire the round-complete signal so the orchestrator can resume this section's wait.
+    # Check if all pending questions for this section (or document, for legacy rows)
+    # are resolved. If so, fire the round-complete signal to resume the Inngest wait.
     try:
-        pending_result = await db.execute(
-            select(DiscoveryQuestion).where(
-                DiscoveryQuestion.document_id == document_id,
-                DiscoveryQuestion.section_key == payload.section_key,
-                DiscoveryQuestion.answer.is_(None),
-                DiscoveryQuestion.skipped == False,
+        if section_key is not None:
+            pending_result = await db.execute(
+                select(DiscoveryQuestion).where(
+                    DiscoveryQuestion.document_id == document_id,
+                    DiscoveryQuestion.section_key == section_key,
+                    DiscoveryQuestion.answer.is_(None),
+                    DiscoveryQuestion.skipped == False,
+                )
             )
-        )
+        else:
+            # Legacy path: document predates per-section discovery (section_key is NULL)
+            pending_result = await db.execute(
+                select(DiscoveryQuestion).where(
+                    DiscoveryQuestion.document_id == document_id,
+                    DiscoveryQuestion.answer.is_(None),
+                    DiscoveryQuestion.skipped == False,
+                )
+            )
         pending = pending_result.scalars().first()
         if pending is None:
+            event_data: dict = {"document_id": str(document_id)}
+            if section_key is not None:
+                event_data["section_key"] = section_key
             await inngest_client.send(
                 inngest.Event(
                     name="docforge/user.discovery_round_complete",
-                    data={
-                        "document_id": str(document_id),
-                        "section_key": payload.section_key,
-                    },
+                    data=event_data,
                 )
             )
     except Exception as e:
