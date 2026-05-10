@@ -166,19 +166,17 @@ async def refine_cross_references(doc_id: str, document_type_id: str | None = No
 
             reference_context = "\n\n".join(ref_parts)
 
-            user_content = (
-                f"## Section to review: {section_type.upper()}\n\n"
-                f"{current_content}\n\n"
-                f"## Other sections for reference:\n\n{reference_context}"
-            )
+            messages = [
+                {"role": "system", "content": coherence_prompt},
+                {"role": "user", "content": f'Section to refine:\n\n{section_type.upper()}'},
+                {"role": "user", "content": f"Other sections for reference:\n\n{reference_context}"},
+                {"role": "user", "content": f"Current content:\n\n{current_content}"},
+            ]
 
             response = await call_with_retry(
                 phase="generation:coherence",
                 section_type=section_type,
-                messages=[
-                    {"role": "system", "content": coherence_prompt},
-                    {"role": "user", "content": user_content},
-                ],
+                messages=messages,
                 temperature=0.2,
             )
 
@@ -191,10 +189,9 @@ async def refine_cross_references(doc_id: str, document_type_id: str | None = No
                     section_type,
                 )
                 active_version = next((v for v in section.versions if v.is_active), None)
-                await db_service.create_section_version(
+                await db_service.update_section_content(
                     db,
                     section.id,
-                    "Coherence pass",
                     refined_content,
-                    parent_version_id=active_version.id if active_version else None,
+                    doc_id=uuid.UUID(doc_id),
                 )

@@ -246,6 +246,31 @@ async def create_section_version(
         ))
     return version
 
+async def update_section_content(
+    db: AsyncSession,
+    section_id: uuid.UUID,
+    new_content: str,
+    doc_id: uuid.UUID | None = None,
+) -> SectionVersion:
+    """INTERNAL: caller must validate section ownership before invoking."""
+    # Update content of current active version
+    result = await db.execute(
+        select(SectionVersion)
+        .where(SectionVersion.section_id == section_id)
+    )
+    active = result.scalar_one_or_none()
+    if not active:
+        raise ValueError("No active version found for section")
+
+    active.content = new_content
+    await db.commit()
+    await db.refresh(active)
+    if doc_id is not None:
+        sse_service.publish(str(doc_id), SSEEvent(
+            type="section_updated",
+            payload={"doc_id": str(doc_id), "section_id": str(section_id)},
+        ))
+    return active
 
 async def create_version_snapshot(
     db: AsyncSession,
