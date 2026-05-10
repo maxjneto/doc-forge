@@ -25,6 +25,7 @@ class DiscoveryQuestionResponse(BaseModel):
     question: str
     answer: str | None
     skipped: bool
+    section_key: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

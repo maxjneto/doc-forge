@@ -120,16 +120,18 @@ sequenceDiagram
     API->>INN: send docforge/document.started
 
     INN->>DB: set_phase(discovery)
-    loop Until sufficient
-        INN->>AI: analyze_discovery()
-        alt needs more info
-            INN->>DB: save_discovery_question()
-            INN->>INN: wait_for_event(discovery_round_complete)
-            FE->>API: POST /answer
-            API->>INN: send discovery_round_complete
+    loop For each SectionDefinition (ordered)
+        loop Until section sufficient
+            INN->>AI: analyze_discovery(section_key, section_role)
+            alt needs more info
+                INN->>DB: save_discovery_question(section_key)
+                INN->>INN: wait_for_event(discovery_round_complete, section_key)
+                FE->>API: POST /answer {section_key}
+                API->>INN: send discovery_round_complete {section_key}
+            end
         end
+        INN->>DB: save_section_context(section_id)
     end
-    INN->>DB: save_global_context()
     INN->>INN: send discovery.completed
 
     INN->>DB: set_phase(alignment)
@@ -173,7 +175,7 @@ sequenceDiagram
 
 | Function ID | Trigger Event | Concurrency Key | Role |
 |---|---|---|---|
-| `run-discovery` | `docforge/document.started` | `document_id` | Phase 1 loop |
+| `run-discovery` | `docforge/document.started` | `document_id` | Phase 1 — per-section discovery loop |
 | `run-alignment` | `docforge/discovery.completed` | `document_id` | Phase 2 loop |
 | `run-generation` | `docforge/alignment.completed` | `document_id` | Phase 3 sequential sections |
 | `start-refinement` | `docforge/generation.completed` | `document_id` | Phase 4 setup |
@@ -220,7 +222,7 @@ flowchart TD
 
 | Module | Output Type | Key Features |
 |---|---|---|
-| `phases/discovery/ai.py` | `{is_sufficient, follow_up_questions, consolidated_context}` | JSON schema output, iterates until sufficient |
+| `phases/discovery/ai.py` | `{is_sufficient, follow_up_questions, consolidated_context}` | JSON schema; iterates per section until sufficient; scoped by `section_key` + `section_role`; max 2 questions; 24 000-token budget |
 | `phases/alignment/ai.py` | `{summaries: {context, proposal, implementation, risks}}` | JSON schema, per-section directives |
 | `phases/alignment/contract.py` | `{entities, decisions, terminology, constraints}` | Runs after alignment approval; stored in DB |
 | `phases/generation/ai.py` | `str` (Markdown) | Mermaid diagrams required in proposal+implementation; coherence pass |
@@ -306,6 +308,7 @@ erDiagram
         string section_type
         string status
         text summary
+        text discovery_context "NULL = pre-011 legacy"
     }
     SectionVersion {
         uuid id PK
@@ -328,6 +331,7 @@ erDiagram
         text question
         text answer
         bool skipped
+        string section_key "NULL = pre-011 legacy"
     }
     AuditFinding {
         uuid id PK

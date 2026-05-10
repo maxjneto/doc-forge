@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 class AnswerQuestionRequest(BaseModel):
     question: str = Field(max_length=1000)
     answer: str | None = Field(default=None, max_length=5000)  # None = skipped
+    section_key: str = Field(max_length=50)
 
 
 class EventRequest(BaseModel):

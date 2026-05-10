@@ -30,6 +30,25 @@ async def function(ctx: inngest.Context):
 
     await step.run("set-phase-alignment", _set_alignment)
 
+    # Build section_contexts from per-section discovery_context values.
+    # Falls back to global_context for documents created before migration 011.
+    async def _build_section_contexts():
+        async with async_session() as db:
+            doc = await db_service.get_document_detail(db, doc_id)
+            contexts: dict[str, str] = {}
+            for section in doc.sections:
+                if section.discovery_context:
+                    contexts[section.section_type] = section.discovery_context
+
+            if not contexts and doc.global_context:
+                # Pre-redesign document: broadcast the single global context to all sections
+                for section in doc.sections:
+                    contexts[section.section_type] = doc.global_context
+
+            return contexts
+
+    section_contexts = await step.run("build-section-contexts", _build_section_contexts)
+
     all_approved = False
     iteration = 0
 
@@ -37,12 +56,12 @@ async def function(ctx: inngest.Context):
         iteration += 1
         logger.info("[orchestrator] alignment iteration {} | doc_id={}", iteration, doc_id)
 
-        async def _generate_summaries():
+        async def _generate_summaries(sc=section_contexts):
             from app.phases.alignment.ai import generate_alignment
             async with async_session() as db:
                 doc = await db_service.get_document_detail(db, doc_id)
                 return await generate_alignment(
-                    doc.global_context,
+                    sc,
                     doc.user_preferences,
                     None,
                     db=db,
@@ -72,12 +91,16 @@ async def function(ctx: inngest.Context):
                 doc_id,
             )
 
-            async def _extract_contract(s=summaries):
+            async def _extract_contract(s=summaries, sc=section_contexts):
                 from app.phases.alignment.contract import extract_document_contract
                 async with async_session() as db:
                     doc = await db_service.get_document_detail(db, doc_id)
+                    # Provide the combined section contexts as grounding for the contract
+                    combined_context = "\n\n".join(
+                        f"## {k.capitalize()}\n{v}" for k, v in sc.items() if v
+                    ) or doc.global_context or ""
                     contract = await extract_document_contract(
-                        global_context=doc.global_context or "",
+                        global_context=combined_context,
                         summaries=s.get("summaries", {}),
                         user_preferences=doc.user_preferences,
                         db=db,

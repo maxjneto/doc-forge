@@ -1,5 +1,7 @@
+import json
 import uuid
 import datetime
+from pathlib import Path
 
 import inngest
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -32,6 +34,16 @@ from app.guardrails import validate_document_context, validate_discovery_answer,
 
 router = APIRouter(tags=["documents"])
 
+_SAMPLE_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_document.json"
+_sample_document: dict | None = None
+
+
+def _load_sample_document() -> dict:
+    global _sample_document
+    if _sample_document is None:
+        _sample_document = json.loads(_SAMPLE_FIXTURE_PATH.read_text(encoding="utf-8"))
+    return _sample_document
+
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
@@ -46,6 +58,12 @@ async def list_documents(
     documents = result.scalars().all()
     logger.debug("[router] list_documents | user_id={} count={}", current_user.id, len(documents))
     return DocumentListResponse(documents=[DocumentResponse.model_validate(d) for d in documents])
+
+
+@router.get("/documents/sample", response_model=DocumentDetailResponse)
+async def get_sample_document():
+    """Return a static completed sample RFC document. No auth required."""
+    return _load_sample_document()
 
 
 @router.get("/documents/{document_id}", response_model=DocumentDetailResponse)
@@ -213,11 +231,12 @@ async def answer_question(
     )
     if not doc_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Document not found")
-    # Mark the question as answered or skipped
+    # Mark the question as answered or skipped (scoped to section_key)
     result = await db.execute(
         select(DiscoveryQuestion).where(
             DiscoveryQuestion.document_id == document_id,
             DiscoveryQuestion.question == payload.question,
+            DiscoveryQuestion.section_key == payload.section_key,
             DiscoveryQuestion.answer.is_(None),
             DiscoveryQuestion.skipped == False,
         )
@@ -230,12 +249,13 @@ async def answer_question(
             question.answer = payload.answer
         await db.commit()
 
-    # Check if all discovery questions for this document are now resolved.
-    # If so, fire the round-complete signal so the orchestrator can proceed.
+    # Check if all discovery questions for this section are now resolved.
+    # If so, fire the round-complete signal so the orchestrator can resume this section's wait.
     try:
         pending_result = await db.execute(
             select(DiscoveryQuestion).where(
                 DiscoveryQuestion.document_id == document_id,
+                DiscoveryQuestion.section_key == payload.section_key,
                 DiscoveryQuestion.answer.is_(None),
                 DiscoveryQuestion.skipped == False,
             )
@@ -245,7 +265,10 @@ async def answer_question(
             await inngest_client.send(
                 inngest.Event(
                     name="docforge/user.discovery_round_complete",
-                    data={"document_id": str(document_id)},
+                    data={
+                        "document_id": str(document_id),
+                        "section_key": payload.section_key,
+                    },
                 )
             )
     except Exception as e:
@@ -417,4 +440,45 @@ async def dismiss_audit_finding(
         raise HTTPException(status_code=404, detail="Finding not found")
 
     await db_service.dismiss_audit_finding(db, finding_id)
+    return {"status": "ok"}
+
+
+@router.post("/documents/{document_id}/rerun-audit")
+async def rerun_audit(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Re-trigger the audit phase for a document currently in refinement.
+
+    Sends the existing docforge/document.refinement_completed event so the
+    run-audit Inngest function executes exactly as it would after normal
+    refinement completion — no audit logic lives here.
+    """
+    logger.info("[router] rerun_audit | doc_id={} user_id={}", document_id, current_user.id)
+
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.current_phase != "refinement":
+        raise HTTPException(status_code=409, detail="Document is not in refinement phase")
+
+    try:
+        await inngest_client.send(
+            inngest.Event(
+                name="docforge/document.refinement_completed",
+                data={
+                    "document_id": str(document_id),
+                    "document_type_id": str(doc.document_type_id) if doc.document_type_id else None,
+                },
+            )
+        )
+    except Exception as e:
+        logger.error(f"Failed to dispatch rerun-audit event for {document_id}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
+
     return {"status": "ok"}

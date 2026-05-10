@@ -28,7 +28,7 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 
 | Phase | What happens |
 |---|---|
-| **1. Discovery** | AI asks targeted follow-up questions until it has enough context. User answers or skips each round. |
+| **1. Discovery** | AI asks up to 2 targeted follow-up questions **per section** until context is sufficient for that section. Each section is handled independently; questions are scoped to that section's purpose before moving to the next. |
 | **2. Alignment** | AI generates 1–3 sentence summaries per section. User approves or rejects. On approval, a structured **Document Contract** is extracted. |
 | **3. Generation** | Sections are generated sequentially so each one can reference those already written. A coherence pass then checks cross-section consistency. |
 | **4. Refinement** | Per-section interactive editing: request AI edits, ask questions, or submit manual changes for AI review. Finalize when satisfied. |
@@ -39,7 +39,7 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 
 ## Features
 
-- **Context-aware discovery** — AI iteratively asks follow-up questions and synthesizes answers into a consolidated context before writing begins.
+- **Context-aware discovery** — AI asks follow-up questions scoped to each individual section and synthesizes per-section context before alignment begins, grounding each section summary in directly relevant information.
 - **Alignment checkpoint** — Section summaries are shown for approval before any full content is generated, preventing wasted generation cycles.
 - **Document Contract** — After alignment, a structured contract (entities, decisions, terminology, constraints) is extracted and injected into every downstream AI call to enforce consistency across all sections.
 - **Sequential generation with cross-section context** — Each section is generated with access to the content of previously generated sections, so the document builds coherently rather than in isolation.

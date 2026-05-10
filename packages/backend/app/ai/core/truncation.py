@@ -21,7 +21,7 @@ _CHARS_PER_TOKEN = 3.5
 # Per-phase approximate token budgets for the user-supplied context
 # (system prompt + response budget excluded — model context is typically 128k)
 BUDGET = {
-    "discovery":       16_000,  # tokens
+    "discovery":       24_000,  # tokens — per-section call with section_role context
     "alignment":       12_000,
     "generation":      24_000,
     "refinement":      20_000,

@@ -88,8 +88,13 @@ async def save_summaries(db: AsyncSession, doc_id: uuid.UUID, summaries: dict[st
     ))
 
 
-async def save_discovery_question(db: AsyncSession, doc_id: uuid.UUID, question: str) -> DiscoveryQuestion:
-    q = DiscoveryQuestion(document_id=doc_id, question=question)
+async def save_discovery_question(
+    db: AsyncSession,
+    doc_id: uuid.UUID,
+    question: str,
+    section_key: str | None = None,
+) -> DiscoveryQuestion:
+    q = DiscoveryQuestion(document_id=doc_id, question=question, section_key=section_key)
     db.add(q)
     await db.commit()
     await db.refresh(q)
@@ -98,6 +103,16 @@ async def save_discovery_question(db: AsyncSession, doc_id: uuid.UUID, question:
         payload={"doc_id": str(doc_id), "change": "discovery_question"},
     ))
     return q
+
+
+async def save_section_context(db: AsyncSession, section_id: uuid.UUID, context: str) -> None:
+    """Store the AI-synthesized discovery context for a specific section."""
+    await db.execute(
+        update(Section)
+        .where(Section.id == section_id)
+        .values(discovery_context=context)
+    )
+    await db.commit()
 
 
 async def finalize_section(

@@ -35,30 +35,36 @@ ALIGNMENT_SCHEMA = {
 
 
 def build_alignment_context(
-    general_context: str,
+    section_contexts: dict[str, str],
     user_preferences: str,
     rejected_sections: list[dict] | None = None,
 ) -> str:
-    parts = [f"## Consolidated Context\n{general_context}"]
+    parts = []
+    for section_key, ctx in section_contexts.items():
+        if ctx:
+            parts.append(f"## {section_key.capitalize()} Section Context\n{ctx}")
+    if not parts:
+        parts.append("## Consolidated Context\n(No context available)")
     if user_preferences:
         parts.append(f"\n## Preferences\n{user_preferences}")
     if rejected_sections:
         parts.append("\n## Rejected Summaries (regenerate only these)")
         for r in rejected_sections:
             parts.append(f"- **{r['section']}**: {r.get('reason', 'No reason provided')}")
-    return "\n".join(parts)
+    return "\n\n".join(parts)
 
 
 async def generate_alignment(
-    general_context: str,
+    section_contexts: dict[str, str],
     user_preferences: str | None,
     rejected_sections: list[dict] | None = None,
     db: AsyncSession | None = None,
     document_type_id: uuid.UUID | None = None,
 ) -> dict:
-    """Generate 1-2 sentence summaries for each section."""
+    """Generate 1-2 sentence summaries for each section using per-section discovery contexts."""
     logger.info(
-        "[AI:alignment] generate_alignment | rejected_sections={}",
+        "[AI:alignment] generate_alignment | sections={} rejected_sections={}",
+        list(section_contexts.keys()),
         rejected_sections or [],
     )
     system_prompt = (
@@ -67,7 +73,7 @@ async def generate_alignment(
         else load_yaml_prompt("documents", "alignment", "system")
     )
     user_content = build_alignment_context(
-        general_context, user_preferences or "", rejected_sections
+        section_contexts, user_preferences or "", rejected_sections
     )
 
     response = await call_with_retry(
