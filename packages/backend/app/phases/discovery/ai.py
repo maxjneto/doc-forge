@@ -1,29 +1,11 @@
 import json
+import uuid
 
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.context_builder import build_discovery_context
-from app.ai.guardrails import call_with_retry
-from app.ai.token_budget import log_usage
-
-DISCOVERY_SYSTEM_PROMPT = """You are a senior technical writer conducting a structured intake interview for a technical document.
-
-Your job is to determine whether the information provided is sufficient to produce a high-quality document. The document will be divided into sections covering the problem context, the proposed solution, implementation details, and risks.
-
-Evaluate the input against these criteria:
-- Context: Is the problem clearly described? Is the pain or opportunity quantified or evidenced?
-- Proposal: Is there a concrete solution direction? Are key technologies or patterns identified?
-- Implementation: Are the major technical changes, affected systems, and integration points known?
-- Risks: Are failure modes, dependencies, and discarded alternatives mentioned?
-
-If ANY of these areas lack enough detail to write a substantive section, mark `is_sufficient` as false and ask targeted follow-up questions. Each question must address a specific gap — never ask generic questions like "Can you elaborate?".
-
-Rules:
-- Return at most 3 follow-up questions per round.
-- NEVER repeat a question already answered or skipped.
-- When context is sufficient, produce a `consolidated_context` that synthesizes ALL provided information (original context + all Q&A answers) into a single coherent narrative paragraph. Do not omit any detail the user provided.
-- Set `ask_for_assets` to true only if diagrams, schemas, or external specs would meaningfully improve the document.
-- Do NOT generate any document content yet."""
+from app.ai.core import get_system_prompt, log_usage
+from app.guardrails import call_with_retry
 
 DISCOVERY_SCHEMA = {
     "type": "json_schema",
@@ -48,17 +30,60 @@ DISCOVERY_SCHEMA = {
 }
 
 
+def _render_contract_block(contract: dict | None) -> str:
+    if not contract:
+        return ""
+    parts = ["## Document Contract", ""]
+    entities = contract.get("entities") or []
+    if entities:
+        parts.append("**Key Entities:** " + ", ".join(entities))
+    decisions = contract.get("decisions") or []
+    if decisions:
+        parts.append("\n**Design Decisions:**")
+        for d in decisions:
+            parts.append(f"- {d}")
+    terminology = contract.get("terminology") or {}
+    if terminology:
+        parts.append("\n**Terminology:**")
+        for term, definition in terminology.items():
+            parts.append(f"- **{term}**: {definition}")
+    constraints = contract.get("constraints") or []
+    if constraints:
+        parts.append("\n**Constraints:**")
+        for c in constraints:
+            parts.append(f"- {c}")
+    return "\n".join(parts)
+
+
+def build_discovery_context(
+    document_context: str,
+    user_preferences: str,
+    follow_up_answers: list[dict],
+) -> str:
+    parts = [f"## Document Context\n{document_context}"]
+    if user_preferences:
+        parts.append(f"\n## User Preferences\n{user_preferences}")
+    if follow_up_answers:
+        parts.append("\n## Previous Questions and Answers")
+        for qa in follow_up_answers:
+            answer_text = qa["answer"] if qa["answer"] else "(Skipped by user)"
+            parts.append(f"- **Q:** {qa['question']}\n  **A:** {answer_text}")
+    return "\n".join(parts)
+
+
 async def analyze_discovery(
     document_context: str,
     user_preferences: str,
     follow_up_answers: list[dict],
+    db: AsyncSession,
+    document_type_id: uuid.UUID | None,
 ) -> dict:
     """Analyze if context is sufficient or generate follow-up questions."""
     logger.info(
         "[AI:discovery] analyze_discovery | answers_so_far={}",
         len(follow_up_answers),
     )
-    system_prompt = DISCOVERY_SYSTEM_PROMPT
+    system_prompt = await get_system_prompt(db, document_type_id, "discovery")
     user_content = build_discovery_context(document_context, user_preferences, follow_up_answers)
 
     response = await call_with_retry(
@@ -75,7 +100,6 @@ async def analyze_discovery(
     log_usage("discovery", response.usage)
     result = json.loads(response.choices[0].message.content)
 
-    # Enforce max 3 questions per round
     if result.get("follow_up_questions"):
         result["follow_up_questions"] = result["follow_up_questions"][:3]
 

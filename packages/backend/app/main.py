@@ -10,7 +10,7 @@ from app.config import settings
 from app.inngest_client import inngest_client
 from app.routers import documents, sections, document_types
 from app.routers import users as users_router
-from app.workflows.orchestrator import ALL_FUNCTIONS
+from app.workflows.registry import ALL_FUNCTIONS
 
 setup_logging()
 

@@ -49,9 +49,9 @@ def strip_outer_markdown_fence(text: str | None) -> str:
     """Strip a single outer markdown fence wrapper, if present.
 
     Removes wrappers like:
-    - ```markdown\n...\n```
-    - ```md\n...\n```
-    - ```\n...\n```
+    - ```markdown\\n...\\n```
+    - ```md\\n...\\n```
+    - ```\\n...\\n```
 
     Keeps content unchanged for other fenced languages (e.g., ```mermaid).
     """

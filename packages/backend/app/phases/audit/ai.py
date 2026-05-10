@@ -5,29 +5,10 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.ai.context_builder import build_audit_context
-from app.ai.guardrails import call_with_retry
-from app.ai.token_budget import log_usage
+from app.ai.core import load_yaml_prompt, get_system_prompt, log_usage, truncate_section, build_context_report
 from app.database import async_session
-from app.models import Document, Section, SectionVersion
-
-AUDIT_SYSTEM_PROMPT = """You are a technical editor performing a final consistency audit on a completed technical document.
-
-Your task is to identify genuine inconsistencies and contradictions BETWEEN sections. You are NOT evaluating writing quality, style, or completeness of individual sections.
-
-Check specifically for:
-1. **Terminology drift** — A concept is called one thing in the Proposal and a different thing in Implementation or Risks.
-2. **Technology contradictions** — A technology or component appears in Implementation but was never introduced in the Proposal.
-3. **Risk coverage gaps** — The Implementation introduces mechanisms (e.g., a queue, a cache, a migration) that have no corresponding risk entry.
-4. **Diagram inconsistencies** — A diagram in one section shows a component or flow that contradicts another section's description.
-5. **Scope violations** — Implementation describes something explicitly marked out-of-scope in the Proposal.
-
-Reporting rules:
-- Only report genuine cross-section contradictions. Do NOT report style issues, grammar, or incomplete individual sections.
-- Each problem must cite the specific section it appears in and name the other section it conflicts with.
-- Severity `high`: the inconsistency would cause a reader to fundamentally misunderstand the design.
-- Severity `low`: the inconsistency is a naming or minor detail mismatch that should be cleaned up.
-- If the document is internally consistent, return `has_problems: false` and an empty `problems` array."""
+from app.guardrails import call_with_retry
+from app.models import Section
 
 AUDIT_SCHEMA = {
     "type": "json_schema",
@@ -59,7 +40,50 @@ AUDIT_SCHEMA = {
 }
 
 
-async def run_audit(doc_id: str) -> dict:
+def _render_contract_block(contract: dict | None) -> str:
+    if not contract:
+        return ""
+    parts = ["## Document Contract", ""]
+    entities = contract.get("entities") or []
+    if entities:
+        parts.append("**Key Entities:** " + ", ".join(entities))
+    decisions = contract.get("decisions") or []
+    if decisions:
+        parts.append("\n**Design Decisions:**")
+        for d in decisions:
+            parts.append(f"- {d}")
+    terminology = contract.get("terminology") or {}
+    if terminology:
+        parts.append("\n**Terminology:**")
+        for term, definition in terminology.items():
+            parts.append(f"- **{term}**: {definition}")
+    constraints = contract.get("constraints") or []
+    if constraints:
+        parts.append("\n**Constraints:**")
+        for c in constraints:
+            parts.append(f"- {c}")
+    return "\n".join(parts)
+
+
+def build_audit_context(
+    sections_content: dict[str, str],
+    section_order: list[str] | None = None,
+    document_contract: dict | None = None,
+) -> str:
+    order = section_order or ["context", "proposal", "implementation", "risks"]
+    build_context_report("audit", {k: v for k, v in sections_content.items()})
+    parts = []
+    contract_block = _render_contract_block(document_contract)
+    if contract_block:
+        parts.append(contract_block)
+    for section_type in order:
+        content = sections_content.get(section_type, "(Section not available)")
+        content = truncate_section(content, "audit", section_type)
+        parts.append(f"=== SECTION: {section_type.upper()} ===\n{content}")
+    return "\n\n".join(parts)
+
+
+async def run_audit(doc_id: str, document_type_id: str | None = None) -> dict:
     """Run audit on all 4 finalized sections."""
     logger.info("[AI:audit] run_audit | doc_id={}", doc_id)
     from app.services import db as db_service
@@ -72,6 +96,8 @@ async def run_audit(doc_id: str) -> dict:
         )
         sections = result.scalars().all()
         db_contract = await db_service.get_document_contract(db, uuid.UUID(doc_id))
+        dt_id = uuid.UUID(document_type_id) if document_type_id else None
+        system_prompt = await get_system_prompt(db, dt_id, "audit")
 
     sections_content = {}
     for section in sections:
@@ -87,8 +113,6 @@ async def run_audit(doc_id: str) -> dict:
             "terminology": db_contract.terminology,
             "constraints": db_contract.constraints,
         }
-
-    system_prompt = AUDIT_SYSTEM_PROMPT
     user_content = build_audit_context(sections_content, document_contract=contract_dict)
 
     response = await call_with_retry(

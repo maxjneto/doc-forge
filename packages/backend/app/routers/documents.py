@@ -28,7 +28,7 @@ from app.schemas.events import AnswerQuestionRequest, EventRequest
 from app.inngest_client import inngest_client
 from app.services import db as db_service
 from app.services import sse as sse_service
-from app.services.guardrails import validate_document_context, validate_discovery_answer, validate_refinement_message
+from app.guardrails import validate_document_context, validate_discovery_answer, validate_refinement_message
 
 router = APIRouter(tags=["documents"])
 

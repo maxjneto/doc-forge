@@ -1,25 +1,12 @@
 """Document contract extraction — runs after alignment approval."""
 import json
+import uuid
 
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.guardrails import call_with_retry
-from app.ai.token_budget import log_usage
-
-CONTRACT_SYSTEM_PROMPT = """You are a technical analyst extracting a structured contract from approved document section summaries.
-
-The contract is a compact, authoritative summary that all subsequent sections must respect. It captures the non-negotiable facts agreed during alignment.
-
-Extract the following:
-- **entities**: The key systems, services, databases, teams, or external dependencies named in the document. Each entity is a string (e.g. "PostgreSQL", "AuthService", "mobile team").
-- **decisions**: The key design decisions already made. Each decision is a string in the form "Chose X over Y because Z" or "Will use X for Y". These are constraints — writers must not contradict them.
-- **terminology**: An array of canonical term/definition pairs. Use the exact names from the alignment summaries (e.g. [{"term": "AuthService", "definition": "The internal authentication microservice"}]).
-- **constraints**: Hard constraints on the implementation (e.g. "Must not break backward compatibility", "Must complete migration within one release cycle"). Each constraint is a string.
-
-Rules:
-- Only extract what is explicitly stated in the input. Do NOT infer or add anything not present.
-- Use precise, unambiguous language. Avoid vague terms like "system" or "service" without naming them.
-- If a field has no applicable content, return an empty array or object."""
+from app.ai.core import load_yaml_prompt, get_system_prompt, log_usage
+from app.guardrails import call_with_retry
 
 CONTRACT_SCHEMA = {
     "type": "json_schema",
@@ -65,6 +52,8 @@ async def extract_document_contract(
     global_context: str,
     summaries: dict[str, str],
     user_preferences: str | None = None,
+    db: AsyncSession | None = None,
+    document_type_id: uuid.UUID | None = None,
 ) -> dict:
     """Extract a structured document contract from the approved alignment summaries."""
     logger.info("[AI:contract] extracting document contract")
@@ -79,10 +68,16 @@ async def extract_document_contract(
     if user_preferences:
         user_content += f"\n\n## User Preferences\n{user_preferences}"
 
+    system_prompt = (
+        await get_system_prompt(db, document_type_id, "contract")
+        if db is not None
+        else load_yaml_prompt("documents", "contract", "system")
+    )
+
     response = await call_with_retry(
         phase="contract",
         messages=[
-            {"role": "system", "content": CONTRACT_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ],
         response_format=CONTRACT_SCHEMA,

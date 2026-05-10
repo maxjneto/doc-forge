@@ -57,7 +57,7 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 
 **Document Contract pattern** — After alignment approval, a structured contract is extracted from the approved section summaries (entities, decisions, terminology, constraints) and persisted to the database. Every AI call from generation through audit receives this contract as a grounding block. This is the core mechanism that prevents cross-section hallucination and terminology drift in long multi-call pipelines.
 
-**DB-first prompt loading** — AI system prompts are stored in a `PromptTemplate` table keyed by document type, phase, and section. The prompt loader fetches the most specific template (section-specific first, then phase-wide, then hardcoded fallback). This means prompt improvements can be deployed without code changes, and new document types can have entirely different prompts.
+**DB-first prompt loading** — AI system prompts are stored in a `PromptTemplate` table keyed by document type, phase, and section. The prompt loader fetches the most specific template (section-specific first, then phase-wide), falling back to `prompts/documents.yaml` for document-type-agnostic defaults. Prompt improvements can be deployed without code changes, and new document types can have entirely different prompts without touching AI logic.
 
 **Stateless refinement concurrency** — Each user action in the refinement phase triggers a fresh, short-lived Inngest invocation (`handle-section-action`). The section-level concurrency key means at most one AI call runs per section at a time, but the lock is acquired on entry and released on return — it is never held while waiting for the user. This avoids stale locks and makes the system horizontally scalable.
 

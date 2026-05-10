@@ -190,22 +190,22 @@ sequenceDiagram
 
 ## 5. AI Layer
 
-Each phase has a dedicated module in `app/ai/`. All modules go through a shared pipeline: input guardrails → context building (with truncation) → `call_with_retry` → token usage logging.
+Each phase has a dedicated `ai.py` module inside `app/phases/<phase>/`. All modules go through a shared pipeline: input guardrails → context building (with truncation) → `call_with_retry` → token usage logging. Shared infrastructure lives in `app/ai/core/`.
 
 ### 5.1 AI Call Pipeline
 
 ```mermaid
 flowchart TD
     UserAction["User action\n(e.g. edit, question, answer)"]
-    InputGuard["services/guardrails.py\nvalidate_document_context()\nvalidate_discovery_answer()\nvalidate_refinement_message()"]
-    PromptLoad["ai/prompt_loader.py\nget_system_prompt()\nDB-first → hardcoded fallback"]
-    ContextBuild["ai/context_builder.py\nbuild_*_context()\n+ truncation + contract block"]
-    Truncation["ai/truncation.py\ntruncate_section()\ntruncate_chat_history()\nchar-based token estimation"]
-    Contract["ai/contract.py\nextract_document_contract()\nentities / decisions /\nterminology / constraints"]
-    CallRetry["ai/guardrails.py\ncall_with_retry()\nretry once on:\n• malformed JSON\n• missing required_fields"]
+    InputGuard["guardrails/input.py\nvalidate_document_context()\nvalidate_discovery_answer()\nvalidate_refinement_message()"]
+    PromptLoad["ai/core/prompt_loader.py\nget_system_prompt()\nDB-first → YAML fallback\n(prompts/documents.yaml)"]
+    ContextBuild["phases/<phase>/ai.py\nbuild_*_context()\n+ truncation + contract block"]
+    Truncation["ai/core/truncation.py\ntruncate_section()\ntruncate_chat_history()\nchar-based token estimation"]
+    Contract["phases/alignment/contract.py\nextract_document_contract()\nentities / decisions /\nterminology / constraints"]
+    CallRetry["guardrails/output.py\ncall_with_retry()\nretry once on:\n• malformed JSON\n• missing required_fields"]
     AzureOAI["Azure OpenAI\nchat.completions.create\n(async, structured output)"]
-    LogUsage["ai/token_budget.py\nlog_usage(phase, usage)"]
-    OutputClean["ai/output_cleaner.py\nstrip_outer_markdown_fence()"]
+    LogUsage["ai/core/token_budget.py\nlog_usage(phase, usage)"]
+    OutputClean["ai/core/output_cleaner.py\nstrip_outer_markdown_fence()"]
     Result["AI Result\n(dict or markdown string)"]
 
     UserAction --> InputGuard --> PromptLoad --> ContextBuild
@@ -220,31 +220,31 @@ flowchart TD
 
 | Module | Output Type | Key Features |
 |---|---|---|
-| `discovery.py` | `{is_sufficient, follow_up_questions, consolidated_context}` | JSON schema output, iterates until sufficient |
-| `alignment.py` | `{summaries: {context, proposal, implementation, risks}}` | JSON schema, per-section directives |
-| `contract.py` | `{entities, decisions, terminology, constraints}` | Runs after alignment approval; stored in DB |
-| `generation.py` | `str` (Markdown) | Mermaid diagrams required in proposal+implementation; coherence pass |
-| `refinement.py` | `{tool, ...args}` | Tool calling (`request_edit` / `answer_question`); section-specific directives |
-| `audit.py` | `{has_problems, problems[]}` | Cross-section consistency; uses contract for grounding |
+| `phases/discovery/ai.py` | `{is_sufficient, follow_up_questions, consolidated_context}` | JSON schema output, iterates until sufficient |
+| `phases/alignment/ai.py` | `{summaries: {context, proposal, implementation, risks}}` | JSON schema, per-section directives |
+| `phases/alignment/contract.py` | `{entities, decisions, terminology, constraints}` | Runs after alignment approval; stored in DB |
+| `phases/generation/ai.py` | `str` (Markdown) | Mermaid diagrams required in proposal+implementation; coherence pass |
+| `phases/refinement/ai.py` | `{tool, ...args}` | Tool calling (`request_edit` / `answer_question`); section-specific directives |
+| `phases/audit/ai.py` | `{has_problems, problems[]}` | Cross-section consistency; uses contract for grounding |
 
 ### 5.3 Prompt Strategy
 
 ```mermaid
 flowchart LR
     Phase["AI phase call"]
-    Check{"document_type_id\npresent?"}
     DBLookup["DB lookup:\nPromptTemplate\n(section-specific first,\nthen phase-wide fallback)"]
-    Hardcoded["Hardcoded fallback\n(generic, doc-type-agnostic)"]
+    YAML["YAML fallback\nprompts/documents.yaml\n(generic, doc-type-agnostic)"]
+    Error["ConfigurationError\n(missing prompt coverage)"]
     Prompt["System prompt used"]
 
-    Phase --> Check
-    Check -- Yes --> DBLookup
+    Phase --> DBLookup
     DBLookup -- Found --> Prompt
-    DBLookup -- Not found --> Hardcoded --> Prompt
-    Check -- No --> Hardcoded
+    DBLookup -- Not found --> YAML
+    YAML -- Found --> Prompt
+    YAML -- Not found --> Error
 ```
 
-The DB contains RFC-specific prompt templates (seeded by migration `009`). The hardcoded constants are document-type-agnostic fallbacks — they activate only when no DB template is found.
+The DB contains RFC-specific prompt templates (seeded by migration `009`). `prompts/documents.yaml` provides document-type-agnostic defaults and is the canonical fallback — there are no hardcoded Python string constants. A missing prompt key raises `ConfigurationError` immediately rather than silently using an empty string.
 
 ---
 
