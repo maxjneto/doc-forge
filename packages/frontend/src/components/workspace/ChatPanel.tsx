@@ -3,6 +3,8 @@ import { Icon, MarkdownRenderer } from "../shared";
 import { useWorkspaceStore } from "@/store";
 import type { SectionActionType } from "@/types";
 
+// ─── Message cards ───────────────────────────────────────────
+
 interface ChatMessageBubbleProps {
   role: "agent" | "user";
   content: string;
@@ -11,9 +13,28 @@ interface ChatMessageBubbleProps {
 function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
   if (role === "agent") {
     return (
-      <div className="flex items-start gap-3">
-        <Icon name="robot_2" className="text-primary mt-1 scale-90" />
-        <div className="text-sm text-on-surface-variant/80 bg-surface-container-high/50 p-3 rounded-xl rounded-tl-sm border border-outline-variant/10">
+      <div
+        style={{
+          background: "rgba(18,20,20,0.9)",
+          border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          borderLeft: "2px solid var(--df-amber-500, #ff4d00)",
+          borderRadius: 8,
+          padding: "12px 14px",
+        }}
+      >
+        <div
+          className="df-mono"
+          style={{
+            fontSize: 9.5,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "var(--df-amber-300, #ff8d4a)",
+            marginBottom: 8,
+          }}
+        >
+          Analysis
+        </div>
+        <div style={{ fontSize: 12.5, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.6 }}>
           <MarkdownRenderer content={content} variant="chat" />
         </div>
       </div>
@@ -21,8 +42,27 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
   }
 
   return (
-    <div className="flex items-start gap-3 flex-row-reverse">
-      <div className="text-sm text-on-surface bg-neutral-800 p-3 rounded-xl rounded-tr-sm border border-outline-variant/10">
+    <div
+      style={{
+        background: "rgba(38,40,41,0.5)",
+        border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+        borderRadius: 8,
+        padding: "12px 14px",
+      }}
+    >
+      <div
+        className="df-mono"
+        style={{
+          fontSize: 9.5,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--df-steel-200, #8aa0b8)",
+          marginBottom: 8,
+        }}
+      >
+        You
+      </div>
+      <div style={{ fontSize: 12.5, color: "var(--df-on-surface, #e3e2e2)", lineHeight: 1.6 }}>
         <MarkdownRenderer content={content} variant="chat" />
       </div>
     </div>
@@ -31,29 +71,65 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
 
 function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
   return (
-    <div className="flex items-start gap-3">
-      <Icon
-        name={isSending ? "upload" : "autorenew"}
-        className={`text-primary mt-1 scale-90 ${isSending ? "" : "animate-spin"}`}
-      />
-      <div className="text-sm text-on-surface-variant/80 bg-surface-container-high/50 p-3 rounded-xl rounded-tl-sm border border-outline-variant/10">
-        <div className="flex items-center gap-2">
-          <span>{isSending ? "Sending message..." : "Agent is drafting a response..."}</span>
-          <span className="inline-flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-pulse" />
-            <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:120ms]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:240ms]" />
+    <div
+      style={{
+        background: "rgba(18,20,20,0.9)",
+        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderLeft: "2px solid var(--df-amber-500, #ff4d00)",
+        borderRadius: 8,
+        padding: "12px 14px",
+      }}
+    >
+      <div
+        className="df-mono"
+        style={{
+          fontSize: 9.5,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--df-amber-300, #ff8d4a)",
+          marginBottom: 8,
+        }}
+      >
+        {isSending ? "Sending" : "Analysis"}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Icon
+          name={isSending ? "upload" : "autorenew"}
+          className={`text-primary scale-90 ${isSending ? "" : "animate-spin"}`}
+        />
+        <span style={{ fontSize: 12, color: "var(--df-faint, rgba(227,226,226,0.38))" }}>
+          {isSending ? "Sending to forge…" : "Drafting response…"}
+        </span>
+        {!isSending && (
+          <span style={{ display: "inline-flex", gap: 3 }}>
+            {[0, 120, 240].map((delay) => (
+              <span
+                key={delay}
+                style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: "50%",
+                  background: "var(--df-amber-400, #ff6a14)",
+                  opacity: 0.7,
+                  animation: `df-pulse 1.6s ease-in-out ${delay}ms infinite`,
+                }}
+              />
+            ))}
           </span>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
+// ─── Quick action chips ──────────────────────────────────────
+
 const quickActions: { icon: string; label: string; action: SectionActionType }[] = [
   { icon: "help", label: "Ask Question", action: "ask_question" },
-  { icon: "edit_note", label: "Request Edits", action: "request_edit" },
+  { icon: "edit_note", label: "Request Edit", action: "request_edit" },
 ];
+
+// ─── Chat Panel ──────────────────────────────────────────────
 
 export function ChatPanel() {
   const [input, setInput] = useState("");
@@ -79,9 +155,7 @@ export function ChatPanel() {
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || isProcessing || isAtLimit) return;
-
     setInput("");
-
     try {
       await sendMessage(trimmed, activeAction);
     } catch {
@@ -97,14 +171,66 @@ export function ChatPanel() {
   };
 
   return (
-    <aside className="w-[20%] h-full flex flex-col border-r border-outline-variant/20 bg-surface/30 backdrop-blur-sm z-10">
-      {/* Chat History */}
-      <div ref={historyRef} className="flex-1 overflow-y-auto py-8 px-4 hide-scrollbar flex flex-col gap-4">
+    <aside
+      style={{
+        width: "20%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        background: "rgba(10,11,12,0.7)",
+        backdropFilter: "blur(4px)",
+        zIndex: 10,
+      }}
+    >
+      {/* Panel header */}
+      <div
+        style={{
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          className="df-mono"
+          style={{
+            fontSize: 9.5,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "var(--df-faint, rgba(227,226,226,0.38))",
+          }}
+        >
+          › Chat
+        </span>
+      </div>
+
+      {/* Chat history */}
+      <div
+        ref={historyRef}
+        className="hide-scrollbar"
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "16px 14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
         {messages.length === 0 && !isInteractive && (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-xs text-on-surface-variant/40 text-center px-4">
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <p
+              className="df-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                color: "var(--df-mute, rgba(227,226,226,0.18))",
+                textAlign: "center",
+                padding: "0 12px",
+              }}
+            >
               {viewMode === "locked"
-                ? "Finalize the current section to interact with this one."
+                ? "Finalize the current section to interact."
                 : "Edit history for this section."}
             </p>
           </div>
@@ -117,41 +243,82 @@ export function ChatPanel() {
         )}
       </div>
 
-      {/* Chat Input */}
+      {/* Chat input */}
       {isInteractive && (
-        <div className="p-4 border-t border-outline-variant/20 bg-surface/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-on-surface-variant/40 font-medium uppercase tracking-wide">
-              Messages per section
+        <div
+          style={{
+            padding: "12px 14px",
+            borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            background: "rgba(13,14,15,0.6)",
+            flexShrink: 0,
+          }}
+        >
+          {/* Message counter */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <span
+              className="df-mono"
+              style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--df-mute, rgba(227,226,226,0.18))" }}
+            >
+              Messages
             </span>
-            <span className={`text-[10px] font-semibold tabular-nums ${
-              userMessageCount >= 10
-                ? "text-red-400"
-                : userMessageCount >= 8
-                ? "text-orange-400"
-                : "text-on-surface-variant/40"
-            }`}>
+            <span
+              className="df-mono"
+              style={{
+                fontSize: 9.5,
+                fontWeight: 600,
+                color:
+                  userMessageCount >= 10
+                    ? "var(--df-error, #e86464)"
+                    : userMessageCount >= 8
+                    ? "var(--df-amber-300, #ff8d4a)"
+                    : "var(--df-mute, rgba(227,226,226,0.18))",
+              }}
+            >
               {userMessageCount}/10
             </span>
           </div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {quickActions.map((qa) => (
-              <button
-                key={qa.action}
-                onClick={() => setActiveAction(qa.action)}
-                disabled={isProcessing || isAtLimit}
-                className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium border rounded transition-all ${
-                  activeAction === qa.action
-                    ? "text-primary bg-primary/10 border-primary/30"
-                    : "text-on-surface-variant/70 hover:text-on-surface bg-surface-container-high/30 hover:bg-surface-container-high border-outline-variant/10"
-                } ${isProcessing || isAtLimit ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <Icon name={qa.icon} className="!text-[14px]" />
-                {qa.label}
-              </button>
-            ))}
+
+          {/* Quick action chips */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+            {quickActions.map((qa) => {
+              const isActive = activeAction === qa.action;
+              return (
+                <button
+                  key={qa.action}
+                  onClick={() => setActiveAction(qa.action)}
+                  disabled={isProcessing || isAtLimit}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 9px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    border: `1px solid ${isActive ? "rgba(255,77,0,0.45)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+                    color: isActive ? "var(--df-amber-200, #ffb59e)" : "var(--df-faint, rgba(227,226,226,0.38))",
+                    background: isActive ? "rgba(255,77,0,0.08)" : "transparent",
+                    cursor: isProcessing || isAtLimit ? "not-allowed" : "pointer",
+                    opacity: isProcessing || isAtLimit ? 0.5 : 1,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <Icon name={qa.icon} className="!text-[13px]" />
+                  {qa.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="relative flex items-center">
+
+          {/* Text input */}
+          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
             <input
               type="text"
               value={input}
@@ -159,27 +326,61 @@ export function ChatPanel() {
               onKeyDown={handleKeyDown}
               maxLength={1000}
               placeholder={
-                isAtLimit
-                  ? "Message limit reached."
-                  : isProcessing
-                  ? "Processing your message..."
-                  : "Send a message..."
+                isAtLimit ? "Message limit reached." : isProcessing ? "Forging…" : "Type a message…"
               }
               disabled={isProcessing || isAtLimit}
-              className="w-full bg-surface-container-high/50 border border-outline-variant/20 text-on-surface text-sm rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/40 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                width: "100%",
+                background: "rgba(18,20,20,0.8)",
+                border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+                color: "var(--df-on-surface, #e3e2e2)",
+                fontSize: 12.5,
+                borderRadius: 8,
+                padding: "8px 36px 8px 12px",
+                outline: "none",
+                fontFamily: "inherit",
+                transition: "border-color 0.15s",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,77,0,0.40)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "var(--df-outline-md, rgba(255,255,255,0.10))";
+              }}
             />
             <button
               onClick={() => { void handleSend(); }}
               disabled={isProcessing || isAtLimit}
-              className="absolute right-2 p-1.5 text-on-surface-variant/60 hover:text-primary transition-colors flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                position: "absolute",
+                right: 6,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 4,
+                background: "transparent",
+                border: "none",
+                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                cursor: isProcessing || isAtLimit ? "not-allowed" : "pointer",
+                opacity: isProcessing || isAtLimit ? 0.4 : 1,
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => { if (!isProcessing && !isAtLimit) e.currentTarget.style.color = "var(--df-amber-300, #ff8d4a)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
             >
               <Icon name="arrow_upward" className="!text-sm" />
             </button>
           </div>
           {input.length > 700 && (
-            <p className={`text-[10px] mt-1 text-right tabular-nums ${
-              input.length >= 1000 ? "text-red-400" : "text-on-surface-variant/40"
-            }`}>
+            <p
+              className="df-mono"
+              style={{
+                fontSize: 9,
+                marginTop: 4,
+                textAlign: "right",
+                color: input.length >= 1000 ? "var(--df-error, #e86464)" : "var(--df-mute, rgba(227,226,226,0.18))",
+              }}
+            >
               {input.length}/1000
             </p>
           )}

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import type { Section, SectionType, AuditFinding } from "@/types";
-import { apiFetchAuditFindings, apiDismissAuditFinding, apiUpdateCompletedDocument } from "@/utils/api";
+import { apiFetchAuditFindings, apiDismissAuditFinding } from "@/utils/api";
 import { MarkdownRenderer } from "@/components/shared";
-import { AuditWarningCard } from "./AuditWarningCard";
 
 const SECTION_ORDER: SectionType[] = [
   "context",
@@ -13,44 +12,211 @@ const SECTION_ORDER: SectionType[] = [
 ];
 
 const SECTION_HEADINGS: Record<SectionType, string> = {
-  context: "Context",
-  proposal: "Proposal",
+  context:        "Context",
+  proposal:       "Proposal",
   implementation: "Implementation",
-  risks: "Risks & Alternatives",
+  risks:          "Risks & Alternatives",
 };
 
-// ─── Section Nav Sidebar ─────────────────────────────────────
+// ─── Export menu ────────────────────────────────────────────
+
+interface ExportMenuProps {
+  onExportMarkdown: () => void;
+  onClose: () => void;
+}
+
+function ExportMenu({ onExportMarkdown, onClose }: ExportMenuProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  const items = [
+    {
+      icon: "code",
+      label: "Markdown",
+      sub: ".MD FILE",
+      onClick: onExportMarkdown,
+      primary: true,
+      enabled: true,
+    },
+    { icon: "hub",            label: "GitHub-flavored MD",     sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
+    { icon: "picture_as_pdf", label: "PDF",                    sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
+    { icon: "forum",          label: "Copy as Linear comment",  sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
+    { icon: "description",    label: "Confluence wiki",         sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
+  ];
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "absolute",
+        top: 42,
+        right: 0,
+        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        background: "rgba(18,20,20,0.98)",
+        backdropFilter: "blur(8px)",
+        borderRadius: 8,
+        padding: 6,
+        boxShadow: "0 12px 28px rgba(0,0,0,0.4)",
+        width: 230,
+        zIndex: 20,
+      }}
+    >
+      {items.map((item) => (
+        <button
+          key={item.label}
+          onClick={() => { if (item.enabled) { item.onClick(); onClose(); } }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 10px",
+            borderRadius: 4,
+            fontSize: 12.5,
+            color: item.primary
+              ? "var(--df-amber-200, #ffb59e)"
+              : "var(--df-on-surface-soft, #c6c5c4)",
+            background: item.primary
+              ? "rgba(255,77,0,0.04)"
+              : "transparent",
+            border: "none",
+            cursor: item.enabled ? "pointer" : "not-allowed",
+            width: "100%",
+            textAlign: "left",
+            opacity: item.enabled ? 1 : 0.45,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 16,
+              color: item.primary
+                ? "var(--df-amber-300, #ff8d4a)"
+                : "var(--df-faint, rgba(227,226,226,0.38))",
+            }}
+          >
+            {item.icon}
+          </span>
+          <div style={{ flex: 1 }}>
+            {item.label}
+            <div
+              className="df-mono"
+              style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+            >
+              {item.sub}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Section Nav ─────────────────────────────────────────────
 
 interface SectionNavProps {
   activeAnchor: SectionType | null;
-  onNavigate: (sectionType: SectionType) => void;
+  onNavigate: (type: SectionType) => void;
+  findings: AuditFinding[];
 }
 
-function SectionNav({ activeAnchor, onNavigate }: SectionNavProps) {
+function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
   return (
-    <nav className="w-44 shrink-0 sticky top-0 self-start pt-2">
-      <p className="text-[10px] font-semibold text-on-surface-variant/40 uppercase tracking-widest mb-4 px-1">
-        Sections
-      </p>
-      <ul className="flex flex-col gap-1">
-        {SECTION_ORDER.map((type) => {
-          const isActive = activeAnchor === type;
-          return (
-            <li key={type}>
-              <button
-                onClick={() => onNavigate(type)}
-                className={`w-full text-left px-2 py-1.5 text-xs rounded transition-colors ${
-                  isActive
-                    ? "text-primary bg-primary/10 font-medium"
-                    : "text-on-surface-variant/60 hover:text-on-surface hover:bg-surface-container-high/40"
-                }`}
-              >
-                {SECTION_HEADINGS[type]}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+    <nav
+      style={{
+        padding: "32px 22px",
+        borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        overflow: "hidden",
+        background: "rgba(0,0,0,0.20)",
+        width: 220,
+        flexShrink: 0,
+      }}
+    >
+      <div
+        className="df-mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.16em",
+          color: "var(--df-faint, rgba(227,226,226,0.38))",
+          marginBottom: 14,
+          textTransform: "uppercase",
+        }}
+      >
+        › Sections
+      </div>
+
+      {SECTION_ORDER.map((type, i) => {
+        const isActive = activeAnchor === type;
+        return (
+          <button
+            key={type}
+            onClick={() => onNavigate(type)}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "8px 12px",
+              margin: "2px 0",
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: isActive ? 500 : 400,
+              color: isActive
+                ? "var(--df-amber-200, #ffb59e)"
+                : "var(--df-dim, rgba(227,226,226,0.62))",
+              background: isActive ? "rgba(255,77,0,0.05)" : "transparent",
+              border: "none",
+              borderLeft: `2px solid ${isActive ? "var(--df-amber-500, #ff4d00)" : "transparent"}`,
+              cursor: "pointer",
+            }}
+          >
+            <span
+              className="df-mono"
+              style={{
+                fontSize: 10,
+                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                marginRight: 8,
+              }}
+            >
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            {SECTION_HEADINGS[type]}
+          </button>
+        );
+      })}
+
+      {/* Audit status */}
+      <div
+        className="df-mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.16em",
+          color: "var(--df-faint, rgba(227,226,226,0.38))",
+          marginBottom: 10,
+          marginTop: 28,
+          textTransform: "uppercase",
+        }}
+      >
+        › Audit
+      </div>
+      <div style={{ padding: "4px 12px" }}>
+        {findings.length === 0 ? (
+          <span className="df-pill df-pill-steel" style={{ fontSize: 10, padding: "2px 7px" }}>
+            All passed
+          </span>
+        ) : (
+          <span className="df-pill df-pill-warn" style={{ fontSize: 10, padding: "2px 7px" }}>
+            {findings.length} finding{findings.length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
     </nav>
   );
 }
@@ -67,33 +233,70 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
-    <div id={`section-${sectionType}`} className="scroll-mt-8 mb-12 group/section">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-outline-variant/15">
-        <h2 className="text-base font-semibold text-on-surface">
+    <div id={`section-${sectionType}`} style={{ marginBottom: 48, scrollMarginTop: 32 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+          paddingBottom: 8,
+          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        }}
+      >
+        <h2 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", margin: 0, color: "#e3e2e2" }}>
           {SECTION_HEADINGS[sectionType]}
         </h2>
         {isEditing ? (
           <button
             onClick={() => setIsEditing(false)}
-            className="flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded transition-all hover:bg-primary/15"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 11, fontWeight: 600,
+              color: "var(--df-amber-200, #ffb59e)",
+              background: "rgba(255,77,0,0.10)",
+              border: "1px solid rgba(255,77,0,0.20)",
+              padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+            }}
           >
             Done
           </button>
         ) : (
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-1 text-[11px] font-medium text-on-surface-variant/50 hover:text-on-surface bg-transparent hover:bg-surface-container-high/40 border border-transparent hover:border-outline-variant/20 px-2 py-1 rounded transition-all opacity-0 group-hover/section:opacity-100"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 11, fontWeight: 600,
+              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              background: "transparent",
+              border: "1px solid transparent",
+              padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+            }}
           >
-            <span className="material-symbols-rounded" style={{ fontSize: 13 }}>edit</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
             Edit
           </button>
         )}
       </div>
+
       {isEditing ? (
         <textarea
           value={content}
           onChange={(e) => onEdit(e.target.value)}
-          className="w-full min-h-[320px] bg-surface-container-high/30 border border-outline-variant/20 text-on-surface-variant/90 font-mono text-sm leading-relaxed resize-y rounded-lg p-4 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/40 transition-all"
+          style={{
+            width: "100%",
+            minHeight: 320,
+            background: "rgba(18,20,20,0.5)",
+            border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+            color: "#e3e2e2",
+            fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
+            fontSize: 13,
+            lineHeight: 1.65,
+            resize: "vertical",
+            borderRadius: 8,
+            padding: 16,
+            outline: "none",
+          }}
         />
       ) : (
         <MarkdownRenderer content={content} variant="editor" />
@@ -102,7 +305,7 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
   );
 }
 
-// ─── Completed Layout ────────────────────────────────────────
+// ─── Completed Layout ─────────────────────────────────────────
 
 interface CompletedLayoutProps {
   documentId: string;
@@ -110,11 +313,10 @@ interface CompletedLayoutProps {
   onSaved?: () => void;
 }
 
-export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayoutProps) {
+export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) {
   const { getToken } = useAuth();
-
-  // ── Audit findings ──────────────────────────────────────
   const [findings, setFindings] = useState<AuditFinding[]>([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,21 +329,7 @@ export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayo
     return () => { cancelled = true; };
   }, [documentId, getToken]);
 
-  const handleDismiss = async (findingId: string) => {
-    setFindings((prev) => prev.filter((f) => f.id !== findingId));
-    try {
-      await apiDismissAuditFinding(documentId, findingId, getToken);
-    } catch {
-      // finding already dismissed or network error — optimistic removal is fine
-    }
-  };
-
-  const handleCardClick = (sectionType: SectionType) => {
-    const el = document.getElementById(`section-${sectionType}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  // ── Section nav active tracking ─────────────────────────
+  // ── Active anchor tracking ──
   const [activeAnchor, setActiveAnchor] = useState<SectionType | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -156,29 +344,22 @@ export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayo
           }
         }
       },
-      { root: contentRef.current, rootMargin: "0px 0px -60% 0px", threshold: 0 },
+      { root: contentRef.current, rootMargin: "0px 0px -60% 0px", threshold: 0 }
     );
-
     SECTION_ORDER.forEach((type) => {
       const el = document.getElementById(`section-${type}`);
       if (el) observer.observe(el);
     });
-
     return () => observer.disconnect();
   }, [sections]);
 
-  const handleNavigate = (sectionType: SectionType) => {
-    const el = document.getElementById(`section-${sectionType}`);
+  const handleNavigate = (type: SectionType) => {
+    const el = document.getElementById(`section-${type}`);
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActiveAnchor(sectionType);
+    setActiveAnchor(type);
   };
 
-  // ── Completed-phase editor (save back to sections) ──────
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  // Build editable content map from sections
+  // ── Editable content ──
   const initialContent = Object.fromEntries(
     SECTION_ORDER.map((type) => {
       const section = sections.find((s) => s.sectionType === type);
@@ -187,48 +368,23 @@ export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayo
   ) as Record<SectionType, string>;
 
   const [editedContent, setEditedContent] = useState<Record<SectionType, string>>(initialContent);
-  const [dirty, setDirty] = useState(false);
 
-  // Keep editedContent in sync with polling unless user has made local edits
   useEffect(() => {
-    if (!dirty) {
-      setEditedContent(
-        Object.fromEntries(
-          SECTION_ORDER.map((type) => {
-            const section = sections.find((s) => s.sectionType === type);
-            return [type, (section?.activeVersionContent ?? "").trim()];
-          })
-        ) as Record<SectionType, string>
-      );
-    }
-  }, [sections, dirty]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveError(null);
-    setSaved(false);
-    try {
-      await apiUpdateCompletedDocument(
-        documentId,
-        SECTION_ORDER.map((type) => ({ section_type: type, content: editedContent[type] })),
-        getToken,
-      );
-      setDirty(false);
-      setSaved(true);
-      onSaved?.();
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
+    setEditedContent(
+      Object.fromEntries(
+        SECTION_ORDER.map((type) => {
+          const section = sections.find((s) => s.sectionType === type);
+          return [type, (section?.activeVersionContent ?? "").trim()];
+        })
+      ) as Record<SectionType, string>
+    );
+  }, [sections]);
 
   const handleContentChange = (type: SectionType, content: string) => {
     setEditedContent((prev) => ({ ...prev, [type]: content }));
-    setDirty(true);
   };
 
-  const handleExport = () => {
+  const handleExportMarkdown = () => {
     const markdown = SECTION_ORDER
       .map((type) => `## ${SECTION_HEADINGS[type]}\n\n${editedContent[type]}`)
       .join("\n\n");
@@ -236,76 +392,221 @@ export function CompletedLayout({ documentId, sections, onSaved }: CompletedLayo
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `rfc-${documentId}.md`;
+    a.download = `document-${documentId}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="h-full pt-[64px] flex flex-col overflow-hidden">
-      {/* Toolbar */}
-      <div className="shrink-0 px-6 py-3 border-b border-outline-variant/15 bg-surface/40 backdrop-blur-md flex items-center justify-between gap-4">
-        <p className="text-xs text-on-surface-variant/60">
-          Document completed — view your RFC below.
-        </p>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-on-surface-variant/60 min-h-[1rem]">
-            {saveError ? <span className="text-error">{saveError}</span> : null}
-            {!saveError && saved ? <span className="text-green-400">Saved.</span> : null}
-            {!saveError && !saved && dirty ? <span>Unsaved changes.</span> : null}
-          </div>
-          <button
-            onClick={handleExport}
-            className="px-3 py-1.5 bg-surface-container-high text-on-surface rounded-lg text-xs hover:brightness-110 transition-all border border-outline-variant/20"
+    <div
+      style={{
+        height: "100%",
+        paddingTop: 56,
+        display: "flex",
+        flexDirection: "column",
+        background: "var(--df-bg, #0a0b0c)",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Sidebar nav */}
+        <SectionNav
+          activeAnchor={activeAnchor}
+          onNavigate={handleNavigate}
+          findings={findings}
+        />
+
+        {/* Main doc area */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Stamp banner */}
+          <div
+            style={{
+              margin: "32px 56px 0",
+              border: "1px solid rgba(138,160,184,0.30)",
+              background: "linear-gradient(90deg, rgba(138,160,184,0.10), rgba(255,77,0,0.04) 60%, rgba(138,160,184,0.10))",
+              borderRadius: 12,
+              padding: "22px 28px",
+              display: "flex",
+              alignItems: "center",
+              gap: 20,
+              flexShrink: 0,
+            }}
           >
-            Export Markdown
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            className="px-3 py-1.5 bg-primary-container text-on-primary-container rounded-lg text-xs hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Left sidebar */}
-        <aside className="w-52 shrink-0 border-r border-outline-variant/15 bg-surface/20 overflow-y-auto hide-scrollbar px-4 py-6">
-          <SectionNav activeAnchor={activeAnchor} onNavigate={handleNavigate} />
-        </aside>
-
-        {/* Main content */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto hide-scrollbar">
-          <div className="max-w-[800px] mx-auto px-8 py-8">
-            {/* Audit warning cards */}
-            {findings.length > 0 && (
-              <div className="mb-8 flex flex-col gap-2">
-                <p className="text-[11px] font-semibold text-on-surface-variant/50 uppercase tracking-widest mb-1">
-                  Audit Findings
-                </p>
-                {findings.map((finding) => (
-                  <AuditWarningCard
-                    key={finding.id}
-                    finding={finding}
-                    onDismiss={handleDismiss}
-                    onClick={handleCardClick}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Section blocks */}
-            {SECTION_ORDER.map((type) => (
-              <SectionBlock
-                key={type}
-                sectionType={type}
-                content={editedContent[type]}
-                onEdit={(content) => handleContentChange(type, content)}
+            {/* Seal */}
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                border: "2px solid var(--df-steel-200, #8aa0b8)",
+                borderRadius: "50%",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                position: "relative",
+                color: "var(--df-steel-100, #b9c6d4)",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 4,
+                  border: "1px dashed currentColor",
+                  borderRadius: "50%",
+                  opacity: 0.5,
+                }}
               />
-            ))}
+              <span
+                className="df-mono"
+                style={{ fontSize: 13, fontWeight: 700, position: "relative" }}
+              >
+                DOC
+              </span>
+            </div>
+
+            {/* Info */}
+            <div style={{ flex: 1 }}>
+              <div
+                className="df-mono"
+                style={{
+                  fontSize: 18,
+                  letterSpacing: "0.20em",
+                  fontWeight: 600,
+                  color: "var(--df-steel-100, #b9c6d4)",
+                }}
+              >
+                DOCUMENT FORGED · v1.0
+              </div>
+              <div
+                className="df-mono"
+                style={{
+                  fontSize: 11,
+                  color: "var(--df-dim, rgba(227,226,226,0.62))",
+                  letterSpacing: "0.08em",
+                  marginTop: 4,
+                }}
+              >
+                Audit passed · document ready
+              </div>
+            </div>
+
+            {/* Export button */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowExportMenu((v) => !v)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                    border: "1px solid var(--df-amber-500, #ff4d00)",
+                    background: "var(--df-amber-500, #ff4d00)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    file_download
+                  </span>
+                  Export
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    expand_more
+                  </span>
+                </button>
+
+                {showExportMenu && (
+                  <ExportMenu
+                    onExportMarkdown={handleExportMarkdown}
+                    onClose={() => setShowExportMenu(false)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Document content */}
+          <div
+            ref={contentRef}
+            style={{ flex: 1, overflowY: "auto" }}
+            className="hide-scrollbar"
+          >
+            <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 56px 64px" }}>
+              {/* Audit findings */}
+              {findings.length > 0 && (
+                <div style={{ marginBottom: 32 }}>
+                  <div
+                    className="df-mono"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.16em",
+                      textTransform: "uppercase",
+                      color: "var(--df-faint, rgba(227,226,226,0.38))",
+                      marginBottom: 10,
+                    }}
+                  >
+                    › Audit findings
+                  </div>
+                  {findings.map((finding) => (
+                    <div
+                      key={finding.id}
+                      style={{
+                        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                        borderLeft: `2px solid ${finding.severity === "high" ? "var(--df-error, #e86464)" : "var(--df-amber-300, #ff8d4a)"}`,
+                        borderRadius: 8,
+                        padding: "10px 14px",
+                        marginBottom: 8,
+                        background: "rgba(18,20,20,0.5)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 12,
+                      }}
+                    >
+                      <span
+                        className="df-mono"
+                        style={{
+                          fontSize: 9.5,
+                          letterSpacing: "0.14em",
+                          padding: "3px 7px",
+                          borderRadius: 4,
+                          border: `1px solid ${finding.severity === "high" ? "rgba(232,100,100,0.40)" : "rgba(255,77,0,0.30)"}`,
+                          color: finding.severity === "high" ? "var(--df-error, #e86464)" : "var(--df-amber-300, #ff8d4a)",
+                          background: finding.severity === "high" ? "rgba(232,100,100,0.08)" : "rgba(255,77,0,0.06)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {finding.severity === "high" ? "BLOCKER" : "WARN"}
+                      </span>
+                      <span style={{ fontSize: 12.5, color: "var(--df-on-surface-soft, #c6c5c4)", lineHeight: 1.55, flex: 1 }}>
+                        {finding.description}
+                      </span>
+                      <button
+                        onClick={async () => {
+                          setFindings((prev) => prev.filter((f) => f.id !== finding.id));
+                          try {
+                            await apiDismissAuditFinding(documentId, finding.id, getToken);
+                          } catch {}
+                        }}
+                        style={{
+                          fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))",
+                          background: "transparent", border: "none", cursor: "pointer", flexShrink: 0,
+                        }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Section blocks */}
+              {SECTION_ORDER.map((type) => (
+                <SectionBlock
+                  key={type}
+                  sectionType={type}
+                  content={editedContent[type]}
+                  onEdit={(content) => handleContentChange(type, content)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

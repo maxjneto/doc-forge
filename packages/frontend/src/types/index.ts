@@ -31,6 +31,8 @@ export interface Section {
   status: SectionStatus;
   summary: string | null;
   activeVersionContent?: string | null;
+  versionCount?: number;
+  currentVersionIndex?: number;
 }
 
 export interface SectionVersion {

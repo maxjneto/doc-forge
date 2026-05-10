@@ -8,8 +8,8 @@
   top: 50%;
   border-radius: 9999px;
   pointer-events: none;
-  background: var(--color-primary-container);
-  box-shadow: 0 0 4px var(--color-primary-container);
+  background: #ff4d00;
+  box-shadow: 0 0 4px rgba(255, 77, 0, 0.8);
   animation: forge-spark-float 1.5s ease-out forwards;
 }
 

@@ -7,9 +7,6 @@ const BASELINE_SPARK_INTERVAL_MS = 700;
 const INITIAL_BURST_COUNT = 10;
 const HIT_BURST_COUNT = 8;
 
-const TEXTURE_IMAGE_URL =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuADM6bvc0z51p1Oa_7DHp3rB79ypnGy_3bEB7ESLkzy30KRmsr7kwWFdM9pzIinNIPuYyqDGuXaDM4WsyautnpfX5XMz8L3eCrmarfHO9SK_vFn96fkC-VLoBfUqSDqqpAyQz8bUPqoerbOZZL0qLK4znNWzptId4ohcoi71QYwEBgvXB5Zusz7rtuHp3Xo2kNXrREdWFwQU7wt2bikUfHewJnBnHf5KZrnrTzboJYO-qzzaT5BuKMnhENpzOtotnpA-DX7xRjPmIl9";
-
 type SparkParticle = {
   id: number;
   size: number;
@@ -85,24 +82,102 @@ export function LoadingPage() {
   }, []);
 
   return (
-    <div className="loading-canvas fixed inset-0 overflow-hidden bg-background text-on-surface">
-      <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.05]" aria-hidden="true">
-        <img
-          className="h-full w-full object-cover grayscale"
-          src={TEXTURE_IMAGE_URL}
-          alt=""
-        />
-      </div>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        overflow: "hidden",
+        background: "radial-gradient(circle at center, #1a1512 0%, #050608 100%)",
+        color: "#e3e2e2",
+      }}
+    >
+      {/* Ambient radial */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(ellipse 600px 400px at 50% 40%, rgba(255,77,0,0.06), transparent 65%)",
+          zIndex: 0,
+        }}
+      />
 
-      <main className="relative z-10 flex h-full w-full flex-col items-center justify-center px-6">
-        <div className="relative mb-2 flex h-96 w-96 items-center justify-center" id="forge-core">
-          <div className="pulse-slow absolute h-64 w-64 rounded-full border border-primary-container/10 bg-primary-container/5" />
-          <div className="forge-hit-wave absolute h-64 w-64 rounded-full border border-primary-container/35" />
+      <main
+        style={{
+          position: "relative",
+          zIndex: 10,
+          display: "flex",
+          height: "100%",
+          width: "100%",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 24px",
+        }}
+      >
+        {/* Orb */}
+        <div
+          id="forge-core"
+          style={{
+            position: "relative",
+            marginBottom: 8,
+            display: "flex",
+            height: 384,
+            width: 384,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {/* Outer pulse ring */}
+          <div
+            className="pulse-slow"
+            style={{
+              position: "absolute",
+              height: 256,
+              width: 256,
+              borderRadius: "50%",
+              border: "1px solid rgba(255,77,0,0.10)",
+              background: "rgba(255,77,0,0.05)",
+            }}
+          />
+          {/* Hit wave */}
+          <div
+            className="forge-hit-wave"
+            style={{
+              position: "absolute",
+              height: 256,
+              width: 256,
+              borderRadius: "50%",
+              border: "1px solid rgba(255,77,0,0.35)",
+            }}
+          />
+          {/* Hit glow */}
           <div
             ref={hitGlowRef}
-            className="forge-hit-glow absolute h-16 w-16 rounded-full bg-primary-container/10"
+            className="forge-hit-glow"
+            style={{
+              position: "absolute",
+              height: 64,
+              width: 64,
+              borderRadius: "50%",
+              background: "rgba(255,77,0,0.10)",
+            }}
           />
-          <div className="forge-hit-core relative z-10 h-8 w-8 rounded-full bg-primary-container shadow-[0_0_32px_rgba(255,77,0,0.85)]" />
+          {/* Core */}
+          <div
+            className="forge-hit-core"
+            style={{
+              position: "relative",
+              zIndex: 10,
+              height: 32,
+              width: 32,
+              borderRadius: "50%",
+              background: "#ff4d00",
+              boxShadow: "0 0 32px rgba(255,77,0,0.85), 0 0 0 4px rgba(255,77,0,0.15)",
+            }}
+          />
 
           {sparks.map((spark) => {
             const style: SparkStyle = {
@@ -116,19 +191,57 @@ export function LoadingPage() {
           })}
         </div>
 
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="font-mono text-xs uppercase tracking-[0.22em] text-on-surface/80">
+        {/* Label */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <span
+            className="df-mono"
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.22em",
+              color: "rgba(227,226,226,0.80)",
+            }}
+          >
             Initializing The Forge...
           </span>
 
-          <div className="relative mt-1 h-px w-16 overflow-hidden bg-outline-variant/30">
-            <div className="forge-progress absolute inset-0 w-1/2 bg-primary-container" />
+          {/* Progress bar */}
+          <div
+            style={{
+              position: "relative",
+              marginTop: 4,
+              height: 1,
+              width: 64,
+              overflow: "hidden",
+              background: "var(--df-outline, rgba(255,255,255,0.06))",
+              borderRadius: 1,
+            }}
+          >
+            <div
+              className="forge-progress"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "50%",
+                background: "#ff4d00",
+              }}
+            />
           </div>
         </div>
 
-        <p className="absolute bottom-10 text-[11px] text-on-surface-variant/40">
+        {/* Version footer */}
+        <span
+          className="df-mono"
+          style={{
+            position: "absolute",
+            bottom: 40,
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            color: "var(--df-mute, rgba(227,226,226,0.18))",
+          }}
+        >
           Workspace v4.0.12
-        </p>
+        </span>
       </main>
     </div>
   );

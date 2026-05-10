@@ -47,7 +47,7 @@ export function DocumentPage() {
 
   return (
     <div className="h-screen w-full overflow-hidden bg-background text-on-surface antialiased selection:bg-primary/30">
-      <TopBar phase={currentPhase} phaseLabel={config?.label} />
+      <TopBar phase={currentPhase} phaseLabel={config?.label} docTitle={document?.title} />
       <PhaseTransition phase={currentPhase}>
         {currentPhase === "discovery" && (
           <DiscoveryLayout

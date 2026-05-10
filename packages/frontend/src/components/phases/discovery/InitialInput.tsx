@@ -7,63 +7,188 @@ interface InitialInputProps {
 export function InitialInput({ onSubmit }: InitialInputProps) {
   const [context, setContext] = useState("");
   const [preferences, setPreferences] = useState("");
+  const [activeField, setActiveField] = useState<"context" | "preferences" | null>(null);
 
   const canSubmit = context.trim().length > 10;
 
   return (
-    <div className="w-full">
-      <div className="text-center mb-8">
-        <h2 className="text-xl font-semibold text-on-surface mb-2">
-          Describe your RFC
+    <div style={{ width: "100%" }}>
+      {/* Header */}
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <span className="df-pill df-pill-heat" style={{ marginBottom: 16, display: "inline-block" }}>
+          Discovery · Phase 01
+        </span>
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 600,
+            letterSpacing: "-0.025em",
+            color: "#e3e2e2",
+            margin: "0 0 8px",
+          }}
+        >
+          Describe your document
         </h2>
-        <p className="text-sm text-on-surface-variant/60">
-          Provide the problem context and your preferences for the document.
+        <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", margin: 0 }}>
+          Provide the problem context and your preferences. The forge will do the rest.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+      {/* Two-column cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, width: "100%" }}>
         {/* Context Card */}
-        <div className="panel-depth rounded-xl p-6 bg-surface-container-low">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-[18px] text-on-surface-variant/60">description</span>
-            <h3 className="text-sm font-semibold text-on-surface">Context</h3>
+        <div
+          style={{
+            background: "rgba(13,14,15,0.6)",
+            border: `1px solid ${activeField === "context" ? "rgba(255,77,0,0.35)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+            borderRadius: 10,
+            padding: "20px 22px",
+            transition: "border-color 0.15s",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 15, color: "var(--df-amber-300, #ff8d4a)" }}
+            >
+              description
+            </span>
+            <span
+              className="df-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "var(--df-amber-300, #ff8d4a)",
+              }}
+            >
+              Context
+            </span>
           </div>
-          <p className="text-xs text-on-surface-variant/60 mb-3">
-            Describe the problem your document solves. The more details, the better.
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              marginBottom: 12,
+              lineHeight: 1.55,
+              marginTop: 0,
+            }}
+          >
+            Describe the problem your document solves. The more detail, the better.
           </p>
           <textarea
             value={context}
             onChange={(e) => setContext(e.target.value)}
+            onFocus={() => setActiveField("context")}
+            onBlur={() => setActiveField(null)}
             placeholder="E.g.: Our payment system is suffering from latency above 500ms during peak hours. PostgreSQL 14 is not scaling adequately..."
-            className="w-full h-40 bg-surface-container rounded-lg p-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 resize-none border border-outline-variant/30 focus:border-primary/50 focus:outline-none transition-colors"
+            style={{
+              width: "100%",
+              height: 160,
+              background: "rgba(0,0,0,0.25)",
+              border: `1px solid ${activeField === "context" ? "rgba(255,77,0,0.40)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+              borderRadius: 6,
+              padding: "10px 12px",
+              fontSize: 13,
+              color: "#e3e2e2",
+              fontFamily: "inherit",
+              lineHeight: 1.5,
+              resize: "none",
+              outline: "none",
+              boxSizing: "border-box",
+              transition: "border-color 0.15s",
+            }}
           />
         </div>
 
         {/* Preferences Card */}
-        <div className="panel-depth rounded-xl p-6 bg-surface-container-low">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-[18px] text-on-surface-variant/60">tune</span>
-            <h3 className="text-sm font-semibold text-on-surface">Preferences</h3>
+        <div
+          style={{
+            background: "rgba(13,14,15,0.6)",
+            border: `1px solid ${activeField === "preferences" ? "rgba(255,77,0,0.35)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+            borderRadius: 10,
+            padding: "20px 22px",
+            transition: "border-color 0.15s",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 15, color: "var(--df-amber-300, #ff8d4a)" }}
+            >
+              tune
+            </span>
+            <span
+              className="df-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "var(--df-amber-300, #ff8d4a)",
+              }}
+            >
+              Preferences
+            </span>
           </div>
-          <p className="text-xs text-on-surface-variant/60 mb-3">
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              marginBottom: 12,
+              lineHeight: 1.55,
+              marginTop: 0,
+            }}
+          >
             Tone, format, target audience, and any specific instructions.
           </p>
           <textarea
             value={preferences}
             onChange={(e) => setPreferences(e.target.value)}
+            onFocus={() => setActiveField("preferences")}
+            onBlur={() => setActiveField(null)}
             placeholder="E.g.: Technical tone, target audience is senior engineers. Include Mermaid diagrams. Focus on trade-offs..."
-            className="w-full h-40 bg-surface-container rounded-lg p-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 resize-none border border-outline-variant/30 focus:border-primary/50 focus:outline-none transition-colors"
+            style={{
+              width: "100%",
+              height: 160,
+              background: "rgba(0,0,0,0.25)",
+              border: `1px solid ${activeField === "preferences" ? "rgba(255,77,0,0.40)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+              borderRadius: 6,
+              padding: "10px 12px",
+              fontSize: 13,
+              color: "#e3e2e2",
+              fontFamily: "inherit",
+              lineHeight: 1.5,
+              resize: "none",
+              outline: "none",
+              boxSizing: "border-box",
+              transition: "border-color 0.15s",
+            }}
           />
         </div>
       </div>
 
-      <div className="text-center mt-8">
+      {/* Submit */}
+      <div style={{ textAlign: "center", marginTop: 28 }}>
         <button
           onClick={() => onSubmit(context, preferences)}
           disabled={!canSubmit}
-          className="px-6 py-3 bg-primary-container text-on-primary-container rounded-lg font-medium text-sm hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
+          className="forge-btn"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 24px",
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            cursor: canSubmit ? "pointer" : "not-allowed",
+            opacity: canSubmit ? 1 : 0.3,
+            letterSpacing: "0.02em",
+          }}
         >
-          Submit for analysis →
+          <span>Submit for analysis</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
         </button>
       </div>
     </div>

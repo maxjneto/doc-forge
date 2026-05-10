@@ -83,15 +83,66 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
   const current = steps[stepIndex];
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative flex h-48 w-48 items-center justify-center">
-        <div className="pulse-slow absolute h-32 w-32 rounded-full border border-primary-container/10 bg-primary-container/5" />
-        <div className="forge-hit-wave absolute h-32 w-32 rounded-full border border-primary-container/35" />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+      {/* Orb */}
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          height: 192,
+          width: 192,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {/* Outer pulse ring */}
+        <div
+          className="pulse-slow"
+          style={{
+            position: "absolute",
+            height: 128,
+            width: 128,
+            borderRadius: "50%",
+            border: "1px solid rgba(255,77,0,0.10)",
+            background: "rgba(255,77,0,0.05)",
+          }}
+        />
+        {/* Hit wave ring */}
+        <div
+          className="forge-hit-wave"
+          style={{
+            position: "absolute",
+            height: 128,
+            width: 128,
+            borderRadius: "50%",
+            border: "1px solid rgba(255,77,0,0.35)",
+          }}
+        />
+        {/* Hit glow */}
         <div
           ref={hitGlowRef}
-          className="forge-hit-glow absolute h-8 w-8 rounded-full bg-primary-container/10"
+          className="forge-hit-glow"
+          style={{
+            position: "absolute",
+            height: 32,
+            width: 32,
+            borderRadius: "50%",
+            background: "rgba(255,77,0,0.10)",
+          }}
         />
-        <div className="forge-hit-core relative z-10 h-4 w-4 rounded-full bg-primary-container shadow-[0_0_24px_rgba(255,77,0,0.85)]" />
+        {/* Core */}
+        <div
+          className="forge-hit-core"
+          style={{
+            position: "relative",
+            zIndex: 10,
+            height: 16,
+            width: 16,
+            borderRadius: "50%",
+            background: "var(--df-amber-500, #ff4d00)",
+            boxShadow: "0 0 24px rgba(255,77,0,0.85), 0 0 0 3px rgba(255,77,0,0.15)",
+          }}
+        />
 
         {sparks.map((spark) => {
           const style: SparkStyle = {
@@ -104,29 +155,61 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
         })}
       </div>
 
-      <div className="text-center min-h-[3rem]">
-        <p key={stepIndex} className="text-sm text-on-surface font-medium animate-fade-in">
+      {/* Step text */}
+      <div style={{ textAlign: "center", minHeight: 48 }}>
+        <p
+          key={stepIndex}
+          className="animate-fade-in"
+          style={{ fontSize: 13, color: "#e3e2e2", fontWeight: 500, margin: "0 0 4px" }}
+        >
           {current.message}
         </p>
         <p
           key={`detail-${stepIndex}`}
-          className="text-xs text-on-surface-variant/50 mt-1 animate-fade-in"
+          className="animate-fade-in"
+          style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))", margin: 0 }}
         >
           {current.detail}
         </p>
       </div>
 
-      <div className="relative h-px w-16 overflow-hidden bg-outline-variant/30">
-        <div className="forge-progress absolute inset-0 w-1/2 bg-primary-container" />
+      {/* Progress bar */}
+      <div
+        style={{
+          position: "relative",
+          height: 1,
+          width: 64,
+          overflow: "hidden",
+          background: "var(--df-outline, rgba(255,255,255,0.06))",
+          borderRadius: 1,
+        }}
+      >
+        <div
+          className="forge-progress"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "50%",
+            background: "var(--df-amber-500, #ff4d00)",
+          }}
+        />
       </div>
 
-      <div className="flex gap-2">
+      {/* Step dots */}
+      <div style={{ display: "flex", gap: 6 }}>
         {steps.map((_, i) => (
           <div
             key={i}
-            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-              i <= stepIndex ? "bg-primary-container" : "bg-surface-container-high"
-            }`}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              transition: "background 0.3s",
+              background: i <= stepIndex
+                ? "var(--df-amber-500, #ff4d00)"
+                : "var(--df-mute, rgba(227,226,226,0.18))",
+              boxShadow: i === stepIndex ? "0 0 6px rgba(255,77,0,0.6)" : "none",
+            }}
           />
         ))}
       </div>

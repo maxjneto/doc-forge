@@ -37,6 +37,8 @@ export function mapSection(
     status: raw.status as Section["status"],
     summary: (raw.summary as string) ?? null,
     activeVersionContent: (raw.active_version_content as string) ?? null,
+    versionCount: raw.version_count != null ? Number(raw.version_count) : undefined,
+    currentVersionIndex: raw.current_version_index != null ? Number(raw.current_version_index) : undefined,
   };
 }
 
