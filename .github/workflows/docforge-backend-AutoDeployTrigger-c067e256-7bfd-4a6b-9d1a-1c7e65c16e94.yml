@@ -20,17 +20,17 @@ jobs:
       - name: Login to ACR
         uses: docker/login-action@v3
         with:
-          registry: docforgeregistry.azurecr.io
+          registry: docforgeregistry2.azurecr.io
           username: ${{ secrets.DOCFORGEBACKEND_REGISTRY_USERNAME }}
           password: ${{ secrets.DOCFORGEBACKEND_REGISTRY_PASSWORD }}
 
       - name: Build and Push
         run: |
           docker build \
-            -t docforgeregistry.azurecr.io/docforge-backend:${{ github.sha }} \
-            -t docforgeregistry.azurecr.io/docforge-backend:latest \
+            -t docforgeregistry2.azurecr.io/docforge-backend:${{ github.sha }} \
+            -t docforgeregistry2.azurecr.io/docforge-backend:latest \
             packages/backend
-          docker push docforgeregistry.azurecr.io/docforge-backend --all-tags
+          docker push docforgeregistry2.azurecr.io/docforge-backend --all-tags
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -44,6 +44,4 @@ jobs:
           az containerapp update \
             --name docforge-backend \
             --resource-group rg-docforge \
-            --image docforgeregistry.azurecr.io/docforge-backend:${{ github.sha }}
-
-
+            --image docforgeregistry2.azurecr.io/docforge-backend:${{ github.sha }}
