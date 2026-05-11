@@ -53,20 +53,6 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 
 ---
 
-## Engineering Highlights
-
-**Document Contract pattern** — After alignment approval, a structured contract is extracted from the approved section summaries (entities, decisions, terminology, constraints) and persisted to the database. Every AI call from generation through audit receives this contract as a grounding block. This is the core mechanism that prevents cross-section hallucination and terminology drift in long multi-call pipelines.
-
-**DB-first prompt loading** — AI system prompts are stored in a `PromptTemplate` table keyed by document type, phase, and section. The prompt loader fetches the most specific template (section-specific first, then phase-wide), falling back to `prompts/documents.yaml` for document-type-agnostic defaults. Prompt improvements can be deployed without code changes, and new document types can have entirely different prompts without touching AI logic.
-
-**Stateless refinement concurrency** — Each user action in the refinement phase triggers a fresh, short-lived Inngest invocation (`handle-section-action`). The section-level concurrency key means at most one AI call runs per section at a time, but the lock is acquired on entry and released on return — it is never held while waiting for the user. This avoids stale locks and makes the system horizontally scalable.
-
-**Section versioning tree** — Every AI-generated or user-submitted edit creates a new `SectionVersion` record linked to its parent via `parent_version_id`. Exactly one version per section carries `is_active = true` (enforced by a unique partial index). Rollback is a single SQL update.
-
-**Atomic credit deduction** — `POST /documents` runs `UPDATE users SET credits = credits - 1 WHERE credits >= 1`, preventing race conditions from concurrent requests without needing a transaction lock.
-
----
-
 ## Tech Stack
 
 | Layer | Technology |
