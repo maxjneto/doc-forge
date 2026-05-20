@@ -269,6 +269,7 @@ export function AlignmentLayout({ documentId, sections }: AlignmentLayoutProps) 
                 label={SECTION_META[type].label}
                 summary={cards[type].summary}
                 status={cards[type].status}
+                locked={confirming}
                 onApprove={() => handleApprove(type)}
                 onStartEdit={() => handleStartEdit(type)}
                 onReject={(reason) => handleReject(type, reason)}

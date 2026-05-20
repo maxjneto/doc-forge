@@ -6,6 +6,7 @@ interface SummaryCardProps {
   label: string;
   summary: string;
   status: CardStatus;
+  locked?: boolean;
   onApprove: () => void;
   onStartEdit: () => void;
   onReject: (reason: string) => void;
@@ -16,6 +17,7 @@ export function SummaryCard({
   label,
   summary,
   status,
+  locked = false,
   onApprove,
   onStartEdit,
   onReject,
@@ -206,26 +208,30 @@ export function SummaryCard({
           {isApproved ? (
             <>
               <button
-                onClick={onStartEdit}
+                onClick={locked ? undefined : onStartEdit}
+                disabled={locked}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
                   border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
                   color: "var(--df-on-surface-soft, #c6c5c4)", background: "transparent",
-                  cursor: "pointer",
+                  cursor: locked ? "not-allowed" : "pointer",
+                  opacity: locked ? 0.35 : 1,
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
                 Edit
               </button>
               <button
-                onClick={onReopen}
+                onClick={locked ? undefined : onReopen}
+                disabled={locked}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
                   border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
                   color: "var(--df-on-surface-soft, #c6c5c4)", background: "transparent",
-                  cursor: "pointer",
+                  cursor: locked ? "not-allowed" : "pointer",
+                  opacity: locked ? 0.35 : 1,
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>undo</span>
