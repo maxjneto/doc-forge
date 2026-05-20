@@ -37,11 +37,57 @@ def promote_h1_headings(content: str) -> str:
     return "\n".join(result)
 
 
+def sanitize_mermaid_edge_labels(content: str) -> str:
+    """Quote Mermaid edge labels that contain special characters.
+
+    Mermaid v10+ fails to parse edge labels containing parentheses, plus signs,
+    or other special chars unless wrapped in double quotes.
+    Only processes lines inside ```mermaid fences; leaves everything else untouched.
+    """
+    import re
+
+    lines = content.splitlines()
+    result = []
+    in_mermaid = False
+
+    # Matches -->|label| or --|label| or ==>|label|, capturing the label
+    edge_label_re = re.compile(r'(\-+>|==+>|o--|--o|<-->|--)\|([^|]+)\|')
+
+    def _needs_quoting(label: str) -> bool:
+        return bool(re.search(r'[()#+]', label)) and not (
+            label.startswith('"') and label.endswith('"')
+        )
+
+    def _quote_label(m: re.Match) -> str:
+        arrow, label = m.group(1), m.group(2)
+        quoted = f'"{label}"' if _needs_quoting(label) else label
+        return f"{arrow}|{quoted}|"
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            lang = stripped[3:].strip().lower()
+            if lang == "mermaid":
+                in_mermaid = True
+            elif in_mermaid:
+                in_mermaid = False
+            result.append(line)
+            continue
+
+        if in_mermaid:
+            line = edge_label_re.sub(_quote_label, line)
+
+        result.append(line)
+
+    return "\n".join(result)
+
+
 def clean_section_output(content: str | None, section_type: str) -> str:
     """Full output cleaning pipeline for generated or refined section Markdown."""
     content = strip_outer_markdown_fence(content)
     content = strip_redundant_section_heading(content, section_type)
     content = promote_h1_headings(content)
+    content = sanitize_mermaid_edge_labels(content)
     return content
 
 
