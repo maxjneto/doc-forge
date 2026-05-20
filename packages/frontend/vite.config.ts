@@ -11,6 +11,18 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: ['mermaid'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mermaid: ['mermaid'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

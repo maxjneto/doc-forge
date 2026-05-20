@@ -98,7 +98,6 @@ export function EditorPanel() {
   const content = useWorkspaceStore((s) => s.getActiveVersionContent());
   const viewMode = useWorkspaceStore((s) => s.getActiveViewMode());
   const updateContent = useWorkspaceStore((s) => s.updateActiveContent);
-
   const isReadonly = viewMode === "readonly" || viewMode === "locked";
 
   return (
