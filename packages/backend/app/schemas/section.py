@@ -9,11 +9,17 @@ class SectionVersionResponse(BaseModel):
     section_id: UUID
     parent_version_id: UUID | None
     version_name: str
+    change_summary: str | None
     content: str
     is_active: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SectionVersionUpdateRequest(BaseModel):
+    change_summary: str | None = None
+    version_name: str | None = None
 
 
 class SectionResponse(BaseModel):

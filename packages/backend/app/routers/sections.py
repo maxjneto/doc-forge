@@ -9,7 +9,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Section, SectionVersion, ChatMessage, Document
 from app.models.user import User
-from app.schemas.section import SectionVersionResponse, ChatMessageResponse, VersionRestoreResponse
+from app.schemas.section import SectionVersionResponse, SectionVersionUpdateRequest, ChatMessageResponse, VersionRestoreResponse
 from app.services.db import restore_version, create_version_snapshot
 
 router = APIRouter(tags=["sections"])
@@ -78,6 +78,32 @@ async def create_section_snapshot(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
+    return SectionVersionResponse.model_validate(version)
+
+
+@router.patch("/sections/{section_id}/versions/{version_id}", response_model=SectionVersionResponse)
+async def update_section_version(
+    section_id: uuid.UUID,
+    version_id: uuid.UUID,
+    payload: SectionVersionUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await _assert_section_ownership(section_id, current_user, db)
+    result = await db.execute(
+        select(SectionVersion).where(
+            SectionVersion.id == version_id,
+            SectionVersion.section_id == section_id,
+        )
+    )
+    version = result.scalar_one_or_none()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found for this section")
+    version.change_summary = payload.change_summary
+    if payload.version_name is not None:
+        version.version_name = payload.version_name
+    await db.commit()
+    await db.refresh(version)
     return SectionVersionResponse.model_validate(version)
 
 
