@@ -278,3 +278,40 @@ body {
 .animate-df-pulse { animation: df-pulse 1.6s ease-in-out infinite; }
 .animate-df-shimmer { animation: df-shimmer 2.4s linear infinite; }
 .animate-df-scan { animation: df-scan-line 1.6s ease-in-out infinite; }
+
+/* Discovery transition effects */
+@keyframes df-answer-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes df-answer-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes df-forge-flash {
+  0%   { box-shadow: 0 0 0 2px rgba(255,77,0,0.55), 0 0 18px rgba(255,77,0,0.25); }
+  60%  { box-shadow: 0 0 0 2px rgba(138,160,184,0.25), 0 0 8px rgba(138,160,184,0.10); }
+  100% { box-shadow: none; }
+}
+@keyframes df-zone-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(250%); }
+}
+@keyframes df-counter-pulse {
+  0%, 100% { color: var(--df-faint, rgba(227,226,226,0.38)); }
+  35%       { color: #ff8d4a; }
+}
+@keyframes df-ember-float {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-56px) scale(0.25); }
+}
+@keyframes df-section-forged-pulse {
+  0%, 100% { box-shadow: none; border-color: var(--df-steel-border, rgba(138,160,184,0.35)); }
+  50%       { box-shadow: 0 0 0 2px rgba(138,160,184,0.10), 0 0 12px rgba(138,160,184,0.08); border-color: rgba(138,160,184,0.55); }
+}
+@keyframes df-shimmer-loop {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(250%); }
+  100% { transform: translateX(250%); }
+}

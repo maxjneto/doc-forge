@@ -1,37 +1,64 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import type { DiscoveryQuestion } from "@/types";
-import { apiCreateDocument } from "@/utils/api";
+import type { DiscoveryQuestion, SectionDefinition } from "@/types";
+import { apiCreateDocument, apiGetDocumentType } from "@/utils/api";
 import { InitialInput } from "./InitialInput";
-import { ProcessingState } from "./ProcessingState";
-import { FollowUpQuestions } from "./FollowUpQuestions";
+import { SectionStepper } from "./SectionStepper";
 
-type DiscoverySubState = "input" | "processing" | "questions";
+// ProcessingState kept for potential reuse but no longer shown fullscreen
+
+type DiscoverySubState = "input" | "forging";
 
 interface DiscoveryLayoutProps {
   documentId: string | null;
   questions: DiscoveryQuestion[];
   onDocumentCreated?: (docId: string) => void;
   documentTypeSlug?: string;
+  documentTitle?: string | null;
 }
 
-const GHOST_ZONES = [
-  { name: "Context" },
-  { name: "Proposal" },
-  { name: "Implementation" },
-  { name: "Risks" },
+const GHOST_ZONES_DEFAULT = [
+  { name: "Context",        key: "context" },
+  { name: "Proposal",       key: "proposal" },
+  { name: "Implementation", key: "implementation" },
+  { name: "Risks",          key: "risks" },
 ];
 
-function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; totalCount: number }) {
-  const heatFraction = totalCount > 0 ? answeredCount / totalCount : 0;
+function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
+  const activeQuestion = questions.find((q) => q.answer === null && !q.skipped);
+  const activeSectionKey = activeQuestion?.sectionKey ?? null;
+  const [shimmeringZones, setShimmeringZones] = useState<Set<string>>(new Set());
+  const prevZoneStatesRef = useRef<Record<string, "heated" | "heating" | "cold">>({});
 
-  function getZoneState(zoneIdx: number): "heated" | "heating" | "cold" {
-    const threshold = (zoneIdx / GHOST_ZONES.length);
-    const nextThreshold = ((zoneIdx + 1) / GHOST_ZONES.length);
-    if (heatFraction >= nextThreshold) return "heated";
-    if (heatFraction >= threshold) return "heating";
+  function getZoneState(zoneKey: string): "heated" | "heating" | "cold" {
+    const zoneQuestions = questions.filter((q) => q.sectionKey === zoneKey);
+    if (zoneQuestions.length === 0) return activeSectionKey === zoneKey ? "heating" : "cold";
+    const allDone = zoneQuestions.every((q) => q.answer !== null || q.skipped);
+    if (allDone) return "heated";
+    if (activeSectionKey === zoneKey) return "heating";
     return "cold";
   }
+
+  useEffect(() => {
+    const newlyHeated = new Set<string>();
+    GHOST_ZONES_DEFAULT.forEach((zone) => {
+      const prev = prevZoneStatesRef.current[zone.key];
+      const curr = getZoneState(zone.key);
+      if (prev !== "heated" && curr === "heated") newlyHeated.add(zone.key);
+      prevZoneStatesRef.current[zone.key] = curr;
+    });
+    if (newlyHeated.size > 0) {
+      setShimmeringZones((prev) => new Set([...prev, ...newlyHeated]));
+      setTimeout(() => {
+        setShimmeringZones((prev) => {
+          const next = new Set(prev);
+          newlyHeated.forEach((k) => next.delete(k));
+          return next;
+        });
+      }, 650);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions]);
 
   return (
     <div
@@ -57,9 +84,9 @@ function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; t
             Sections heat as your answers land.
           </div>
         </div>
-        {answeredCount > 0 && (
+        {activeSectionKey && (
           <span className="df-pill df-pill-heat">
-            Heating · zone {Math.min(answeredCount, GHOST_ZONES.length)}
+            Heating · {activeSectionKey}
           </span>
         )}
       </div>
@@ -75,20 +102,22 @@ function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; t
           overflow: "hidden",
         }}
       >
-        {GHOST_ZONES.map((zone, i) => {
-          const state = getZoneState(i);
+        {GHOST_ZONES_DEFAULT.map((zone, i) => {
+          const state = getZoneState(zone.key);
           const isHeated = state === "heated";
           const isHeating = state === "heating";
 
+          const isShimmering = shimmeringZones.has(zone.key);
           return (
             <div
-              key={zone.name}
+              key={zone.key}
               style={{
                 marginBottom: 22,
                 padding: "14px 16px 16px",
                 borderRadius: 8,
                 border: "1px solid",
                 position: "relative",
+                overflow: "hidden",
                 borderColor: isHeated
                   ? "rgba(255,77,0,0.30)"
                   : isHeating
@@ -100,10 +129,17 @@ function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; t
                   ? "rgba(255,77,0,0.08)"
                   : "transparent",
                 boxShadow: isHeating ? "0 0 0 4px rgba(255,77,0,0.04)" : "none",
-                overflow: "hidden",
               }}
             >
-              {/* Pulsing left edge on heating */}
+              {isShimmering && (
+                <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", borderRadius: "inherit" }}>
+                  <div style={{
+                    position: "absolute", top: 0, bottom: 0, left: 0, width: "40%",
+                    background: "linear-gradient(90deg, transparent 0%, rgba(255,77,0,0.13) 50%, transparent 100%)",
+                    animation: "df-zone-shimmer 0.65s ease-out forwards",
+                  }} />
+                </div>
+              )}
               {isHeating && (
                 <div
                   className="animate-df-pulse"
@@ -120,7 +156,6 @@ function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; t
                 />
               )}
 
-              {/* Zone header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <span
                   className="df-mono"
@@ -136,10 +171,7 @@ function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; t
                 >
                   › {zone.name}
                   {isHeating && (
-                    <span
-                      className="df-ember animate-df-pulse"
-                      style={{ marginLeft: 6 }}
-                    />
+                    <span className="df-ember animate-df-pulse" style={{ marginLeft: 6 }} />
                   )}
                 </span>
                 <span
@@ -157,7 +189,6 @@ function GhostDocument({ answeredCount, totalCount }: { answeredCount: number; t
                 </span>
               </div>
 
-              {/* Skeleton lines */}
               {[92, 78, 86, 64].slice(0, i === 2 ? 4 : 3).map((w, li) => (
                 <span
                   key={li}
@@ -187,31 +218,43 @@ export function DiscoveryLayout({
   documentId,
   questions,
   onDocumentCreated,
-  documentTypeSlug = "document",
+  documentTypeSlug = "rfc",
+  documentTitle = null,
 }: DiscoveryLayoutProps) {
   const { getToken } = useAuth();
-  const getInitialSubState = (): DiscoverySubState => {
-    if (!documentId) return "input";
-    if (questions.length > 0) return "questions";
-    return "processing";
-  };
-
-  const [subState, setSubState] = useState<DiscoverySubState>(getInitialSubState);
+  const [subState, setSubState] = useState<DiscoverySubState>(
+    documentId ? "forging" : "input"
+  );
+  const [sections, setSections] = useState<SectionDefinition[]>([]);
 
   useEffect(() => {
-    if (documentId && questions.length > 0) {
-      setSubState("questions");
-    }
-  }, [documentId, questions.length]);
+    apiGetDocumentType(documentTypeSlug).then((dt) => {
+      setSections(dt.sections.slice().sort((a, b) => a.order - b.order));
+    }).catch(() => {});
+  }, [documentTypeSlug]);
 
-  const answeredCount = questions.filter(
-    (q) => q.answer !== null || q.skipped
-  ).length;
+  useEffect(() => {
+    if (documentId) setSubState("forging");
+  }, [documentId]);
+
+  const answeredCount = questions.filter((q) => q.answer !== null || q.skipped).length;
+  const [countPulsing, setCountPulsing] = useState(false);
+  const prevCountRef = useRef(answeredCount);
+
+  useEffect(() => {
+    if (answeredCount > prevCountRef.current) {
+      setCountPulsing(true);
+      const t = setTimeout(() => setCountPulsing(false), 500);
+      prevCountRef.current = answeredCount;
+      return () => clearTimeout(t);
+    }
+    prevCountRef.current = answeredCount;
+  }, [answeredCount]);
 
   const handleSubmitInput = async (context: string, preferences: string) => {
-    setSubState("processing");
+    setSubState("forging");
     const doc = await apiCreateDocument(
-      "New Document",
+      documentTitle ?? "",
       context,
       getToken,
       preferences,
@@ -220,11 +263,8 @@ export function DiscoveryLayout({
     onDocumentCreated?.(doc.id);
   };
 
-  const handleQuestionsComplete = () => {
-    setSubState("processing");
-  };
+  const handleQuestionsComplete = () => {};
 
-  /* ── Full-screen input / processing (before questions) ── */
   if (subState === "input") {
     return (
       <div
@@ -245,25 +285,7 @@ export function DiscoveryLayout({
     );
   }
 
-  if (subState === "processing") {
-    return (
-      <div
-        style={{
-          height: "100%",
-          paddingTop: 56,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div className="animate-fade-in" style={{ width: "100%", maxWidth: "28rem", textAlign: "center" }}>
-          <ProcessingState />
-        </div>
-      </div>
-    );
-  }
-
-  /* ── 2-column Q&A + ghost document ── */
+  /* ── 2-column: stepper + ghost document ── */
   return (
     <div
       style={{
@@ -276,7 +298,7 @@ export function DiscoveryLayout({
       }}
     >
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 2fr", overflow: "hidden" }}>
-        {/* Left: Q&A panel */}
+        {/* Left: section stepper */}
         <div
           style={{
             borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
@@ -287,64 +309,48 @@ export function DiscoveryLayout({
             overflow: "hidden",
           }}
         >
-          {/* Gauge */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>A few questions to enrich the context</div>
-                <span
-                  className="df-mono"
-                  style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-faint, rgba(227,226,226,0.38))" }}
-                >
-                  Heat builds as you answer
-                </span>
-              </div>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Context gathering</div>
               <span
                 className="df-mono"
-                style={{ fontSize: 11, color: "var(--df-amber-300, #ff8d4a)" }}
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  animation: countPulsing ? "df-counter-pulse 0.5s ease-out" : undefined,
+                  color: "var(--df-faint, rgba(227,226,226,0.38))",
+                }}
               >
-                {answeredCount} / {questions.length} forged
+                {answeredCount} / {questions.length} questions forged
               </span>
-            </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-              {questions.map((q, i) => {
-                const done = q.answer !== null || q.skipped;
-                const isNow = i === answeredCount && !done;
-                return (
-                  <div
-                    key={q.id}
-                    style={{
-                      flex: 1,
-                      height: 4,
-                      borderRadius: 2,
-                      background: done
-                        ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
-                        : isNow
-                        ? "linear-gradient(90deg, var(--df-amber-700, #6e1d00), var(--df-amber-500, #ff4d00))"
-                        : "rgba(255,255,255,0.04)",
-                      border: done || isNow ? "none" : "1px solid var(--df-outline)",
-                      boxShadow: isNow ? "0 0 8px rgba(255,77,0,0.6)" : "none",
-                    }}
-                  />
-                );
-              })}
             </div>
           </div>
 
-          {/* Questions */}
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            {documentId && (
-              <FollowUpQuestions
-                documentId={documentId}
+          {/* Stepper */}
+          <div style={{ flex: 1, overflowY: "auto" }} className="hide-scrollbar">
+            {documentId && sections.length > 0 && (
+              <SectionStepper
+                sections={sections}
                 questions={questions}
+                documentId={documentId}
                 onComplete={handleQuestionsComplete}
               />
+            )}
+            {(!documentId || sections.length === 0) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 0" }}>
+                <div className="animate-df-pulse" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--df-amber-500, #ff4d00)", flexShrink: 0 }} />
+                <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))", letterSpacing: "0.12em" }}>
+                  Analyzing your context…
+                </span>
+              </div>
             )}
           </div>
         </div>
 
         {/* Right: Ghost document */}
-        <GhostDocument answeredCount={answeredCount} totalCount={questions.length} />
+        <GhostDocument questions={questions} />
       </div>
     </div>
   );

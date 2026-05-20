@@ -19,6 +19,7 @@ export function FollowUpQuestions({
     Record<string, { answer: string | null; answered: boolean }>
   >({});
   const [currentInput, setCurrentInput] = useState("");
+  const [exitingId, setExitingId] = useState<string | null>(null);
 
   const isQuestionDone = (q: DiscoveryQuestion) =>
     answers[q.id]?.answered || q.answer !== null || q.skipped;
@@ -28,15 +29,17 @@ export function FollowUpQuestions({
 
   const handleAnswer = async (questionId: string, answer: string | null) => {
     const question = questions.find((q) => q.id === questionId);
-    if (!question) return;
+    if (!question || exitingId) return;
 
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: { answer, answered: true },
-    }));
+    setExitingId(questionId);
+    const apiPromise = apiAnswerQuestion(documentId, question.question, answer, getToken);
+
+    await new Promise((r) => setTimeout(r, 190));
+    setExitingId(null);
     setCurrentInput("");
+    setAnswers((prev) => ({ ...prev, [questionId]: { answer, answered: true } }));
 
-    await apiAnswerQuestion(documentId, question.question, answer, getToken);
+    await apiPromise;
 
     const remaining = questions.filter(
       (q) => q.id !== questionId && !isQuestionDone(q)
@@ -76,6 +79,7 @@ export function FollowUpQuestions({
               borderRadius: 10,
               padding: "16px 18px",
               background: "rgba(255,77,0,0.04)",
+              animation: "df-answer-enter 0.28s ease-out",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -112,6 +116,7 @@ export function FollowUpQuestions({
       {/* Current active question */}
       {!allAnswered && (
         <div
+          key={questions[currentQuestionIndex]?.id}
           style={{
             border: "1px solid rgba(255,77,0,0.35)",
             borderRadius: 10,
@@ -119,6 +124,9 @@ export function FollowUpQuestions({
             background: "rgba(255,77,0,0.06)",
             boxShadow: "0 0 0 4px rgba(255,77,0,0.05)",
             position: "relative",
+            animation: exitingId === questions[currentQuestionIndex]?.id
+              ? "df-answer-exit 0.19s ease-in forwards"
+              : "df-answer-enter 0.25s ease-out",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -220,8 +228,19 @@ export function FollowUpQuestions({
             border: "1px solid var(--df-steel-border, rgba(138,160,184,0.35))",
             background: "var(--df-steel-bg, rgba(138,160,184,0.10))",
             textAlign: "center",
+            animation: "df-answer-enter 0.35s ease-out, df-section-forged-pulse 3s ease-in-out 0.5s infinite",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: "linear-gradient(90deg, transparent 0%, rgba(138,160,184,0.09) 40%, transparent 100%)",
+            animation: "df-shimmer-loop 4s ease-in-out 0.6s infinite",
+          }} />
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--df-steel-100, #b9c6d4)", display: "block", marginBottom: 6 }}>
+            check_circle
+          </span>
           <span
             className="df-mono"
             style={{ fontSize: 11, color: "var(--df-steel-100, #b9c6d4)", letterSpacing: "0.10em" }}
