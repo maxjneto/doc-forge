@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { UserButton } from "@clerk/clerk-react";
-import { useWorkspaceStore, SECTION_LABELS } from "@/store";
 import { useKilnAudio } from "@/hooks/useKilnAudio";
 import type { Phase } from "@/types";
 
@@ -25,68 +24,6 @@ function getStepState(
   if (stepIdx < currIdx) return "done";
   if (stepIdx === currIdx) return "now";
   return "future";
-}
-
-// ─── Heating status badge ────────────────────────────────────
-
-function HeatingBadge({ status }: { status: string }) {
-  if (status === "refining" || status === "drafting") {
-    return (
-      <span className="df-pill df-pill-heat" style={{ fontSize: 9.5, padding: "3px 8px" }}>
-        Heating
-      </span>
-    );
-  }
-  if (status === "finalized") {
-    return (
-      <span className="df-pill df-pill-steel" style={{ fontSize: 9.5, padding: "3px 8px" }}>
-        Forged
-      </span>
-    );
-  }
-  return (
-    <span className="df-pill df-pill-ghost" style={{ fontSize: 9.5, padding: "3px 8px" }}>
-      Queued
-    </span>
-  );
-}
-
-// ─── Refinement breadcrumb ───────────────────────────────────
-
-function RefinementBreadcrumb({ docTitle }: { docTitle?: string }) {
-  const activeSection = useWorkspaceStore((s) => s.activeSection);
-  const sections = useWorkspaceStore((s) => s.sections);
-  const currentSection = sections.find((s) => s.sectionType === activeSection);
-  const sectionLabel = SECTION_LABELS[activeSection] ?? activeSection;
-  const sectionStatus = currentSection?.status ?? "pending";
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginLeft: 24,
-        fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
-        fontSize: 11,
-        letterSpacing: "0.06em",
-      }}
-    >
-      {docTitle && (
-        <>
-          <span style={{ color: "var(--df-faint, rgba(227,226,226,0.38))", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {docTitle.length > 22 ? docTitle.slice(0, 22) + "…" : docTitle}
-          </span>
-          <span style={{ color: "var(--df-mute, rgba(227,226,226,0.18))" }}>›</span>
-        </>
-      )}
-      <span style={{ color: "var(--df-dim, rgba(227,226,226,0.62))", fontWeight: 500 }}>
-        {sectionLabel}
-      </span>
-      <span style={{ color: "var(--df-mute, rgba(227,226,226,0.18))" }}>›</span>
-      <HeatingBadge status={sectionStatus} />
-    </div>
-  );
 }
 
 // ─── Kiln audio toggle ───────────────────────────────────────
@@ -157,11 +94,34 @@ interface TopBarProps {
   phaseLabel?: string;
   credits?: number;
   docTitle?: string;
+  onRenameTitle?: (title: string) => Promise<void>;
 }
 
-export function TopBar({ phase, credits, docTitle }: TopBarProps) {
+export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps) {
   const isCompleted = phase === "completed";
   const isRefinement = phase === "refinement";
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingTitle) {
+      setTitleDraft(docTitle ?? "");
+      setTimeout(() => titleInputRef.current?.select(), 0);
+    }
+  }, [editingTitle, docTitle]);
+
+  const commitTitle = async () => {
+    setEditingTitle(false);
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === docTitle) return;
+    await onRenameTitle?.(trimmed);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commitTitle();
+    if (e.key === "Escape") setEditingTitle(false);
+  };
 
   return (
     <header
@@ -226,10 +186,8 @@ export function TopBar({ phase, credits, docTitle }: TopBarProps) {
         </span>
       </Link>
 
-      {/* Refinement breadcrumb or phase stepper */}
-      {isRefinement ? (
-        <RefinementBreadcrumb docTitle={docTitle} />
-      ) : phase ? (
+      {/* Phase stepper */}
+      {phase ? (
         <div
           style={{
             display: "flex",
@@ -307,27 +265,81 @@ export function TopBar({ phase, credits, docTitle }: TopBarProps) {
         {/* Kiln audio toggle (refinement only) */}
         {isRefinement && <KilnToggle />}
 
-        {/* Doc title / credits (non-refinement) */}
-        {!isRefinement && docTitle && phase ? (
-          <span
-            className="df-mono"
+        {/* Doc title / credits */}
+        {docTitle && phase ? (
+          <div
             style={{
-              fontSize: 10,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
               border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
               borderRadius: 4,
-              padding: "4px 10px",
-              maxWidth: 220,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              padding: "2px 4px 2px 10px",
+              maxWidth: 260,
             }}
           >
-            {docTitle.length > 28 ? docTitle.slice(0, 28) + "…" : docTitle}
-          </span>
-        ) : !isRefinement && credits !== undefined ? (
+            {editingTitle ? (
+              <input
+                ref={titleInputRef}
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={handleTitleKeyDown}
+                maxLength={200}
+                className="df-mono"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "var(--df-dim, rgba(227,226,226,0.62))",
+                  width: 180,
+                  fontFamily: "inherit",
+                }}
+              />
+            ) : (
+              <span
+                className="df-mono"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--df-dim, rgba(227,226,226,0.62))",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: 200,
+                }}
+              >
+                {docTitle.length > 28 ? docTitle.slice(0, 28) + "…" : docTitle}
+              </span>
+            )}
+            {onRenameTitle && (
+              <button
+                onClick={() => setEditingTitle((v) => !v)}
+                title="Rename document"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "3px 5px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--df-mute, rgba(227,226,226,0.18))",
+                  borderRadius: 3,
+                  transition: "color 0.15s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>edit</span>
+              </button>
+            )}
+          </div>
+        ) : credits !== undefined ? (
           <span
             className="df-mono"
             style={{

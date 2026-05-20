@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import type { Document, Phase } from "@/types";
-import { API_BASE, mapDocument, apiFetchMe } from "@/utils/api";
+import { API_BASE, mapDocument, apiFetchMe, apiUpdateDocumentTitle } from "@/utils/api";
 import { TopBar, NewDocumentDialog } from "@/components/shared";
 
 type FilterTab = "active" | "forged" | "all";
@@ -69,9 +69,31 @@ function PhaseTrail({ currentPhase }: { currentPhase: Phase }) {
   );
 }
 
-function DocRow({ doc, onClick }: { doc: Document; onClick: () => void }) {
+function DocRow({ doc, onClick, onRename }: { doc: Document; onClick: () => void; onRename: (docId: string, title: string) => Promise<void> }) {
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(doc.title);
+  const inputRef = useRef<HTMLInputElement>(null);
   const phase = doc.currentPhase;
   const isForged = phase === "completed";
+
+  const startRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTitleDraft(doc.title);
+    setRenaming(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitRename = async () => {
+    setRenaming(false);
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === doc.title) return;
+    await onRename(doc.id, trimmed);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") commitRename();
+    if (e.key === "Escape") setRenaming(false);
+  };
   const phaseColor = isForged
     ? "var(--df-steel-100, #b9c6d4)"
     : "var(--df-amber-300, #ff8d4a)";
@@ -96,32 +118,26 @@ function DocRow({ doc, onClick }: { doc: Document; onClick: () => void }) {
   });
 
   return (
-    <button
-      onClick={onClick}
+    <div
+      onClick={renaming ? undefined : onClick}
       style={{
         display: "grid",
         gridTemplateColumns: "22px 1fr 260px 130px 110px",
         alignItems: "center",
         gap: 16,
         padding: "14px 22px",
-        borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderBottomWidth: 1,
+        borderBottomStyle: "solid",
+        borderBottomColor: "var(--df-outline, rgba(255,255,255,0.06))",
         fontSize: 14,
         background: "transparent",
         width: "100%",
         textAlign: "left",
-        cursor: "pointer",
+        cursor: renaming ? "default" : "pointer",
         transition: "background 0.15s",
-        border: "none",
-        borderBottomWidth: 1,
-        borderBottomStyle: "solid",
-        borderBottomColor: "var(--df-outline, rgba(255,255,255,0.06))",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "rgba(255,77,0,0.025)")
-      }
-      onMouseLeave={(e) =>
-        (e.currentTarget.style.background = "transparent")
-      }
+      onMouseEnter={(e) => { if (!renaming) (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.025)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
     >
       {/* Icon */}
       <span
@@ -137,8 +153,47 @@ function DocRow({ doc, onClick }: { doc: Document; onClick: () => void }) {
       </span>
 
       {/* Title */}
-      <div>
-        <div style={{ fontWeight: 500, color: "#e3e2e2" }}>{doc.title}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        {renaming ? (
+          <input
+            ref={inputRef}
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            maxLength={200}
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+              color: "#e3e2e2",
+              background: "transparent",
+              border: "none",
+              borderBottom: "1px solid rgba(255,77,0,0.40)",
+              outline: "none",
+              fontFamily: "inherit",
+              width: "100%",
+              padding: "1px 0",
+            }}
+          />
+        ) : (
+          <span style={{ fontWeight: 500, color: "#e3e2e2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {doc.title}
+          </span>
+        )}
+        <button
+          onClick={startRename}
+          title="Rename"
+          style={{
+            display: "flex", alignItems: "center", padding: "2px 4px", flexShrink: 0,
+            background: "transparent", border: "none", cursor: "pointer",
+            color: "var(--df-mute, rgba(227,226,226,0.18))", borderRadius: 3, transition: "color 0.15s",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+        </button>
       </div>
 
       {/* Status */}
@@ -183,7 +238,7 @@ function DocRow({ doc, onClick }: { doc: Document; onClick: () => void }) {
           </span>
         </span>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -244,6 +299,11 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
   const [filter, setFilter] = useState<FilterTab>("active");
+
+  const handleRename = async (docId: string, title: string) => {
+    await apiUpdateDocumentTitle(docId, title, getToken);
+    setDocuments((prev) => prev.map((d) => d.id === docId ? { ...d, title } : d));
+  };
 
   useEffect(() => {
     async function fetchDocs() {
@@ -501,6 +561,7 @@ export function HomePage() {
               key={doc.id}
               doc={doc}
               onClick={() => navigate(`/document/${doc.id}`)}
+              onRename={handleRename}
             />
           ))}
         </div>

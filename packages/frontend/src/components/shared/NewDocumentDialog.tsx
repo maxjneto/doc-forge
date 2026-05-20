@@ -19,6 +19,7 @@ export function NewDocumentDialog({ onClose }: NewDocumentDialogProps) {
   const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [documentTitle, setDocumentTitle] = useState("");
 
   useEffect(() => {
     apiListDocumentTypes()
@@ -34,7 +35,7 @@ export function NewDocumentDialog({ onClose }: NewDocumentDialogProps) {
 
   function handleSelect(doc: DocumentType) {
     onClose();
-    navigate("/document/new", { state: { documentTypeSlug: doc.slug } });
+    navigate("/document/new", { state: { documentTypeSlug: doc.slug, documentTitle: documentTitle.trim() || null } });
   }
 
   return (
@@ -74,6 +75,36 @@ export function NewDocumentDialog({ onClose }: NewDocumentDialogProps) {
           >
             <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>close</span>
           </button>
+        </div>
+
+        {/* Title input */}
+        <div style={{ marginBottom: "20px" }}>
+          <label
+            style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(200,198,197,0.45)", marginBottom: "8px" }}
+          >
+            Document title
+          </label>
+          <input
+            type="text"
+            value={documentTitle}
+            onChange={(e) => setDocumentTitle(e.target.value)}
+            placeholder="Auto-generated from context"
+            maxLength={200}
+            style={{
+              width: "100%",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "13px",
+              color: "#e3e2e2",
+              fontFamily: "inherit",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(255,77,0,0.45)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+          />
         </div>
 
         {/* Body */}

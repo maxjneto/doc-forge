@@ -50,6 +50,7 @@ export function mapVersion(raw: Record<string, unknown>): SectionVersion {
       ? String(raw.parent_version_id)
       : null,
     versionName: raw.version_name as string,
+    changeSummary: (raw.change_summary as string) ?? null,
     content: raw.content as string,
     isActive: raw.is_active as boolean,
     createdAt: raw.created_at as string,
@@ -77,6 +78,7 @@ export function mapDiscoveryQuestion(
     question: raw.question as string,
     answer: (raw.answer as string) ?? null,
     skipped: raw.skipped as boolean,
+    sectionKey: (raw.section_key as string) ?? null,
   };
 }
 
@@ -111,7 +113,7 @@ export async function apiCreateDocument(
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({
-      title,
+      title: title || null,
       document_context: documentContext,
       user_preferences: userPreferences ?? null,
       document_type_slug: documentTypeSlug ?? "rfc",
@@ -236,6 +238,24 @@ export async function apiCreateVersionSnapshot(
   return mapVersion(await res.json());
 }
 
+export async function apiUpdateSectionVersion(
+  sectionId: string,
+  versionId: string,
+  patch: { changeSummary?: string | null; versionName?: string | null },
+  getToken: GetToken,
+): Promise<SectionVersion> {
+  const body: Record<string, unknown> = {};
+  if ("changeSummary" in patch) body.change_summary = patch.changeSummary;
+  if ("versionName" in patch) body.version_name = patch.versionName;
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/versions/${versionId}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Failed to update version");
+  return mapVersion(await res.json());
+}
+
 function mapSectionDefinition(raw: Record<string, unknown>): SectionDefinition {
   return {
     id: String(raw.id),
@@ -257,11 +277,31 @@ function mapDocumentType(raw: Record<string, unknown>): DocumentType {
   };
 }
 
+export async function apiUpdateDocumentTitle(
+  documentId: string,
+  title: string,
+  getToken: GetToken,
+): Promise<Document> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error("Failed to update document title");
+  return mapDocument(await res.json());
+}
+
 export async function apiListDocumentTypes(): Promise<DocumentType[]> {
   const res = await fetch(`${API_BASE}/document-types`);
   if (!res.ok) throw new Error("Failed to fetch document types");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapDocumentType);
+}
+
+export async function apiGetDocumentType(slug: string): Promise<DocumentType> {
+  const res = await fetch(`${API_BASE}/document-types/${slug}`);
+  if (!res.ok) throw new Error("Failed to fetch document type");
+  return mapDocumentType(await res.json());
 }
 
 export async function apiUpdateCompletedDocument(

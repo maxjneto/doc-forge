@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import type { Phase } from "@/types";
 import { useDocument } from "@/hooks/useDocument";
@@ -12,6 +12,7 @@ import { CompletedLayout } from "@/components/phases/completed";
 import { WorkspaceLayout } from "@/components/workspace";
 import { AuditLayout } from "@/components/phases/audit/AuditLayout";
 import { ForgeLoader, TopBar } from "@/components/shared";
+import { apiUpdateDocumentTitle } from "@/utils/api";
 
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
@@ -19,7 +20,9 @@ export function DocumentPage() {
   const location = useLocation();
   const { getToken } = useAuth();
   const isNew = urlId === "new";
-  const documentTypeSlug = (location.state as { documentTypeSlug?: string } | null)?.documentTypeSlug ?? "rfc";
+  const locationState = location.state as { documentTypeSlug?: string; documentTitle?: string | null } | null;
+  const documentTypeSlug = locationState?.documentTypeSlug ?? "rfc";
+  const documentTitle = locationState?.documentTitle ?? null;
 
   // For new documents, documentId starts as null until created
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
@@ -29,6 +32,12 @@ export function DocumentPage() {
 
   const currentPhase: Phase = document?.currentPhase ?? "discovery";
   const { config } = usePhase(currentPhase);
+
+  const handleRenameTitle = useCallback(async (title: string) => {
+    if (!activeDocId) return;
+    await apiUpdateDocumentTitle(activeDocId, title, getToken);
+    refreshNow();
+  }, [activeDocId, getToken, refreshNow]);
 
   const handleDocumentCreated = (docId: string) => {
     setCreatedDocId(docId);
@@ -47,7 +56,7 @@ export function DocumentPage() {
 
   return (
     <div className="h-screen w-full overflow-hidden bg-background text-on-surface antialiased selection:bg-primary/30">
-      <TopBar phase={currentPhase} phaseLabel={config?.label} docTitle={document?.title} />
+      <TopBar phase={currentPhase} phaseLabel={config?.label} docTitle={document?.title} onRenameTitle={document ? handleRenameTitle : undefined} />
       <PhaseTransition phase={currentPhase}>
         {currentPhase === "discovery" && (
           <DiscoveryLayout
@@ -55,6 +64,7 @@ export function DocumentPage() {
             questions={discoveryQuestions}
             onDocumentCreated={handleDocumentCreated}
             documentTypeSlug={documentTypeSlug}
+            documentTitle={documentTitle}
           />
         )}
         {currentPhase === "alignment" && (
