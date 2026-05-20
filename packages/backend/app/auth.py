@@ -8,7 +8,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -113,25 +114,18 @@ async def get_current_user(
     if not email:
         email = f"{user_id}@clerk.local"
 
-    # Upsert user
+    # Atomic upsert — avoids race condition when concurrent requests create the same user
+    stmt = (
+        insert(User)
+        .values(id=user_id, email=email, name=name or "", credits=1)
+        .on_conflict_do_update(
+            index_elements=["id"],
+            set_={"email": email, "name": name or ""},
+        )
+    )
+    await db.execute(stmt)
+    await db.commit()
+
     result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        user = User(id=user_id, email=email, name=name, credits=1)
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-        logger.info("[auth] new user created | user_id={}", user_id)
-    else:
-        # Sync name/email if changed
-        if user.email != email or user.name != name:
-            await db.execute(
-                update(User)
-                .where(User.id == user_id)
-                .values(email=email, name=name)
-            )
-            await db.commit()
-            await db.refresh(user)
-
+    user = result.scalar_one()
     return user
