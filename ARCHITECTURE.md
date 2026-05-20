@@ -1,7 +1,5 @@
 # DocForge Architecture
 
-This document describes the current system architecture as of Milestone 3.
-
 ---
 
 ## 1. System Overview
@@ -61,6 +59,12 @@ graph TD
 - All API responses are `snake_case`; explicit mapper functions in `api.ts` convert to `camelCase` for TypeScript types.
 - Tailwind CSS v4 with custom design tokens (`on-surface`, `primary`, etc.) defined in `src/index.css`.
 
+**Phase layout highlights:**
+- **DiscoveryLayout**: replaced full-screen `ProcessingState` with an inline `SectionStepper` component that shows per-section progress (`pending → forging → forged`) with shimmer ghost document, ember-particle completion animation, and animated question card transitions via `FollowUpQuestions`.
+- **AlignmentLayout / SummaryCard**: accept a `locked` prop that disables edit/reopen actions while alignment confirmation is in progress.
+- **TopBar**: displays the document title across all phases with an inline edit button; saves via `PATCH /api/documents/{id}`.
+- **TimelinePanel / VersionNode**: exposes an inline edit panel for `versionName` and `changeSummary`; saves via `PATCH /api/sections/{id}/versions/{vid}`.
+
 ---
 
 ## 3. Backend API Layer
@@ -93,10 +97,17 @@ graph LR
 | `document_types` | `/api/document-types` | No | List active types + section definitions |
 | `users` | `/api/users` | Yes | Profile, credits |
 
+**Documents router notable endpoints:**
+- `POST /api/documents` — `title` is now optional; if omitted the backend auto-generates `"<DocType> — DD/MM/YYYY"`.
+- `PATCH /api/documents/{id}` — accepts `DocumentUpdateRequest {title}` to rename a document.
+
+**Sections router notable endpoints:**
+- `PATCH /api/sections/{section_id}/versions/{version_id}` — accepts `SectionVersionUpdateRequest {version_name?, change_summary?}` to update version metadata.
+
 **Authentication (`app/auth.py`):**
 - Fetches Clerk JWKS and caches for 1 hour.
 - Validates RS256 tokens + `azp` (authorized party) claim.
-- Auto-creates a `User` row on first login (upsert).
+- Auto-creates/updates a `User` row on first login via PostgreSQL `on_conflict_do_update()` — atomic upsert prevents race conditions on concurrent requests.
 - All protected routes return 404 (not 403) on ownership mismatch — intentional.
 
 ---
@@ -125,7 +136,7 @@ sequenceDiagram
             INN->>AI: analyze_discovery(section_key, section_role)
             alt needs more info
                 INN->>DB: save_discovery_question(section_key)
-                INN->>INN: wait_for_event(discovery_round_complete, section_key)
+                INN->>INN: poll_loop 30s timeout (wait_for_event + step.sleep)
                 FE->>API: POST /answer {section_key}
                 API->>INN: send discovery_round_complete {section_key}
             end
@@ -188,6 +199,8 @@ sequenceDiagram
 - `DOC_CONCURRENCY`: limits 1 active workflow per document — prevents two phases running simultaneously.
 - `SECTION_CONCURRENCY`: limits 1 active AI call per section — `handle-section-action` acquires the lock on entry and releases on return. No `wait_for_event` inside, so the lock is never held across user think-time.
 
+**Discovery race condition fix:** `run-discovery` previously used a single `wait_for_event()` call which could miss an answer if the user responded before the listener was registered. It now uses a poll-loop (30s timeout) that combines `wait_for_event` with `step.sleep`, guaranteeing the answer is always captured.
+
 ---
 
 ## 5. AI Layer
@@ -207,7 +220,7 @@ flowchart TD
     CallRetry["guardrails/output.py\ncall_with_retry()\nretry once on:\n• malformed JSON\n• missing required_fields"]
     AzureOAI["Azure OpenAI\nchat.completions.create\n(async, structured output)"]
     LogUsage["ai/core/token_budget.py\nlog_usage(phase, usage)"]
-    OutputClean["ai/core/output_cleaner.py\nstrip_outer_markdown_fence()"]
+    OutputClean["ai/core/output_cleaner.py\nstrip_outer_markdown_fence()\nsanitize_mermaid_edge_labels()"]
     Result["AI Result\n(dict or markdown string)"]
 
     UserAction --> InputGuard --> PromptLoad --> ContextBuild
@@ -317,6 +330,7 @@ erDiagram
         string version_name
         text content
         bool is_active
+        string change_summary "NULL ok, max 500 chars"
     }
     ChatMessage {
         uuid id PK
@@ -359,7 +373,7 @@ erDiagram
 
 All DB access goes through `AsyncSession` (SQLAlchemy async). The `services/db.py` module is the only place that writes to the DB — routers and workflow helpers always call through it.
 
-**Section versioning:** `SectionVersion` records form a tree via `parent_version_id`. Only one version per section has `is_active = true` (enforced by a unique partial index). `create_section_version()` deactivates the previous active version and inserts the new one atomically.
+**Section versioning:** `SectionVersion` records form a tree via `parent_version_id`. Only one version per section has `is_active = true` (enforced by a unique partial index). `create_section_version()` deactivates the previous active version and inserts the new one atomically. Each version optionally carries a `change_summary` (max 500 chars) set by the user via the TimelinePanel edit UI (migration `013`).
 
 **SSE integration:** Every `db.py` write that changes observable state publishes an SSE event via `sse_service.publish()`. The frontend SSE stream (`/api/documents/:id/stream`) delivers these events in real time.
 
@@ -405,7 +419,7 @@ flowchart TD
     CreateDoc --> Resolve --> CreateSections --> InngestStart --> GenPhase
 ```
 
-The document type drives: which sections exist, in what order, and which AI prompt templates are used. The RFC document type is seeded by migrations `006` and `009`.
+The document type drives: which sections exist, in what order, and which AI prompt templates are used. The RFC document type is seeded by migrations `006` and `009`. A `GET /api/document-types/{slug}` endpoint is also available for fetching a single type by slug.
 
 ---
 
