@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { useWorkspaceStore, SECTION_LABELS } from "@/store";
 import type { SectionType, SectionVersion } from "@/types";
+import { apiUpdateSectionVersion } from "@/utils/api";
+import { useAuth } from "@clerk/clerk-react";
 
 // ─── Version Node ────────────────────────────────────────────
 
@@ -9,105 +12,166 @@ interface VersionNodeProps {
 }
 
 function VersionNode({ version, onRestore }: VersionNodeProps) {
+  const { getToken } = useAuth();
+  const patchVersionLocally = useWorkspaceStore((s) => s.patchVersionLocally);
+  const [editOpen, setEditOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState(version.versionName);
+  const [summaryDraft, setSummaryDraft] = useState(version.changeSummary ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSaving(true);
+    const newName = nameDraft.trim() || version.versionName;
+    const newSummary = summaryDraft.trim() || null;
+    const patch: { versionName?: string; changeSummary?: string | null } = {};
+    if (newName !== version.versionName) patch.versionName = newName;
+    if (newSummary !== version.changeSummary) patch.changeSummary = newSummary;
+    if (Object.keys(patch).length > 0) {
+      await apiUpdateSectionVersion(version.sectionId, version.id, patch, getToken);
+      patchVersionLocally(version.sectionId, version.id, patch);
+    }
+    setSaving(false);
+    setEditOpen(false);
+  };
+
+  const editPanel = editOpen ? (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        marginTop: 6,
+        padding: "10px 12px",
+        borderRadius: 6,
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div>
+        <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute, rgba(227,226,226,0.18))", marginBottom: 4 }}>NAME</div>
+        <input
+          autoFocus
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          maxLength={100}
+          style={{
+            width: "100%",
+            background: "transparent",
+            border: "none",
+            borderBottom: "1px solid rgba(255,255,255,0.10)",
+            fontSize: 10,
+            color: "var(--df-dim, rgba(227,226,226,0.62))",
+            fontFamily: "inherit",
+            outline: "none",
+            padding: "2px 0",
+          }}
+        />
+      </div>
+      <div>
+        <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute, rgba(227,226,226,0.18))", marginBottom: 4 }}>NOTE</div>
+        <input
+          value={summaryDraft}
+          onChange={(e) => setSummaryDraft(e.target.value)}
+          placeholder="Add a note…"
+          maxLength={500}
+          style={{
+            width: "100%",
+            background: "transparent",
+            border: "none",
+            borderBottom: "1px solid rgba(255,255,255,0.10)",
+            fontSize: 10,
+            color: "var(--df-dim, rgba(227,226,226,0.62))",
+            fontFamily: "inherit",
+            outline: "none",
+            padding: "2px 0",
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); setEditOpen(false); }}
+          className="df-mono"
+          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid var(--df-outline, rgba(255,255,255,0.06))", background: "transparent", color: "var(--df-faint, rgba(227,226,226,0.38))", cursor: "pointer" }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="df-mono"
+          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(255,77,0,0.35)", background: "rgba(255,77,0,0.08)", color: "var(--df-amber-200, #ffb59e)", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  const pencilButton = (
+    <button
+      onClick={(e) => { e.stopPropagation(); setEditOpen((v) => !v); setNameDraft(version.versionName); setSummaryDraft(version.changeSummary ?? ""); }}
+      title="Edit name / note"
+      style={{
+        display: "flex", alignItems: "center", padding: "2px 4px", marginLeft: "auto",
+        background: "transparent", border: "none", cursor: "pointer",
+        color: "var(--df-mute, rgba(227,226,226,0.18))", borderRadius: 3, transition: "color 0.15s", flexShrink: 0,
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>edit</span>
+    </button>
+  );
+
   if (version.isActive) {
     return (
       <div style={{ position: "relative", paddingLeft: 20 }}>
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: -10,
-            width: 14,
-            height: 20,
-            borderLeft: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-            borderBottom: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-            borderRadius: "0 0 0 6px",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "rgba(255,77,0,0.05)",
-            border: "1px solid rgba(255,77,0,0.25)",
-            borderRadius: 6,
-            padding: "5px 8px",
-            cursor: "pointer",
-          }}
-          onClick={() => onRestore(version.id)}
-        >
+        <div style={{ position: "absolute", left: 0, top: -10, width: 14, height: 20, borderLeft: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))", borderBottom: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))", borderRadius: "0 0 0 6px" }} />
+        <div style={{ background: "rgba(255,77,0,0.05)", border: "1px solid rgba(255,77,0,0.25)", borderRadius: 6, padding: "5px 8px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: "var(--df-amber-500, #ff4d00)",
-                boxShadow: "0 0 6px var(--df-amber-500)",
-              }}
-            />
-            <span
-              className="df-mono"
-              style={{ fontSize: 10, color: "var(--df-amber-200, #ffb59e)", fontWeight: 500 }}
-            >
+            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-amber-500, #ff4d00)", boxShadow: "0 0 6px var(--df-amber-500)", flexShrink: 0, cursor: "pointer" }} onClick={() => onRestore(version.id)} />
+            <span className="df-mono" style={{ fontSize: 10, color: "var(--df-amber-200, #ffb59e)", fontWeight: 500, cursor: "pointer", flex: 1 }} onClick={() => onRestore(version.id)}>
               {version.versionName}
             </span>
+            <span className="df-mono" style={{ fontSize: 9, letterSpacing: "0.10em", textTransform: "uppercase", padding: "2px 5px", borderRadius: 3, background: "rgba(255,77,0,0.15)", color: "var(--df-amber-300, #ff8d4a)", flexShrink: 0 }}>Active</span>
+            {pencilButton}
           </div>
-          <span
-            className="df-mono"
-            style={{
-              fontSize: 9,
-              letterSpacing: "0.10em",
-              textTransform: "uppercase",
-              padding: "2px 5px",
-              borderRadius: 3,
-              background: "rgba(255,77,0,0.15)",
-              color: "var(--df-amber-300, #ff8d4a)",
-            }}
-          >
-            Active
-          </span>
+          {version.changeSummary && !editOpen && (
+            <div style={{ marginTop: 4, paddingLeft: 2 }}>
+              <span className="df-mono" style={{ fontSize: 9, color: "var(--df-faint, rgba(227,226,226,0.38))", display: "block" }}>{version.changeSummary}</span>
+            </div>
+          )}
+          {editPanel}
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      style={{ position: "relative", paddingLeft: 20, opacity: 0.5, cursor: "pointer", transition: "opacity 0.15s" }}
-      onClick={() => onRestore(version.id)}
+    <div style={{ position: "relative", paddingLeft: 20, opacity: editOpen ? 1 : 0.5, transition: "opacity 0.15s" }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.5"; }}
+      onMouseLeave={(e) => { if (!editOpen) (e.currentTarget as HTMLElement).style.opacity = "0.5"; }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          top: -10,
-          width: 14,
-          height: 20,
-          borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          borderRadius: "0 0 0 6px",
-        }}
-      />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "3px 6px",
-          borderRadius: 4,
-          transition: "background 0.15s",
-        }}
+      <div style={{ position: "absolute", left: 0, top: -10, width: 14, height: 20, borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))", borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))", borderRadius: "0 0 0 6px" }} />
+      <div style={{ padding: "3px 6px", borderRadius: 4, transition: "background 0.15s" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
-        <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-mute, rgba(227,226,226,0.18))" }} />
-        <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))" }}>
-          {version.versionName}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-mute, rgba(227,226,226,0.18))", flexShrink: 0, cursor: "pointer" }} onClick={() => onRestore(version.id)} />
+          <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))", cursor: "pointer", flex: 1 }} onClick={() => onRestore(version.id)}>
+            {version.versionName}
+          </span>
+          {pencilButton}
+        </div>
+        {version.changeSummary && !editOpen && (
+          <div style={{ marginTop: 2, paddingLeft: 11 }}>
+            <span className="df-mono" style={{ fontSize: 9, color: "var(--df-mute, rgba(227,226,226,0.18))", display: "block" }}>{version.changeSummary}</span>
+          </div>
+        )}
+        {editPanel}
       </div>
     </div>
   );

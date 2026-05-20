@@ -65,6 +65,7 @@ interface WorkspaceState {
   // Version actions
   restoreVersion: (sectionId: string, versionId: string) => Promise<void>;
   createVersionSnapshot: (sectionId: string) => Promise<void>;
+  patchVersionLocally: (sectionId: string, versionId: string, patch: { versionName?: string; changeSummary?: string | null }) => void;
 
   // Chat actions
   sendMessage: (content: string, actionType: SectionActionType) => Promise<void>;
@@ -213,6 +214,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         versions: { ...state.versions, [section.id]: updated },
       };
     }),
+
+  patchVersionLocally: (sectionId, versionId, patch) => {
+    set((state) => {
+      const sectionVersions = state.versions[sectionId];
+      if (!sectionVersions) return state;
+      return {
+        versions: {
+          ...state.versions,
+          [sectionId]: sectionVersions.map((v) =>
+            v.id === versionId ? { ...v, ...patch } : v
+          ),
+        },
+      };
+    });
+  },
 
   createVersionSnapshot: async (sectionId) => {
     const { getToken } = get();

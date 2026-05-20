@@ -40,6 +40,7 @@ export interface SectionVersion {
   sectionId: string;
   parentVersionId: string | null;
   versionName: string;
+  changeSummary: string | null;
   content: string;
   isActive: boolean;
   createdAt: string;
@@ -99,6 +100,7 @@ export interface DiscoveryQuestion {
   question: string;
   answer: string | null;
   skipped: boolean;
+  sectionKey: string | null;
 }
 
 // ─── Alignment (Phase 2) ─────────────────────────────────────
