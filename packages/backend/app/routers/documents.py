@@ -18,6 +18,7 @@ from app.models.document_type import DocumentType, SectionDefinition
 from app.models.user import User
 from app.schemas.document import (
     DocumentCreate,
+    DocumentUpdateRequest,
     DocumentResponse,
     DocumentListResponse,
     DocumentDetailResponse,
@@ -110,6 +111,26 @@ async def get_document(
     )
 
 
+@router.patch("/documents/{document_id}", response_model=DocumentResponse)
+async def update_document(
+    document_id: uuid.UUID,
+    payload: DocumentUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if payload.title is not None:
+        doc.title = payload.title
+    await db.commit()
+    await db.refresh(doc)
+    return DocumentResponse.model_validate(doc)
+
+
 @router.get("/documents/{document_id}/stream")
 async def stream_document(
     document_id: uuid.UUID,
@@ -171,7 +192,7 @@ async def create_document(
     await db.commit()
 
     doc = Document(
-        title=payload.title,
+        title=payload.title or f"{doc_type.name} — {datetime.datetime.utcnow().strftime('%b %d, %Y')}",
         document_context=payload.document_context,
         user_preferences=payload.user_preferences,
         user_id=current_user.id,

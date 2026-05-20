@@ -4,8 +4,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class DocumentUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+
+
 class DocumentCreate(BaseModel):
-    title: str = Field(max_length=200)
+    title: str | None = Field(default=None, max_length=200)
     document_context: str = Field(max_length=20000)
     user_preferences: str | None = Field(default=None, max_length=2000)
     document_type_slug: str = Field(default="rfc", max_length=50)
