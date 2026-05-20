@@ -135,15 +135,37 @@ async def function(ctx: inngest.Context):
 
                 await step.run(f"save-questions-{section_key}", _save_questions)
 
-            # Wait for all questions in this section to be answered/skipped.
-            # Filter by document_id only — safe because sections are processed sequentially
-            # so only one wait_for_event is active per document at any point.
-            await step.wait_for_event(
-                f"wait-round-complete-{section_key}",
-                event="docforge/user.discovery_round_complete",
-                timeout=datetime.timedelta(days=7),
-                if_exp="async.data.document_id == event.data.document_id",
-            )
+            # Poll-with-event loop: wait for the round_complete event OR re-check the DB
+            # every 30s. Prevents the race where the user answers questions before
+            # wait_for_event is created, causing the event to be missed permanently.
+            def _make_check(sk):
+                async def _check():
+                    async with async_session() as db:
+                        result = await db.execute(
+                            select(DiscoveryQuestion).where(
+                                DiscoveryQuestion.document_id == uuid.UUID(doc_id),
+                                DiscoveryQuestion.section_key == sk,
+                                DiscoveryQuestion.answer.is_(None),
+                                DiscoveryQuestion.skipped == False,
+                            )
+                        )
+                        return result.scalars().first() is None
+                return _check
+
+            attempt = 0
+            while True:
+                done = await step.run(
+                    f"check-answered-{section_key}-{attempt}", _make_check(section_key)
+                )
+                if done:
+                    break
+                await step.wait_for_event(
+                    f"wait-round-complete-{section_key}-{attempt}",
+                    event="docforge/user.discovery_round_complete",
+                    timeout=datetime.timedelta(seconds=30),
+                    if_exp="async.data.document_id == event.data.document_id",
+                )
+                attempt += 1
             logger.info(
                 "[orchestrator] round complete section={} | doc_id={}", section_key, doc_id
             )
