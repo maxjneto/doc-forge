@@ -13,7 +13,6 @@ interface MarkdownRendererProps {
 }
 
 let mermaidInitialized = false;
-let mermaidInstanceCounter = 0;
 const mermaidSvgCache = new Map<string, string>();
 const mermaidRenderJobs = new Map<string, Promise<string>>();
 
@@ -63,7 +62,7 @@ async function renderMermaidSvg(code: string, fallbackId: string): Promise<strin
 
 function MermaidBlock({ code }: { code: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const idRef = useRef(`markdown-mermaid-${++mermaidInstanceCounter}`);
+  const idRef = useRef(`markdown-mermaid-${crypto.randomUUID()}`);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +80,7 @@ function MermaidBlock({ code }: { code: string }) {
 
       try {
         const svg = await renderMermaidSvg(code, idRef.current);
+        document.getElementById(idRef.current)?.remove();
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
         }
