@@ -10,6 +10,7 @@ import { AlignmentLayout } from "@/components/phases/alignment/AlignmentLayout";
 import { GenerationLayout } from "@/components/phases/generation/GenerationLayout";
 import { CompletedLayout } from "@/components/phases/completed";
 import { WorkspaceLayout } from "@/components/workspace";
+import { EditorLayout } from "@/components/phases/editor/EditorLayout";
 import { AuditLayout } from "@/components/phases/audit/AuditLayout";
 import { ForgeLoader, TopBar } from "@/components/shared";
 import { apiUpdateDocumentTitle } from "@/utils/api";
@@ -111,6 +112,12 @@ export function DocumentPage() {
             documentId={activeDocId!}
             sections={sections}
             onSaved={refreshNow}
+          />
+        )}
+        {currentPhase === "editing" && (
+          <EditorLayout
+            documentId={activeDocId!}
+            sections={sections}
           />
         )}
       </PhaseTransition>

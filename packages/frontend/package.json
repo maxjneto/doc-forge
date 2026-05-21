@@ -14,7 +14,9 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.61.6",
     "@microsoft/fetch-event-source": "^2.0.1",
+    "@types/diff-match-patch": "^1.0.36",
     "clsx": "^2.1.1",
+    "diff-match-patch": "^1.0.5",
     "mermaid": "^11.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

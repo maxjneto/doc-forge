@@ -163,4 +163,5 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   proposal: "Proposal",
   implementation: "Implementation",
   risks: "Risks",
+  body: "Document",
 };

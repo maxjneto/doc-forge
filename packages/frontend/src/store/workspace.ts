@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+  GuidedSectionType,
   SectionType,
   Section,
   SectionVersion,
@@ -25,6 +26,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   proposal: "Proposal",
   implementation: "Implementation",
   risks: "Risks",
+  body: "Document",
 };
 
 // ─── Navigation Types ────────────────────────────────────────
@@ -357,8 +359,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (section.status === "finalized") return "readonly";
     if (section.status === "refining" || section.status === "drafting") return "editing";
 
-    const order: SectionType[] = ["context", "proposal", "implementation", "risks"];
-    const currentIdx = order.indexOf(section.sectionType);
+    const order: GuidedSectionType[] = ["context", "proposal", "implementation", "risks"];
+    const currentIdx = order.indexOf(section.sectionType as GuidedSectionType);
 
     const firstNonFinalized = state.sections.find((s) => s.status !== "finalized");
     if (firstNonFinalized && firstNonFinalized.sectionType === section.sectionType) {

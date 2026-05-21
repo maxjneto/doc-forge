@@ -19,6 +19,7 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     id: String(raw.id),
     title: raw.title as string,
     currentPhase: raw.current_phase as Document["currentPhase"],
+    documentMode: (raw.document_mode as Document["documentMode"]) ?? "guided",
     globalContext: (raw.global_context as string) ?? null,
     userPreferences: (raw.user_preferences as string) ?? null,
     createdAt: raw.created_at as string,
@@ -99,7 +100,7 @@ export async function apiFetchMe(getToken: GetToken) {
     headers: await authHeaders(getToken),
   });
   if (!res.ok) throw new Error("Failed to fetch user");
-  return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number }>;
+  return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number; weekly_credits: number }>;
 }
 
 export async function apiCreateDocument(
@@ -108,19 +109,36 @@ export async function apiCreateDocument(
   getToken: GetToken,
   userPreferences?: string,
   documentTypeSlug?: string,
+  mode?: "guided" | "editor",
 ): Promise<Document> {
   const res = await fetch(`${API_BASE}/documents`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({
       title: title || null,
-      document_context: documentContext,
+      document_context: documentContext || null,
       user_preferences: userPreferences ?? null,
-      document_type_slug: documentTypeSlug ?? "rfc",
+      document_type_slug: documentTypeSlug ?? null,
+      mode: mode ?? "guided",
     }),
   });
+  if (res.status === 402) throw new Error("INSUFFICIENT_CREDITS");
   if (!res.ok) throw new Error("Failed to create document");
   return mapDocument(await res.json());
+}
+
+export async function apiUpdateSectionContent(
+  sectionId: string,
+  content: string,
+  getToken: GetToken,
+): Promise<SectionVersion> {
+  const res = await fetch(`${API_BASE}/sections/${sectionId}/content`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("Failed to update section content");
+  return mapVersion(await res.json());
 }
 
 export async function apiAnswerQuestion(

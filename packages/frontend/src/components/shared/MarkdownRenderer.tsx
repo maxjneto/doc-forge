@@ -10,6 +10,14 @@ interface MarkdownRendererProps {
   content: string;
   variant?: MarkdownVariant;
   className?: string;
+  headingIds?: boolean;
+}
+
+function headingSlug(text: string): string {
+  return String(text)
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
 }
 
 let mermaidInitialized = false;
@@ -114,6 +122,7 @@ export function MarkdownRenderer({
   content,
   variant = "chat",
   className,
+  headingIds = false,
 }: MarkdownRendererProps) {
   const isEditor = variant === "editor";
 
@@ -124,6 +133,7 @@ export function MarkdownRenderer({
         components={{
           h1: ({ children }) => (
             <h1
+              id={headingIds ? headingSlug(String(children)) : undefined}
               className={cn(
                 "font-semibold tracking-tight text-on-surface",
                 isEditor ? "text-2xl mb-6 mt-8 first:mt-0" : "text-base mb-2 mt-3 first:mt-0"
@@ -134,6 +144,7 @@ export function MarkdownRenderer({
           ),
           h2: ({ children }) => (
             <h2
+              id={headingIds ? headingSlug(String(children)) : undefined}
               className={cn(
                 "font-semibold tracking-tight text-on-surface",
                 isEditor ? "text-lg mt-10 mb-4" : "text-sm mb-2 mt-3 first:mt-0"
@@ -144,6 +155,7 @@ export function MarkdownRenderer({
           ),
           h3: ({ children }) => (
             <h3
+              id={headingIds ? headingSlug(String(children)) : undefined}
               className={cn(
                 "font-semibold tracking-tight text-on-surface",
                 isEditor ? "text-base mt-8 mb-3" : "text-sm mb-2 mt-3 first:mt-0"
@@ -151,6 +163,28 @@ export function MarkdownRenderer({
             >
               {children}
             </h3>
+          ),
+          h4: ({ children }) => (
+            <h4
+              id={headingIds ? headingSlug(String(children)) : undefined}
+              className={cn(
+                "font-medium tracking-tight text-on-surface",
+                isEditor ? "text-sm mt-6 mb-2" : "text-sm mb-1 mt-2 first:mt-0"
+              )}
+            >
+              {children}
+            </h4>
+          ),
+          h5: ({ children }) => (
+            <h5
+              id={headingIds ? headingSlug(String(children)) : undefined}
+              className={cn(
+                "font-medium tracking-tight text-on-surface/80",
+                isEditor ? "text-xs mt-4 mb-1" : "text-xs mb-1 mt-2 first:mt-0"
+              )}
+            >
+              {children}
+            </h5>
           ),
           p: ({ children }) => (
             <p

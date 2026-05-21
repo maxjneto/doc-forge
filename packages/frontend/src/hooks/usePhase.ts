@@ -37,6 +37,11 @@ export const PHASE_CONFIG: Record<Phase, PhaseConfig> = {
     label: "Completed",
     description: "Manual full-document editing",
   },
+  editing: {
+    phase: "editing",
+    label: "Editor",
+    description: "Free Markdown editor",
+  },
 };
 
 export function usePhase(currentPhase: Phase | null) {

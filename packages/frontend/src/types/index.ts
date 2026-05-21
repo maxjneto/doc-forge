@@ -6,9 +6,11 @@ export type Phase =
   | "generation"
   | "refinement"
   | "audit"
-  | "completed";
+  | "completed"
+  | "editing";
 
-export type SectionType = "context" | "proposal" | "implementation" | "risks";
+export type GuidedSectionType = "context" | "proposal" | "implementation" | "risks";
+export type SectionType = GuidedSectionType | "body";
 
 export type SectionStatus = "pending" | "drafting" | "refining" | "finalized";
 
@@ -16,6 +18,7 @@ export interface Document {
   id: string;
   title: string;
   currentPhase: Phase;
+  documentMode: "guided" | "editor";
   globalContext: string | null;
   userPreferences: string | null;
   createdAt: string;
