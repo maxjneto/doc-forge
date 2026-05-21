@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Phase, AuditProblem, Section, SectionType } from "@/types";
+import type { Phase, AuditProblem, Section, GuidedSectionType as SectionType } from "@/types";
 
 const AUDIT_STEPS = [
   "Checking cross-section references...",

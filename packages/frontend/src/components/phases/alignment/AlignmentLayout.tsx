@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import type { Section, SectionType } from "@/types";
+import type { Section, GuidedSectionType as SectionType } from "@/types";
 import { apiSendEvent } from "@/utils/api";
 import { ForgeLoader } from "@/components/shared";
 import { SummaryCard } from "./SummaryCard";

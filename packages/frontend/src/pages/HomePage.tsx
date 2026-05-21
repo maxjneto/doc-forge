@@ -23,6 +23,7 @@ const PHASE_LABEL: Record<Phase, string> = {
   refinement: "Refinement",
   audit: "Audit",
   completed: "Forged",
+  editing: "Editor",
 };
 
 function PhaseTrail({ currentPhase }: { currentPhase: Phase }) {
@@ -296,6 +297,7 @@ export function HomePage() {
   const { getToken } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [credits, setCredits] = useState<number | undefined>(undefined);
+  const [weeklyCredits, setWeeklyCredits] = useState<number>(5);
   const [error, setError] = useState<string | null>(null);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
   const [filter, setFilter] = useState<FilterTab>("active");
@@ -329,6 +331,7 @@ export function HomePage() {
       try {
         const user = await apiFetchMe(getToken);
         setCredits(user.credits);
+        setWeeklyCredits(user.weekly_credits);
       } catch {
         // non-critical
       }
@@ -438,7 +441,7 @@ export function HomePage() {
                     }}
                   >
                     {" "}
-                    of 5 this week
+                    of {weeklyCredits} this week
                   </span>
                 </span>
               </div>
@@ -568,7 +571,7 @@ export function HomePage() {
       </main>
 
       {showNewDocDialog && (
-        <NewDocumentDialog onClose={() => setShowNewDocDialog(false)} />
+        <NewDocumentDialog credits={credits} onClose={() => setShowNewDocDialog(false)} />
       )}
     </div>
   );

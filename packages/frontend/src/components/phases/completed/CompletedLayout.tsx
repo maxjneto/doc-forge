@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import type { Section, SectionType, AuditFinding } from "@/types";
+import type { Section, GuidedSectionType as SectionType, AuditFinding } from "@/types";
 import { apiFetchAuditFindings, apiDismissAuditFinding } from "@/utils/api";
 import { MarkdownRenderer } from "@/components/shared";
 

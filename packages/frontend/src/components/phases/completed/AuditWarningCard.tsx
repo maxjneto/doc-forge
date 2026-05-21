@@ -6,6 +6,7 @@ const SECTION_LABELS: Record<SectionType, string> = {
   proposal: "Proposal",
   implementation: "Implementation",
   risks: "Risks & Alternatives",
+  body: "Document",
 };
 
 interface AuditWarningCardProps {
