@@ -226,6 +226,7 @@ export function DiscoveryLayout({
     documentId ? "forging" : "input"
   );
   const [sections, setSections] = useState<SectionDefinition[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     apiGetDocumentType(documentTypeSlug).then((dt) => {
@@ -252,15 +253,25 @@ export function DiscoveryLayout({
   }, [answeredCount]);
 
   const handleSubmitInput = async (context: string, preferences: string) => {
+    setSubmitError(null);
     setSubState("forging");
-    const doc = await apiCreateDocument(
-      documentTitle ?? "",
-      context,
-      getToken,
-      preferences,
-      documentTypeSlug
-    );
-    onDocumentCreated?.(doc.id);
+    try {
+      const doc = await apiCreateDocument(
+        documentTitle ?? "",
+        context,
+        getToken,
+        preferences,
+        documentTypeSlug
+      );
+      onDocumentCreated?.(doc.id);
+    } catch (err) {
+      setSubState("input");
+      if (err instanceof Error && err.message === "INSUFFICIENT_CREDITS") {
+        setSubmitError("Not enough credits to create this document. Your weekly credits may have been used up.");
+      } else {
+        setSubmitError("Something went wrong. Please try again.");
+      }
+    }
   };
 
   const handleQuestionsComplete = () => {};
@@ -279,6 +290,12 @@ export function DiscoveryLayout({
         }}
       >
         <div className="animate-fade-in" style={{ width: "100%", maxWidth: "56rem" }}>
+          {submitError && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", padding: "10px 14px", borderRadius: "6px", background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.2)", fontSize: "13px", color: "#e86464" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: "16px", flexShrink: 0 }}>error</span>
+              {submitError}
+            </div>
+          )}
           <InitialInput onSubmit={handleSubmitInput} />
         </div>
       </div>
