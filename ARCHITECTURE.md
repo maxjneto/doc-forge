@@ -38,6 +38,7 @@ graph TD
     Refinement["RefinementLayout"]
     Audit["AuditLayout"]
     Completed["CompletedLayout"]
+    Editor["EditorLayout\n(editor mode)"]
     Hook["useDocument hook\n(polls /api/documents/:id\nevery 2s)"]
     SSE["useDocumentSSE\n(EventSource /api/documents/:id/stream)"]
     Store["Zustand workspace store\n(ephemeral refinement UI state)"]
@@ -45,7 +46,7 @@ graph TD
     Clerk2["@clerk/clerk-react\n(JWT attached to every request)"]
 
     Router --> Phase
-    Phase --> Discovery & Alignment & Generation & Refinement & Audit & Completed
+    Phase --> Discovery & Alignment & Generation & Refinement & Audit & Completed & Editor
     Hook --> API
     SSE --> API
     API --> Clerk2
@@ -64,6 +65,7 @@ graph TD
 - **AlignmentLayout / SummaryCard**: accept a `locked` prop that disables edit/reopen actions while alignment confirmation is in progress.
 - **TopBar**: displays the document title across all phases with an inline edit button; saves via `PATCH /api/documents/{id}`.
 - **TimelinePanel / VersionNode**: exposes an inline edit panel for `versionName` and `changeSummary`; saves via `PATCH /api/sections/{id}/versions/{vid}`.
+- **EditorLayout** (`phases/editor/`): three-panel layout (nav / editor / versions) for `document_mode = "editor"`. Auto-saves content with a 1.5 s debounce via `PATCH /api/sections/{id}/content`. `EditorNavPanel` parses h1–h5 headings from content (tolerates leading spaces) and renders a collapsible tree with connector lines. `EditorVersionPanel` lists snapshots with inline name/note editing, diff viewer (`diff-match-patch`), and version switching (flushes pending save before switching).
 
 ---
 
@@ -98,10 +100,11 @@ graph LR
 | `users` | `/api/users` | Yes | Profile, credits |
 
 **Documents router notable endpoints:**
-- `POST /api/documents` — `title` is now optional; if omitted the backend auto-generates `"<DocType> — DD/MM/YYYY"`.
+- `POST /api/documents` — branches on `mode` field. `"guided"` (default): existing AI workflow path, costs `GUIDED_DOCUMENT_COST` credits, triggers Inngest. `"editor"`: creates document with `current_phase = "editing"` and a single `body` section + empty active version, costs `EDITOR_DOCUMENT_COST` credits, no Inngest. `title` is optional in both modes; omitted title is auto-generated.
 - `PATCH /api/documents/{id}` — accepts `DocumentUpdateRequest {title}` to rename a document.
 
 **Sections router notable endpoints:**
+- `PATCH /api/sections/{section_id}/content` — updates the active version's content directly (used by editor mode auto-save). Requires `is_active = True` filter to avoid `MultipleResultsFound` on sections with multiple versions.
 - `PATCH /api/sections/{section_id}/versions/{version_id}` — accepts `SectionVersionUpdateRequest {version_name?, change_summary?}` to update version metadata.
 
 **Authentication (`app/auth.py`):**
@@ -281,6 +284,7 @@ erDiagram
         uuid document_type_id FK
         string title
         string current_phase
+        string document_mode "guided | editor"
         text document_context
         text global_context
         text user_preferences
@@ -425,6 +429,10 @@ The document type drives: which sections exist, in what order, and which AI prom
 
 ## 9. Credit System
 
-- Each `User` starts with N credits (seeded on first login).
-- `POST /documents` atomically decrements credits (`UPDATE ... WHERE credits >= 1`). Returns 402 if zero.
-- A weekly Inngest cron (`weekly-credit-reset`) resets all users' credits.
+- Each `User` starts with `WEEKLY_CREDITS` credits on first login (default: **5**).
+- `POST /documents` atomically decrements credits based on document mode (`UPDATE ... WHERE credits >= cost`). Returns 402 if insufficient.
+  - Guided mode: costs `GUIDED_DOCUMENT_COST` credits (default: **3**).
+  - Editor mode: costs `EDITOR_DOCUMENT_COST` credit (default: **1**).
+- A weekly Inngest cron (`weekly-credit-reset`) resets all users' credits to `WEEKLY_CREDITS`.
+- All three values are configurable via environment variables (`WEEKLY_CREDITS`, `GUIDED_DOCUMENT_COST`, `EDITOR_DOCUMENT_COST`) using `pydantic_settings` in `app/config.py`.
+- `GET /api/users/me` exposes `weekly_credits` so the frontend can display the configured allocation without hardcoding it.

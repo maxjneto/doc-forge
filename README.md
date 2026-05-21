@@ -6,7 +6,7 @@
 ![Inngest](https://img.shields.io/badge/Inngest-Orchestration-purple)
 ![Clerk](https://img.shields.io/badge/Auth-Clerk-black)
 
-DocForge automates the full lifecycle of technical document creation through a structured, AI-driven multi-phase workflow. Instead of prompting an LLM and hoping for the best, it guides users through discovery, alignment, generation, refinement, and audit — producing documents that are internally consistent and grounded in the user's actual intent.
+DocForge supports two document creation modes. The **AI-guided** mode drives users through a structured six-phase workflow (discovery → alignment → generation → refinement → audit → completed) that produces documents which are internally consistent and grounded in the user's actual intent. The **free editor** mode gives users a full-featured Markdown editor with version history and heading-based navigation — no AI workflow required.
 
 **[Live Demo](https://doc-forge.dev)**
 
@@ -24,6 +24,8 @@ DocForge automates the full lifecycle of technical document creation through a s
 
 ## How It Works
 
+### AI-Guided Mode (3 credits)
+
 Documents flow through six sequential phases, each with defined inputs, outputs, and user checkpoints:
 
 | Phase | What happens |
@@ -35,21 +37,28 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 | **5. Audit** | AI audits all sections for contradictions, terminology drift, and scope violations. Failing sections reopen for revision. |
 | **6. Completed** | Final document is assembled and ready to export. |
 
+### Free Editor Mode (1 credit)
+
+A single-pane Markdown editor for writing without AI assistance. Features a heading-derived navigation tree (h1–h5), source/preview toggle, auto-save with 1.5 s debounce, manual version snapshots, inline version diff viewer, and Markdown export.
+
 ---
 
 ## Features
 
+- **Two creation modes** — AI-guided (structured 6-phase workflow, 3 credits) or free editor (immediate Markdown editing, 1 credit). Switchable from the New Document dialog.
 - **Context-aware discovery** — AI asks follow-up questions scoped to each individual section and synthesizes per-section context before alignment begins, grounding each section summary in directly relevant information.
 - **Alignment checkpoint** — Section summaries are shown for approval before any full content is generated, preventing wasted generation cycles.
 - **Document Contract** — After alignment, a structured contract (entities, decisions, terminology, constraints) is extracted and injected into every downstream AI call to enforce consistency across all sections.
 - **Sequential generation with cross-section context** — Each section is generated with access to the content of previously generated sections, so the document builds coherently rather than in isolation.
 - **Interactive refinement** — Per-section AI editing loop with full version history and one-click rollback.
 - **Automated audit** — Cross-section consistency check that catches terminology drift, technology contradictions, and scope violations.
+- **Free editor with version history** — Full Markdown editor with heading-derived navigation (h1–h5), auto-save, manual snapshots, inline diff viewer, and Markdown export.
 - **Input & output guardrails** — User inputs are validated before any AI call; malformed AI responses are retried automatically.
 - **Token-aware context management** — Char-based token estimation with per-phase budgets truncates context intelligently to avoid exceeding model limits.
 - **Multi-document type support** — Document types, section definitions, and AI prompt templates are database-driven, making it straightforward to add new document types beyond RFC.
 - **Real-time updates** — Server-sent events push phase transitions and section updates to the frontend instantly, alongside 2-second polling as a fallback.
-- **Durable workflow orchestration** — The entire workflow runs as retriable Inngest functions. No state is lost on restart or failure.
+- **Durable workflow orchestration** — The entire AI-guided workflow runs as retriable Inngest functions. No state is lost on restart or failure.
+- **Configurable credit system** — Weekly credit allocation and per-mode costs are set via environment variables (`WEEKLY_CREDITS`, `GUIDED_DOCUMENT_COST`, `EDITOR_DOCUMENT_COST`).
 
 ---
 
@@ -150,7 +159,7 @@ Frontend: `http://localhost:5173` — Backend: `http://localhost:8000`
 
 | File | Variables |
 |---|---|
-| `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL` |
+| `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL`, `WEEKLY_CREDITS` (default `5`), `GUIDED_DOCUMENT_COST` (default `3`), `EDITOR_DOCUMENT_COST` (default `1`) |
 | `packages/frontend/.env` | `VITE_API_BASE`, `VITE_CLERK_PUBLISHABLE_KEY` |
 
 See [`packages/backend/.env.example`](packages/backend/.env.example) and [`packages/frontend/.env.example`](packages/frontend/.env.example) for full reference.
