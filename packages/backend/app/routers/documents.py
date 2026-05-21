@@ -1,37 +1,49 @@
+import datetime
 import json
 import uuid
-import datetime
 from pathlib import Path
 
 import inngest
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Document, Section, DiscoveryQuestion, ChatMessage, AuditFinding
-from app.models.document_type import DocumentType, SectionDefinition
+from app.guardrails import (
+    validate_discovery_answer,
+    validate_document_context,
+    validate_refinement_message,
+)
+from app.inngest_client import inngest_client
+from app.models import (
+    AuditFinding,
+    ChatMessage,
+    DiscoveryQuestion,
+    Document,
+    Section,
+    SectionVersion,
+)
+from app.models.document_type import DocumentType
 from app.models.user import User
+from app.schemas.audit import AuditFindingResponse
 from app.schemas.document import (
-    DocumentCreate,
-    DocumentUpdateRequest,
-    DocumentResponse,
-    DocumentListResponse,
-    DocumentDetailResponse,
     CompletedDocumentUpdateRequest,
     DiscoveryQuestionResponse,
+    DocumentCreate,
+    DocumentDetailResponse,
+    DocumentListResponse,
+    DocumentResponse,
+    DocumentUpdateRequest,
     SectionBriefResponse,
 )
-from app.schemas.audit import AuditFindingResponse
 from app.schemas.events import AnswerQuestionRequest, EventRequest
-from app.inngest_client import inngest_client
+from app.config import settings
 from app.services import db as db_service
 from app.services import sse as sse_service
-from app.guardrails import validate_document_context, validate_discovery_answer, validate_refinement_message
 
 router = APIRouter(tags=["documents"])
 
@@ -161,7 +173,12 @@ async def create_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    logger.info("[router] create_document | title='{}' user_id={}", payload.title, current_user.id)
+    logger.info("[router] create_document | title='{}' mode='{}' user_id={}", payload.title, payload.mode, current_user.id)
+
+    if payload.mode == "editor":
+        return await _create_editor_document(payload, db, current_user)
+
+    # ── Guided mode ──────────────────────────────────────────────
 
     # Validate input before touching DB or credits
     err = validate_document_context(payload.document_context)
@@ -179,10 +196,11 @@ async def create_document(
         raise HTTPException(status_code=400, detail=f"Unknown document type: {payload.document_type_slug}")
 
     # Atomically deduct credit — prevents race conditions with concurrent requests
+    cost = settings.GUIDED_DOCUMENT_COST
     result = await db.execute(
         update(User)
-        .where(User.id == current_user.id, User.credits >= 1)
-        .values(credits=User.credits - 1)
+        .where(User.id == current_user.id, User.credits >= cost)
+        .values(credits=User.credits - cost)
     )
     if result.rowcount == 0:
         raise HTTPException(
@@ -225,6 +243,63 @@ async def create_document(
         logger.error(f"Failed to dispatch Inngest event for document {doc.id}: {e}")
         raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
 
+    return DocumentResponse.model_validate(doc)
+
+
+async def _create_editor_document(
+    payload: DocumentCreate,
+    db: AsyncSession,
+    current_user: User,
+) -> DocumentResponse:
+    """Create a free-editor document: one body section, no workflow, no Inngest."""
+    # Atomically deduct credit
+    cost = settings.EDITOR_DOCUMENT_COST
+    result = await db.execute(
+        update(User)
+        .where(User.id == current_user.id, User.credits >= cost)
+        .values(credits=User.credits - cost)
+    )
+    if result.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="No credits remaining. Credits reset weekly.",
+        )
+    await db.commit()
+
+    title = payload.title or f"Document — {datetime.datetime.utcnow().strftime('%b %d, %Y')}"
+    doc = Document(
+        title=title,
+        document_context="",
+        user_preferences=payload.user_preferences,
+        user_id=current_user.id,
+        current_phase="editing",
+        document_mode="editor",
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+
+    section = Section(document_id=doc.id, section_type="body", status="refining")
+    db.add(section)
+    await db.commit()
+    await db.refresh(section)
+
+    version = SectionVersion(
+        section_id=section.id,
+        version_name="Draft",
+        content="",
+        is_active=True,
+    )
+    db.add(version)
+    await db.commit()
+
+    from app.schemas.sse import SSEEvent
+    sse_service.publish(str(doc.id), SSEEvent(
+        type="phase_changed",
+        payload={"doc_id": str(doc.id), "phase": "editing"},
+    ))
+
+    logger.info("[router] editor document created | doc_id={} section_id={}", doc.id, section.id)
     return DocumentResponse.model_validate(doc)
 
 

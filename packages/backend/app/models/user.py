@@ -12,7 +12,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(255), primary_key=True)  # Clerk user_id e.g. "user_2abc..."
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    credits: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    credits: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")

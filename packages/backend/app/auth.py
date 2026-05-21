@@ -117,7 +117,7 @@ async def get_current_user(
     # Atomic upsert — avoids race condition when concurrent requests create the same user
     stmt = (
         insert(User)
-        .values(id=user_id, email=email, name=name or "", credits=1)
+        .values(id=user_id, email=email, name=name or "", credits=settings.WEEKLY_CREDITS)
         .on_conflict_do_update(
             index_elements=["id"],
             set_={"email": email, "name": name or ""},

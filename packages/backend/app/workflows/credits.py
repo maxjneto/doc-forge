@@ -4,6 +4,7 @@ import inngest
 from loguru import logger
 from sqlalchemy import update
 
+from app.config import settings
 from app.database import async_session
 from app.inngest_client import inngest_client
 from app.models.user import User
@@ -14,10 +15,10 @@ from app.models.user import User
     trigger=inngest.TriggerCron(cron="0 0 * * 1"),  # Every Monday at midnight UTC
 )
 async def weekly_credit_reset(ctx: inngest.Context):
-    logger.info("[credits] weekly reset started")
+    logger.info("[credits] weekly reset started | weekly_credits={}", settings.WEEKLY_CREDITS)
 
     async with async_session() as db:
-        result = await db.execute(update(User).values(credits=1))
+        result = await db.execute(update(User).values(credits=settings.WEEKLY_CREDITS))
         await db.commit()
         logger.info("[credits] weekly reset complete | rows_updated={}", result.rowcount)
 

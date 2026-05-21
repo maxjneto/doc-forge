@@ -22,6 +22,10 @@ class SectionVersionUpdateRequest(BaseModel):
     version_name: str | None = None
 
 
+class SectionContentUpdateRequest(BaseModel):
+    content: str
+
+
 class SectionResponse(BaseModel):
     id: UUID
     document_id: UUID

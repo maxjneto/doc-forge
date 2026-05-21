@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # is the equivalent claim — set to your frontend origin(s) in production.
     CLERK_AUTHORIZED_PARTIES: list[str] = ["http://localhost:5173"]
 
+    # Credit system — override via env vars to reconfigure without code changes
+    WEEKLY_CREDITS: int = 5
+    GUIDED_DOCUMENT_COST: int = 3
+    EDITOR_DOCUMENT_COST: int = 1
+
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 
 

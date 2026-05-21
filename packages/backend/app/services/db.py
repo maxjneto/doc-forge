@@ -271,7 +271,7 @@ async def update_section_content(
     # Update content of current active version
     result = await db.execute(
         select(SectionVersion)
-        .where(SectionVersion.section_id == section_id)
+        .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)  # noqa: E712
     )
     active = result.scalar_one_or_none()
     if not active:

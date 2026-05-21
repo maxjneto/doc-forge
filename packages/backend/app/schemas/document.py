@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -10,9 +11,10 @@ class DocumentUpdateRequest(BaseModel):
 
 class DocumentCreate(BaseModel):
     title: str | None = Field(default=None, max_length=200)
-    document_context: str = Field(max_length=20000)
+    document_context: str | None = Field(default=None, max_length=20000)
     user_preferences: str | None = Field(default=None, max_length=2000)
-    document_type_slug: str = Field(default="rfc", max_length=50)
+    document_type_slug: str | None = Field(default="rfc", max_length=50)
+    mode: Literal["guided", "editor"] = "guided"
 
 
 class CompletedSectionUpdate(BaseModel):
@@ -49,6 +51,7 @@ class DocumentResponse(BaseModel):
     id: UUID
     title: str
     current_phase: str
+    document_mode: str = "guided"
     created_at: datetime
     updated_at: datetime
 

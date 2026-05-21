@@ -7,10 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Section, SectionVersion, ChatMessage, Document
+from app.models import ChatMessage, Document, Section, SectionVersion
 from app.models.user import User
-from app.schemas.section import SectionVersionResponse, SectionVersionUpdateRequest, ChatMessageResponse, VersionRestoreResponse
-from app.services.db import restore_version, create_version_snapshot
+from app.schemas.section import (
+    ChatMessageResponse,
+    SectionContentUpdateRequest,
+    SectionVersionResponse,
+    SectionVersionUpdateRequest,
+    VersionRestoreResponse,
+)
+from app.services.db import create_version_snapshot, restore_version, update_section_content
 
 router = APIRouter(tags=["sections"])
 
@@ -104,6 +110,21 @@ async def update_section_version(
         version.version_name = payload.version_name
     await db.commit()
     await db.refresh(version)
+    return SectionVersionResponse.model_validate(version)
+
+
+@router.patch("/sections/{section_id}/content", response_model=SectionVersionResponse)
+async def update_section_content_endpoint(
+    section_id: uuid.UUID,
+    payload: SectionContentUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    section = await _assert_section_ownership(section_id, current_user, db)
+    try:
+        version = await update_section_content(db, section_id, payload.content, doc_id=section.document_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return SectionVersionResponse.model_validate(version)
 
 
