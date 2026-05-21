@@ -27,7 +27,7 @@ export function AuditSuccess({ documentId, sections }: AuditSuccessProps) {
         {/* Success banner */}
         <div className="rounded-xl p-4 bg-green-500/10 border border-green-500/30 mb-8">
           <p className="text-sm text-green-400 font-medium text-center">
-            ✓ Audit passed — RFC is consistent
+            ✓ Audit passed - RFC is consistent
           </p>
         </div>
 

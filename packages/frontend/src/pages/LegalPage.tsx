@@ -60,7 +60,7 @@ const PRIVACY_CONTENT = `# Privacy Policy
 
 *Last updated: May 5, 2026*
 
-This Privacy Policy describes how DocForge collects, uses, and shares information when you use the Service, in compliance with the **Lei Geral de Proteção de Dados (LGPD)** — Brazilian Federal Law No. 13,709/2018.
+This Privacy Policy describes how DocForge collects, uses, and shares information when you use the Service, in compliance with the **Lei Geral de Proteção de Dados (LGPD)** - Brazilian Federal Law No. 13,709/2018.
 
 ## 1. Data We Collect
 
@@ -72,8 +72,8 @@ This Privacy Policy describes how DocForge collects, uses, and shares informatio
 
 ## 2. How We Collect It
 
-- **At registration and login** — via Clerk authentication (OAuth or email/password)
-- **During use** — when you create or interact with documents on the platform
+- **At registration and login** - via Clerk authentication (OAuth or email/password)
+- **During use** - when you create or interact with documents on the platform
 
 ## 3. Purpose of Processing
 

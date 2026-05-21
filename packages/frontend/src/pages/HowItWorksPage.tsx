@@ -179,7 +179,7 @@ export function HowItWorksPage() {
               margin: "0 auto",
             }}
           >
-            DocForge guides your document from raw context to a polished, audited artifact — in a structured pipeline that mirrors how a senior engineer would approach it.
+            DocForge guides your document from raw context to a polished, audited artifact - in a structured pipeline that mirrors how a senior engineer would approach it.
           </p>
         </div>
 

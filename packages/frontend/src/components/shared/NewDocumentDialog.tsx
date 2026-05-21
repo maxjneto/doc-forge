@@ -178,7 +178,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
               {!canAffordGuided && credits !== undefined && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#e86464", background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.2)", borderRadius: "6px", padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "16px" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>warning</span>
-                  Needs {GUIDED_COST} credits — you have {credits}
+                  Needs {GUIDED_COST} credits - you have {credits}
                 </span>
               )}
             </div>
@@ -206,12 +206,12 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         {tab === "editor" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "16px", paddingBottom: "8px" }}>
             <p style={{ margin: "0 0 28px", fontSize: "13px", color: "rgba(200,198,197,0.5)", lineHeight: 1.6, textAlign: "center", maxWidth: 400 }}>
-              Start with a blank canvas. Write freely in Markdown — headings become your document structure.
+              Start with a blank canvas. Write freely in Markdown - headings become your document structure.
             </p>
             {!canAffordEditor && credits !== undefined && (
               <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
                 <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>warning</span>
-                You need {EDITOR_COST} credit to create an editor document — you have {credits}.
+                You need {EDITOR_COST} credit to create an editor document - you have {credits}.
               </p>
             )}
             {createError && (

@@ -245,7 +245,7 @@ export function FollowUpQuestions({
             className="df-mono"
             style={{ fontSize: 11, color: "var(--df-steel-100, #b9c6d4)", letterSpacing: "0.10em" }}
           >
-            All questions answered — forging context…
+            All questions answered - forging context…
           </span>
         </div>
       )}
