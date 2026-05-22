@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from app.models.user import User
 from app.schemas.section import (
     ChatMessageResponse,
     SectionContentUpdateRequest,
+    SectionSnapshotRequest,
     SectionVersionResponse,
     SectionVersionUpdateRequest,
     VersionRestoreResponse,
@@ -72,15 +73,25 @@ async def get_section_chat(
 
 @router.post("/sections/{section_id}/versions/snapshot", response_model=SectionVersionResponse, status_code=201)
 async def create_section_snapshot(
+    request: Request,
     section_id: uuid.UUID,
+    payload: SectionSnapshotRequest | None = Body(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     logger.info("[router] create_section_snapshot | section_id={}", section_id)
     section = await _assert_section_ownership(section_id, current_user, db)
+    api_key_id = getattr(request.state, "api_key_id", None)
 
     try:
-        version = await create_version_snapshot(db, section_id, section.document_id)
+        version = await create_version_snapshot(
+            db,
+            section_id,
+            section.document_id,
+            version_name=payload.version_name if payload else None,
+            change_summary=payload.change_summary if payload else None,
+            api_key_id=api_key_id,
+        )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
@@ -95,7 +106,7 @@ async def update_section_version(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _assert_section_ownership(section_id, current_user, db)
+    section = await _assert_section_ownership(section_id, current_user, db)
     result = await db.execute(
         select(SectionVersion).where(
             SectionVersion.id == version_id,
@@ -110,19 +121,35 @@ async def update_section_version(
         version.version_name = payload.version_name
     await db.commit()
     await db.refresh(version)
+
+    from app.schemas.sse import SSEEvent
+    from app.services import sse as sse_service
+    sse_service.publish(str(section.document_id), SSEEvent(
+        type="section_updated",
+        payload={"doc_id": str(section.document_id), "section_id": str(section_id)},
+    ))
+
     return SectionVersionResponse.model_validate(version)
 
 
 @router.patch("/sections/{section_id}/content", response_model=SectionVersionResponse)
 async def update_section_content_endpoint(
+    request: Request,
     section_id: uuid.UUID,
     payload: SectionContentUpdateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     section = await _assert_section_ownership(section_id, current_user, db)
+    api_key_id = getattr(request.state, "api_key_id", None)
+    note = getattr(payload, "note", None)
     try:
-        version = await update_section_content(db, section_id, payload.content, doc_id=section.document_id)
+        version = await update_section_content(
+            db, section_id, payload.content,
+            doc_id=section.document_id,
+            api_key_id=api_key_id,
+            note=note,
+        )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return SectionVersionResponse.model_validate(version)
@@ -130,6 +157,7 @@ async def update_section_content_endpoint(
 
 @router.post("/sections/{section_id}/versions/{version_id}/restore", response_model=VersionRestoreResponse)
 async def restore_section_version(
+    request: Request,
     section_id: uuid.UUID,
     version_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -140,9 +168,9 @@ async def restore_section_version(
         section_id,
         version_id,
     )
-    await _assert_section_ownership(section_id, current_user, db)
+    section = await _assert_section_ownership(section_id, current_user, db)
+    api_key_id = getattr(request.state, "api_key_id", None)
 
-    # Verify version belongs to section
     result = await db.execute(
         select(SectionVersion).where(
             SectionVersion.id == version_id,
@@ -153,5 +181,5 @@ async def restore_section_version(
     if not version:
         raise HTTPException(status_code=404, detail="Version not found for this section")
 
-    restored = await restore_version(db, section_id, version_id)
+    restored = await restore_version(db, section_id, version_id, doc_id=section.document_id, api_key_id=api_key_id)
     return VersionRestoreResponse(success=True, active_version_id=restored.id)

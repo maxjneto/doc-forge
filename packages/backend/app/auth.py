@@ -1,14 +1,15 @@
-"""JWT authentication via Clerk JWKS."""
+"""JWT authentication via Clerk JWKS, with X-API-Key fallback."""
 
+import hashlib
 import time
 from typing import Optional
 
 import httpx
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.user import User
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 # ─── JWKS cache ──────────────────────────────────────────────
 
@@ -90,13 +91,65 @@ async def _decode_token(token: str) -> dict:
     return payload
 
 
+# ─── API key auth ────────────────────────────────────────────
+
+async def _get_user_by_api_key(raw_key: str, db: AsyncSession) -> User | None:
+    from app.models.api_key import ApiKey
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.revoked_at.is_(None))
+    )
+    api_key = result.scalar_one_or_none()
+    if api_key is None:
+        return None
+    await db.execute(
+        update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=func.now())
+    )
+    await db.commit()
+    result = await db.execute(select(User).where(User.id == api_key.user_id))
+    return result.scalar_one_or_none()
+
+
 # ─── Dependency ──────────────────────────────────────────────
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> User:
     logger.debug("[auth] get_current_user called")
+
+    # API key path — takes priority when X-API-Key header is present
+    if x_api_key:
+        user = await _get_user_by_api_key(x_api_key, db)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or revoked API key",
+                headers={"WWW-Authenticate": "X-API-Key"},
+            )
+        request.state.api_key_id = None
+        # Resolve the api_key_id for activity logging
+        from app.models.api_key import ApiKey
+        key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+        result = await db.execute(
+            select(ApiKey.id).where(ApiKey.key_hash == key_hash, ApiKey.revoked_at.is_(None))
+        )
+        api_key_id = result.scalar_one_or_none()
+        request.state.api_key_id = api_key_id
+        logger.debug("[auth] API key auth succeeded | user={} key_id={}", user.id, api_key_id)
+        return user
+
+    # JWT path
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    request.state.api_key_id = None
     payload = await _decode_token(credentials.credentials)
 
     user_id: str | None = payload.get("sub")

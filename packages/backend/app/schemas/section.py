@@ -24,6 +24,12 @@ class SectionVersionUpdateRequest(BaseModel):
 
 class SectionContentUpdateRequest(BaseModel):
     content: str
+    note: str | None = None
+
+
+class SectionSnapshotRequest(BaseModel):
+    version_name: str | None = None
+    change_summary: str | None = None
 
 
 class SectionResponse(BaseModel):

@@ -115,6 +115,36 @@ export interface AlignmentSummary {
   rejectionReason?: string;
 }
 
+// ─── API Keys ────────────────────────────────────────────────
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface ApiKeyCreateResponse {
+  id: string;
+  name: string;
+  key: string;
+  createdAt: string;
+}
+
+// ─── Activity Log ────────────────────────────────────────────
+
+export interface DocumentActivity {
+  id: string;
+  actionType: "write" | "snapshot" | "version_selected" | "document_created";
+  description: string | null;
+  actorName: string;
+  isAgent: boolean;
+  bytesDelta: number | null;
+  versionId: string | null;
+  createdAt: string;
+}
+
 // ─── Audit (Phase 5) ─────────────────────────────────────────
 
 export interface AuditProblem {

@@ -7,6 +7,8 @@ from app.models.audit import AuditFinding
 from app.models.document_type import DocumentType, SectionDefinition
 from app.models.prompt_template import PromptTemplate
 from app.models.document_contract import DocumentContract
+from app.models.api_key import ApiKey
+from app.models.document_activity import DocumentActivity
 from app.models.base import Base
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "SectionDefinition",
     "PromptTemplate",
     "DocumentContract",
+    "ApiKey",
+    "DocumentActivity",
 ]

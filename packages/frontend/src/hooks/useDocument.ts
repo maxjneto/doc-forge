@@ -12,6 +12,7 @@ interface DocumentState {
   auditProblems: AuditProblem[];
   loading: boolean;
   error: string | null;
+  sseTick: number;
 }
 
 const MAX_RETRY_DELAY = 30000;
@@ -24,6 +25,7 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
     auditProblems: [],
     loading: false,
     error: null,
+    sseTick: 0,
   });
 
   const fetchDocument = useCallback(async () => {
@@ -110,6 +112,7 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
           onmessage: (ev) => {
             if (!ev.data || ev.event === "ping") return;
             fetchDocumentRef.current();
+            setState((prev) => ({ ...prev, sseTick: prev.sseTick + 1 }));
             try {
               const parsed = JSON.parse(ev.data) as {
                 type: string;

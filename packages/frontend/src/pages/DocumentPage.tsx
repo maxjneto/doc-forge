@@ -29,7 +29,7 @@ export function DocumentPage() {
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
   const activeDocId = isNew ? createdDocId : (urlId ?? null);
 
-  const { document, sections, discoveryQuestions, auditProblems, loading, refreshNow } = useDocument(activeDocId, getToken);
+  const { document, sections, discoveryQuestions, auditProblems, loading, refreshNow, sseTick } = useDocument(activeDocId, getToken);
 
   const currentPhase: Phase = document?.currentPhase ?? "discovery";
   const { config } = usePhase(currentPhase);
@@ -118,6 +118,7 @@ export function DocumentPage() {
           <EditorLayout
             documentId={activeDocId!}
             sections={sections}
+            sseTick={sseTick}
           />
         )}
       </PhaseTransition>

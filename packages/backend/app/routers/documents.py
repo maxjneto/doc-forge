@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 import inngest
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select, update
@@ -169,6 +169,7 @@ async def stream_document(
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
 async def create_document(
+    request: Request,
     payload: DocumentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -298,6 +299,14 @@ async def _create_editor_document(
         type="phase_changed",
         payload={"doc_id": str(doc.id), "phase": "editing"},
     ))
+
+    api_key_id = getattr(request.state, "api_key_id", None)
+    await db_service.log_activity(
+        db, doc.id, "document_created",
+        description="Document created via Editor",
+        api_key_id=api_key_id,
+    )
+    await db.commit()
 
     logger.info("[router] editor document created | doc_id={} section_id={}", doc.id, section.id)
     return DocumentResponse.model_validate(doc)
@@ -590,3 +599,42 @@ async def rerun_audit(
         raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
 
     return {"status": "ok"}
+
+
+@router.get("/documents/{document_id}/activity")
+async def get_document_activity(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 50,
+):
+    from app.models.api_key import ApiKey
+    from app.models.document_activity import DocumentActivity
+    from sqlalchemy.orm import outerjoin
+
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    rows = await db.execute(
+        select(DocumentActivity, ApiKey.name)
+        .outerjoin(ApiKey, DocumentActivity.api_key_id == ApiKey.id)
+        .where(DocumentActivity.document_id == document_id)
+        .order_by(DocumentActivity.created_at.desc())
+        .limit(limit)
+    )
+    entries = []
+    for activity, key_name in rows:
+        entries.append({
+            "id": str(activity.id),
+            "action_type": activity.action_type,
+            "description": activity.description,
+            "actor_name": key_name if key_name else "You",
+            "is_agent": key_name is not None,
+            "bytes_delta": activity.bytes_delta,
+            "version_id": str(activity.version_id) if activity.version_id else None,
+            "created_at": activity.created_at.isoformat() if activity.created_at else None,
+        })
+    return entries

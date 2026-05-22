@@ -7,6 +7,9 @@ import type {
   AuditFinding,
   DocumentType,
   SectionDefinition,
+  ApiKey,
+  ApiKeyCreateResponse,
+  DocumentActivity,
 } from "@/types";
 
 export const API_BASE =
@@ -320,6 +323,78 @@ export async function apiGetDocumentType(slug: string): Promise<DocumentType> {
   const res = await fetch(`${API_BASE}/document-types/${slug}`);
   if (!res.ok) throw new Error("Failed to fetch document type");
   return mapDocumentType(await res.json());
+}
+
+function mapApiKey(raw: Record<string, unknown>): ApiKey {
+  return {
+    id: String(raw.id),
+    name: raw.name as string,
+    createdAt: raw.created_at as string,
+    lastUsedAt: (raw.last_used_at as string) ?? null,
+    revokedAt: (raw.revoked_at as string) ?? null,
+  };
+}
+
+function mapDocumentActivity(raw: Record<string, unknown>): DocumentActivity {
+  return {
+    id: String(raw.id),
+    actionType: raw.action_type as DocumentActivity["actionType"],
+    description: (raw.description as string) ?? null,
+    actorName: raw.actor_name as string,
+    isAgent: raw.is_agent as boolean,
+    bytesDelta: raw.bytes_delta != null ? Number(raw.bytes_delta) : null,
+    versionId: (raw.version_id as string) ?? null,
+    createdAt: raw.created_at as string,
+  };
+}
+
+export async function apiCreateApiKey(
+  name: string,
+  getToken: GetToken,
+): Promise<ApiKeyCreateResponse> {
+  const res = await fetch(`${API_BASE}/users/api-keys`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("Failed to create API key");
+  const data = await res.json() as Record<string, unknown>;
+  return {
+    id: String(data.id),
+    name: data.name as string,
+    key: data.key as string,
+    createdAt: data.created_at as string,
+  };
+}
+
+export async function apiListApiKeys(getToken: GetToken): Promise<ApiKey[]> {
+  const res = await fetch(`${API_BASE}/users/api-keys`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch API keys");
+  const data = await res.json();
+  return (data as Record<string, unknown>[]).map(mapApiKey);
+}
+
+export async function apiRevokeApiKey(keyId: string, getToken: GetToken): Promise<void> {
+  const res = await fetch(`${API_BASE}/users/api-keys/${keyId}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to revoke API key");
+}
+
+export async function apiFetchActivity(
+  documentId: string,
+  getToken: GetToken,
+  limit = 50,
+): Promise<DocumentActivity[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/activity?limit=${limit}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch activity");
+  const data = await res.json();
+  return (data as Record<string, unknown>[]).map(mapDocumentActivity);
 }
 
 export async function apiUpdateCompletedDocument(

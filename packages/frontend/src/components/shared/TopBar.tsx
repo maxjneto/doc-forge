@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { UserButton } from "@clerk/clerk-react";
 import { useKilnAudio } from "@/hooks/useKilnAudio";
+import { ApiKeyPanel } from "@/components/shared/ApiKeyPanel";
 import type { Phase } from "@/types";
 
 const PHASE_STEPS: { id: Phase; label: string; num: string }[] = [
@@ -102,6 +103,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps)
   const isRefinement = phase === "refinement";
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [showApiKeys, setShowApiKeys] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -124,6 +126,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps)
   };
 
   return (
+    <>
     <header
       style={{
         position: "fixed",
@@ -265,6 +268,25 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps)
         {/* Kiln audio toggle (refinement only) */}
         {isRefinement && <KilnToggle />}
 
+        {/* API Keys */}
+        <button
+          onClick={() => setShowApiKeys(true)}
+          title="Manage API Keys"
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            padding: "4px 10px", borderRadius: 6,
+            border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            background: "transparent",
+            color: "var(--df-faint, rgba(227,226,226,0.38))",
+            cursor: "pointer", transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>key</span>
+          <span className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}>API Keys</span>
+        </button>
+
         {/* Doc title / credits */}
         {docTitle && phase ? (
           <div
@@ -360,5 +382,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps)
         <UserButton />
       </div>
     </header>
+    {showApiKeys && <ApiKeyPanel onClose={() => setShowApiKeys(false)} />}
+    </>
   );
 }

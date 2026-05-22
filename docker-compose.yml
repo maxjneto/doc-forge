@@ -59,5 +59,18 @@ services:
     environment:
       VITE_API_BASE: http://localhost:8000/api
 
+  mcp:
+    build:
+      context: ./packages/mcp
+    ports:
+      - "8001:8001"
+    depends_on:
+      - backend
+    environment:
+      DOCFORGE_API_BASE: http://backend:8000/api
+      DOCFORGE_FRONTEND_BASE: http://localhost:5173
+      PORT: "8001"
+    # DOCFORGE_API_KEY is not set here — each agent authenticates via X-API-Key header
+
 volumes:
   pgdata:
