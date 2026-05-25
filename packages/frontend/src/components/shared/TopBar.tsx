@@ -159,26 +159,11 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
           flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 4,
-            background: "linear-gradient(135deg, var(--df-amber-500, #ff4d00), var(--df-amber-700, #6e1d00))",
-            display: "grid",
-            placeItems: "center",
-            boxShadow: "0 0 14px rgba(255,77,0,0.45)",
-          }}
-        >
-          <div
-            style={{
-              width: 8,
-              height: 8,
-              background: "#fff",
-              clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-            }}
-          />
-        </div>
+        <img
+          src="/assets/docforge-logo.png"
+          alt="DocForge"
+          style={{ height: 28, width: "auto" }}
+        />
         <span
           className="df-mono"
           style={{
