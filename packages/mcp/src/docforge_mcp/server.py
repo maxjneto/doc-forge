@@ -11,6 +11,7 @@ import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -18,7 +19,13 @@ import docforge_mcp.client as api
 from docforge_mcp.client import DocForgeError, _api_key_var
 from docforge_mcp.resources.loader import list_recipes, read_resource
 
-mcp = FastMCP("docforge")
+# DNS rebinding protection is handled by Cloudflare in production; disable the
+# built-in check so requests with custom Host headers (mcp.doc-forge.dev) are
+# accepted without needing to be in an allowlist.
+mcp = FastMCP(
+    "docforge",
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+)
 
 
 # ─── Helpers ────────────────────────────────────────────────
@@ -341,15 +348,10 @@ async def docforge_orientation() -> str:
 
 class _ApiKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        key = request.headers.get("x-api-key", "")
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            key = auth[7:]
         token = _api_key_var.set(key)
-        # The MCP library's Streamable HTTP transport rejects non-localhost
-        # Host headers (DNS rebinding protection). Rewrite to localhost so
-        # requests via the custom domain pass the check.
-        request.scope["headers"] = [
-            (b"host", b"localhost") if name == b"host" else (name, value)
-            for name, value in request.scope["headers"]
-        ]
         try:
             return await call_next(request)
         finally:
