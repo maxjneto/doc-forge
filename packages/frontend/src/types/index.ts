@@ -23,6 +23,8 @@ export interface Document {
   userPreferences: string | null;
   createdAt: string;
   updatedAt: string;
+  hasApiKeyActivity?: boolean;
+  lastApiKeyName?: string | null;
 }
 
 // ─── Sections ────────────────────────────────────────────────
@@ -113,6 +115,53 @@ export interface AlignmentSummary {
   summary: string;
   approved: boolean;
   rejectionReason?: string;
+}
+
+// ─── API Keys ────────────────────────────────────────────────
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  harness: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface ApiKeyCreateResponse {
+  id: string;
+  name: string;
+  harness: string | null;
+  key: string;
+  createdAt: string;
+}
+
+// ─── Activity Log ────────────────────────────────────────────
+
+export interface MyActivityEvent {
+  id: string;
+  actionType: string;
+  description: string | null;
+  actorName: string;
+  isAgent: boolean;
+  harness: string | null;
+  bytesDelta: number | null;
+  versionId: string | null;
+  docId: string;
+  docTitle: string;
+  createdAt: string;
+}
+
+export interface DocumentActivity {
+  id: string;
+  actionType: "write" | "snapshot" | "version_selected" | "document_created";
+  description: string | null;
+  actorName: string;
+  isAgent: boolean;
+  harness: string | null;
+  bytesDelta: number | null;
+  versionId: string | null;
+  createdAt: string;
 }
 
 // ─── Audit (Phase 5) ─────────────────────────────────────────

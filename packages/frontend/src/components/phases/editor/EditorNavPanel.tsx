@@ -152,9 +152,10 @@ interface EditorNavPanelProps {
   activeSlug: string | null;
   onNavigate: (slug: string) => void;
   onExport: () => void;
+  activitySlot?: React.ReactNode;
 }
 
-export function EditorNavPanel({ headings, activeSlug, onNavigate, onExport }: EditorNavPanelProps) {
+export function EditorNavPanel({ headings, activeSlug, onNavigate, onExport, activitySlot }: EditorNavPanelProps) {
   const tree = buildTree(headings);
 
   return (
@@ -208,6 +209,13 @@ export function EditorNavPanel({ headings, activeSlug, onNavigate, onExport }: E
           </div>
         )}
       </div>
+
+      {/* Activity */}
+      {activitySlot && (
+        <div style={{ padding: "14px 16px", borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))", flexShrink: 0 }}>
+          {activitySlot}
+        </div>
+      )}
 
       {/* Export */}
       <div style={{ padding: "12px 22px 24px", borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))", flexShrink: 0 }}>

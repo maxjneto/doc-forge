@@ -5,8 +5,11 @@
 ![Azure OpenAI](https://img.shields.io/badge/Azure_OpenAI-gpt--4o--mini-orange)
 ![Inngest](https://img.shields.io/badge/Inngest-Orchestration-purple)
 ![Clerk](https://img.shields.io/badge/Auth-Clerk-black)
+![MCP](https://img.shields.io/badge/MCP-Server-blueviolet)
 
 DocForge supports two document creation modes. The **AI-guided** mode drives users through a structured six-phase workflow (discovery → alignment → generation → refinement → audit → completed) that produces documents which are internally consistent and grounded in the user's actual intent. The **free editor** mode gives users a full-featured Markdown editor with version history and heading-based navigation — no AI workflow required.
+
+A built-in **MCP server** lets AI agents (e.g. Claude Code) read and write to DocForge editor documents in real-time — the agent reads local files using its own tools, writes structured content into a shared document, and the user watches it fill in live via SSE.
 
 **[Live Demo](https://doc-forge.dev)**
 
@@ -41,6 +44,16 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 
 A single-pane Markdown editor for writing without AI assistance. Features a heading-derived navigation tree (h1–h5), source/preview toggle, auto-save with 1.5 s debounce, manual version snapshots, inline version diff viewer, and Markdown export.
 
+### MCP Agent Mode
+
+An external AI agent creates an editor document via the MCP server, writes content section by section, and the user watches it appear in real-time in the browser. Every write and snapshot is attributed in the Activity panel. The agent and user share the same live document — no copy-pasting required.
+
+```
+Claude Code → docforge MCP server → DocForge REST API → SSE → browser
+```
+
+See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp/TOOLS.md](packages/mcp/TOOLS.md) for the full tool reference.
+
 ---
 
 ## Features
@@ -53,6 +66,8 @@ A single-pane Markdown editor for writing without AI assistance. Features a head
 - **Interactive refinement** — Per-section AI editing loop with full version history and one-click rollback.
 - **Automated audit** — Cross-section consistency check that catches terminology drift, technology contradictions, and scope violations.
 - **Free editor with version history** — Full Markdown editor with heading-derived navigation (h1–h5), auto-save, manual snapshots, inline diff viewer, and Markdown export.
+- **MCP server** — AI agents connect via the Model Context Protocol to create and write editor documents in real-time. Supports both stdio (local) and Streamable HTTP (hosted) transports. Every agent action is attributed by API key name in the Activity panel.
+- **API key management** — Users generate named API keys (one per agent/environment) from the DocForge UI. Keys appear in the activity log and version history, making multi-agent usage fully traceable.
 - **Input & output guardrails** — User inputs are validated before any AI call; malformed AI responses are retried automatically.
 - **Token-aware context management** — Char-based token estimation with per-phase budgets truncates context intelligently to avoid exceeding model limits.
 - **Multi-document type support** — Document types, section definitions, and AI prompt templates are database-driven, making it straightforward to add new document types beyond RFC.
@@ -68,9 +83,10 @@ A single-pane Markdown editor for writing without AI assistance. Features a head
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Zustand, React Router 7 |
 | Backend | FastAPI 0.115, SQLAlchemy 2 (async), Alembic, Pydantic v2 |
+| MCP Server | Python, `mcp` SDK, httpx, uvicorn — stdio + Streamable HTTP transports |
 | Orchestration | Inngest (event-driven durable workflows) |
 | AI | Azure OpenAI (gpt-4o-mini), structured JSON output + tool calling |
-| Auth | Clerk (RS256 JWT, JWKS validation) |
+| Auth | Clerk (RS256 JWT, JWKS validation) + API key (SHA-256, `X-API-Key` header) |
 | Infra | PostgreSQL 16, Docker Compose |
 
 ---
@@ -83,12 +99,17 @@ The system has four runtime services: a React SPA, a FastAPI backend, an Inngest
 graph TD
     FE["React SPA\n(polling + SSE)"]
     API["FastAPI :8000\n(routers + auth + guardrails)"]
+    MCP["MCP Server :8001\n(stdio or Streamable HTTP)"]
     INN["Inngest :8288\n(durable workflow engine)"]
     PG[("PostgreSQL 16")]
     AI["Azure OpenAI\n(structured output + tools)"]
     Clerk["Clerk\n(JWT / JWKS)"]
+    Agent["AI Agent\n(e.g. Claude Code)"]
 
     FE -- "REST + SSE (Clerk JWT)" --> API
+    Agent -- "MCP tools (X-API-Key)" --> MCP
+    MCP -- "REST (X-API-Key)" --> API
+    API -- "SSE push" --> FE
     API -- "send event" --> INN
     INN -- "step callbacks" --> API
     API -- "AsyncSession" --> PG
@@ -155,12 +176,27 @@ npm run dev:backend
 
 Frontend: `http://localhost:5173` — Backend: `http://localhost:8000`
 
+**6. (Optional) Run the MCP server locally**
+
+```bash
+cd packages/mcp
+pip install -e .
+export DOCFORGE_API_KEY="your-key"          # generate one in the DocForge UI
+export DOCFORGE_API_BASE="http://localhost:8000/api"
+docforge-mcp                                # stdio — add to Claude Code config
+# or
+docforge-mcp-server                         # HTTP on :8001
+```
+
+See [packages/mcp/README.md](packages/mcp/README.md) for Claude Code integration details.
+
 ### Environment Variables
 
-| File | Variables |
+| File / Scope | Variables |
 |---|---|
 | `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL`, `WEEKLY_CREDITS` (default `5`), `GUIDED_DOCUMENT_COST` (default `3`), `EDITOR_DOCUMENT_COST` (default `1`) |
 | `packages/frontend/.env` | `VITE_API_BASE`, `VITE_CLERK_PUBLISHABLE_KEY` |
+| MCP server (env) | `DOCFORGE_API_KEY` (stdio mode), `DOCFORGE_API_BASE` (default `http://localhost:8000/api`), `DOCFORGE_FRONTEND_BASE` (default `http://localhost:5173`), `HOST`, `PORT` (HTTP mode, default `8001`) |
 
 See [`packages/backend/.env.example`](packages/backend/.env.example) and [`packages/frontend/.env.example`](packages/frontend/.env.example) for full reference.
 

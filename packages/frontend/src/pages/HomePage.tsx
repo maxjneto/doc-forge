@@ -1,296 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import type { Document, Phase } from "@/types";
+import type { Document } from "@/types";
 import { API_BASE, mapDocument, apiFetchMe, apiUpdateDocumentTitle } from "@/utils/api";
 import { TopBar, NewDocumentDialog } from "@/components/shared";
-
-type FilterTab = "active" | "forged" | "all";
-
-const PHASE_ORDER: Phase[] = [
-  "discovery",
-  "alignment",
-  "generation",
-  "refinement",
-  "audit",
-  "completed",
-];
-
-const PHASE_LABEL: Record<Phase, string> = {
-  discovery: "Discovery",
-  alignment: "Alignment",
-  generation: "Generation",
-  refinement: "Refinement",
-  audit: "Audit",
-  completed: "Forged",
-  editing: "Editor",
-};
-
-function PhaseTrail({ currentPhase }: { currentPhase: Phase }) {
-  const currentIdx = PHASE_ORDER.indexOf(currentPhase);
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      {PHASE_ORDER.map((phase, i) => {
-        const isDone = i < currentIdx;
-        const isNow = i === currentIdx;
-        const isSteel = phase === "completed" && currentPhase === "completed";
-
-        let bg = "transparent";
-        let border = "1px solid var(--df-mute, rgba(227,226,226,0.18))";
-        let shadow = "none";
-
-        if (isSteel) {
-          bg = "var(--df-steel-200, #8aa0b8)";
-          border = "none";
-        } else if (isDone) {
-          bg = "var(--df-amber-trail, rgba(255,77,0,0.42))";
-          border = "none";
-        } else if (isNow) {
-          bg = "var(--df-amber-500, #ff4d00)";
-          border = "none";
-          shadow = "0 0 0 3px rgba(255,77,0,0.16), 0 0 10px rgba(255,77,0,0.55)";
-        }
-
-        return (
-          <div
-            key={phase}
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 999,
-              background: bg,
-              border,
-              boxShadow: shadow,
-              flexShrink: 0,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function DocRow({ doc, onClick, onRename }: { doc: Document; onClick: () => void; onRename: (docId: string, title: string) => Promise<void> }) {
-  const [renaming, setRenaming] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(doc.title);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const phase = doc.currentPhase;
-  const isForged = phase === "completed";
-
-  const startRename = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setTitleDraft(doc.title);
-    setRenaming(true);
-    setTimeout(() => inputRef.current?.select(), 0);
-  };
-
-  const commitRename = async () => {
-    setRenaming(false);
-    const trimmed = titleDraft.trim();
-    if (!trimmed || trimmed === doc.title) return;
-    await onRename(doc.id, trimmed);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") commitRename();
-    if (e.key === "Escape") setRenaming(false);
-  };
-  const phaseColor = isForged
-    ? "var(--df-steel-100, #b9c6d4)"
-    : "var(--df-amber-300, #ff8d4a)";
-
-  const ctaLabel = isForged ? "View" : "Resume";
-  const ctaStyle = isForged
-    ? {
-        color: "var(--df-steel-100, #b9c6d4)",
-        borderColor: "var(--df-steel-border, rgba(138,160,184,0.35))",
-        background: "var(--df-steel-bg, rgba(138,160,184,0.10))",
-      }
-    : {
-        color: "var(--df-amber-200, #ffb59e)",
-        borderColor: "rgba(255,77,0,0.30)",
-        background: "rgba(255,77,0,0.06)",
-      };
-
-  const formattedDate = new Date(doc.updatedAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  return (
-    <div
-      onClick={renaming ? undefined : onClick}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "22px 1fr 260px 130px 110px",
-        alignItems: "center",
-        gap: 16,
-        padding: "14px 22px",
-        borderBottomWidth: 1,
-        borderBottomStyle: "solid",
-        borderBottomColor: "var(--df-outline, rgba(255,255,255,0.06))",
-        fontSize: 14,
-        background: "transparent",
-        width: "100%",
-        textAlign: "left",
-        cursor: renaming ? "default" : "pointer",
-        transition: "background 0.15s",
-      }}
-      onMouseEnter={(e) => { if (!renaming) (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.025)"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-    >
-      {/* Icon */}
-      <span
-        className="material-symbols-outlined"
-        style={{
-          fontSize: 18,
-          color: isForged
-            ? "var(--df-steel-200, #8aa0b8)"
-            : "var(--df-amber-300, #ff8d4a)",
-        }}
-      >
-        {isForged ? "verified" : "description"}
-      </span>
-
-      {/* Title */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        {renaming ? (
-          <input
-            ref={inputRef}
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={handleKeyDown}
-            onClick={(e) => e.stopPropagation()}
-            maxLength={200}
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              color: "#e3e2e2",
-              background: "transparent",
-              border: "none",
-              borderBottom: "1px solid rgba(255,77,0,0.40)",
-              outline: "none",
-              fontFamily: "inherit",
-              width: "100%",
-              padding: "1px 0",
-            }}
-          />
-        ) : (
-          <span style={{ fontWeight: 500, color: "#e3e2e2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {doc.title}
-          </span>
-        )}
-        <button
-          onClick={startRename}
-          title="Rename"
-          style={{
-            display: "flex", alignItems: "center", padding: "2px 4px", flexShrink: 0,
-            background: "transparent", border: "none", cursor: "pointer",
-            color: "var(--df-mute, rgba(227,226,226,0.18))", borderRadius: 3, transition: "color 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-        </button>
-      </div>
-
-      {/* Status */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <PhaseTrail currentPhase={phase} />
-        <span
-          className="df-mono"
-          style={{ fontSize: 10, letterSpacing: "0.10em", color: phaseColor }}
-        >
-          {PHASE_LABEL[phase]}
-        </span>
-      </div>
-
-      {/* Last edited */}
-      <span
-        className="df-mono"
-        style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
-      >
-        {formattedDate}
-      </span>
-
-      {/* CTA */}
-      <div style={{ justifySelf: "end" }}>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "1px solid",
-            cursor: "pointer",
-            letterSpacing: "0.04em",
-            ...ctaStyle,
-          }}
-        >
-          {ctaLabel}
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-            arrow_forward
-          </span>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="df-mono"
-      style={{
-        fontSize: 10,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        padding: "6px 12px",
-        borderRadius: 999,
-        border: "1px solid",
-        cursor: "pointer",
-        background: "transparent",
-        color: active
-          ? "var(--df-amber-200, #ffb59e)"
-          : "var(--df-dim, rgba(227,226,226,0.62))",
-        borderColor: active
-          ? "rgba(255,77,0,0.40)"
-          : "var(--df-outline, rgba(255,255,255,0.06))",
-        backgroundColor: active ? "rgba(255,77,0,0.08)" : "transparent",
-      }}
-    >
-      {label}{" "}
-      <span
-        style={{
-          color: active
-            ? "var(--df-amber-300, #ff8d4a)"
-            : "var(--df-faint, rgba(227,226,226,0.38))",
-          marginLeft: 6,
-          fontWeight: 500,
-        }}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
+import {
+  TwinModeTabs,
+  DocTableRow,
+  ConnectedAgentsCard,
+  RecentActivityCard,
+  type TwinMode,
+} from "@/components/dashboard";
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -300,33 +20,27 @@ export function HomePage() {
   const [weeklyCredits, setWeeklyCredits] = useState<number>(5);
   const [error, setError] = useState<string | null>(null);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
-  const [filter, setFilter] = useState<FilterTab>("active");
+  const [mode, setMode] = useState<TwinMode>("all");
+  const [search, setSearch] = useState("");
 
   const handleRename = async (docId: string, title: string) => {
     await apiUpdateDocumentTitle(docId, title, getToken);
-    setDocuments((prev) => prev.map((d) => d.id === docId ? { ...d, title } : d));
+    setDocuments((prev) => prev.map((d) => (d.id === docId ? { ...d, title } : d)));
   };
 
   useEffect(() => {
     async function fetchDocs() {
       try {
         const token = await getToken();
-        const headers: Record<string, string> = token
-          ? { Authorization: `Bearer ${token}` }
-          : {};
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await fetch(`${API_BASE}/documents`, { headers });
         if (!res.ok) throw new Error("Failed to fetch documents");
         const data = await res.json();
-        setDocuments(
-          (data.documents as Record<string, unknown>[]).map(mapDocument)
-        );
+        setDocuments((data.documents as Record<string, unknown>[]).map(mapDocument));
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load documents"
-        );
+        setError(err instanceof Error ? err.message : "Failed to load documents");
       }
     }
-
     async function fetchUser() {
       try {
         const user = await apiFetchMe(getToken);
@@ -336,19 +50,25 @@ export function HomePage() {
         // non-critical
       }
     }
-
     fetchDocs();
     fetchUser();
   }, [getToken]);
 
-  const activeCount = documents.filter((d) => d.currentPhase !== "completed").length;
-  const forgedCount = documents.filter((d) => d.currentPhase === "completed").length;
+  const modeCounts = useMemo(() => {
+    const forger = documents.filter((d) => d.documentMode === "guided").length;
+    const mcp = documents.filter((d) => d.documentMode === "editor" && Boolean(d.hasApiKeyActivity)).length;
+    return { all: documents.length, forger, mcp };
+  }, [documents]);
 
-  const filtered = documents.filter((d) => {
-    if (filter === "active") return d.currentPhase !== "completed";
-    if (filter === "forged") return d.currentPhase === "completed";
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return documents.filter((d) => {
+      if (mode === "forger" && d.documentMode !== "guided") return false;
+      if (mode === "mcp" && !(d.documentMode === "editor" && d.hasApiKeyActivity)) return false;
+      if (q && !d.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [documents, mode, search]);
 
   return (
     <div
@@ -361,17 +81,12 @@ export function HomePage() {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <TopBar credits={credits} />
+      <TopBar
+        credits={credits}
+        dashboardNav
+      />
 
-      <main
-        style={{
-          flex: 1,
-          paddingTop: 56 + 36,
-          paddingBottom: 80,
-          paddingLeft: 56,
-          paddingRight: 56,
-        }}
-      >
+      <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56 }}>
         {/* Header */}
         <div
           style={{
@@ -382,45 +97,18 @@ export function HomePage() {
           }}
         >
           <div>
-            <h1
-              style={{
-                fontSize: 24,
-                fontWeight: 600,
-                letterSpacing: "-0.02em",
-                margin: "0 0 4px",
-                color: "#e3e2e2",
-              }}
-            >
-              Documents
-            </h1>
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--df-dim, rgba(227,226,226,0.62))",
-                margin: 0,
-              }}
-            >
-              Quick access to your forges.
-            </p>
+            <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>Documents</h1>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Credits */}
             {credits !== undefined && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  gap: 4,
-                }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                 <span
                   className="df-mono"
                   style={{
                     fontSize: 10,
                     letterSpacing: "0.10em",
-                    color: "var(--df-faint, rgba(227,226,226,0.38))",
+                    color: "var(--df-faint)",
                     textTransform: "uppercase",
                   }}
                 >
@@ -428,25 +116,13 @@ export function HomePage() {
                 </span>
                 <span
                   className="df-mono"
-                  style={{
-                    fontSize: 12,
-                    color: "var(--df-amber-300, #ff8d4a)",
-                    letterSpacing: "0.04em",
-                  }}
+                  style={{ fontSize: 12, color: "var(--df-amber-300)", letterSpacing: "0.04em" }}
                 >
                   <b>{credits}</b>
-                  <span
-                    style={{
-                      color: "var(--df-dim, rgba(227,226,226,0.62))",
-                    }}
-                  >
-                    {" "}
-                    of {weeklyCredits} this week
-                  </span>
+                  <span style={{ color: "var(--df-dim)" }}> of {weeklyCredits} this week</span>
                 </span>
               </div>
             )}
-
             <button
               onClick={() => setShowNewDocDialog(true)}
               disabled={credits === 0}
@@ -459,114 +135,117 @@ export function HomePage() {
                 fontSize: 12,
                 fontWeight: 600,
                 letterSpacing: "0.04em",
-                border: "1px solid var(--df-amber-500, #ff4d00)",
-                background: "var(--df-amber-500, #ff4d00)",
+                border: "1px solid var(--df-amber-500)",
+                background: "var(--df-amber-500)",
                 color: "#fff",
                 cursor: credits === 0 ? "not-allowed" : "pointer",
                 opacity: credits === 0 ? 0.4 : 1,
-                boxShadow:
-                  "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
+                boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
+                fontFamily: "inherit",
               }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                add
-              </span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
               New document
             </button>
           </div>
         </div>
 
-        {/* Filter chips */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-          <FilterChip
-            label="Active"
-            count={activeCount}
-            active={filter === "active"}
-            onClick={() => setFilter("active")}
-          />
-          <FilterChip
-            label="Forged"
-            count={forgedCount}
-            active={filter === "forged"}
-            onClick={() => setFilter("forged")}
-          />
-          <FilterChip
-            label="All"
-            count={documents.length}
-            active={filter === "all"}
-            onClick={() => setFilter("all")}
-          />
-        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 24 }}>
+          {/* ─── Documents column ─── */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <TwinModeTabs value={mode} onChange={setMode} counts={modeCounts} />
+              <div
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "5px 10px",
+                  border: "1px solid var(--df-outline)",
+                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.02)",
+                  width: 200,
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--df-faint)" }}>search</span>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search documents…"
+                  style={{
+                    background: "transparent", border: "none", color: "#e3e2e2",
+                    outline: "none", font: "12px / 1 'Inter', sans-serif",
+                    flex: 1, minWidth: 0, fontFamily: "inherit",
+                  }}
+                />
+              </div>
+            </div>
 
-        {error && (
-          <p
-            className="df-mono"
-            style={{ fontSize: 11, color: "var(--df-error, #e86464)", marginBottom: 12 }}
-          >
-            {error}
-          </p>
-        )}
+            {error && (
+              <p className="df-mono" style={{ fontSize: 11, color: "var(--df-error)", marginBottom: 12 }}>
+                {error}
+              </p>
+            )}
 
-        {/* Table */}
-        <div
-          style={{
-            border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-            borderRadius: 10,
-            overflow: "hidden",
-            background: "rgba(18,20,20,0.5)",
-          }}
-        >
-          {/* Header */}
-          <div
-            className="df-mono"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "22px 1fr 260px 130px 110px",
-              alignItems: "center",
-              gap: 16,
-              padding: "14px 22px",
-              borderBottom:
-                "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-              background: "rgba(255,255,255,0.02)",
-              fontSize: 10,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
-              fontWeight: 600,
-            }}
-          >
-            <span />
-            <span>File name</span>
-            <span>Status</span>
-            <span>Last edited</span>
-            <span />
-          </div>
-
-          {filtered.length === 0 && !error && (
             <div
               style={{
-                padding: "48px 22px",
-                textAlign: "center",
-                fontSize: 13,
-                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                border: "1px solid var(--df-outline)",
+                borderRadius: 12,
+                overflow: "hidden",
+                background: "rgba(18,20,20,0.4)",
               }}
             >
-              {filter === "active"
-                ? "No active documents. Create a new one to get started."
-                : filter === "forged"
-                ? "No forged documents yet."
-                : "No documents found. Create a new one to get started."}
-            </div>
-          )}
+              <div
+                className="df-mono"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "22px minmax(0,1fr) 280px 130px 130px",
+                  alignItems: "center",
+                  gap: 16,
+                  padding: "14px 22px",
+                  borderBottom: "1px solid var(--df-outline)",
+                  background: "rgba(255,255,255,0.02)",
+                  fontSize: 9.5,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "var(--df-faint)",
+                  fontWeight: 600,
+                }}
+              >
+                <span />
+                <span>File</span>
+                <span>Status</span>
+                <span>Last edited</span>
+                <span />
+              </div>
 
-          {filtered.map((doc) => (
-            <DocRow
-              key={doc.id}
-              doc={doc}
-              onClick={() => navigate(`/document/${doc.id}`)}
-              onRename={handleRename}
-            />
-          ))}
+              {filtered.length === 0 && !error && (
+                <div
+                  style={{
+                    padding: "48px 22px",
+                    textAlign: "center",
+                    fontSize: 13,
+                    color: "var(--df-faint)",
+                  }}
+                >
+                  {search ? "No documents match your search." : "No documents found. Create a new one to get started."}
+                </div>
+              )}
+
+              {filtered.map((doc) => (
+                <DocTableRow
+                  key={doc.id}
+                  doc={doc}
+                  onClick={() => navigate(`/document/${doc.id}`)}
+                  onRename={handleRename}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* ─── Sidebar ─── */}
+          <aside style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <ConnectedAgentsCard />
+            <RecentActivityCard />
+          </aside>
         </div>
       </main>
 
@@ -576,3 +255,4 @@ export function HomePage() {
     </div>
   );
 }
+

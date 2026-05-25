@@ -1,0 +1,47 @@
+name: Deploy MCP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/mcp/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: docforgeregistry2.azurecr.io
+          username: ${{ secrets.DOCFORGEBACKEND_REGISTRY_USERNAME }}
+          password: ${{ secrets.DOCFORGEBACKEND_REGISTRY_PASSWORD }}
+
+      - name: Build and Push
+        run: |
+          docker build \
+            -t docforgeregistry2.azurecr.io/docforge-mcp:${{ github.sha }} \
+            -t docforgeregistry2.azurecr.io/docforge-mcp:latest \
+            packages/mcp
+          docker push docforgeregistry2.azurecr.io/docforge-mcp --all-tags
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.DOCFORGEBACKEND_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.DOCFORGEBACKEND_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.DOCFORGEBACKEND_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name docforge-mcp \
+            --resource-group rg-docforge \
+            --image docforgeregistry2.azurecr.io/docforge-mcp:${{ github.sha }}

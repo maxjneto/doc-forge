@@ -356,11 +356,12 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
 interface EditorVersionPanelProps {
   sectionId: string;
   currentContent: string;
+  refreshTick: number;
   onVersionSwitch: (switchedContent: string) => void;
   onFlushSave: () => Promise<void>;
 }
 
-export function EditorVersionPanel({ sectionId, currentContent, onVersionSwitch, onFlushSave }: EditorVersionPanelProps) {
+export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onVersionSwitch, onFlushSave }: EditorVersionPanelProps) {
   const { getToken } = useAuth();
   const [versions, setVersions] = useState<SectionVersion[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -377,7 +378,7 @@ export function EditorVersionPanel({ sectionId, currentContent, onVersionSwitch,
         .catch(() => {});
     });
     return () => { cancelled = true; };
-  }, [sectionId, getToken]);
+  }, [sectionId, getToken, refreshTick]);
 
   async function handleSaveChanges() {
     if (saving) return;

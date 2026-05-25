@@ -5,8 +5,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion, AuditFinding, DocumentContract, PromptTemplate
+from app.models.document_activity import DocumentActivity
 from app.schemas.sse import SSEEvent
 from app.services import sse as sse_service
+
+
+async def log_activity(
+    db: AsyncSession,
+    document_id: uuid.UUID,
+    action_type: str,
+    description: str | None = None,
+    api_key_id: uuid.UUID | None = None,
+    bytes_delta: int | None = None,
+    version_id: uuid.UUID | None = None,
+) -> None:
+    entry = DocumentActivity(
+        id=uuid.uuid4(),
+        document_id=document_id,
+        api_key_id=api_key_id,
+        action_type=action_type,
+        description=description,
+        bytes_delta=bytes_delta,
+        version_id=version_id,
+    )
+    db.add(entry)
+    await db.flush()
 
 
 async def set_phase(db: AsyncSession, doc_id: uuid.UUID, phase: str) -> None:
@@ -266,9 +289,10 @@ async def update_section_content(
     section_id: uuid.UUID,
     new_content: str,
     doc_id: uuid.UUID | None = None,
+    api_key_id: uuid.UUID | None = None,
+    note: str | None = None,
 ) -> SectionVersion:
     """INTERNAL: caller must validate section ownership before invoking."""
-    # Update content of current active version
     result = await db.execute(
         select(SectionVersion)
         .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)  # noqa: E712
@@ -277,7 +301,21 @@ async def update_section_content(
     if not active:
         raise ValueError("No active version found for section")
 
+    old_len = len(active.content or "")
     active.content = new_content
+    new_len = len(new_content)
+    bytes_delta = new_len - old_len
+
+    if doc_id is not None:
+        actor = "Agent" if api_key_id else "You"
+        description = note or f"{actor} wrote {new_len:,} characters ({bytes_delta:+,})"
+        await log_activity(
+            db, doc_id, "write",
+            description=description,
+            api_key_id=api_key_id,
+            bytes_delta=bytes_delta,
+        )
+
     await db.commit()
     await db.refresh(active)
     if doc_id is not None:
@@ -291,6 +329,9 @@ async def create_version_snapshot(
     db: AsyncSession,
     section_id: uuid.UUID,
     doc_id: uuid.UUID,
+    version_name: str | None = None,
+    change_summary: str | None = None,
+    api_key_id: uuid.UUID | None = None,
 ) -> SectionVersion:
     """Create a snapshot of the current active version with no AI involvement.
 
@@ -306,33 +347,68 @@ async def create_version_snapshot(
 
     import datetime
     timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M")
-    return await create_section_version(
+    snap_name = version_name or f"Snapshot {timestamp}"
+
+    new_version = await create_section_version(
         db,
         section_id,
-        f"Snapshot {timestamp}",
+        snap_name,
         active.content,
         parent_version_id=active.id,
         doc_id=doc_id,
     )
+    if change_summary:
+        new_version.change_summary = change_summary
+        await db.commit()
+        await db.refresh(new_version)
+
+    actor = "Agent" if api_key_id else "You"
+    await log_activity(
+        db, doc_id, "snapshot",
+        description=f"{actor} saved snapshot '{snap_name}'" + (f": {change_summary}" if change_summary else ""),
+        api_key_id=api_key_id,
+        version_id=new_version.id,
+    )
+    await db.commit()
+    return new_version
 
 
-async def restore_version(db: AsyncSession, section_id: uuid.UUID, version_id: uuid.UUID) -> SectionVersion:
+async def restore_version(
+    db: AsyncSession,
+    section_id: uuid.UUID,
+    version_id: uuid.UUID,
+    doc_id: uuid.UUID | None = None,
+    api_key_id: uuid.UUID | None = None,
+) -> SectionVersion:
     """INTERNAL: caller must validate section ownership before invoking."""
-    # Deactivate current active
     await db.execute(
         update(SectionVersion)
         .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)
         .values(is_active=False)
     )
-    # Activate target version
     await db.execute(
         update(SectionVersion)
         .where(SectionVersion.id == version_id)
         .values(is_active=True)
     )
-    await db.commit()
     result = await db.execute(select(SectionVersion).where(SectionVersion.id == version_id))
-    return result.scalar_one()
+    restored = result.scalar_one()
+
+    if doc_id is not None:
+        actor = "Agent" if api_key_id else "You"
+        await log_activity(
+            db, doc_id, "version_selected",
+            description=f"{actor} selected version '{restored.version_name}'",
+            api_key_id=api_key_id,
+            version_id=version_id,
+        )
+        sse_service.publish(str(doc_id), SSEEvent(
+            type="section_updated",
+            payload={"doc_id": str(doc_id), "section_id": str(section_id)},
+        ))
+
+    await db.commit()
+    return restored
 
 
 async def save_audit_findings(

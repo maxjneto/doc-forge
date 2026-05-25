@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 import inngest
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select, update
@@ -63,14 +63,42 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.models.api_key import ApiKey
+    from app.models.document_activity import DocumentActivity
+
     result = await db.execute(
         select(Document)
         .where(Document.user_id == current_user.id)
         .order_by(Document.updated_at.desc())
     )
     documents = result.scalars().all()
+
+    # Per-doc: the most recent API-key-attributed activity, joined to ApiKey.name.
+    # NULL key_name means no agent has ever touched the doc.
+    doc_ids = [d.id for d in documents]
+    latest_agent_key: dict[uuid.UUID, str] = {}
+    if doc_ids:
+        agent_rows = await db.execute(
+            select(DocumentActivity.document_id, ApiKey.name, DocumentActivity.created_at)
+            .join(ApiKey, DocumentActivity.api_key_id == ApiKey.id)
+            .where(DocumentActivity.document_id.in_(doc_ids))
+            .order_by(DocumentActivity.created_at.desc())
+        )
+        for doc_id, key_name, _ in agent_rows:
+            # Keep only the first (most recent) hit per doc_id
+            if doc_id not in latest_agent_key:
+                latest_agent_key[doc_id] = key_name
+
+    items = []
+    for d in documents:
+        item = DocumentResponse.model_validate(d).model_copy(update={
+            "has_api_key_activity": d.id in latest_agent_key,
+            "last_api_key_name": latest_agent_key.get(d.id),
+        })
+        items.append(item)
+
     logger.debug("[router] list_documents | user_id={} count={}", current_user.id, len(documents))
-    return DocumentListResponse(documents=[DocumentResponse.model_validate(d) for d in documents])
+    return DocumentListResponse(documents=items)
 
 
 @router.get("/documents/sample", response_model=DocumentDetailResponse)
@@ -169,6 +197,7 @@ async def stream_document(
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
 async def create_document(
+    request: Request,
     payload: DocumentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -176,7 +205,7 @@ async def create_document(
     logger.info("[router] create_document | title='{}' mode='{}' user_id={}", payload.title, payload.mode, current_user.id)
 
     if payload.mode == "editor":
-        return await _create_editor_document(payload, db, current_user)
+        return await _create_editor_document(payload, db, current_user, request)
 
     # ── Guided mode ──────────────────────────────────────────────
 
@@ -250,6 +279,7 @@ async def _create_editor_document(
     payload: DocumentCreate,
     db: AsyncSession,
     current_user: User,
+    request: Request,
 ) -> DocumentResponse:
     """Create a free-editor document: one body section, no workflow, no Inngest."""
     # Atomically deduct credit
@@ -298,6 +328,14 @@ async def _create_editor_document(
         type="phase_changed",
         payload={"doc_id": str(doc.id), "phase": "editing"},
     ))
+
+    api_key_id = getattr(request.state, "api_key_id", None)
+    await db_service.log_activity(
+        db, doc.id, "document_created",
+        description="Document created via Editor",
+        api_key_id=api_key_id,
+    )
+    await db.commit()
 
     logger.info("[router] editor document created | doc_id={} section_id={}", doc.id, section.id)
     return DocumentResponse.model_validate(doc)
@@ -590,3 +628,43 @@ async def rerun_audit(
         raise HTTPException(status_code=502, detail="Failed to dispatch workflow event")
 
     return {"status": "ok"}
+
+
+@router.get("/documents/{document_id}/activity")
+async def get_document_activity(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 50,
+):
+    from app.models.api_key import ApiKey
+    from app.models.document_activity import DocumentActivity
+    from sqlalchemy.orm import outerjoin
+
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    rows = await db.execute(
+        select(DocumentActivity, ApiKey.name, ApiKey.harness)
+        .outerjoin(ApiKey, DocumentActivity.api_key_id == ApiKey.id)
+        .where(DocumentActivity.document_id == document_id)
+        .order_by(DocumentActivity.created_at.desc())
+        .limit(limit)
+    )
+    entries = []
+    for activity, key_name, key_harness in rows:
+        entries.append({
+            "id": str(activity.id),
+            "action_type": activity.action_type,
+            "description": activity.description,
+            "actor_name": key_name if key_name else "You",
+            "is_agent": key_name is not None,
+            "harness": key_harness,
+            "bytes_delta": activity.bytes_delta,
+            "version_id": str(activity.version_id) if activity.version_id else None,
+            "created_at": activity.created_at.isoformat() if activity.created_at else None,
+        })
+    return entries
