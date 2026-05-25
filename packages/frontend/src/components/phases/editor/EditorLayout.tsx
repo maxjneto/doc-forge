@@ -5,7 +5,6 @@ import { apiUpdateSectionContent } from "@/utils/api";
 import { EditorNavPanel, parseHeadings, type Heading } from "./EditorNavPanel";
 import { EditorCenterPanel, type EditorMode } from "./EditorCenterPanel";
 import { EditorVersionPanel } from "./EditorVersionPanel";
-import { EditorActivityPanel } from "./EditorActivityPanel";
 import { EditorActivityRail } from "./EditorActivityRail";
 
 interface EditorLayoutProps {
@@ -24,7 +23,6 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
   const [mode, setMode] = useState<EditorMode>("source");
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [headings, setHeadings] = useState<Heading[]>(() => parseHeadings(initialContent));
-  const [showActivity, setShowActivity] = useState(false);
   const [activityTick, setActivityTick] = useState(0);
 
   // Keep content in sync when sections prop updates (e.g. SSE push)
@@ -161,38 +159,6 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
         />
       )}
 
-      {/* Activity toggle button */}
-      <button
-        onClick={() => setShowActivity((v) => !v)}
-        title={showActivity ? "Hide activity" : "Show activity"}
-        style={{
-          position: "absolute",
-          bottom: 16,
-          right: showActivity ? 256 : 16,
-          zIndex: 10,
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "6px 12px",
-          borderRadius: 6,
-          border: `1px solid ${showActivity ? "rgba(255,77,0,0.4)" : "rgba(255,255,255,0.08)"}`,
-          background: showActivity ? "rgba(255,77,0,0.08)" : "rgba(13,14,15,0.85)",
-          color: showActivity ? "var(--df-amber-300, #ff8d4a)" : "rgba(200,198,197,0.45)",
-          cursor: "pointer",
-          fontSize: 11,
-          transition: "all 0.2s",
-        }}
-      >
-        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>history</span>
-        <span className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}>Activity</span>
-      </button>
-
-      {showActivity && (
-        <EditorActivityPanel
-          documentId={documentId}
-          refreshTick={activityTick + sseTick}
-        />
-      )}
     </div>
   );
 }
