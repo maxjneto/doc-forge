@@ -7,10 +7,13 @@ describe("API response mappers", () => {
       id: "abc-123",
       title: "My RFC",
       current_phase: "discovery",
+      document_mode: "guided",
       global_context: "Some context",
       user_preferences: null,
       created_at: "2025-01-01T00:00:00Z",
       updated_at: "2025-01-02T00:00:00Z",
+      has_api_key_activity: false,
+      last_api_key_name: null,
     };
 
     const result = mapDocument(raw);
@@ -19,10 +22,13 @@ describe("API response mappers", () => {
       id: "abc-123",
       title: "My RFC",
       currentPhase: "discovery",
+      documentMode: "guided",
       globalContext: "Some context",
       userPreferences: null,
       createdAt: "2025-01-01T00:00:00Z",
       updatedAt: "2025-01-02T00:00:00Z",
+      hasApiKeyActivity: false,
+      lastApiKeyName: null,
     });
   });
 
