@@ -146,7 +146,7 @@ async def function(ctx: inngest.Context):
                                 DiscoveryQuestion.document_id == uuid.UUID(doc_id),
                                 DiscoveryQuestion.section_key == sk,
                                 DiscoveryQuestion.answer.is_(None),
-                                DiscoveryQuestion.skipped == False,
+                                DiscoveryQuestion.skipped.is_(False),
                             )
                         )
                         return result.scalars().first() is None

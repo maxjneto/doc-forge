@@ -1,14 +1,14 @@
 import time
 
+import inngest.fast_api
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import inngest.fast_api
 from loguru import logger
 
-from app.logging_config import setup_logging
 from app.config import settings
 from app.inngest_client import inngest_client
-from app.routers import documents, sections, document_types
+from app.logging_config import setup_logging
+from app.routers import document_types, documents, sections
 from app.routers import users as users_router
 from app.workflows.registry import ALL_FUNCTIONS
 

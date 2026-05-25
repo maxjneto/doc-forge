@@ -3,7 +3,6 @@ import sys
 
 from loguru import logger
 
-
 NOISY_LOGGER_MIN_LEVELS: dict[str, int] = {
     "httpcore": logging.WARNING,
     "httpx": logging.WARNING,

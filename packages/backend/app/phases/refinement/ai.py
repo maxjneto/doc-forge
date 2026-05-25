@@ -5,12 +5,11 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.core import (
-    load_yaml_prompt,
-    get_system_prompt,
-    log_usage,
-    truncate_section,
-    truncate_chat_history,
     build_context_report,
+    load_yaml_prompt,
+    log_usage,
+    truncate_chat_history,
+    truncate_section,
 )
 from app.guardrails import call_with_retry
 

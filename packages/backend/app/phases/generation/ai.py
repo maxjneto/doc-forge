@@ -4,13 +4,13 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.core import (
-    load_yaml_prompt,
-    get_system_prompt,
-    log_usage,
+    build_context_report,
     clean_section_output,
+    get_system_prompt,
+    load_yaml_prompt,
+    log_usage,
     strip_outer_markdown_fence,
     truncate_section,
-    build_context_report,
 )
 from app.guardrails import call_with_retry
 
@@ -123,10 +123,7 @@ async def generate_section(
 
 async def refine_cross_references(doc_id: str, document_type_id: str | None = None) -> None:
     """Run a coherence pass on all sections to ensure cross-references are accurate."""
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
     from app.database import async_session
-    from app.models import Section
     from app.services import db as db_service
 
     logger.info("[AI:generation] refine_cross_references | doc_id={}", doc_id)
@@ -188,7 +185,6 @@ async def refine_cross_references(doc_id: str, document_type_id: str | None = No
                     "[AI:generation] coherence pass updated section | type={}",
                     section_type,
                 )
-                active_version = next((v for v in section.versions if v.is_active), None)
                 await db_service.update_section_content(
                     db,
                     section.id,

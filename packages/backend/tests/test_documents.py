@@ -1,10 +1,12 @@
 """Tests for document creation and credit system."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from sqlalchemy import select
 
 from app.models.user import User
+
 from .conftest import TestSession
 
 

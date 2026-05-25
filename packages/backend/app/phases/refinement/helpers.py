@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.ai.core import clean_section_output
 from app.database import async_session
-from app.models import Section, ChatMessage
+from app.models import ChatMessage, Section
 from app.services import db as db_service
 
 

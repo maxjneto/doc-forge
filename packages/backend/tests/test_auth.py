@@ -1,11 +1,12 @@
 """Tests for authentication and authorization."""
 
-import pytest
-from httpx import ASGITransport, AsyncClient
 from unittest.mock import AsyncMock, patch
 
-from app.main import app
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.database import get_db
+from app.main import app
 from app.models.user import User
 
 from .conftest import _override_get_db

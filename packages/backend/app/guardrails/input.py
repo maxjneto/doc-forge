@@ -108,8 +108,9 @@ async def validate_message_intent(message: str, section_type: str, section_summa
 
     Failures are swallowed — a guardrail error must never block the user.
     """
-    from app.ai.core.client import client, GUARDRAIL_MODEL
     from openai import BadRequestError
+
+    from app.ai.core.client import GUARDRAIL_MODEL, client
 
     system_prompt = load_yaml_prompt("guardrails", "intent_classification", "system")
 

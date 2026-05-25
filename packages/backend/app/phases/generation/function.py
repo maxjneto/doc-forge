@@ -34,6 +34,7 @@ async def function(ctx: inngest.Context):
         if not document_type_id:
             return ["context", "proposal", "implementation", "risks"]
         from sqlalchemy import select as _select
+
         from app.models.document_type import SectionDefinition
         async with async_session() as db:
             result = await db.execute(

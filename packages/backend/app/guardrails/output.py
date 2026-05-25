@@ -4,7 +4,7 @@ from typing import Any
 
 from loguru import logger
 
-from app.ai.core.client import client, DEFAULT_MODEL
+from app.ai.core.client import DEFAULT_MODEL, client
 
 
 async def call_with_retry(

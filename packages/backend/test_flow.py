@@ -3,8 +3,9 @@ Script simples para testar o fluxo principal do DocForge.
 Cria um documento, responde perguntas de discovery, aprova alignment, etc.
 """
 
-import httpx
 import time
+
+import httpx
 
 BASE = "http://localhost:8080/api"
 
@@ -55,7 +56,7 @@ def main():
 
     # 4. Verificar estado atual
     time.sleep(3)
-    print(f"\n[4] Estado atual do documento...")
+    print("\n[4] Estado atual do documento...")
     detail = httpx.get(f"{BASE}/documents/{doc_id}").json()
     print(f"    Fase: {detail['document']['current_phase']}")
     print(f"    Seções: {len(detail['sections'])}")
@@ -64,7 +65,7 @@ def main():
 
     # 5. Se chegou em alignment, aprovar
     if detail["document"]["current_phase"] == "alignment":
-        print(f"\n[5] Aprovando alignment...")
+        print("\n[5] Aprovando alignment...")
         resp = httpx.post(f"{BASE}/documents/{doc_id}/events", json={
             "event_type": "approved_alignment",
             "data": {"all_approved": True},
@@ -72,8 +73,8 @@ def main():
         resp.raise_for_status()
         print("    Alignment aprovado!")
 
-    print(f"\n=== Fim do teste ===")
-    print(f"Acompanhe o progresso no Inngest Dashboard: http://localhost:8288")
+    print("\n=== Fim do teste ===")
+    print("Acompanhe o progresso no Inngest Dashboard: http://localhost:8288")
     print(f"Documento: {BASE}/documents/{doc_id}")
 
 

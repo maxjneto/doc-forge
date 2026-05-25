@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, UniqueConstraint, Index, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,5 +45,5 @@ class SectionVersion(Base):
     parent_version = relationship("SectionVersion", remote_side="SectionVersion.id")
 
     __table_args__ = (
-        Index("idx_one_active_version", "section_id", unique=True, postgresql_where=(is_active == True)),
+        Index("idx_one_active_version", "section_id", unique=True, postgresql_where=(is_active.is_(True))),
     )

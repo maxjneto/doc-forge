@@ -1,6 +1,6 @@
 from openai import AsyncOpenAI
-from app.config import settings
 
+from app.config import settings
 
 client = AsyncOpenAI(
     base_url=settings.AZURE_OPENAI_ENDPOINT,

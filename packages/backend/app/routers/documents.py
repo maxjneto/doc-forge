@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.guardrails import (
     validate_discovery_answer,
@@ -41,7 +42,6 @@ from app.schemas.document import (
     SectionBriefResponse,
 )
 from app.schemas.events import AnswerQuestionRequest, EventRequest
-from app.config import settings
 from app.services import db as db_service
 from app.services import sse as sse_service
 
@@ -373,7 +373,7 @@ async def answer_question(
             DiscoveryQuestion.document_id == document_id,
             DiscoveryQuestion.question == payload.question,
             DiscoveryQuestion.answer.is_(None),
-            DiscoveryQuestion.skipped == False,
+            DiscoveryQuestion.skipped.is_(False),
         )
     )
     question = result.scalar_one_or_none()
@@ -394,7 +394,7 @@ async def answer_question(
                     DiscoveryQuestion.document_id == document_id,
                     DiscoveryQuestion.section_key == section_key,
                     DiscoveryQuestion.answer.is_(None),
-                    DiscoveryQuestion.skipped == False,
+                    DiscoveryQuestion.skipped.is_(False),
                 )
             )
         else:
@@ -403,7 +403,7 @@ async def answer_question(
                 select(DiscoveryQuestion).where(
                     DiscoveryQuestion.document_id == document_id,
                     DiscoveryQuestion.answer.is_(None),
-                    DiscoveryQuestion.skipped == False,
+                    DiscoveryQuestion.skipped.is_(False),
                 )
             )
         pending = pending_result.scalars().first()
@@ -637,9 +637,9 @@ async def get_document_activity(
     current_user: User = Depends(get_current_user),
     limit: int = 50,
 ):
+
     from app.models.api_key import ApiKey
     from app.models.document_activity import DocumentActivity
-    from sqlalchemy.orm import outerjoin
 
     result = await db.execute(
         select(Document).where(Document.id == document_id, Document.user_id == current_user.id)

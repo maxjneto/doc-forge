@@ -14,7 +14,12 @@ from app.models.api_key import ApiKey
 from app.models.document import Document
 from app.models.document_activity import DocumentActivity
 from app.models.user import User
-from app.schemas.api_key import ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyListItem, ApiKeyUpdateRequest
+from app.schemas.api_key import (
+    ApiKeyCreateRequest,
+    ApiKeyCreateResponse,
+    ApiKeyListItem,
+    ApiKeyUpdateRequest,
+)
 
 router = APIRouter(tags=["users"])
 

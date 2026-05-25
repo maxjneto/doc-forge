@@ -5,7 +5,12 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.ai.core import load_yaml_prompt, get_system_prompt, log_usage, truncate_section, build_context_report
+from app.ai.core import (
+    build_context_report,
+    get_system_prompt,
+    log_usage,
+    truncate_section,
+)
 from app.database import async_session
 from app.guardrails import call_with_retry
 from app.models import Section

@@ -1,12 +1,9 @@
 """Tests for the service layer (db.py) — phase transitions and version management."""
 
-import uuid
 
 import pytest
-from sqlalchemy import select
 
-from app.models import Document, Section, SectionVersion
-from app.models.user import User
+from app.models import Document, Section
 from app.services import db as db_service
 
 
@@ -23,8 +20,6 @@ async def test_set_phase(db_with_user, test_user):
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
-    original_updated = doc.updated_at
-
     await db_service.set_phase(db, doc.id, "alignment")
 
     await db.refresh(doc)

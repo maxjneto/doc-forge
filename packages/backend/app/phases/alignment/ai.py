@@ -4,7 +4,7 @@ import uuid
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.core import load_yaml_prompt, get_system_prompt, log_usage
+from app.ai.core import get_system_prompt, load_yaml_prompt, log_usage
 from app.guardrails import call_with_retry
 
 ALIGNMENT_SCHEMA = {

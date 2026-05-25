@@ -1,18 +1,18 @@
 from app.schemas.document import (
     DocumentCreate,
-    DocumentResponse,
-    DocumentListResponse,
     DocumentDetailResponse,
-)
-from app.schemas.section import (
-    SectionResponse,
-    SectionVersionResponse,
-    ChatMessageResponse,
-    VersionRestoreResponse,
+    DocumentListResponse,
+    DocumentResponse,
 )
 from app.schemas.events import (
     AnswerQuestionRequest,
     EventRequest,
+)
+from app.schemas.section import (
+    ChatMessageResponse,
+    SectionResponse,
+    SectionVersionResponse,
+    VersionRestoreResponse,
 )
 
 __all__ = [

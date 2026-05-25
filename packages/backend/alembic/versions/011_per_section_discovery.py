@@ -9,6 +9,7 @@ to support the per-section discovery redesign.
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "011"

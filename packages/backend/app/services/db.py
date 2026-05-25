@@ -4,7 +4,16 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Document, Section, SectionVersion, ChatMessage, DiscoveryQuestion, AuditFinding, DocumentContract, PromptTemplate
+from app.models import (
+    AuditFinding,
+    ChatMessage,
+    DiscoveryQuestion,
+    Document,
+    DocumentContract,
+    PromptTemplate,
+    Section,
+    SectionVersion,
+)
 from app.models.document_activity import DocumentActivity
 from app.schemas.sse import SSEEvent
 from app.services import sse as sse_service
@@ -263,7 +272,7 @@ async def create_section_version(
     # Deactivate current active version
     await db.execute(
         update(SectionVersion)
-        .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)
+        .where(SectionVersion.section_id == section_id, SectionVersion.is_active.is_(True))
         .values(is_active=False)
     )
     # Create new active version
@@ -339,7 +348,7 @@ async def create_version_snapshot(
     """
     result = await db.execute(
         select(SectionVersion)
-        .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)
+        .where(SectionVersion.section_id == section_id, SectionVersion.is_active.is_(True))
     )
     active = result.scalar_one_or_none()
     if not active:
@@ -383,7 +392,7 @@ async def restore_version(
     """INTERNAL: caller must validate section ownership before invoking."""
     await db.execute(
         update(SectionVersion)
-        .where(SectionVersion.section_id == section_id, SectionVersion.is_active == True)
+        .where(SectionVersion.section_id == section_id, SectionVersion.is_active.is_(True))
         .values(is_active=False)
     )
     await db.execute(
