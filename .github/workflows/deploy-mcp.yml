@@ -5,10 +5,20 @@ on:
     branches: [main]
     paths:
       - 'packages/mcp/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - 'packages/mcp/**'
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -17,6 +27,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install
+        working-directory: packages/mcp
+        run: pip install -e . ruff
+
+      - name: Lint
+        working-directory: packages/mcp
+        run: ruff check src/
+
       - name: Login to ACR
         uses: docker/login-action@v3
         with:
@@ -24,15 +47,20 @@ jobs:
           username: ${{ secrets.DOCFORGEBACKEND_REGISTRY_USERNAME }}
           password: ${{ secrets.DOCFORGEBACKEND_REGISTRY_PASSWORD }}
 
-      - name: Build and Push
+      - name: Build
         run: |
           docker build \
             -t docforgeregistry2.azurecr.io/docforge-mcp:${{ github.sha }} \
             -t docforgeregistry2.azurecr.io/docforge-mcp:latest \
             packages/mcp
+
+      - name: Push
+        if: github.event_name != 'pull_request'
+        run: |
           docker push docforgeregistry2.azurecr.io/docforge-mcp --all-tags
 
       - name: Login to Azure
+        if: github.event_name != 'pull_request'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.DOCFORGEBACKEND_AZURE_CLIENT_ID }}
@@ -40,6 +68,7 @@ jobs:
           subscription-id: ${{ secrets.DOCFORGEBACKEND_AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Container Apps
+        if: github.event_name != 'pull_request'
         run: |
           az containerapp update \
             --name docforge-mcp \
