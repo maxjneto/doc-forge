@@ -430,7 +430,7 @@ interface PanelProps {
 // ─── Claude Code ─────────────────────────────────────────────
 
 function ClaudeCodePanel({ copy, copied }: PanelProps) {
-  const cmd1 = `claude mcp add docforge \\\n  --url https://mcp.doc-forge.dev \\\n  -- DOCFORGE_API_KEY=your_api_key_here`;
+  const cmd1 = `claude mcp add docforge \\\n  --url https://mcp.doc-forge.dev/mcp \\\n  -- DOCFORGE_API_KEY=your_api_key_here`;
   const cmd2 = `claude mcp list`;
   const cmd3 = `claude "Create a technical spec for the auth module using DocForge"`;
   return (
@@ -454,8 +454,8 @@ function ClaudeCodePanel({ copy, copied }: PanelProps) {
 // ─── Codex ───────────────────────────────────────────────────
 
 function CodexPanel({ copy, copied }: PanelProps) {
-  const cmd1 = `codex mcp add docforge --url https://mcp.doc-forge.dev`;
-  const toml = `[mcp_servers.docforge]\nurl = "https://mcp.doc-forge.dev"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
+  const cmd1 = `codex mcp add docforge --url https://mcp.doc-forge.dev/mcp`;
+  const toml = `[mcp_servers.docforge]\nurl = "https://mcp.doc-forge.dev/mcp"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
   const cmd3 = `export DOCFORGE_API_KEY=your_api_key_here\ncodex mcp list`;
   return (
     <>
@@ -477,7 +477,7 @@ function CodexPanel({ copy, copied }: PanelProps) {
 // ─── Cursor ──────────────────────────────────────────────────
 
 function CursorPanel({ copy, copied }: PanelProps) {
-  const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "https://mcp.doc-forge.dev",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
+  const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "https://mcp.doc-forge.dev/mcp",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
   const cmd2 = `export DOCFORGE_API_KEY=your_api_key_here`;
   return (
     <>
@@ -499,9 +499,9 @@ function CursorPanel({ copy, copied }: PanelProps) {
 // ─── Generic ─────────────────────────────────────────────────
 
 function GenericPanel({ copy, copied }: PanelProps) {
-  const url = `https://mcp.doc-forge.dev`;
+  const url = `https://mcp.doc-forge.dev/mcp`;
   const auth = `Authorization: Bearer your_api_key_here`;
-  const transport = `# Streamable HTTP (recommended)\nurl = "https://mcp.doc-forge.dev"\n\n# SSE (legacy clients)\nurl = "https://mcp.doc-forge.dev/sse"`;
+  const transport = `# Streamable HTTP (recommended)\nurl = "https://mcp.doc-forge.dev/mcp"\n\n# SSE (legacy clients)\nurl = "https://mcp.doc-forge.dev/mcp/sse"`;
   return (
     <>
       <Step num={1} title="Server URL">

@@ -349,7 +349,7 @@ function TerminalSnippet() {
       <span style={{ color: "var(--df-amber-300)" }}>$</span> claude mcp add{" "}
       <span style={{ color: "var(--df-amber-200)" }}>docforge</span> \
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;--server-url <span style={{ color: "var(--df-steel-200)" }}>https://mcp.doc-forge.dev</span> \
+      &nbsp;&nbsp;&nbsp;&nbsp;--server-url <span style={{ color: "var(--df-steel-200)" }}>https://mcp.doc-forge.dev/mcp</span> \
       <br />
       &nbsp;&nbsp;&nbsp;&nbsp;--auth-token <span style={{ color: "var(--df-steel-200)" }}>$DOCFORGE_TOKEN</span>
       <br />
