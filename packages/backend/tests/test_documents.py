@@ -18,7 +18,7 @@ async def test_create_document_success(client_factory):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
-                json={"title": "My RFC", "document_context": "Build an API"},
+                json={"title": "My RFC", "document_context": "Build a REST API for user authentication"},
             )
     assert res.status_code == 201
     data = res.json()
@@ -36,7 +36,7 @@ async def test_create_document_no_credits_rejected(client_factory):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
-                json={"title": "Denied", "document_context": "No credits"},
+                json={"title": "Denied", "document_context": "No credits available for this document creation"},
             )
     assert res.status_code == 402
     assert "credits" in res.json()["detail"].lower()
@@ -52,7 +52,7 @@ async def test_credit_deduction_is_atomic(client_factory):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
-                json={"title": "First", "document_context": "ctx"},
+                json={"title": "First", "document_context": "Test context for the credit deduction scenario"},
             )
             assert res.status_code == 201
 
@@ -73,7 +73,7 @@ async def test_create_document_dispatches_inngest_event(client_factory):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
-                json={"title": "Event test", "document_context": "ctx"},
+                json={"title": "Event test", "document_context": "Test context for the Inngest event dispatch check"},
             )
             assert res.status_code == 201
             mock_inngest.send.assert_called_once()

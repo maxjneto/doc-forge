@@ -44,7 +44,7 @@ async def test_user_cannot_access_other_users_documents(client_factory):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
-                json={"title": "A's doc", "document_context": "Test context"},
+                json={"title": "A's doc", "document_context": "Test context for the auth isolation scenario"},
             )
             assert res.status_code == 201
             doc_id = res.json()["id"]
@@ -67,7 +67,7 @@ async def test_list_documents_only_returns_own(client_factory):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
-                json={"title": "A's doc", "document_context": "ctx"},
+                json={"title": "A's doc", "document_context": "Test context for listing documents by user"},
             )
             assert res.status_code == 201
 
