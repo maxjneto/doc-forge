@@ -1,8 +1,7 @@
 """DocForge MCP server — tools and resources for AI agents.
 
-Two transports:
-  stdio  (local dev)  — launched by Claude Code as a subprocess
-  HTTP   (production) — hosted server, users configure a URL + X-API-Key header
+Transport: Streamable HTTP. Clients connect to the hosted server and
+authenticate with an X-API-Key header per request.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from starlette.requests import Request
 
 import docforge_mcp.client as api
 from docforge_mcp.client import DocForgeError, _api_key_var
+from docforge_mcp.resources.loader import list_recipes, read_resource
 
 mcp = FastMCP("docforge")
 
@@ -302,6 +302,41 @@ async def resource_list_versions(document_id: str) -> str:
     return _json(versions)
 
 
+@mcp.resource("docforge://guide/system-prompt")
+async def resource_system_prompt() -> str:
+    """Orientation brief: how to operate on DocForge documents via MCP."""
+    return read_resource("guide", "system_prompt.md")
+
+
+@mcp.resource("docforge://recipes")
+async def resource_list_recipes() -> str:
+    """JSON index of available workflow recipe slugs."""
+    return _json([
+        {"slug": slug, "uri": f"docforge://recipes/{slug}"}
+        for slug in list_recipes()
+    ])
+
+
+@mcp.resource("docforge://recipes/{workflow}")
+async def resource_recipe(workflow: str) -> str:
+    """Procedural recipe for a named workflow (e.g. 'safe-rewrite')."""
+    filename = f"{workflow.replace('-', '_')}.md"
+    try:
+        return read_resource("recipes", filename)
+    except (FileNotFoundError, ModuleNotFoundError):
+        available = ", ".join(list_recipes())
+        raise DocForgeError(f"Recipe '{workflow}' not found. Available: {available}.")
+
+
+# ─── Prompts ─────────────────────────────────────────────────
+
+@mcp.prompt()
+async def docforge_orientation() -> str:
+    """Agent orientation brief — surfaces via prompts/list so MCP clients can inject it
+    automatically, without the agent needing to know the resource URI."""
+    return read_resource("guide", "system_prompt.md")
+
+
 # ─── HTTP middleware (extracts X-API-Key per request) ────────
 
 class _ApiKeyMiddleware(BaseHTTPMiddleware):
@@ -314,12 +349,7 @@ class _ApiKeyMiddleware(BaseHTTPMiddleware):
             _api_key_var.reset(token)
 
 
-# ─── Entry points ────────────────────────────────────────────
-
-def main() -> None:
-    """stdio transport — Claude Code spawns this as a local subprocess."""
-    mcp.run(transport="stdio")
-
+# ─── Entry point ─────────────────────────────────────────────
 
 def serve() -> None:
     """Streamable HTTP transport — for hosted/production deployment.
@@ -332,7 +362,6 @@ def serve() -> None:
     """
     import uvicorn
 
-    # Get the ASGI app from FastMCP and wrap it with per-request auth middleware.
     base_app = mcp.streamable_http_app()
     app = _ApiKeyMiddleware(app=base_app)
 
@@ -342,4 +371,4 @@ def serve() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    serve()

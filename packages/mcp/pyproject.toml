@@ -15,8 +15,10 @@ dependencies = [
 ]
 
 [project.scripts]
-docforge-mcp        = "docforge_mcp.server:main"   # stdio — local dev
-docforge-mcp-server = "docforge_mcp.server:serve"  # HTTP  — hosted production
+docforge-mcp-server = "docforge_mcp.server:serve"  # Streamable HTTP
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/docforge_mcp"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/docforge_mcp/resources" = "docforge_mcp/resources"

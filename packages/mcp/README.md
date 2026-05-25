@@ -12,20 +12,13 @@ MCP server for DocForge. Lets an AI agent (e.g. Claude Code) read and write to a
 
 ---
 
-## Two transports
+## Transport
 
-| Transport | Command | Use case |
-|---|---|---|
-| **stdio** | `docforge-mcp` | Local dev — Claude Code spawns it as a subprocess |
-| **Streamable HTTP** | `docforge-mcp-server` | Production — hosted server users connect to via URL |
+Streamable HTTP only. Deploy `docforge-mcp-server` once; users connect via URL and an `X-API-Key` header.
 
 ---
 
-## Option A — Hosted server (production, recommended)
-
-No local install for users. You deploy `docforge-mcp-server` once; users just configure a URL and their API key.
-
-### Deploy
+## Deploy
 
 ```bash
 cd packages/mcp
@@ -77,34 +70,6 @@ No env vars, no local install — just a URL and their key.
 
 ---
 
-## Option B — Local stdio (development / self-hosted)
-
-### Install
-
-```bash
-cd packages/mcp
-pip install -e .
-```
-
-### User config (Claude Code)
-
-```json
-{
-  "mcpServers": {
-    "docforge": {
-      "command": "docforge-mcp",
-      "env": {
-        "DOCFORGE_API_KEY": "their-key-here",
-        "DOCFORGE_API_BASE": "http://localhost:8000/api",
-        "DOCFORGE_FRONTEND_BASE": "http://localhost:5173"
-      }
-    }
-  }
-}
-```
-
----
-
 ## Generating an API key
 
 Open DocForge in your browser → top-bar → **API Keys** → Generate. Give it a descriptive name like `Claude Code — work laptop`. The key is shown once — copy it.
@@ -144,6 +109,14 @@ Create **one API key per agent tool / environment**. Names appear in the Activit
 
 ---
 
+## What the agent sees
+
+When connected, an agent can read `docforge://guide/system-prompt` for an orientation brief — mental model, the read-before-write loop, snapshot strategy, and a full tool inventory. It's the canonical agent-facing description of the server, kept in sync with the code. Read it yourself if you want to know exactly what your agent is told.
+
+There are also workflow recipes at `docforge://recipes/{slug}` — short procedural playbooks (`safe-rewrite`, `collaborative-edit`, `incremental-draft`) the agent can pull in when relevant.
+
+---
+
 ## Tools reference
 
-See [TOOLS.md](TOOLS.md) for full parameter documentation.
+See [TOOLS.md](TOOLS.md) for full parameter documentation of every tool and resource.

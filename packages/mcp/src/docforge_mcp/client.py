@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-# Set by HTTP middleware for each incoming request; falls back to env for stdio mode.
+# Set by HTTP middleware for each incoming request.
 _api_key_var: ContextVar[str] = ContextVar("docforge_api_key", default="")
 
 API_BASE = os.environ.get("DOCFORGE_API_BASE", "http://localhost:8000/api")
@@ -19,17 +19,10 @@ class DocForgeError(Exception):
     pass
 
 
-def _effective_api_key() -> str:
-    return _api_key_var.get() or os.environ.get("DOCFORGE_API_KEY", "")
-
-
 def _client() -> httpx.AsyncClient:
-    key = _effective_api_key()
+    key = _api_key_var.get()
     if not key:
-        raise DocForgeError(
-            "No API key found. Set DOCFORGE_API_KEY env var (stdio mode) "
-            "or send X-API-Key header (HTTP mode)."
-        )
+        raise DocForgeError("No API key found. Send an X-API-Key header with the request.")
     return httpx.AsyncClient(
         base_url=API_BASE,
         headers={"X-API-Key": key},

@@ -141,6 +141,64 @@ Version ver001... is now active for 'FastAPI Service Tech Spec'. The user's brow
 
 ---
 
+## `get_version_content`
+
+Reads the full content of a specific (possibly inactive) version. Use this to diff or preview before calling `select_active_version`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `version_id` | string | yes | Version UUID (from `list_versions`) |
+
+```
+Version: Initial draft
+ID: ver001...
+Created: 2025-05-20T14:32
+Summary: First pass, sections still rough
+Content (1842 chars):
+
+# Overview
+...
+```
+
+---
+
+## `rename_version`
+
+Updates the name and/or change summary of an existing version. At least one of `version_name` or `change_summary` must be provided.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `version_id` | string | yes | Version UUID |
+| `version_name` | string | no | New label (omit to keep current) |
+| `change_summary` | string | no | New description (omit to keep current; empty string clears it) |
+
+```
+Updated version for 'FastAPI Service Tech Spec'.
+Name: Initial draft (reviewed)
+Summary: First pass, sections still rough
+```
+
+---
+
+## `get_activity`
+
+Lists recent activity (writes, snapshots, version switches) for a document. Use this to see what other actors — humans or other agents — have done.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `limit` | integer | no | Maximum entries to return (default 20, max 50) |
+
+```
+- 2025-05-20T14:32 Max: edited (+412 chars)
+- 2025-05-20T14:30 Claude Code — work [agent]: snapshot "Initial draft"
+- 2025-05-20T14:28 Claude Code — work [agent]: edited (+1842 chars)
+```
+
+---
+
 ## `get_document_url`
 
 Returns the browser URL for a document.
@@ -159,11 +217,30 @@ http://localhost:5173/document/abc123...
 
 Resources are read-only URIs the agent can read without a tool call.
 
-| URI | Content | MIME type |
-|---|---|---|
-| `docforge://documents` | JSON list of all your documents | `application/json` |
-| `docforge://document/{id}` | Current body content as Markdown | `text/markdown` |
-| `docforge://document/{id}/versions` | JSON version history | `application/json` |
+### Data
+
+| URI | Content |
+|---|---|
+| `docforge://documents` | JSON list of all your documents |
+| `docforge://document/{id}` | Current body content as Markdown (front-matter header + body) |
+| `docforge://document/{id}/versions` | JSON version history for the body section |
+
+### Guide
+
+| URI | Content |
+|---|---|
+| `docforge://guide/system-prompt` | Agent orientation brief — mental model, core loop, when to snapshot, full tool inventory. Agents are expected to read this first. |
+
+### Recipes
+
+Composable mini-playbooks for common workflows.
+
+| URI | Content |
+|---|---|
+| `docforge://recipes` | JSON index of available recipe slugs |
+| `docforge://recipes/safe-rewrite` | Snapshot → write → verify pattern for replacing a section |
+| `docforge://recipes/collaborative-edit` | How to work alongside a human editing the same document |
+| `docforge://recipes/incremental-draft` | Snapshotting strategy for long drafts written section by section |
 
 ---
 
