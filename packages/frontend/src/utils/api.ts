@@ -10,6 +10,7 @@ import type {
   ApiKey,
   ApiKeyCreateResponse,
   DocumentActivity,
+  MyActivityEvent,
 } from "@/types";
 
 export const API_BASE =
@@ -27,6 +28,8 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     userPreferences: (raw.user_preferences as string) ?? null,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
+    hasApiKeyActivity: Boolean(raw.has_api_key_activity),
+    lastApiKeyName: (raw.last_api_key_name as string) ?? null,
   };
 }
 
@@ -329,6 +332,7 @@ function mapApiKey(raw: Record<string, unknown>): ApiKey {
   return {
     id: String(raw.id),
     name: raw.name as string,
+    harness: (raw.harness as string) ?? null,
     createdAt: raw.created_at as string,
     lastUsedAt: (raw.last_used_at as string) ?? null,
     revokedAt: (raw.revoked_at as string) ?? null,
@@ -342,6 +346,7 @@ function mapDocumentActivity(raw: Record<string, unknown>): DocumentActivity {
     description: (raw.description as string) ?? null,
     actorName: raw.actor_name as string,
     isAgent: raw.is_agent as boolean,
+    harness: (raw.harness as string) ?? null,
     bytesDelta: raw.bytes_delta != null ? Number(raw.bytes_delta) : null,
     versionId: (raw.version_id as string) ?? null,
     createdAt: raw.created_at as string,
@@ -351,17 +356,19 @@ function mapDocumentActivity(raw: Record<string, unknown>): DocumentActivity {
 export async function apiCreateApiKey(
   name: string,
   getToken: GetToken,
+  harness?: string | null,
 ): Promise<ApiKeyCreateResponse> {
   const res = await fetch(`${API_BASE}/users/api-keys`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, harness: harness ?? null }),
   });
   if (!res.ok) throw new Error("Failed to create API key");
   const data = await res.json() as Record<string, unknown>;
   return {
     id: String(data.id),
     name: data.name as string,
+    harness: (data.harness as string) ?? null,
     key: data.key as string,
     createdAt: data.created_at as string,
   };
@@ -384,6 +391,20 @@ export async function apiRevokeApiKey(keyId: string, getToken: GetToken): Promis
   if (!res.ok && res.status !== 204) throw new Error("Failed to revoke API key");
 }
 
+export async function apiUpdateApiKeyHarness(
+  keyId: string,
+  harness: string | null,
+  getToken: GetToken,
+): Promise<ApiKey> {
+  const res = await fetch(`${API_BASE}/users/api-keys/${keyId}`, {
+    method: "PATCH",
+    headers: { ...await authHeaders(getToken), "Content-Type": "application/json" },
+    body: JSON.stringify({ harness }),
+  });
+  if (!res.ok) throw new Error("Failed to update API key");
+  return mapApiKey(await res.json());
+}
+
 export async function apiFetchActivity(
   documentId: string,
   getToken: GetToken,
@@ -395,6 +416,30 @@ export async function apiFetchActivity(
   if (!res.ok) throw new Error("Failed to fetch activity");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapDocumentActivity);
+}
+
+export async function apiFetchMyActivity(
+  getToken: GetToken,
+  limit = 50,
+): Promise<MyActivityEvent[]> {
+  const res = await fetch(`${API_BASE}/users/me/activity?limit=${limit}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch activity feed");
+  const data = (await res.json()) as { events: Record<string, unknown>[] };
+  return data.events.map((raw) => ({
+    id: String(raw.id),
+    actionType: raw.action_type as string,
+    description: (raw.description as string) ?? null,
+    actorName: raw.actor_name as string,
+    isAgent: Boolean(raw.is_agent),
+    harness: (raw.harness as string) ?? null,
+    bytesDelta: raw.bytes_delta != null ? Number(raw.bytes_delta) : null,
+    versionId: (raw.version_id as string) ?? null,
+    docId: String(raw.doc_id),
+    docTitle: raw.doc_title as string,
+    createdAt: raw.created_at as string,
+  }));
 }
 
 export async function apiUpdateCompletedDocument(
