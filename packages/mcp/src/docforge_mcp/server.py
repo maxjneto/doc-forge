@@ -343,6 +343,13 @@ class _ApiKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         key = request.headers.get("x-api-key", "")
         token = _api_key_var.set(key)
+        # The MCP library's Streamable HTTP transport rejects non-localhost
+        # Host headers (DNS rebinding protection). Rewrite to localhost so
+        # requests via the custom domain pass the check.
+        request.scope["headers"] = [
+            (b"host", b"localhost") if name == b"host" else (name, value)
+            for name, value in request.scope["headers"]
+        ]
         try:
             return await call_next(request)
         finally:
