@@ -11,8 +11,10 @@ from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models.api_key import ApiKey
+from app.models.document import Document
+from app.models.document_activity import DocumentActivity
 from app.models.user import User
-from app.schemas.api_key import ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyListItem
+from app.schemas.api_key import ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyListItem, ApiKeyUpdateRequest
 
 router = APIRouter(tags=["users"])
 
@@ -41,6 +43,7 @@ async def create_api_key(
         user_id=current_user.id,
         key_hash=key_hash,
         name=payload.name,
+        harness=payload.harness,
     )
     db.add(api_key)
     await db.commit()
@@ -48,6 +51,7 @@ async def create_api_key(
     return ApiKeyCreateResponse(
         id=api_key.id,
         name=api_key.name,
+        harness=api_key.harness,
         key=raw_key,
         created_at=api_key.created_at,
     )
@@ -82,3 +86,61 @@ async def revoke_api_key(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Key already revoked")
     api_key.revoked_at = datetime.now(timezone.utc)
     await db.commit()
+
+
+@router.patch("/users/api-keys/{key_id}", response_model=ApiKeyListItem)
+async def update_api_key(
+    key_id: uuid.UUID,
+    payload: ApiKeyUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == current_user.id)
+    )
+    api_key = result.scalar_one_or_none()
+    if api_key is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if api_key.revoked_at is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Key already revoked")
+    api_key.harness = payload.harness
+    await db.commit()
+    await db.refresh(api_key)
+    return api_key
+
+
+@router.get("/users/me/activity")
+async def get_my_activity(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = 50,
+):
+    """Cross-document activity feed for the dashboard sidebar.
+
+    Returns the most recent DocumentActivity rows for documents owned by the
+    current user, joined with the originating ApiKey name (NULL = user).
+    """
+    rows = await db.execute(
+        select(DocumentActivity, ApiKey.name, ApiKey.harness, Document.id, Document.title)
+        .join(Document, DocumentActivity.document_id == Document.id)
+        .outerjoin(ApiKey, DocumentActivity.api_key_id == ApiKey.id)
+        .where(Document.user_id == current_user.id)
+        .order_by(DocumentActivity.created_at.desc())
+        .limit(limit)
+    )
+    events = []
+    for activity, key_name, key_harness, doc_id, doc_title in rows:
+        events.append({
+            "id": str(activity.id),
+            "action_type": activity.action_type,
+            "description": activity.description,
+            "actor_name": key_name if key_name else "You",
+            "is_agent": key_name is not None,
+            "harness": key_harness,
+            "bytes_delta": activity.bytes_delta,
+            "version_id": str(activity.version_id) if activity.version_id else None,
+            "doc_id": str(doc_id),
+            "doc_title": doc_title,
+            "created_at": activity.created_at.isoformat() if activity.created_at else None,
+        })
+    return {"events": events}

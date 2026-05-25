@@ -54,6 +54,8 @@ class DocumentResponse(BaseModel):
     document_mode: str = "guided"
     created_at: datetime
     updated_at: datetime
+    has_api_key_activity: bool = False
+    last_api_key_name: str | None = None
 
     model_config = {"from_attributes": True}
 
