@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AppFooter } from "@/components/shared";
+import { MarketingNav } from "@/components/marketing";
 
 const TIERS = [
   {
@@ -61,81 +62,7 @@ export function PricingPage() {
         }}
       />
 
-      {/* Nav */}
-      <nav
-        style={{
-          height: 56,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 32px",
-          borderBottom: "1px solid rgba(255,255,255,0.04)",
-          position: "relative",
-          zIndex: 10,
-          flexShrink: 0,
-        }}
-      >
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <div
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 4,
-              background: "linear-gradient(135deg, #ff4d00, #6e1d00)",
-              display: "grid",
-              placeItems: "center",
-              boxShadow: "0 0 14px rgba(255,77,0,0.45)",
-            }}
-          >
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                background: "#fff",
-                clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-              }}
-            />
-          </div>
-          <span
-            className="df-mono"
-            style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.08em", color: "#e3e2e2" }}
-          >
-            DOCFORGE
-          </span>
-        </Link>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 22 }}>
-          <Link
-            to="/how-it-works"
-            style={{
-              fontSize: 12,
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
-              textDecoration: "none",
-              letterSpacing: "0.04em",
-            }}
-          >
-            How it works
-          </Link>
-          <Link
-            to="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--df-amber-200, #ffb59e)",
-              textDecoration: "none",
-              letterSpacing: "0.04em",
-              padding: "6px 14px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,77,0,0.30)",
-              background: "rgba(255,77,0,0.06)",
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_back</span>
-            Back home
-          </Link>
-        </div>
-      </nav>
+      <MarketingNav active="pricing" />
 
       {/* Content */}
       <main
@@ -143,7 +70,10 @@ export function PricingPage() {
           flex: 1,
           position: "relative",
           zIndex: 10,
-          padding: "80px 56px 96px",
+          paddingTop: 80,
+          paddingBottom: 96,
+          paddingLeft: 56,
+          paddingRight: 56,
           maxWidth: 1020,
           margin: "0 auto",
           width: "100%",
