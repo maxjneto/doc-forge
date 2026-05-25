@@ -6,6 +6,7 @@ import { EditorNavPanel, parseHeadings, type Heading } from "./EditorNavPanel";
 import { EditorCenterPanel, type EditorMode } from "./EditorCenterPanel";
 import { EditorVersionPanel } from "./EditorVersionPanel";
 import { EditorActivityPanel } from "./EditorActivityPanel";
+import { EditorActivityRail } from "./EditorActivityRail";
 
 interface EditorLayoutProps {
   documentId: string;
@@ -136,6 +137,9 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
         activeSlug={activeSlug}
         onNavigate={handleNavigate}
         onExport={handleExport}
+        activitySlot={
+          <EditorActivityRail documentId={documentId} refreshTick={activityTick + sseTick} />
+        }
       />
 
       <EditorCenterPanel

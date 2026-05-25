@@ -123,6 +123,21 @@ body {
   scrollbar-width: none;
 }
 
+.df-scroll-thin::-webkit-scrollbar {
+  width: 3px;
+}
+.df-scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.df-scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--df-outline-md);
+  border-radius: 99px;
+}
+.df-scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--df-outline-md) transparent;
+}
+
 .linear-gradient-bg {
   background: linear-gradient(180deg, #0d0e0f 0%, #18110f 100%);
 }
@@ -315,3 +330,31 @@ body {
   50%  { transform: translateX(250%); }
   100% { transform: translateX(250%); }
 }
+
+/* ─── Marketing-page animations ──────────────────────────────── */
+@keyframes df-pour-fill {
+  0%   { width: 5%; }
+  100% { width: 96%; }
+}
+@keyframes df-typing {
+  from { width: 25%; }
+  to   { width: 88%; }
+}
+@keyframes df-scanline {
+  0%   { top: -10%; }
+  100% { top: 110%; }
+}
+@keyframes df-shimmer-card {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes df-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+
+.animate-df-pour-fill   { animation: df-pour-fill 6s linear infinite; }
+.animate-df-typing      { animation: df-typing 1.6s ease-in-out infinite alternate; }
+.animate-df-scanline    { animation: df-scanline 2s ease-in-out infinite; }
+.animate-df-shimmer-card{ animation: df-shimmer-card 2.5s linear infinite; }
+.animate-df-blink       { animation: df-blink 1s steps(2) infinite; }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { UserButton } from "@clerk/clerk-react";
 import { useKilnAudio } from "@/hooks/useKilnAudio";
 import { ApiKeyPanel } from "@/components/shared/ApiKeyPanel";
@@ -96,11 +96,14 @@ interface TopBarProps {
   credits?: number;
   docTitle?: string;
   onRenameTitle?: (title: string) => Promise<void>;
+  /** Show the dashboard-style nav row when no phase is active. */
+  dashboardNav?: boolean;
 }
 
-export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps) {
+export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }: TopBarProps) {
   const isCompleted = phase === "completed";
   const isRefinement = phase === "refinement";
+  const isEditing = phase === "editing";
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [showApiKeys, setShowApiKeys] = useState(false);
@@ -189,8 +192,38 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle }: TopBarProps)
         </span>
       </Link>
 
+      {/* Dashboard nav row */}
+      {dashboardNav && !phase && (
+        <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 4 }}>
+          {[
+            { to: "/home", label: "Dashboard" },
+            { to: "/how-it-works", label: "How it works" },
+            { to: "/mcp", label: "DocForge MCP" },
+            { to: "/billing", label: "Billing" },
+          ].map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              style={({ isActive }) => ({
+                padding: "6px 12px",
+                borderRadius: 6,
+                fontSize: 12.5,
+                color: isActive ? "#e3e2e2" : "var(--df-dim, rgba(227,226,226,0.62))",
+                background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
+                textDecoration: "none",
+                letterSpacing: "0.02em",
+                transition: "color 0.15s, background 0.15s",
+              })}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+
       {/* Phase stepper */}
-      {phase ? (
+      {phase && !isEditing ? (
         <div
           style={{
             display: "flex",
