@@ -430,7 +430,7 @@ interface PanelProps {
 // ─── Claude Code ─────────────────────────────────────────────
 
 function ClaudeCodePanel({ copy, copied }: PanelProps) {
-  const cmd1 = `claude mcp add docforge \\\n  --url https://mcp.doc-forge.dev/mcp \\\n  -- DOCFORGE_API_KEY=your_api_key_here`;
+  const cmd1 = `claude mcp add --transport http docforge https://mcp.doc-forge.dev/mcp -H "Authorization: Bearer your_api_key_here"`;
   const cmd2 = `claude mcp list`;
   const cmd3 = `claude "Create a technical spec for the auth module using DocForge"`;
   return (
