@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import type { Phase } from "@/types";
 import { useDocument } from "@/hooks/useDocument";
 import { usePhase } from "@/hooks/usePhase";
@@ -33,6 +34,11 @@ export function DocumentPage() {
 
   const currentPhase: Phase = document?.currentPhase ?? "discovery";
   const { config } = usePhase(currentPhase);
+
+  useEffect(() => {
+    if (!activeDocId) return;
+    posthog.capture("phase_entered", { to_phase: currentPhase, document_id: activeDocId });
+  }, [currentPhase, activeDocId]);
 
   const handleRenameTitle = useCallback(async (title: string) => {
     if (!activeDocId) return;

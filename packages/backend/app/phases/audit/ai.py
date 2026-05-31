@@ -88,7 +88,7 @@ def build_audit_context(
     return "\n\n".join(parts)
 
 
-async def run_audit(doc_id: str, document_type_id: str | None = None) -> dict:
+async def run_audit(doc_id: str, document_type_id: str | None = None, posthog_distinct_id: str | None = None) -> dict:
     """Run audit on all 4 finalized sections."""
     logger.info("[AI:audit] run_audit | doc_id={}", doc_id)
     from app.services import db as db_service
@@ -129,6 +129,11 @@ async def run_audit(doc_id: str, document_type_id: str | None = None) -> dict:
         response_format=AUDIT_SCHEMA,
         temperature=0.2,
         required_fields=["has_problems", "problems"],
+        posthog_distinct_id=posthog_distinct_id,
+        posthog_properties=(
+            {"$ai_trace_id": doc_id, "$ai_parent_id": f"audit-{doc_id}"}
+            if posthog_distinct_id else None
+        ),
     )
 
     log_usage("audit", response.usage)

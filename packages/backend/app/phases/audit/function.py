@@ -8,6 +8,7 @@ from app.inngest_client import inngest_client
 from app.phases._shared.concurrency import DOC_CONCURRENCY
 from app.phases._shared.failure import workflow_on_failure
 from app.services import db as db_service
+from app.services.observability import capture_span
 
 
 @inngest_client.create_function(
@@ -20,6 +21,7 @@ async def function(ctx: inngest.Context):
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
     document_type_id = ctx.event.data.get("document_type_id")
+    user_id = ctx.event.data.get("user_id", "")
 
     logger.info("[orchestrator] AUDIT start | doc_id={}", doc_id)
 
@@ -31,7 +33,7 @@ async def function(ctx: inngest.Context):
 
     async def _run_audit():
         from app.phases.audit.ai import run_audit
-        return await run_audit(doc_id, document_type_id=document_type_id)
+        return await run_audit(doc_id, document_type_id=document_type_id, posthog_distinct_id=user_id)
 
     result = await step.run("run-audit", _run_audit)
 
@@ -55,10 +57,23 @@ async def function(ctx: inngest.Context):
 
     await step.run("save-findings", _save_findings)
 
+    async def _capture_phase_span(r=result):
+        problems = r.get("problems", [])
+        output = f"Audit complete. {len(problems)} issue(s) found." if problems else "Audit complete. No issues found."
+        capture_span(
+            user_id, doc_id,
+            span_id=f"audit-{doc_id}",
+            span_name="audit",
+            input_state="Document sections reviewed",
+            output_state=output,
+        )
+
+    await step.run("capture-span-audit", _capture_phase_span)
+
     await step.send_event(
         "emit-audit-completed",
         inngest.Event(
             name="docforge/document.audit_completed",
-            data={"document_id": doc_id, "document_type_id": document_type_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id, "user_id": user_id},
         ),
     )

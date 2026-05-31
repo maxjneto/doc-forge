@@ -93,6 +93,8 @@ async def generate_section(
     document_contract: dict | None = None,
     db: AsyncSession | None = None,
     document_type_id: uuid.UUID | None = None,
+    posthog_distinct_id: str | None = None,
+    doc_id: str | None = None,
 ) -> str:
     """Generate full markdown content for a section."""
     logger.info("[AI:generation] generating section | type={}", section_type)
@@ -109,6 +111,11 @@ async def generate_section(
             {"role": "user", "content": user_content},
         ],
         temperature=0.5,
+        posthog_distinct_id=posthog_distinct_id,
+        posthog_properties=(
+            {"$ai_trace_id": doc_id, "$ai_parent_id": f"generation-{section_type}-{doc_id}"}
+            if doc_id else None
+        ),
     )
 
     log_usage("generation", response.usage, section_type=section_type)
@@ -121,7 +128,7 @@ async def generate_section(
     return content
 
 
-async def refine_cross_references(doc_id: str, document_type_id: str | None = None) -> None:
+async def refine_cross_references(doc_id: str, document_type_id: str | None = None, posthog_distinct_id: str | None = None) -> None:
     """Run a coherence pass on all sections to ensure cross-references are accurate."""
     from app.database import async_session
     from app.services import db as db_service
@@ -175,6 +182,11 @@ async def refine_cross_references(doc_id: str, document_type_id: str | None = No
                 section_type=section_type,
                 messages=messages,
                 temperature=0.2,
+                posthog_distinct_id=posthog_distinct_id,
+                posthog_properties=(
+                    {"$ai_trace_id": doc_id, "$ai_parent_id": f"generation-{section_type}-{doc_id}"}
+                    if posthog_distinct_id else None
+                ),
             )
 
             log_usage("generation:coherence", response.usage, section_type=section_type)

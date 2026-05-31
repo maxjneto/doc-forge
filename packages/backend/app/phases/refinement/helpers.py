@@ -78,7 +78,7 @@ async def _build_cross_section_context_from_db(db, doc_id: uuid.UUID, target_typ
     return _build_cross_section_context(sections, target_type)
 
 
-async def process_edit(section_id: str, prompt: str) -> None:
+async def process_edit(section_id: str, prompt: str, posthog_distinct_id: str | None = None) -> None:
     """Process an edit request via AI refinement."""
     from app.phases.refinement.ai import refine_section
 
@@ -95,6 +95,8 @@ async def process_edit(section_id: str, prompt: str) -> None:
             return
 
         doc = section.document
+        _phog_id = posthog_distinct_id or str(doc.user_id)
+        _doc_id = str(doc.id)
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
         contract_dict = await _get_contract_dict(db, doc.id)
@@ -102,7 +104,15 @@ async def process_edit(section_id: str, prompt: str) -> None:
         await db_service.add_chat_message(db, doc.id, section.id, "user", prompt)
 
         from app.guardrails import validate_message_intent
-        intent_err = await validate_message_intent(prompt, section.section_type, section.summary)
+        intent_err = await validate_message_intent(
+            prompt, section.section_type, section.summary,
+            posthog_distinct_id=_phog_id,
+            posthog_properties={
+                "$ai_trace_id": _doc_id,
+                "$ai_parent_id": f"refinement-{section.section_type}-{_doc_id}",
+                "$ai_span_name": "edit-guardrail",
+            },
+        )
         if intent_err:
             await db_service.add_chat_message(db, doc.id, section.id, "agent", intent_err.message)
             return
@@ -120,6 +130,8 @@ async def process_edit(section_id: str, prompt: str) -> None:
                 document_contract=contract_dict,
                 db=db,
                 document_type_id=doc.document_type_id,
+                posthog_distinct_id=_phog_id,
+                doc_id=_doc_id,
             )
         except BadRequestError as exc:
             body = exc.body if isinstance(exc.body, dict) else {}
@@ -155,7 +167,7 @@ async def process_edit(section_id: str, prompt: str) -> None:
             await db_service.add_chat_message(db, doc.id, section.id, "agent", ai_result["reply"])
 
 
-async def process_question(section_id: str, message: str) -> None:
+async def process_question(section_id: str, message: str, posthog_distinct_id: str | None = None) -> None:
     """Process a question about a section via AI."""
     from app.phases.refinement.ai import refine_section
 
@@ -172,6 +184,8 @@ async def process_question(section_id: str, message: str) -> None:
             return
 
         doc = section.document
+        _phog_id = posthog_distinct_id or str(doc.user_id)
+        _doc_id = str(doc.id)
         cross_context = _build_cross_section_context_from_db(db, doc.id, section.section_type)
         chat_history = await _get_chat_history(db, section.id)
         contract_dict = await _get_contract_dict(db, doc.id)
@@ -179,7 +193,15 @@ async def process_question(section_id: str, message: str) -> None:
         await db_service.add_chat_message(db, doc.id, section.id, "user", message)
 
         from app.guardrails import validate_message_intent
-        intent_err = await validate_message_intent(message, section.section_type, section.summary)
+        intent_err = await validate_message_intent(
+            message, section.section_type, section.summary,
+            posthog_distinct_id=_phog_id,
+            posthog_properties={
+                "$ai_trace_id": _doc_id,
+                "$ai_parent_id": f"refinement-{section.section_type}-{_doc_id}",
+                "$ai_span_name": "question-guardrail",
+            },
+        )
         if intent_err:
             await db_service.add_chat_message(db, doc.id, section.id, "agent", intent_err.message)
             return
@@ -197,6 +219,8 @@ async def process_question(section_id: str, message: str) -> None:
                 document_contract=contract_dict,
                 db=db,
                 document_type_id=doc.document_type_id,
+                posthog_distinct_id=_phog_id,
+                doc_id=_doc_id,
             )
         except BadRequestError as exc:
             body = exc.body if isinstance(exc.body, dict) else {}

@@ -127,7 +127,7 @@ export function MarkdownRenderer({
   const isEditor = variant === "editor";
 
   return (
-    <article className={cn("w-full", className)}>
+    <article className={cn("w-full markdown-preview", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

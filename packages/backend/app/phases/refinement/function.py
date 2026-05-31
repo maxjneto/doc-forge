@@ -9,6 +9,7 @@ from app.phases._shared.concurrency import DOC_CONCURRENCY, SECTION_CONCURRENCY
 from app.phases._shared.failure import workflow_on_failure
 from app.phases.refinement.helpers import process_edit, process_question
 from app.services import db as db_service
+from app.services.observability import capture_span
 
 
 @inngest_client.create_function(
@@ -21,6 +22,7 @@ async def start_function(ctx: inngest.Context):
     """Set up refinement phase. Actions are handled by action_function."""
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
+    user_id = ctx.event.data.get("user_id", "")
 
     logger.info("[orchestrator] REFINEMENT start | doc_id={}", doc_id)
 
@@ -30,6 +32,26 @@ async def start_function(ctx: inngest.Context):
             await db_service.start_refinement(db, doc_id)
 
     await step.run("set-phase-refinement", _set_refinement)
+
+    async def _capture_refinement_spans():
+        async with async_session() as db:
+            doc = await db_service.get_document_detail(db, doc_id)
+            capture_span(
+                user_id, doc_id,
+                span_id=f"refinement-{doc_id}",
+                span_name="refinement",
+                input_state="User refinement phase started",
+            )
+            for section in doc.sections:
+                capture_span(
+                    user_id, doc_id,
+                    span_id=f"refinement-{section.section_type}-{doc_id}",
+                    span_name=section.section_type,
+                    parent_id=f"refinement-{doc_id}",
+                    input_state="Awaiting user edits",
+                )
+
+    await step.run("capture-span-refinement", _capture_refinement_spans)
 
 
 @inngest_client.create_function(
@@ -50,6 +72,7 @@ async def action_function(ctx: inngest.Context):
     doc_id = ctx.event.data["document_id"]
     section_id = ctx.event.data["section_id"]
     action = ctx.event.data["action_type"]
+    user_id = ctx.event.data.get("user_id", "")
 
     logger.info(
         "[orchestrator] section action | doc_id={} section_id={} action={}",
@@ -60,12 +83,12 @@ async def action_function(ctx: inngest.Context):
 
     if action == "request_edit":
         async def _apply_edit():
-            await process_edit(section_id, ctx.event.data["prompt"])
+            await process_edit(section_id, ctx.event.data["prompt"], posthog_distinct_id=user_id)
         await step.run("apply-edit", _apply_edit)
 
     elif action == "ask_question":
         async def _answer_question():
-            await process_question(section_id, ctx.event.data["message"])
+            await process_question(section_id, ctx.event.data["message"], posthog_distinct_id=user_id)
         await step.run("answer-question", _answer_question)
 
     elif action == "finalize":
@@ -91,6 +114,6 @@ async def action_function(ctx: inngest.Context):
                 "emit-refinement-completed",
                 inngest.Event(
                     name="docforge/document.refinement_completed",
-                    data={"document_id": doc_id, "document_type_id": doc_type_id},
+                    data={"document_id": doc_id, "document_type_id": doc_type_id, "user_id": user_id},
                 ),
             )

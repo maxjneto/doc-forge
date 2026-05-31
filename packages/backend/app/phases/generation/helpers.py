@@ -45,8 +45,12 @@ async def _build_cross_section_context_from_db(db, doc_id: uuid.UUID, target_typ
     return _build_cross_section_context(sections, target_type)
 
 
-async def generate_section_root(doc_id: str, section_type: str) -> None:
-    """Generate the initial version of a section using AI."""
+async def generate_section_root(
+    doc_id: str,
+    section_type: str,
+    posthog_distinct_id: str | None = None,
+) -> str:
+    """Generate the initial version of a section using AI. Returns the generated content."""
     from app.phases.generation.ai import generate_section
 
     logger.info("[helpers] generate_section_root | doc_id={} type={}", doc_id, section_type)
@@ -54,7 +58,7 @@ async def generate_section_root(doc_id: str, section_type: str) -> None:
         doc = await db_service.get_document_detail(db, uuid.UUID(doc_id))
         section = next((s for s in doc.sections if s.section_type == section_type), None)
         if not section:
-            return
+            return ""
 
         cross_section_context = _build_cross_section_context(doc.sections, section_type)
 
@@ -77,6 +81,8 @@ async def generate_section_root(doc_id: str, section_type: str) -> None:
             document_contract=contract_dict,
             db=db,
             document_type_id=doc.document_type_id,
+            posthog_distinct_id=posthog_distinct_id,
+            doc_id=doc_id,
         )
         content = clean_section_output(content, section_type)
 
@@ -92,3 +98,4 @@ async def generate_section_root(doc_id: str, section_type: str) -> None:
             section_type,
             len(content or ""),
         )
+        return content or ""

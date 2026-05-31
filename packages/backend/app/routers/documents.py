@@ -19,6 +19,7 @@ from app.guardrails import (
     validate_document_context,
     validate_refinement_message,
 )
+from app.services.observability import capture_trace
 from app.inngest_client import inngest_client
 from app.models import (
     AuditFinding,
@@ -256,6 +257,7 @@ async def create_document(
     await db.commit()
 
     # Dispatch Inngest event
+    capture_trace(str(current_user.id), str(doc.id), span_name=doc.title, input_state=payload.document_context)
     try:
         await inngest_client.send(
             inngest.Event(
@@ -265,6 +267,7 @@ async def create_document(
                     "document_context": payload.document_context,
                     "user_preferences": payload.user_preferences or "",
                     "document_type_id": str(doc_type.id),
+                    "user_id": str(current_user.id),
                 },
             )
         )
@@ -474,7 +477,7 @@ async def dispatch_event(
                     detail="Message limit reached for this section (10/10).",
                 )
 
-    event_data = {**payload.data, "document_id": str(document_id)}
+    event_data = {**payload.data, "document_id": str(document_id), "user_id": str(current_user.id)}
 
     try:
         await inngest_client.send(
