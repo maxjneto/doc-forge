@@ -19,7 +19,7 @@ from app.guardrails import (
     validate_document_context,
     validate_refinement_message,
 )
-from app.services.observability import capture_trace
+from app.services.observability import capture_event, capture_trace
 from app.inngest_client import inngest_client
 from app.models import (
     AuditFinding,
@@ -333,6 +333,8 @@ async def _create_editor_document(
     ))
 
     api_key_id = getattr(request.state, "api_key_id", None)
+    if api_key_id:
+        capture_event(str(current_user.id), str(doc.id), "mcp_document_created", {"has_context": bool(payload.user_preferences)})
     await db_service.log_activity(
         db, doc.id, "document_created",
         description="Document created via Editor",

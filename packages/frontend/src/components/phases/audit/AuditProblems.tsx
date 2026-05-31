@@ -28,7 +28,7 @@ export function AuditProblems({ problems, onFix }: AuditProblemsProps) {
                   <span className="text-xs text-error/80 font-medium uppercase tracking-wider">
                     {problem.section}
                   </span>
-                  <p className="text-sm text-on-surface/80 mt-1">
+                  <p data-ph-mask className="text-sm text-on-surface/80 mt-1">
                     {problem.issue}
                   </p>
                   {problem.severity && (

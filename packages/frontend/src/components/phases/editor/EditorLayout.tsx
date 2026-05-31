@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import type { Section } from "@/types";
 import { apiUpdateSectionContent } from "@/utils/api";
 import { EditorNavPanel, parseHeadings, type Heading } from "./EditorNavPanel";
@@ -59,6 +60,7 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
       try {
         await apiUpdateSectionContent(bodySection.id, value, getToken);
         savedContentRef.current = value;
+        posthog.capture("refinement_local_changes_saved", { document_id: documentId, section_id: bodySection.id, content_length: value.length });
       } catch {
         // silent — next keystroke will retry
       }
@@ -104,6 +106,7 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
     a.download = "document.md";
     a.click();
     URL.revokeObjectURL(url);
+    posthog.capture("document_exported", { document_id: documentId, export_format: "markdown" });
   }
 
   function handleVersionSwitch(switchedContent: string) {

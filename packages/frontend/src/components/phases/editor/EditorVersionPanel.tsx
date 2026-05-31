@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import DiffMatchPatch from "diff-match-patch";
 import type { SectionVersion } from "@/types";
 import {
@@ -404,6 +405,7 @@ export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onV
     setSnapshotting(true);
     try {
       await apiCreateVersionSnapshot(sectionId, getToken);
+      posthog.capture("editor_version_created", { section_id: sectionId });
       // Re-fetch so old versions have their latest auto-saved content in state
       await refetchVersions();
       setSelectedId(null);
@@ -419,6 +421,7 @@ export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onV
       // Flush pending auto-save so the current edit is committed before we switch
       await onFlushSave();
       await apiRestoreVersion(sectionId, version.id, getToken);
+      posthog.capture("editor_version_restored", { section_id: sectionId, version_id: version.id });
       // Re-fetch all versions to get fresh content — auto-save may have written
       // to the old active version since the component first mounted, making the
       // local version.content stale.

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import posthog from "posthog-js";
 import type {
   GuidedSectionType,
   SectionType,
@@ -306,8 +307,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     if (actionType === "ask_question") {
       eventData.message = content;
+      posthog.capture("refinement_question_asked", { document_id: state.documentId, section_id: section.id, section_type: section.sectionType });
     } else if (actionType === "request_edit") {
       eventData.prompt = content;
+      posthog.capture("refinement_edit_requested", { document_id: state.documentId, section_id: section.id, section_type: section.sectionType });
     }
 
     try {
@@ -334,6 +337,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   finalizeSection: async (sectionId) => {
     const state = get();
     if (!state.documentId || !state.getToken) return;
+
+    posthog.capture("refinement_section_finalized", { document_id: state.documentId, section_id: sectionId });
 
     await apiSendEvent(state.documentId, "section_action", {
       action_type: "finalize",

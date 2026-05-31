@@ -22,6 +22,18 @@ def capture_trace(
     posthog_client.capture(distinct_id=distinct_id, event="$ai_trace", properties=properties)
 
 
+def capture_event(
+    distinct_id: str,
+    doc_id: str,
+    event_name: str,
+    properties: dict | None = None,
+) -> None:
+    if posthog_client is None:
+        return
+    full_props: dict = {"$ai_trace_id": doc_id, **(properties or {})}
+    posthog_client.capture(distinct_id=distinct_id, event=event_name, properties=full_props)
+
+
 def capture_span(
     distinct_id: str,
     doc_id: str,

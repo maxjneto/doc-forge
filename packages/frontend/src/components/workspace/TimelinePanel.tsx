@@ -1,4 +1,5 @@
 import { useState } from "react";
+import posthog from "posthog-js";
 import { useWorkspaceStore, SECTION_LABELS } from "@/store";
 import type { SectionType, SectionVersion } from "@/types";
 import { apiUpdateSectionVersion } from "@/utils/api";
@@ -294,6 +295,7 @@ export function TimelinePanel() {
   const createVersionSnapshot = useWorkspaceStore((s) => s.createVersionSnapshot);
   const getActiveSection = useWorkspaceStore((s) => s.getActiveSection);
   const viewMode = useWorkspaceStore((s) => s.getActiveViewMode());
+  const documentId = useWorkspaceStore((s) => s.documentId);
 
   const isAwaitingAgent = useWorkspaceStore((s) => s.getActiveSectionIsAwaitingAgent());
   const isSendingMessage = useWorkspaceStore((s) => s.getActiveSectionIsSendingMessage());
@@ -313,6 +315,7 @@ export function TimelinePanel() {
 
   const handleNewVersion = () => {
     if (!currentSection || viewMode !== "editing" || isAIPending) return;
+    posthog.capture("refinement_version_branched", { document_id: documentId, section_id: currentSection.id });
     void createVersionSnapshot(currentSection.id);
   };
 

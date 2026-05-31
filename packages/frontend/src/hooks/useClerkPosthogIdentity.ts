@@ -6,6 +6,7 @@ export function useClerkPosthogIdentity(consentGiven?: boolean) {
   const { user, isSignedIn } = useUser();
 
   useEffect(() => {
+    if (!consentGiven) return;
     if (isSignedIn && user) {
       posthog.identify(user.id, {
         email: user.primaryEmailAddress?.emailAddress,

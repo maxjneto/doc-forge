@@ -9,7 +9,7 @@ from app.inngest_client import inngest_client
 from app.phases._shared.concurrency import DOC_CONCURRENCY
 from app.phases._shared.failure import workflow_on_failure
 from app.services import db as db_service
-from app.services.observability import capture_span
+from app.services.observability import capture_event, capture_span
 
 
 @inngest_client.create_function(
@@ -119,11 +119,18 @@ async def function(ctx: inngest.Context):
 
             await step.run("extract-contract", _extract_contract)
         else:
+            rejected = approval_event.data.get("rejected", [])
             logger.info(
                 "[orchestrator] alignment rejected sections={} | doc_id={}",
-                approval_event.data.get("rejected", []),
+                rejected,
                 doc_id,
             )
+
+            async def _capture_rejected(r=rejected, it=iteration):
+                for section_type in r:
+                    capture_event(user_id, doc_id, "alignment_section_reopened", {"section_type": section_type, "iteration": it})
+
+            await step.run(f"capture-alignment-rejected-{iteration}", _capture_rejected)
 
     async def _capture_phase_span():
         capture_span(

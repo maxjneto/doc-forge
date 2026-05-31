@@ -139,6 +139,7 @@ export function SummaryCard({
         </div>
       ) : (
         <p
+          data-ph-mask
           style={{
             fontSize: 13,
             color: isApproved

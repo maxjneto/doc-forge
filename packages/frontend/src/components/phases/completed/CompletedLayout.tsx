@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import type { Section, GuidedSectionType as SectionType, AuditFinding } from "@/types";
 import { apiFetchAuditFindings, apiDismissAuditFinding } from "@/utils/api";
 import { MarkdownRenderer } from "@/components/shared";
@@ -281,6 +282,7 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
 
       {isEditing ? (
         <textarea
+          data-ph-mask
           value={content}
           onChange={(e) => onEdit(e.target.value)}
           style={{
@@ -395,6 +397,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
     a.download = `document-${documentId}.md`;
     a.click();
     URL.revokeObjectURL(url);
+    posthog.capture("document_exported", { document_id: documentId, export_format: "markdown" });
   };
 
   return (
@@ -575,7 +578,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                       >
                         {finding.severity === "high" ? "BLOCKER" : "WARN"}
                       </span>
-                      <span style={{ fontSize: 12.5, color: "var(--df-on-surface-soft, #c6c5c4)", lineHeight: 1.55, flex: 1 }}>
+                      <span data-ph-mask style={{ fontSize: 12.5, color: "var(--df-on-surface-soft, #c6c5c4)", lineHeight: 1.55, flex: 1 }}>
                         {finding.description}
                       </span>
                       <button
