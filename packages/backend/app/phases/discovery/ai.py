@@ -59,6 +59,8 @@ async def analyze_discovery(
     section_role: str,
     db: AsyncSession,
     document_type_id: uuid.UUID | None,
+    posthog_distinct_id: str | None = None,
+    doc_id: str | None = None,
 ) -> dict:
     """Analyze if context is sufficient for a specific section, or generate follow-up questions."""
     logger.info(
@@ -80,6 +82,11 @@ async def analyze_discovery(
         response_format=DISCOVERY_SCHEMA,
         temperature=0.3,
         required_fields=["is_sufficient", "follow_up_questions"],
+        posthog_distinct_id=posthog_distinct_id,
+        posthog_properties=(
+            {"$ai_trace_id": doc_id, "$ai_parent_id": f"discovery-{section_key}-{doc_id}"}
+            if doc_id else None
+        ),
     )
 
     log_usage("discovery", response.usage)

@@ -9,6 +9,7 @@ from app.inngest_client import inngest_client
 from app.phases._shared.concurrency import DOC_CONCURRENCY
 from app.phases._shared.failure import workflow_on_failure
 from app.services import db as db_service
+from app.services.observability import capture_event, capture_span
 
 
 @inngest_client.create_function(
@@ -21,6 +22,7 @@ async def function(ctx: inngest.Context):
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
     document_type_id = ctx.event.data.get("document_type_id")
+    user_id = ctx.event.data.get("user_id", "")
 
     logger.info("[orchestrator] ALIGNMENT start | doc_id={}", doc_id)
 
@@ -66,6 +68,8 @@ async def function(ctx: inngest.Context):
                     None,
                     db=db,
                     document_type_id=uuid.UUID(document_type_id) if document_type_id else None,
+                    posthog_distinct_id=user_id,
+                    doc_id=doc_id,
                 )
 
         summaries = await step.run(f"generate-summaries-{iteration}", _generate_summaries)
@@ -105,6 +109,8 @@ async def function(ctx: inngest.Context):
                         user_preferences=doc.user_preferences,
                         db=db,
                         document_type_id=uuid.UUID(document_type_id) if document_type_id else None,
+                        posthog_distinct_id=user_id,
+                        doc_id=doc_id,
                     )
                 import json as _json
                 raw = _json.dumps(contract)
@@ -113,17 +119,35 @@ async def function(ctx: inngest.Context):
 
             await step.run("extract-contract", _extract_contract)
         else:
+            rejected = approval_event.data.get("rejected", [])
             logger.info(
                 "[orchestrator] alignment rejected sections={} | doc_id={}",
-                approval_event.data.get("rejected", []),
+                rejected,
                 doc_id,
             )
+
+            async def _capture_rejected(r=rejected, it=iteration):
+                for section_type in r:
+                    capture_event(user_id, doc_id, "alignment_section_reopened", {"section_type": section_type, "iteration": it})
+
+            await step.run(f"capture-alignment-rejected-{iteration}", _capture_rejected)
+
+    async def _capture_phase_span():
+        capture_span(
+            user_id, doc_id,
+            span_id=f"alignment-{doc_id}",
+            span_name="alignment",
+            input_state="Section contexts reviewed",
+            output_state="Alignment approved",
+        )
+
+    await step.run("capture-span-alignment", _capture_phase_span)
 
     logger.info("[orchestrator] emitting alignment.completed | doc_id={}", doc_id)
     await step.send_event(
         "emit-alignment-completed",
         inngest.Event(
             name="docforge/alignment.completed",
-            data={"document_id": doc_id, "document_type_id": document_type_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id, "user_id": user_id},
         ),
     )

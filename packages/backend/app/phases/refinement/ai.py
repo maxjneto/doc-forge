@@ -154,6 +154,8 @@ async def refine_section(
     document_contract: dict | None = None,
     db: AsyncSession | None = None,
     document_type_id: uuid.UUID | None = None,
+    posthog_distinct_id: str | None = None,
+    doc_id: str | None = None,
 ) -> dict:
     """Process a refinement interaction using function calling."""
     logger.info(
@@ -184,6 +186,11 @@ async def refine_section(
         tools=REFINEMENT_TOOLS,
         tool_choice=tool_choice,
         temperature=0.4,
+        posthog_distinct_id=posthog_distinct_id,
+        posthog_properties=(
+            {"$ai_trace_id": doc_id, "$ai_parent_id": f"refinement-{section_type}-{doc_id}"}
+            if doc_id else None
+        ),
     )
 
     log_usage("refinement", response.usage, section_type=section_type)

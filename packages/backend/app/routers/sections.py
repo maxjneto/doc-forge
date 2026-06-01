@@ -18,6 +18,7 @@ from app.schemas.section import (
     VersionRestoreResponse,
 )
 from app.services.db import create_version_snapshot, restore_version, update_section_content
+from app.services.observability import capture_event
 
 router = APIRouter(tags=["sections"])
 
@@ -95,6 +96,12 @@ async def create_section_snapshot(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
+    if api_key_id:
+        capture_event(str(current_user.id), str(section.document_id), "mcp_snapshot_saved", {
+            "has_name": bool(payload.version_name if payload else None),
+            "has_summary": bool(payload.change_summary if payload else None),
+        })
+
     return SectionVersionResponse.model_validate(version)
 
 
@@ -152,6 +159,13 @@ async def update_section_content_endpoint(
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+    if api_key_id:
+        capture_event(str(current_user.id), str(section.document_id), "mcp_section_written", {
+            "content_length": len(payload.content),
+            "has_note": bool(note),
+        })
+
     return SectionVersionResponse.model_validate(version)
 
 
@@ -182,4 +196,8 @@ async def restore_section_version(
         raise HTTPException(status_code=404, detail="Version not found for this section")
 
     restored = await restore_version(db, section_id, version_id, doc_id=section.document_id, api_key_id=api_key_id)
+
+    if api_key_id:
+        capture_event(str(current_user.id), str(section.document_id), "mcp_version_activated", {})
+
     return VersionRestoreResponse(success=True, active_version_id=restored.id)

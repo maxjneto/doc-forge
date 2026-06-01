@@ -349,8 +349,7 @@ async def docforge_orientation() -> str:
 class _ApiKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         auth = request.headers.get("authorization", "")
-        if auth.lower().startswith("bearer "):
-            key = auth[7:]
+        key = auth[7:] if auth.lower().startswith("bearer ") else ""
         token = _api_key_var.set(key)
         try:
             return await call_next(request)

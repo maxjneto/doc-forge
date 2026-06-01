@@ -77,6 +77,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             Describe the problem your document solves. The more detail, the better.
           </p>
           <textarea
+            data-ph-mask
             value={context}
             onChange={(e) => setContext(e.target.value)}
             onFocus={() => setActiveField("context")}
@@ -142,6 +143,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             Tone, format, target audience, and any specific instructions.
           </p>
           <textarea
+            data-ph-mask
             value={preferences}
             onChange={(e) => setPreferences(e.target.value)}
             onFocus={() => setActiveField("preferences")}

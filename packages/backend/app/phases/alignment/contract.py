@@ -54,6 +54,8 @@ async def extract_document_contract(
     user_preferences: str | None = None,
     db: AsyncSession | None = None,
     document_type_id: uuid.UUID | None = None,
+    posthog_distinct_id: str | None = None,
+    doc_id: str | None = None,
 ) -> dict:
     """Extract a structured document contract from the approved alignment summaries."""
     logger.info("[AI:contract] extracting document contract")
@@ -83,6 +85,11 @@ async def extract_document_contract(
         response_format=CONTRACT_SCHEMA,
         temperature=0.1,
         required_fields=["entities", "decisions", "terminology", "constraints"],
+        posthog_distinct_id=posthog_distinct_id,
+        posthog_properties=(
+            {"$ai_trace_id": doc_id, "$ai_parent_id": f"alignment-{doc_id}"}
+            if doc_id else None
+        ),
     )
 
     log_usage("contract", response.usage)

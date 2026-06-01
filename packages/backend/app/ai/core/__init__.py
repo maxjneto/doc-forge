@@ -1,4 +1,4 @@
-from app.ai.core.client import DEFAULT_MODEL, GUARDRAIL_MODEL, client
+from app.ai.core.client import DEFAULT_MODEL, GUARDRAIL_MODEL, client, posthog_client
 from app.ai.core.output_cleaner import (
     clean_section_output,
     promote_h1_headings,
@@ -18,6 +18,7 @@ from app.ai.core.truncation import (
 
 __all__ = [
     "client",
+    "posthog_client",
     "DEFAULT_MODEL",
     "GUARDRAIL_MODEL",
     "truncate_section",

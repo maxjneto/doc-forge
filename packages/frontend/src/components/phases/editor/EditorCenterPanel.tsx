@@ -112,7 +112,7 @@ export function EditorCenterPanel({
       <div
         ref={scrollRef}
         style={{ flex: 1, overflowY: "auto" }}
-        className="hide-scrollbar"
+        className="hide-scrollbar editor-content"
       >
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 56px 80px" }}>
           {mode === "preview" ? (

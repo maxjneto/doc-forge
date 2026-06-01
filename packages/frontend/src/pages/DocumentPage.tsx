@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import type { Phase } from "@/types";
 import { useDocument } from "@/hooks/useDocument";
 import { usePhase } from "@/hooks/usePhase";
@@ -33,6 +34,35 @@ export function DocumentPage() {
 
   const currentPhase: Phase = document?.currentPhase ?? "discovery";
   const { config } = usePhase(currentPhase);
+
+  // Fire document_opened once when a document is loaded
+  useEffect(() => {
+    if (!activeDocId || !document) return;
+    posthog.capture("document_opened", {
+      document_id: activeDocId,
+      phase: document.currentPhase,
+      document_type: document.documentMode,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDocId]);
+
+  // Track phase transitions for phase_completed and phase_entered
+  const prevPhaseRef = useRef<Phase | null>(null);
+  useEffect(() => {
+    if (!activeDocId) return;
+    if (prevPhaseRef.current && prevPhaseRef.current !== currentPhase) {
+      posthog.capture("phase_completed", {
+        document_id: activeDocId,
+        from_phase: prevPhaseRef.current,
+        to_phase: currentPhase,
+      });
+      if (prevPhaseRef.current === "audit" && currentPhase === "completed") {
+        posthog.capture("first_document_completed", { document_id: activeDocId });
+      }
+    }
+    posthog.capture("phase_entered", { to_phase: currentPhase, document_id: activeDocId });
+    prevPhaseRef.current = currentPhase;
+  }, [currentPhase, activeDocId]);
 
   const handleRenameTitle = useCallback(async (title: string) => {
     if (!activeDocId) return;

@@ -6,6 +6,7 @@ from app.inngest_client import inngest_client
 from app.phases._shared.concurrency import DOC_CONCURRENCY
 from app.phases._shared.failure import workflow_on_failure
 from app.services import db as db_service
+from app.services.observability import capture_trace
 
 
 @inngest_client.create_function(
@@ -17,6 +18,7 @@ from app.services import db as db_service
 async def function(ctx: inngest.Context):
     step = ctx.step
     doc_id = ctx.event.data["document_id"]
+    user_id = ctx.event.data.get("user_id", "")
 
     logger.info("[orchestrator] COMPLETED | doc_id={}", doc_id)
 
@@ -25,3 +27,8 @@ async def function(ctx: inngest.Context):
             await db_service.set_phase(db, doc_id, "completed")
 
     await step.run("set-phase-completed", _set_completed)
+
+    async def _close_trace():
+        capture_trace(user_id, doc_id, output_state="Document complete")
+
+    await step.run("capture-trace-complete", _close_trace)

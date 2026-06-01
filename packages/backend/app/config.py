@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     GUIDED_DOCUMENT_COST: int = 3
     EDITOR_DOCUMENT_COST: int = 1
 
+    # PostHog analytics — all disabled by default; set POSTHOG_ENABLED=true to activate
+    POSTHOG_API_KEY: str = ""
+    POSTHOG_HOST: str = "https://us.i.posthog.com"
+    POSTHOG_ENABLED: bool = False
+    POSTHOG_REDACT_PROMPTS: bool = True
+
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 
 

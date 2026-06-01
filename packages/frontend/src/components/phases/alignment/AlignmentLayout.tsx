@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import type { Section, GuidedSectionType as SectionType } from "@/types";
 import { apiSendEvent } from "@/utils/api";
 import { ForgeLoader } from "@/components/shared";
@@ -102,6 +103,7 @@ export function AlignmentLayout({ documentId, sections }: AlignmentLayoutProps) 
 
   const handleReopen = (type: SectionType) => {
     setCards((prev) => ({ ...prev, [type]: { ...prev[type], status: "pending" } }));
+    posthog.capture("alignment_section_reopened", { document_id: documentId, section_type: type });
   };
 
   return (

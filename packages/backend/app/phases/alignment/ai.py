@@ -60,6 +60,8 @@ async def generate_alignment(
     rejected_sections: list[dict] | None = None,
     db: AsyncSession | None = None,
     document_type_id: uuid.UUID | None = None,
+    posthog_distinct_id: str | None = None,
+    doc_id: str | None = None,
 ) -> dict:
     """Generate 1-2 sentence summaries for each section using per-section discovery contexts."""
     logger.info(
@@ -85,6 +87,11 @@ async def generate_alignment(
         response_format=ALIGNMENT_SCHEMA,
         temperature=0.3,
         required_fields=["summaries"],
+        posthog_distinct_id=posthog_distinct_id,
+        posthog_properties=(
+            {"$ai_trace_id": doc_id, "$ai_parent_id": f"alignment-{doc_id}"}
+            if doc_id else None
+        ),
     )
 
     log_usage("alignment", response.usage)

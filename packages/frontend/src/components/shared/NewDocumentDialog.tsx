@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import { apiListDocumentTypes, apiCreateDocument } from "@/utils/api";
 import type { DocumentType } from "@/types";
 
@@ -49,6 +50,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
 
   function handleSelectGuided(doc: DocumentType) {
     if (!canAffordGuided) return;
+    posthog.capture("document_created", { mode: "guided", document_type_slug: doc.slug });
     onClose();
     navigate("/document/new", { state: { documentTypeSlug: doc.slug, documentTitle: documentTitle.trim() || null } });
   }
@@ -66,6 +68,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         undefined,
         "editor",
       );
+      posthog.capture("document_created", { mode: "editor" });
       onClose();
       navigate(`/document/${doc.id}`);
     } catch (err) {

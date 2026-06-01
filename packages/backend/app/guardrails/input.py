@@ -103,7 +103,13 @@ _INTENT_SCHEMA = {
 }
 
 
-async def validate_message_intent(message: str, section_type: str, section_summary: str | None = None) -> ValidationError | None:
+async def validate_message_intent(
+    message: str,
+    section_type: str,
+    section_summary: str | None = None,
+    posthog_distinct_id: str | None = None,
+    posthog_properties: dict | None = None,
+) -> ValidationError | None:
     """LLM-based intent classifier: rejects messages unrelated to document editing.
 
     Failures are swallowed — a guardrail error must never block the user.
@@ -115,18 +121,23 @@ async def validate_message_intent(message: str, section_type: str, section_summa
     system_prompt = load_yaml_prompt("guardrails", "intent_classification", "system")
 
     try:
-        response = await client.chat.completions.create(
-            model=GUARDRAIL_MODEL,
-            messages=[
+        create_kwargs: dict = {
+            "model": GUARDRAIL_MODEL,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": f"Section: {section_type}\nSummary: {section_summary}\nMessage: {message}",
                 },
             ],
-            response_format=_INTENT_SCHEMA,
-            temperature=0.0,
-        )
+            "response_format": _INTENT_SCHEMA,
+            "temperature": 1.0,
+        }
+        if posthog_distinct_id is not None:
+            create_kwargs["posthog_distinct_id"] = posthog_distinct_id
+        if posthog_properties is not None:
+            create_kwargs["posthog_properties"] = posthog_properties
+        response = await client.chat.completions.create(**create_kwargs)
         result = json.loads(response.choices[0].message.content)
         if not result.get("is_valid", True):
             logger.warning(

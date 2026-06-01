@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import posthog from "posthog-js";
 import type { DiscoveryQuestion } from "@/types";
 import { apiAnswerQuestion } from "@/utils/api";
 
@@ -30,6 +31,12 @@ export function FollowUpQuestions({
   const handleAnswer = async (questionId: string, answer: string | null) => {
     const question = questions.find((q) => q.id === questionId);
     if (!question || exitingId) return;
+
+    if (answer === null) {
+      posthog.capture("discovery_question_skipped", { document_id: documentId, section_key: question.sectionKey });
+    } else {
+      posthog.capture("discovery_question_answered", { document_id: documentId, section_key: question.sectionKey, answer_length: answer.length });
+    }
 
     setExitingId(questionId);
     const apiPromise = apiAnswerQuestion(documentId, question.question, answer, getToken);

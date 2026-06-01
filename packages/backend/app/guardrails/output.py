@@ -17,6 +17,8 @@ async def call_with_retry(
     temperature: float = 0.3,
     required_fields: list[str] | None = None,
     section_type: str | None = None,
+    posthog_distinct_id: str | None = None,
+    posthog_properties: dict | None = None,
 ) -> Any:
     """
     Call the AI model and validate the structured response.
@@ -37,6 +39,10 @@ async def call_with_retry(
         kwargs["tools"] = tools
     if tool_choice is not None:
         kwargs["tool_choice"] = tool_choice
+    if posthog_distinct_id is not None:
+        kwargs["posthog_distinct_id"] = posthog_distinct_id
+    if posthog_properties is not None:
+        kwargs["posthog_properties"] = posthog_properties
 
     response = await client.chat.completions.create(**kwargs)
     error = _validate_response(response, required_fields)

@@ -12,6 +12,7 @@ from app.models.document_type import SectionDefinition
 from app.phases._shared.concurrency import DOC_CONCURRENCY
 from app.phases._shared.failure import workflow_on_failure
 from app.services import db as db_service
+from app.services.observability import capture_span
 
 
 @inngest_client.create_function(
@@ -26,6 +27,7 @@ async def function(ctx: inngest.Context):
     document_context = ctx.event.data["document_context"]
     user_preferences = ctx.event.data["user_preferences"]
     document_type_id = ctx.event.data.get("document_type_id")
+    user_id = ctx.event.data.get("user_id", "")
 
     logger.info("[orchestrator] DISCOVERY start | doc_id={}", doc_id)
 
@@ -104,6 +106,8 @@ async def function(ctx: inngest.Context):
                         section_role=sr,
                         db=db,
                         document_type_id=uuid.UUID(document_type_id) if document_type_id else None,
+                        posthog_distinct_id=user_id,
+                        doc_id=doc_id,
                     )
             return _analyze
 
@@ -182,11 +186,34 @@ async def function(ctx: inngest.Context):
 
         await step.run(f"save-context-{section_key}", _save_context)
 
+        async def _capture_section_span(sk=section_key, ctx_text=context_to_save):
+            capture_span(
+                user_id, doc_id,
+                span_id=f"discovery-{sk}-{doc_id}",
+                span_name=sk,
+                parent_id=f"discovery-{doc_id}",
+                input_state=document_context,
+                output_state=ctx_text[:1000] if ctx_text else "",
+            )
+
+        await step.run(f"capture-span-discovery-{section_key}", _capture_section_span)
+
+    async def _capture_phase_span():
+        capture_span(
+            user_id, doc_id,
+            span_id=f"discovery-{doc_id}",
+            span_name="discovery",
+            input_state=document_context,
+            output_state="Discovery complete",
+        )
+
+    await step.run("capture-span-discovery", _capture_phase_span)
+
     logger.info("[orchestrator] emitting discovery.completed | doc_id={}", doc_id)
     await step.send_event(
         "emit-discovery-completed",
         inngest.Event(
             name="docforge/discovery.completed",
-            data={"document_id": doc_id, "document_type_id": document_type_id},
+            data={"document_id": doc_id, "document_type_id": document_type_id, "user_id": user_id},
         ),
     )
