@@ -293,19 +293,27 @@ export function TimelinePanel() {
   const restoreVersion = useWorkspaceStore((s) => s.restoreVersion);
   const finalizeSection = useWorkspaceStore((s) => s.finalizeSection);
   const createVersionSnapshot = useWorkspaceStore((s) => s.createVersionSnapshot);
+  const saveActiveContent = useWorkspaceStore((s) => s.saveActiveContent);
   const getActiveSection = useWorkspaceStore((s) => s.getActiveSection);
+  const getActiveVersionContent = useWorkspaceStore((s) => s.getActiveVersionContent);
   const viewMode = useWorkspaceStore((s) => s.getActiveViewMode());
   const documentId = useWorkspaceStore((s) => s.documentId);
 
   const isAwaitingAgent = useWorkspaceStore((s) => s.getActiveSectionIsAwaitingAgent());
   const isSendingMessage = useWorkspaceStore((s) => s.getActiveSectionIsSendingMessage());
   const isAIPending = isAwaitingAgent || isSendingMessage;
+  const [saving, setSaving] = useState(false);
 
   const currentSection = getActiveSection();
 
   const handleRestore = (versionId: string) => {
     if (!currentSection || viewMode !== "editing") return;
     restoreVersion(currentSection.id, versionId);
+    posthog.capture("refinement_version_restored", {
+      document_id: documentId,
+      section_id: currentSection.id,
+      version_id: versionId,
+    });
   };
 
   const handleFinalize = () => {
@@ -317,6 +325,21 @@ export function TimelinePanel() {
     if (!currentSection || viewMode !== "editing" || isAIPending) return;
     posthog.capture("refinement_version_branched", { document_id: documentId, section_id: currentSection.id });
     void createVersionSnapshot(currentSection.id);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!currentSection || viewMode !== "editing" || saving) return;
+    setSaving(true);
+    try {
+      await saveActiveContent();
+      posthog.capture("refinement_changes_saved", {
+        document_id: documentId,
+        section_id: currentSection.id,
+        content_length: getActiveVersionContent().length,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -412,6 +435,35 @@ export function TimelinePanel() {
             flexShrink: 0,
           }}
         >
+          <button
+            onClick={handleSaveChanges}
+            disabled={saving}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "8px 12px",
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 500,
+              background: "transparent",
+              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+              color: saving ? "var(--df-mute, rgba(227,226,226,0.18))" : "var(--df-faint, rgba(227,226,226,0.38))",
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.5 : 1,
+              transition: "all 0.15s",
+              fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+            onMouseEnter={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))"; } }}
+            onMouseLeave={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; } }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>save</span>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+
           <button
             onClick={handleNewVersion}
             disabled={isAIPending}

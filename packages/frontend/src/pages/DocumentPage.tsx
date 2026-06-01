@@ -56,6 +56,9 @@ export function DocumentPage() {
         from_phase: prevPhaseRef.current,
         to_phase: currentPhase,
       });
+      if (prevPhaseRef.current === "audit" && currentPhase === "completed") {
+        posthog.capture("first_document_completed", { document_id: activeDocId });
+      }
     }
     posthog.capture("phase_entered", { to_phase: currentPhase, document_id: activeDocId });
     prevPhaseRef.current = currentPhase;

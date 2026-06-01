@@ -356,13 +356,13 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
 
 interface EditorVersionPanelProps {
   sectionId: string;
+  documentId: string;
   currentContent: string;
   refreshTick: number;
   onVersionSwitch: (switchedContent: string) => void;
-  onFlushSave: () => Promise<void>;
 }
 
-export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onVersionSwitch, onFlushSave }: EditorVersionPanelProps) {
+export function EditorVersionPanel({ sectionId, documentId, currentContent, refreshTick, onVersionSwitch }: EditorVersionPanelProps) {
   const { getToken } = useAuth();
   const [versions, setVersions] = useState<SectionVersion[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -389,6 +389,11 @@ export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onV
       setVersions((prev) =>
         prev.map((v) => (v.isActive ? { ...v, content: updated.content } : v))
       );
+      posthog.capture("editor_changes_saved", {
+        document_id: documentId,
+        section_id: sectionId,
+        content_length: currentContent.length,
+      });
     } finally {
       setSaving(false);
     }
@@ -418,13 +423,8 @@ export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onV
     if (switching) return;
     setSwitching(true);
     try {
-      // Flush pending auto-save so the current edit is committed before we switch
-      await onFlushSave();
       await apiRestoreVersion(sectionId, version.id, getToken);
       posthog.capture("editor_version_restored", { section_id: sectionId, version_id: version.id });
-      // Re-fetch all versions to get fresh content — auto-save may have written
-      // to the old active version since the component first mounted, making the
-      // local version.content stale.
       const fresh = await apiFetchVersions(sectionId, getToken);
       setVersions(fresh.slice().reverse());
       const target = fresh.find((v) => v.id === version.id);

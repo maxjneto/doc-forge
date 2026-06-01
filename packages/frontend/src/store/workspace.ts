@@ -14,6 +14,7 @@ import {
   apiSendEvent,
   apiRestoreVersion,
   apiCreateVersionSnapshot,
+  apiUpdateSectionContent,
 } from "@/utils/api";
 
 type GetToken = () => Promise<string | null>;
@@ -75,6 +76,7 @@ interface WorkspaceState {
 
   // Section actions
   finalizeSection: (sectionId: string) => Promise<void>;
+  saveActiveContent: () => Promise<void>;
 
   // Derived
   getActiveSection: () => Section | undefined;
@@ -345,6 +347,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       section_id: sectionId,
     }, state.getToken);
     // Polling from DocumentPage will update section status
+  },
+
+  saveActiveContent: async () => {
+    const state = get();
+    const section = state.sections.find((s) => s.sectionType === state.activeSection);
+    if (!section || !state.getToken) return;
+    const content = state.getActiveVersionContent();
+    await apiUpdateSectionContent(section.id, content, state.getToken);
   },
 
   // ─── Derived ─────────────────────────────────────────────
