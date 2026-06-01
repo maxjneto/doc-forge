@@ -19,7 +19,6 @@ from app.guardrails import (
     validate_document_context,
     validate_refinement_message,
 )
-from app.services.observability import capture_event, capture_trace
 from app.inngest_client import inngest_client
 from app.models import (
     AuditFinding,
@@ -45,6 +44,7 @@ from app.schemas.document import (
 from app.schemas.events import AnswerQuestionRequest, EventRequest
 from app.services import db as db_service
 from app.services import sse as sse_service
+from app.services.observability import capture_event, capture_trace
 
 router = APIRouter(tags=["documents"])
 
