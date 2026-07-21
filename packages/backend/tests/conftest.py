@@ -39,7 +39,9 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-# Mirrors migration 006 — the RFC seed every guided-mode flow depends on.
+# Mirrors migrations 006 + 024 — the built-in guided-mode document types.
+# Prompts aren't seeded here: guided/pipeline tests mock the AI layer, and the
+# prompt loader falls back to prompts/documents.yaml for anything unseeded.
 RFC_SECTIONS = [
     ("context", "Context", 1, "Describes the problem, its impact, and why action is needed now."),
     ("proposal", "Proposal", 2, "Presents the chosen solution, key design decisions, and architecture."),
@@ -47,25 +49,50 @@ RFC_SECTIONS = [
     ("risks", "Risks", 4, "Identifies risks, trade-offs, open questions, and mitigation strategies."),
 ]
 
+BUILTIN_TYPES = [
+    ("rfc", "RFC", "Request for Comments — technical design proposal.", RFC_SECTIONS),
+    ("adr", "ADR", "Architecture Decision Record.", [
+        ("context", "Context", 1, "Forces driving the decision."),
+        ("decision", "Decision", 2, "The decision that was made."),
+        ("consequences", "Consequences", 3, "Resulting trade-offs."),
+        ("alternatives", "Alternatives", 4, "Options considered and rejected."),
+    ]),
+    ("postmortem", "Postmortem", "Blameless incident postmortem.", [
+        ("summary", "Summary", 1, "What happened and current status."),
+        ("impact", "Impact", 2, "Who/what was affected and for how long."),
+        ("timeline", "Timeline", 3, "Chronological record of the incident."),
+        ("root_cause", "Root Cause", 4, "Underlying and contributing causes."),
+        ("action_items", "Action Items", 5, "Preventive and corrective actions."),
+    ]),
+    ("runbook", "Runbook", "Operational runbook.", [
+        ("overview", "Overview", 1, "What the runbook does and when to use it."),
+        ("prerequisites", "Prerequisites", 2, "Access, tools, and preconditions."),
+        ("procedure", "Procedure", 3, "Ordered steps to perform the operation."),
+        ("verification", "Verification", 4, "How to confirm success."),
+        ("rollback", "Rollback", 5, "How to undo and troubleshoot."),
+    ]),
+]
+
 
 async def _seed_document_types() -> None:
     async with TestSession() as session:
-        doc_type = DocumentType(
-            slug="rfc",
-            name="RFC",
-            description="Request for Comments — technical design proposal.",
-            is_active=True,
-        )
-        session.add(doc_type)
-        await session.flush()
-        for key, display, order, role in RFC_SECTIONS:
-            session.add(SectionDefinition(
-                document_type_id=doc_type.id,
-                section_key=key,
-                display_name=display,
-                order=order,
-                role_description=role,
-            ))
+        for slug, name, description, sections in BUILTIN_TYPES:
+            doc_type = DocumentType(
+                slug=slug,
+                name=name,
+                description=description,
+                is_active=True,
+            )
+            session.add(doc_type)
+            await session.flush()
+            for key, display, order, role in sections:
+                session.add(SectionDefinition(
+                    document_type_id=doc_type.id,
+                    section_key=key,
+                    display_name=display,
+                    order=order,
+                    role_description=role,
+                ))
         await session.commit()
 
 
