@@ -18,7 +18,8 @@ export interface Document {
   id: string;
   title: string;
   currentPhase: Phase;
-  documentMode: "guided" | "editor";
+  documentMode: "guided" | "editor" | "pipeline";
+  agentWritePolicy?: "suggest" | "direct";
   globalContext: string | null;
   userPreferences: string | null;
   createdAt: string;
@@ -94,7 +95,34 @@ export interface DocumentType {
   name: string;
   description: string;
   isActive: boolean;
+  isCustom: boolean;
   sections: SectionDefinition[];
+}
+
+// ─── Customization (M4 — pipelines, prompts, document types) ─
+
+export interface PipelineStep {
+  phase: string;
+  section_key?: string | null;
+  prompt?: string;
+  checkpoint?: "human";
+}
+
+export interface PipelineDefinition {
+  id: string;
+  name: string;
+  baseDocumentTypeId: string | null;
+  steps: PipelineStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptTemplate {
+  id: string;
+  documentTypeId: string;
+  phase: string;
+  sectionKey: string | null;
+  promptText: string;
 }
 
 // ─── Discovery (Phase 1) ─────────────────────────────────────
@@ -154,7 +182,16 @@ export interface MyActivityEvent {
 
 export interface DocumentActivity {
   id: string;
-  actionType: "write" | "snapshot" | "version_selected" | "document_created";
+  actionType:
+    | "write"
+    | "snapshot"
+    | "version_selected"
+    | "document_created"
+    | "suggestion_created"
+    | "suggestion_accepted"
+    | "suggestion_rejected"
+    | "feedback_created"
+    | "feedback_resolved";
   description: string | null;
   actorName: string;
   isAgent: boolean;
@@ -162,6 +199,41 @@ export interface DocumentActivity {
   bytesDelta: number | null;
   versionId: string | null;
   createdAt: string;
+}
+
+// ─── Suggestions & Feedback (trust layer) ────────────────────
+
+export type SuggestionStatus = "pending" | "accepted" | "rejected";
+
+export interface Suggestion {
+  id: string;
+  documentId: string;
+  sectionId: string;
+  proposedVersionId: string;
+  baseVersionId: string | null;
+  status: SuggestionStatus;
+  note: string | null;
+  reviewComment: string | null;
+  agentName: string | null;
+  proposedContent: string | null;
+  currentContent: string | null;
+  isStale: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export type FeedbackStatus = "open" | "addressed" | "resolved";
+
+export interface FeedbackItem {
+  id: string;
+  documentId: string;
+  sectionId: string | null;
+  suggestionId: string | null;
+  content: string;
+  status: FeedbackStatus;
+  resolutionNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
 }
 
 // ─── Audit (Phase 5) ─────────────────────────────────────────

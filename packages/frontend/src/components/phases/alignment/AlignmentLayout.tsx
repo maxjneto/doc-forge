@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
-import type { Section, GuidedSectionType as SectionType } from "@/types";
-import { apiSendEvent } from "@/utils/api";
+import type { Document, Section, GuidedSectionType as SectionType } from "@/types";
+import {
+  apiApprovePipelineAlignment,
+  apiRejectPipelineAlignment,
+  apiSendEvent,
+} from "@/utils/api";
 import { ForgeLoader } from "@/components/shared";
 import { SummaryCard } from "./SummaryCard";
 
@@ -16,6 +20,7 @@ const ALIGNMENT_STEPS = [
 interface AlignmentLayoutProps {
   documentId: string;
   sections: Section[];
+  documentMode?: Document["documentMode"];
 }
 
 type CardStatus = "pending" | "approved" | "editing" | "regenerating";
@@ -40,8 +45,9 @@ const SECTION_ORDER: SectionType[] = [
   "risks",
 ];
 
-export function AlignmentLayout({ documentId, sections }: AlignmentLayoutProps) {
+export function AlignmentLayout({ documentId, sections, documentMode }: AlignmentLayoutProps) {
   const { getToken } = useAuth();
+  const isPipeline = documentMode === "pipeline";
   const [cards, setCards] = useState<Record<SectionType, CardState>>(() => {
     const initial: Record<string, CardState> = {};
     for (const type of SECTION_ORDER) {
@@ -86,6 +92,16 @@ export function AlignmentLayout({ documentId, sections }: AlignmentLayoutProps) 
   };
 
   const handleReject = async (type: SectionType, reason: string) => {
+    if (isPipeline) {
+      // BYOA pipeline: rejection unblocks the run and becomes agent feedback —
+      // the user's agent revises the summaries and resubmits.
+      setCards((prev) => ({
+        ...prev,
+        [type]: { ...prev[type], status: "pending", rejectionReason: reason },
+      }));
+      await apiRejectPipelineAlignment(documentId, `[${type}] ${reason}`, getToken);
+      return;
+    }
     setCards((prev) => ({
       ...prev,
       [type]: { ...prev[type], status: "regenerating", rejectionReason: reason },
@@ -98,6 +114,10 @@ export function AlignmentLayout({ documentId, sections }: AlignmentLayoutProps) 
 
   const handleConfirm = async () => {
     setConfirming(true);
+    if (isPipeline) {
+      await apiApprovePipelineAlignment(documentId, getToken);
+      return;
+    }
     await apiSendEvent(documentId, "approved_alignment", { all_approved: true }, getToken);
   };
 

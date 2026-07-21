@@ -1,39 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppFooter } from "@/components/shared";
 import { MarketingNav } from "@/components/marketing";
+import { apiFetchTiers, type Tier } from "@/utils/api";
 
-const TIERS = [
-  {
-    name: "Free",
-    credits: "2 credits / week",
-    desc: "Explore the forge. Limited to two documents per week, all phases included.",
-    features: ["All six phases", "Markdown export", "Version history (3 versions per section)"],
-    cta: "Get started",
-    highlight: false,
-  },
-  {
-    name: "Builder",
-    credits: "10 credits / week",
-    desc: "For engineers and technical writers who ship documentation regularly.",
-    features: ["Everything in Free", "PDF export", "Unlimited version history", "Priority generation"],
-    cta: "Coming soon",
-    highlight: true,
-  },
-  {
-    name: "Team",
-    credits: "Unlimited",
-    desc: "For teams that need shared workspaces, integrations, and audit trails.",
-    features: ["Everything in Builder", "Confluence & Linear export", "Shared workspace", "SSO"],
-    cta: "Coming soon",
-    highlight: false,
-  },
-];
+// Rendered until the API answers — tiers are served by GET /api/tiers so the
+// backend limits and this page can never drift apart.
+const FALLBACK_TIERS: Tier[] = [];
 
 export function PricingPage() {
+  const [tiers, setTiers] = useState<Tier[]>(FALLBACK_TIERS);
+
   useEffect(() => {
     document.body.style.overflow = "auto";
     return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetchTiers()
+      .then((t) => { if (!cancelled) setTiers(t); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -115,7 +103,7 @@ export function PricingPage() {
             gap: 16,
           }}
         >
-          {TIERS.map((tier) => (
+          {tiers.map((tier) => (
             <div
               key={tier.name}
               style={{
@@ -165,7 +153,7 @@ export function PricingPage() {
               </div>
 
               <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.55, margin: 0 }}>
-                {tier.desc}
+                {tier.description}
               </p>
 
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>

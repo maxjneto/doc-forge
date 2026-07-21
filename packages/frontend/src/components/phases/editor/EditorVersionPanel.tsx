@@ -456,7 +456,6 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
         background: "rgba(0,0,0,0.20)",
         overflow: "hidden",
       }}

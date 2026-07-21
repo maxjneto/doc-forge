@@ -11,6 +11,11 @@ import type {
   ApiKeyCreateResponse,
   DocumentActivity,
   MyActivityEvent,
+  Suggestion,
+  FeedbackItem,
+  PipelineDefinition,
+  PipelineStep,
+  PromptTemplate,
 } from "@/types";
 
 export const API_BASE =
@@ -24,6 +29,7 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     title: raw.title as string,
     currentPhase: raw.current_phase as Document["currentPhase"],
     documentMode: (raw.document_mode as Document["documentMode"]) ?? "guided",
+    agentWritePolicy: (raw.agent_write_policy as Document["agentWritePolicy"]) ?? "suggest",
     globalContext: (raw.global_context as string) ?? null,
     userPreferences: (raw.user_preferences as string) ?? null,
     createdAt: raw.created_at as string,
@@ -101,12 +107,82 @@ async function authHeaders(getToken: GetToken, extra?: Record<string, string>) {
   };
 }
 
+export interface Tier {
+  slug: string;
+  name: string;
+  priceMonthlyUsd: number | null;
+  credits: string;
+  description: string;
+  features: string[];
+  limits: {
+    maxActiveDocuments: number | null;
+    maxApiKeys: number | null;
+    weeklyCredits: number | null;
+  };
+  cta: string;
+  highlight: boolean;
+  available: boolean;
+}
+
+export async function apiFetchTiers(): Promise<Tier[]> {
+  const res = await fetch(`${API_BASE}/tiers`);
+  if (!res.ok) throw new Error("Failed to fetch tiers");
+  const data = (await res.json()) as { tiers: Record<string, unknown>[] };
+  return data.tiers.map((raw) => {
+    const limits = (raw.limits ?? {}) as Record<string, unknown>;
+    return {
+      slug: raw.slug as string,
+      name: raw.name as string,
+      priceMonthlyUsd: (raw.price_monthly_usd as number) ?? null,
+      credits: raw.credits as string,
+      description: raw.description as string,
+      features: (raw.features as string[]) ?? [],
+      limits: {
+        maxActiveDocuments: (limits.max_active_documents as number) ?? null,
+        maxApiKeys: (limits.max_api_keys as number) ?? null,
+        weeklyCredits: (limits.weekly_credits as number) ?? null,
+      },
+      cta: raw.cta as string,
+      highlight: Boolean(raw.highlight),
+      available: Boolean(raw.available),
+    };
+  });
+}
+
+export async function apiCreateCheckoutSession(
+  plan: "pro" | "team",
+  getToken: GetToken,
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/billing/checkout`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to start checkout");
+  }
+  return ((await res.json()) as { url: string }).url;
+}
+
+export async function apiCreatePortalSession(getToken: GetToken): Promise<string> {
+  const res = await fetch(`${API_BASE}/billing/portal`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to open billing portal");
+  }
+  return ((await res.json()) as { url: string }).url;
+}
+
 export async function apiFetchMe(getToken: GetToken) {
   const res = await fetch(`${API_BASE}/users/me`, {
     headers: await authHeaders(getToken),
   });
   if (!res.ok) throw new Error("Failed to fetch user");
-  return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number; weekly_credits: number }>;
+  return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number; weekly_credits: number; plan: string }>;
 }
 
 export async function apiCreateDocument(
@@ -297,8 +373,118 @@ function mapDocumentType(raw: Record<string, unknown>): DocumentType {
     name: raw.name as string,
     description: raw.description as string,
     isActive: raw.is_active as boolean,
+    isCustom: Boolean(raw.is_custom),
     sections: ((raw.sections as Record<string, unknown>[]) ?? []).map(mapSectionDefinition),
   };
+}
+
+export async function apiCreateDocumentType(
+  payload: {
+    slug: string;
+    name: string;
+    description: string;
+    sections: { section_key: string; display_name: string; order: number; role_description: string }[];
+  },
+  getToken: GetToken,
+): Promise<DocumentType> {
+  const res = await fetch(`${API_BASE}/document-types`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to create document type");
+  }
+  return mapDocumentType(await res.json());
+}
+
+export async function apiUpsertPrompt(
+  slug: string,
+  payload: { phase: string; section_key: string | null; prompt_text: string },
+  getToken: GetToken,
+): Promise<PromptTemplate> {
+  const res = await fetch(`${API_BASE}/document-types/${slug}/prompts`, {
+    method: "PUT",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to save prompt");
+  }
+  const data = (await res.json()) as Record<string, unknown>;
+  return {
+    id: String(data.id),
+    documentTypeId: String(data.document_type_id),
+    phase: data.phase as string,
+    sectionKey: (data.section_key as string) ?? null,
+    promptText: data.prompt_text as string,
+  };
+}
+
+// ─── Pipeline definitions (M4 — clone/edit the BYOA pipeline) ─
+
+function mapPipelineDefinition(raw: Record<string, unknown>): PipelineDefinition {
+  return {
+    id: String(raw.id),
+    name: raw.name as string,
+    baseDocumentTypeId: raw.base_document_type_id ? String(raw.base_document_type_id) : null,
+    steps: (raw.steps as PipelineStep[]) ?? [],
+    createdAt: raw.created_at as string,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+export async function apiListPipelineDefinitions(getToken: GetToken): Promise<PipelineDefinition[]> {
+  const res = await fetch(`${API_BASE}/pipeline-definitions`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch pipeline definitions");
+  const data = (await res.json()) as Record<string, unknown>[];
+  return data.map(mapPipelineDefinition);
+}
+
+export async function apiClonePipelineDefinition(
+  documentTypeSlug: string,
+  name: string | null,
+  getToken: GetToken,
+): Promise<PipelineDefinition> {
+  const res = await fetch(`${API_BASE}/pipeline-definitions/clone`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ document_type_slug: documentTypeSlug, name }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to clone pipeline");
+  }
+  return mapPipelineDefinition(await res.json());
+}
+
+export async function apiUpdatePipelineDefinition(
+  id: string,
+  patch: { name?: string; steps?: PipelineStep[] },
+  getToken: GetToken,
+): Promise<PipelineDefinition> {
+  const res = await fetch(`${API_BASE}/pipeline-definitions/${id}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to update pipeline");
+  }
+  return mapPipelineDefinition(await res.json());
+}
+
+export async function apiDeletePipelineDefinition(id: string, getToken: GetToken): Promise<void> {
+  const res = await fetch(`${API_BASE}/pipeline-definitions/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete pipeline");
 }
 
 export async function apiUpdateDocumentTitle(
@@ -440,6 +626,194 @@ export async function apiFetchMyActivity(
     docTitle: raw.doc_title as string,
     createdAt: raw.created_at as string,
   }));
+}
+
+// ─── Suggestions & feedback (trust layer) ────────────────────
+
+function mapSuggestion(raw: Record<string, unknown>): Suggestion {
+  return {
+    id: String(raw.id),
+    documentId: String(raw.document_id),
+    sectionId: String(raw.section_id),
+    proposedVersionId: String(raw.proposed_version_id),
+    baseVersionId: raw.base_version_id ? String(raw.base_version_id) : null,
+    status: raw.status as Suggestion["status"],
+    note: (raw.note as string) ?? null,
+    reviewComment: (raw.review_comment as string) ?? null,
+    agentName: (raw.agent_name as string) ?? null,
+    proposedContent: (raw.proposed_content as string) ?? null,
+    currentContent: (raw.current_content as string) ?? null,
+    isStale: Boolean(raw.is_stale),
+    createdAt: raw.created_at as string,
+    resolvedAt: (raw.resolved_at as string) ?? null,
+  };
+}
+
+function mapFeedback(raw: Record<string, unknown>): FeedbackItem {
+  return {
+    id: String(raw.id),
+    documentId: String(raw.document_id),
+    sectionId: raw.section_id ? String(raw.section_id) : null,
+    suggestionId: raw.suggestion_id ? String(raw.suggestion_id) : null,
+    content: raw.content as string,
+    status: raw.status as FeedbackItem["status"],
+    resolutionNote: (raw.resolution_note as string) ?? null,
+    createdAt: raw.created_at as string,
+    resolvedAt: (raw.resolved_at as string) ?? null,
+  };
+}
+
+export async function apiFetchSuggestions(
+  documentId: string,
+  getToken: GetToken,
+  status?: "pending" | "accepted" | "rejected",
+): Promise<Suggestion[]> {
+  const qs = status ? `?status=${status}` : "";
+  const res = await fetch(`${API_BASE}/documents/${documentId}/suggestions${qs}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch suggestions");
+  const data = (await res.json()) as { suggestions: Record<string, unknown>[] };
+  return data.suggestions.map(mapSuggestion);
+}
+
+export async function apiAcceptSuggestion(
+  suggestionId: string,
+  getToken: GetToken,
+): Promise<Suggestion> {
+  const res = await fetch(`${API_BASE}/suggestions/${suggestionId}/accept`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) {
+    // Surface the backend reason (e.g. the quality gate blocking message)
+    let detail = "Failed to accept suggestion";
+    try {
+      detail = ((await res.json()) as { detail?: string }).detail ?? detail;
+    } catch { /* keep generic message */ }
+    throw new Error(detail);
+  }
+  return mapSuggestion(await res.json());
+}
+
+export async function apiRejectSuggestion(
+  suggestionId: string,
+  comment: string | null,
+  getToken: GetToken,
+): Promise<Suggestion> {
+  const res = await fetch(`${API_BASE}/suggestions/${suggestionId}/reject`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ comment }),
+  });
+  if (!res.ok) throw new Error("Failed to reject suggestion");
+  return mapSuggestion(await res.json());
+}
+
+export async function apiFetchFeedback(
+  documentId: string,
+  getToken: GetToken,
+  status?: "open" | "addressed" | "resolved",
+): Promise<FeedbackItem[]> {
+  const qs = status ? `?status=${status}` : "";
+  const res = await fetch(`${API_BASE}/documents/${documentId}/feedback${qs}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch feedback");
+  const data = (await res.json()) as { feedback: Record<string, unknown>[] };
+  return data.feedback.map(mapFeedback);
+}
+
+export async function apiCreateFeedback(
+  documentId: string,
+  content: string,
+  sectionId: string | null,
+  getToken: GetToken,
+): Promise<FeedbackItem> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/feedback`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ content, section_id: sectionId }),
+  });
+  if (!res.ok) throw new Error("Failed to create feedback");
+  return mapFeedback(await res.json());
+}
+
+export interface GateStatus {
+  requireGateOnAccept: boolean;
+  openFindings: number;
+  openHighFindings: number;
+  blocking: boolean;
+  findings: AuditFinding[];
+}
+
+export async function apiFetchGateStatus(
+  documentId: string,
+  getToken: GetToken,
+): Promise<GateStatus> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/quality-gate`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch quality gate status");
+  const raw = (await res.json()) as Record<string, unknown>;
+  return {
+    requireGateOnAccept: Boolean(raw.require_gate_on_accept),
+    openFindings: Number(raw.open_findings ?? 0),
+    openHighFindings: Number(raw.open_high_findings ?? 0),
+    blocking: Boolean(raw.blocking),
+    findings: ((raw.findings as Record<string, unknown>[]) ?? []).map(mapAuditFinding),
+  };
+}
+
+export async function apiSetRequireGateOnAccept(
+  documentId: string,
+  requireGateOnAccept: boolean,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ require_gate_on_accept: requireGateOnAccept }),
+  });
+  if (!res.ok) throw new Error("Failed to update quality gate setting");
+}
+
+export async function apiApprovePipelineAlignment(
+  documentId: string,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/approve`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to approve pipeline checkpoint");
+}
+
+export async function apiRejectPipelineAlignment(
+  documentId: string,
+  comment: string,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/reject`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ comment }),
+  });
+  if (!res.ok) throw new Error("Failed to reject pipeline checkpoint");
+}
+
+export async function apiUpdateAgentWritePolicy(
+  documentId: string,
+  policy: "suggest" | "direct",
+  getToken: GetToken,
+): Promise<Document> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ agent_write_policy: policy }),
+  });
+  if (!res.ok) throw new Error("Failed to update write policy");
+  return mapDocument(await res.json());
 }
 
 export async function apiUpdateCompletedDocument(

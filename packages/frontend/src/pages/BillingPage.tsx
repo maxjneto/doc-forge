@@ -1,42 +1,76 @@
-import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, type CSSProperties } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 import { TopBar, AppFooter } from "@/components/shared";
-
-const TIERS = [
-  {
-    name: "Free",
-    credits: "2 credits / week",
-    desc: "Explore the forge. Limited to two documents per week, all phases included.",
-    features: ["All six phases", "Markdown export", "Version history (3 versions per section)"],
-    cta: "Get started",
-    ctaTo: "/home",
-    highlight: false,
-  },
-  {
-    name: "Builder",
-    credits: "10 credits / week",
-    desc: "For engineers and technical writers who ship documentation regularly.",
-    features: ["Everything in Free", "PDF export", "Unlimited version history", "Priority generation"],
-    cta: "Coming soon",
-    ctaTo: "/home",
-    highlight: true,
-  },
-  {
-    name: "Team",
-    credits: "Unlimited",
-    desc: "For teams that need shared workspaces, integrations, and audit trails.",
-    features: ["Everything in Builder", "Confluence & Linear export", "Shared workspace", "SSO"],
-    cta: "Coming soon",
-    ctaTo: "/home",
-    highlight: false,
-  },
-];
+import {
+  apiFetchTiers,
+  apiFetchMe,
+  apiCreateCheckoutSession,
+  apiCreatePortalSession,
+  type Tier,
+} from "@/utils/api";
 
 export function BillingPage() {
+  const { getToken } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Tiers come from GET /api/tiers — the same source the backend enforces.
+  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const checkoutStatus = searchParams.get("checkout");
+
   useEffect(() => {
     document.body.style.overflow = "auto";
     return () => { document.body.style.overflow = ""; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetchTiers()
+      .then((t) => { if (!cancelled) setTiers(t); })
+      .catch(() => {});
+    apiFetchMe(getToken)
+      .then((me) => { if (!cancelled) setCurrentPlan(me.plan); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [getToken]);
+
+  // Clear the ?checkout= param once shown so a refresh doesn't re-show the banner.
+  useEffect(() => {
+    if (!checkoutStatus) return;
+    const t = setTimeout(() => {
+      searchParams.delete("checkout");
+      setSearchParams(searchParams, { replace: true });
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [checkoutStatus, searchParams, setSearchParams]);
+
+  async function handleUpgrade(planSlug: string) {
+    if (busyPlan) return;
+    setError(null);
+    setBusyPlan(planSlug);
+    try {
+      const url = await apiCreateCheckoutSession(planSlug as "pro" | "team", getToken);
+      window.location.href = url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start checkout");
+      setBusyPlan(null);
+    }
+  }
+
+  async function handleManageBilling() {
+    if (busyPlan) return;
+    setError(null);
+    setBusyPlan("manage");
+    try {
+      const url = await apiCreatePortalSession(getToken);
+      window.location.href = url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to open billing portal");
+      setBusyPlan(null);
+    }
+  }
 
   return (
     <div
@@ -79,6 +113,40 @@ export function BillingPage() {
           width: "100%",
         }}
       >
+        {checkoutStatus === "success" && (
+          <div
+            style={{
+              marginBottom: 24, padding: "12px 18px", borderRadius: 8,
+              background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.25)",
+              color: "#7fd99a", fontSize: 13, textAlign: "center",
+            }}
+          >
+            Subscription active — thanks! It may take a few seconds to reflect below.
+          </div>
+        )}
+        {checkoutStatus === "cancel" && (
+          <div
+            style={{
+              marginBottom: 24, padding: "12px 18px", borderRadius: 8,
+              background: "rgba(255,196,0,0.08)", border: "1px solid rgba(255,196,0,0.25)",
+              color: "#ffd25e", fontSize: 13, textAlign: "center",
+            }}
+          >
+            Checkout canceled — no changes were made.
+          </div>
+        )}
+        {error && (
+          <div
+            style={{
+              marginBottom: 24, padding: "12px 18px", borderRadius: 8,
+              background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.25)",
+              color: "#e88", fontSize: 13, textAlign: "center",
+            }}
+          >
+            {error}
+          </div>
+        )}
+
         <div style={{ marginBottom: 56, textAlign: "center" }}>
           <span className="df-pill df-pill-ghost" style={{ marginBottom: 20, display: "inline-block" }}>
             Pricing
@@ -114,7 +182,7 @@ export function BillingPage() {
             gap: 16,
           }}
         >
-          {TIERS.map((tier) => (
+          {tiers.map((tier) => (
             <div
               key={tier.name}
               style={{
@@ -164,7 +232,7 @@ export function BillingPage() {
               </div>
 
               <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.55, margin: 0 }}>
-                {tier.desc}
+                {tier.description}
               </p>
 
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -182,40 +250,13 @@ export function BillingPage() {
               </ul>
 
               <div style={{ marginTop: "auto" }}>
-                <Link
-                  to={tier.ctaTo}
-                  className={tier.highlight ? "forge-btn" : ""}
-                  style={
-                    tier.highlight
-                      ? {
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "9px 18px",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          textDecoration: "none",
-                          letterSpacing: "0.02em",
-                        }
-                      : {
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "9px 18px",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          textDecoration: "none",
-                          letterSpacing: "0.02em",
-                          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-                          color: "var(--df-dim, rgba(227,226,226,0.62))",
-                          background: "transparent",
-                        }
-                  }
-                >
-                  {tier.cta}
-                </Link>
+                <TierCta
+                  tier={tier}
+                  isCurrentPlan={currentPlan === tier.slug}
+                  busy={busyPlan === tier.slug || (tier.slug !== "free" && currentPlan === tier.slug && busyPlan === "manage")}
+                  onUpgrade={() => handleUpgrade(tier.slug)}
+                  onManage={handleManageBilling}
+                />
               </div>
             </div>
           ))}
@@ -237,5 +278,107 @@ export function BillingPage() {
 
       <AppFooter />
     </div>
+  );
+}
+
+// ─── Tier CTA button ──────────────────────────────────────────
+
+const baseCtaStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "9px 18px",
+  borderRadius: 6,
+  fontSize: 12,
+  fontWeight: 600,
+  textDecoration: "none",
+  letterSpacing: "0.02em",
+  width: "100%",
+  fontFamily: "inherit",
+  cursor: "pointer",
+};
+
+interface TierCtaProps {
+  tier: Tier;
+  isCurrentPlan: boolean;
+  busy: boolean;
+  onUpgrade: () => void;
+  onManage: () => void;
+}
+
+function TierCta({ tier, isCurrentPlan, busy, onUpgrade, onManage }: TierCtaProps) {
+  // Free tier (or no billing yet): the pre-existing "get started" link.
+  if (tier.slug === "free") {
+    return (
+      <Link
+        to="/home"
+        style={{
+          ...baseCtaStyle,
+          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+          color: "var(--df-dim, rgba(227,226,226,0.62))",
+          background: "transparent",
+        }}
+      >
+        {tier.cta}
+      </Link>
+    );
+  }
+
+  if (isCurrentPlan) {
+    return (
+      <button
+        onClick={onManage}
+        disabled={busy}
+        style={{
+          ...baseCtaStyle,
+          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+          color: "var(--df-dim, rgba(227,226,226,0.62))",
+          background: "transparent",
+          opacity: busy ? 0.6 : 1,
+          cursor: busy ? "wait" : "pointer",
+        }}
+      >
+        {busy ? "Opening…" : "Manage billing"}
+      </button>
+    );
+  }
+
+  if (!tier.available) {
+    return (
+      <span
+        style={{
+          ...baseCtaStyle,
+          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+          color: "var(--df-mute, rgba(227,226,226,0.38))",
+          background: "transparent",
+          opacity: 0.6,
+          cursor: "not-allowed",
+        }}
+      >
+        {tier.cta}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={onUpgrade}
+      disabled={busy}
+      className={tier.highlight ? "forge-btn" : ""}
+      style={
+        tier.highlight
+          ? { ...baseCtaStyle, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }
+          : {
+              ...baseCtaStyle,
+              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+              color: "var(--df-dim, rgba(227,226,226,0.62))",
+              background: "transparent",
+              opacity: busy ? 0.6 : 1,
+              cursor: busy ? "wait" : "pointer",
+            }
+      }
+    >
+      {busy ? "Redirecting…" : tier.cta}
+    </button>
   );
 }

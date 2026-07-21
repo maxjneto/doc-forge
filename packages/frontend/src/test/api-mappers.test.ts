@@ -23,6 +23,7 @@ describe("API response mappers", () => {
       title: "My RFC",
       currentPhase: "discovery",
       documentMode: "guided",
+      agentWritePolicy: "suggest",
       globalContext: "Some context",
       userPreferences: null,
       createdAt: "2025-01-01T00:00:00Z",

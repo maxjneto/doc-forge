@@ -7,3 +7,4 @@ export { HowItWorksPage } from "./HowItWorksPage";
 export { PricingPage } from "./PricingPage";
 export { McpPage } from "./McpPage";
 export { BillingPage } from "./BillingPage";
+export { CustomizePage } from "./CustomizePage";

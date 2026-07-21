@@ -5,6 +5,8 @@ import { EditorNavPanel, parseHeadings, type Heading } from "./EditorNavPanel";
 import { EditorCenterPanel, type EditorMode } from "./EditorCenterPanel";
 import { EditorVersionPanel } from "./EditorVersionPanel";
 import { EditorActivityRail } from "./EditorActivityRail";
+import { EditorSuggestionPanel } from "./EditorSuggestionPanel";
+import { EditorGatePanel } from "./EditorGatePanel";
 
 interface EditorLayoutProps {
   documentId: string;
@@ -98,13 +100,32 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
       />
 
       {bodySection && (
-        <EditorVersionPanel
-          sectionId={bodySection.id}
-          documentId={documentId}
-          currentContent={content}
-          refreshTick={sseTick}
-          onVersionSwitch={(c) => { handleVersionSwitch(c); bumpActivity(); }}
-        />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flexShrink: 0,
+            borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            width: 240,
+            overflow: "hidden",
+          }}
+        >
+          <EditorGatePanel documentId={documentId} refreshTick={sseTick + activityTick} />
+          <EditorSuggestionPanel
+            documentId={documentId}
+            refreshTick={sseTick}
+            onSuggestionResolved={bumpActivity}
+          />
+          <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+            <EditorVersionPanel
+              sectionId={bodySection.id}
+              documentId={documentId}
+              currentContent={content}
+              refreshTick={sseTick + activityTick}
+              onVersionSwitch={(c) => { handleVersionSwitch(c); bumpActivity(); }}
+            />
+          </div>
+        </div>
       )}
 
     </div>

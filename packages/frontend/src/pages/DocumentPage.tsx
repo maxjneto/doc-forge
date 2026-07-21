@@ -102,6 +102,7 @@ export function DocumentPage() {
           <AlignmentLayout
             documentId={activeDocId!}
             sections={sections}
+            documentMode={document?.documentMode}
           />
         )}
         {currentPhase === "generation" && (

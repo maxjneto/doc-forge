@@ -184,6 +184,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
             { to: "/home", label: "Dashboard" },
             { to: "/how-it-works", label: "How it works" },
             { to: "/mcp", label: "DocForge MCP" },
+            { to: "/customize", label: "Customize" },
             { to: "/billing", label: "Billing" },
           ].map((item) => (
             <NavLink
