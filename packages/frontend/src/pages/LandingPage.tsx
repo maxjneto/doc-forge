@@ -47,7 +47,7 @@ export function LandingPage() {
             textAlign: "center",
           }}
         >
-          <span className="df-pill df-pill-heat">Foundry online · gpt-4o-mini</span>
+          <span className="df-pill df-pill-heat">The trust layer for agent-written docs</span>
           <h1
             style={{
               fontSize: "clamp(36px, 5vw, 60px)",
@@ -58,25 +58,26 @@ export function LandingPage() {
               maxWidth: 920,
             }}
           >
-            The workspace where you and your{" "}
-            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>AI agents</em>
-            <br />
-            forge technical docs.
+            Where agent work becomes a document you{" "}
+            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>can trust</em>.
           </h1>
           <p
             style={{
               fontSize: 17,
               color: "var(--df-dim)",
               lineHeight: 1.55,
-              maxWidth: 600,
+              maxWidth: 640,
               margin: "0 0 12px",
             }}
           >
-            DocForge is a structured document workspace — phased generation when you want guidance, MCP when your IDE agent is already in the driver's seat. Version-controlled, audited, and shared between you both.
+            Your agent proposes changes; you review them as a diff and accept or reject by section; the system audits for contradictions — every edit attributed and versioned. Connect your own IDE agent over MCP, or let the hosted pipeline drive.
           </p>
 
           <TrackPickerCards variant="hero" />
         </section>
+
+        {/* Trust-layer capabilities */}
+        <TrustLayerFeatures />
 
         {/* Six phases preview */}
         <section style={{ maxWidth: 1100, margin: "80px auto", padding: "0 56px" }}>
@@ -91,14 +92,14 @@ export function LandingPage() {
                 fontWeight: 600,
               }}
             >
-              Path A · The Forger
+              Hosted route · no agent required
             </span>
             <h2 style={{ fontSize: 36, fontWeight: 600, letterSpacing: "-0.03em", margin: "14px 0 12px" }}>
               Six phases.{" "}
               <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>One coherent document.</em>
             </h2>
             <p style={{ fontSize: 15, color: "var(--df-dim)", maxWidth: 560, margin: "0 auto", lineHeight: 1.55 }}>
-              When you don't have an agent in your IDE yet — or you'd rather a structured pipeline drive — the Forger walks you through.
+              No agent in your IDE yet? The hosted pipeline walks you through the same phases — and the same review, audit and history apply to what it writes.
             </p>
           </div>
 
@@ -132,6 +133,96 @@ export function LandingPage() {
         <AppFooter />
       </div>
     </div>
+  );
+}
+
+const TRUST_FEATURES: { icon: string; title: string; body: string; tag?: string }[] = [
+  { icon: "difference", title: "Suggestion review", body: "Agent writes land as pending diffs. Approve or reject by section — like reviewing a pull request." },
+  { icon: "forum", title: "Feedback loop", body: "Comment on what's wrong; your agent reads it back over MCP and revises. The loop closes both ways." },
+  { icon: "fact_check", title: "Quality gates", body: "Automatic audits flag contradictions and terminology drift between sections before you accept.", tag: "CI for docs" },
+  { icon: "account_tree", title: "Bring your own agent", body: "Your IDE agent runs the document pipeline step by step over MCP — you keep the human checkpoints." },
+  { icon: "description", title: "Structured document types", body: "Guided workflows for RFC, ADR, postmortem and runbook — the structure is enforced as you write." },
+  { icon: "tune", title: "Your own pipelines & prompts", body: "Clone the baseline and encode how your team writes. Served to every connected agent.", tag: "Pro" },
+  { icon: "download", title: "Export anywhere", body: "Download any document as Markdown, PDF or Word." },
+  { icon: "history", title: "Versioned & attributed", body: "Every version is kept and labelled with who wrote it — you, or which agent." },
+];
+
+function TrustLayerFeatures() {
+  return (
+    <section style={{ maxWidth: 1100, margin: "24px auto 0", padding: "0 56px" }}>
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <span
+          className="df-mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "var(--df-amber-300)",
+            fontWeight: 600,
+          }}
+        >
+          The trust layer
+        </span>
+        <h2 style={{ fontSize: 34, fontWeight: 600, letterSpacing: "-0.03em", margin: "12px 0 10px" }}>
+          Not just watching your agent write.{" "}
+          <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>Reviewing it.</em>
+        </h2>
+        <p style={{ fontSize: 15, color: "var(--df-dim)", maxWidth: 600, margin: "0 auto", lineHeight: 1.55 }}>
+          Rendering an agent's output is easy. The hard, valuable part is trusting it — the review, audit and history that turn agent work into a document you'd sign your name to.
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 14,
+        }}
+      >
+        {TRUST_FEATURES.map((f) => (
+          <div
+            key={f.title}
+            style={{
+              border: "1px solid rgba(255,255,255,0.07)",
+              background: "rgba(255,255,255,0.015)",
+              borderRadius: 12,
+              padding: "18px 18px 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 20, color: "var(--df-amber-300)" }}
+              >
+                {f.icon}
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#e3e2e2" }}>{f.title}</span>
+              {f.tag && (
+                <span
+                  className="df-mono"
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 9.5,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--df-amber-200)",
+                    border: "1px solid rgba(255,77,0,0.30)",
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                  }}
+                >
+                  {f.tag}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: 13, color: "var(--df-dim)", lineHeight: 1.5, margin: 0 }}>{f.body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
