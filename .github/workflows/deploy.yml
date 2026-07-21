@@ -1,0 +1,40 @@
+name: Deploy (VPS)
+
+# Deploys by SSHing into the VPS and rebuilding the Compose stack from the
+# freshly pulled source (images are built on the box — no registry needed).
+#
+# Configure these repo secrets to enable it (the deploy step self-skips when
+# VPS_HOST is empty, so forks and unconfigured repos stay green):
+#   VPS_HOST     - server hostname or IP
+#   VPS_USER     - SSH user
+#   VPS_SSH_KEY  - private key with access to the server
+#   VPS_PATH     - checkout dir on the server (optional, default /opt/docforge)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+    steps:
+      - name: Deploy over SSH
+        if: ${{ env.VPS_HOST != '' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.VPS_PATH || '/opt/docforge' }}"
+            git pull --ff-only
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
+
+      - name: Skipped (no VPS secrets configured)
+        if: ${{ env.VPS_HOST == '' }}
+        run: echo "VPS_HOST secret not set — skipping deploy. See deploy/README.md."

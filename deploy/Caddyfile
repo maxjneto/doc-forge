@@ -1,0 +1,32 @@
+# DocForge reverse proxy — automatic HTTPS via Let's Encrypt.
+# Domains and ACME email come from the environment (see docker-compose.prod.yml).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOCFORGE_DOMAIN} {
+	encode gzip zstd
+
+	# API, SSE and the Inngest webhook all live under /api on the backend.
+	handle /api/* {
+		reverse_proxy backend:8000 {
+			# SSE: don't buffer streamed responses.
+			flush_interval -1
+		}
+	}
+
+	# Everything else is the single-page app (nginx already falls back to
+	# index.html for client-side routes).
+	handle {
+		reverse_proxy frontend:80
+	}
+}
+
+# MCP streamable-HTTP server on its own subdomain.
+{$DOCFORGE_MCP_DOMAIN} {
+	encode gzip zstd
+	reverse_proxy mcp:8001 {
+		flush_interval -1
+	}
+}

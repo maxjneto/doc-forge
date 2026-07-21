@@ -15,6 +15,16 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   inngest:
     image: inngest/inngest:latest
     command: inngest dev -u http://backend:8000/api/inngest --no-discovery
@@ -23,7 +33,8 @@ services:
     environment:
       INNGEST_LOG_LEVEL: info
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8288/health"]
+      # The inngest/inngest image has no curl/wget; use bash's /dev/tcp instead.
+      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/localhost/8288"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -36,12 +47,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       inngest:
         condition: service_healthy
     env_file:
       - ./packages/backend/.env
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/docforge
+      REDIS_URL: redis://redis:6379/0
       INNGEST_DEV_SERVER_URL: http://inngest:8288
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"

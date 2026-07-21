@@ -15,12 +15,21 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 # --- build stage ---
 FROM dev AS builder
 
-ARG VITE_API_BASE
-ENV VITE_API_BASE=$VITE_API_BASE
+# All VITE_* vars are baked at build time (Vite inlines them). Pass them as
+# build args from docker-compose.prod.yml (sourced from .env). A relative
+# VITE_API_BASE (/api) keeps the frontend same-origin behind the reverse proxy.
+ARG VITE_API_BASE=/api
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_POSTHOG_KEY
+ARG VITE_POSTHOG_HOST=https://us.i.posthog.com
+ENV VITE_API_BASE=$VITE_API_BASE \
+    VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY \
+    VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY \
+    VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST
 
 RUN npm run build
 
-# --- prod stage (used for Azure deploy) ---
+# --- prod stage (static assets served by nginx, behind the Caddy proxy) ---
 FROM nginx:alpine AS prod
 
 COPY --from=builder /app/dist /usr/share/nginx/html
