@@ -18,3 +18,13 @@ def list_recipes() -> list[str]:
         for p in recipes_dir.iterdir()
         if p.name.endswith(".md")
     )
+
+
+def list_writing_guides() -> list[str]:
+    """Return slugs for every curated writing guide (e.g. 'adr', 'postmortem')."""
+    writing_dir = files("docforge_mcp.resources").joinpath("writing")
+    return sorted(
+        p.stem.replace("_", "-")
+        for p in writing_dir.iterdir()
+        if p.name.endswith(".md")
+    )

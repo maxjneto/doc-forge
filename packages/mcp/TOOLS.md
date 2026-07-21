@@ -76,19 +76,69 @@ Content (1842 chars):
 
 ## `write_section`
 
-Replaces the full body section content. Changes appear in the user's browser in real-time via SSE.
+Writes the full body section content. **By default the write becomes a pending suggestion** (`agent_write_policy: suggest`): the user reviews it as a diff in the browser and accepts or rejects it — the document is unchanged until acceptance. On `direct`-policy documents the write applies immediately. The response tells you which happened.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `document_id` | string | yes | Document UUID |
 | `content` | string | yes | Full Markdown content |
-| `note` | string | no | Explanation shown in the Activity panel (e.g. `"Analyzed 47 source files"`) |
+| `note` | string | no | Your "PR description" — shown to the reviewer next to the diff |
 
 To **append**: call `get_document` first, compose `existing + new_content`, then write.
 
 ```
-Written 2847 characters to 'FastAPI Service Tech Spec'. The user's browser has been updated in real-time.
+Suggestion submitted for 'FastAPI Service Tech Spec' (2847 characters).
+Suggestion ID: 7c2e...
+
+The write is PENDING human review — the document content is unchanged until
+the user accepts it in their browser. Use check_suggestions to see if it was
+accepted or rejected, and get_pending_feedback to read any review comments
+before rewriting.
 ```
+
+---
+
+## `check_suggestions`
+
+Lists your suggestions on a document with review status (`pending` / `accepted` / `rejected`), the note you attached, and the reviewer's comment on rejection.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `status` | string | no | Filter: `pending`, `accepted`, or `rejected` |
+
+```
+- [REJECTED] id=7c2e... created=2026-07-18 14:02
+  note: Rewrote the deployment section
+  reviewer said: Wrong: the timeout is 30s, see config.py
+```
+
+---
+
+## `get_pending_feedback`
+
+Reads open human feedback on a document: standalone comments plus rejection comments from suggestions. **Call before writing** and address the items.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+
+```
+Open feedback items:
+- id=91af... 2026-07-18 14:02 [from a rejected suggestion]
+  Wrong: the timeout is 30s, see config.py
+```
+
+---
+
+## `resolve_feedback`
+
+Marks a feedback item as resolved after you addressed it.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `feedback_id` | string | yes | Feedback UUID (from `get_pending_feedback`) |
+| `resolution_note` | string | no | How you addressed it |
 
 ---
 

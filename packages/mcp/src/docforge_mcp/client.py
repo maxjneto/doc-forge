@@ -126,5 +126,91 @@ async def get_activity(document_id: str, limit: int = 50) -> list[dict[str, Any]
     return await _get(f"/documents/{document_id}/activity", limit=limit)
 
 
+# ─── Suggestions & feedback (trust layer) ────────────────────
+
+async def list_suggestions(
+    document_id: str,
+    status: str | None = None,
+    include_content: bool = False,
+) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {"include_content": include_content}
+    if status:
+        params["status"] = status
+    data = await _get(f"/documents/{document_id}/suggestions", **params)
+    return data.get("suggestions", []) if isinstance(data, dict) else data
+
+
+async def get_suggestion(suggestion_id: str) -> dict[str, Any]:
+    return await _get(f"/suggestions/{suggestion_id}")
+
+
+async def list_feedback(document_id: str, status: str | None = None) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {}
+    if status:
+        params["status"] = status
+    data = await _get(f"/documents/{document_id}/feedback", **params)
+    return data.get("feedback", []) if isinstance(data, dict) else data
+
+
+async def resolve_feedback(
+    feedback_id: str,
+    resolution_note: str | None = None,
+    status: str = "resolved",
+) -> dict[str, Any]:
+    return await _post(f"/feedback/{feedback_id}/resolve", json={
+        "resolution_note": resolution_note,
+        "status": status,
+    })
+
+
+# ─── Document types & pipeline (BYOA) ────────────────────────
+
+async def list_document_types() -> list[dict[str, Any]]:
+    return await _get("/document-types")
+
+
+async def start_pipeline(
+    document_type_slug: str,
+    title: str | None,
+    document_context: str,
+    pipeline_definition_id: str | None = None,
+) -> dict[str, Any]:
+    return await _post("/pipeline/documents", json={
+        "document_type_slug": document_type_slug,
+        "title": title,
+        "document_context": document_context,
+        "pipeline_definition_id": pipeline_definition_id,
+    })
+
+
+async def list_pipeline_definitions() -> list[dict[str, Any]]:
+    return await _get("/pipeline-definitions")
+
+
+# ─── Quality gate ────────────────────────────────────────────
+
+async def get_gate_status(document_id: str) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/quality-gate")
+
+
+async def get_sections_for_gate(document_id: str) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/sections-for-gate")
+
+
+async def submit_quality_findings(document_id: str, findings: list[dict]) -> Any:
+    return await _post(
+        f"/documents/{document_id}/quality-gate/findings",
+        json={"findings": findings},
+    )
+
+
+async def get_next_step(document_id: str) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/pipeline/next-step")
+
+
+async def submit_step(document_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return await _post(f"/documents/{document_id}/pipeline/submit", json={"payload": payload})
+
+
 def document_url(document_id: str) -> str:
     return f"{FRONTEND_BASE}/document/{document_id}"
