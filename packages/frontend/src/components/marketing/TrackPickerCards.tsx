@@ -40,11 +40,22 @@ export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
       }}
     >
       <TrackCard
-        kind="forger"
-        eyebrow="Path A · Guided"
+        primary
+        eyebrow="Path A · BYOA"
         chip={<span className="df-pill df-pill-heat">Recommended</span>}
-        title="Forge with the Agent"
-        body='Six phases that walk you from "I have an idea" to "ready to merge": Discovery, Alignment, Generation, Refinement, Audit, Completed.'
+        title="Bring your own agent"
+        body="Connect Claude Code, Cursor, Codex, Zed — any MCP client. Your IDE agent drives the whole document; you review each change as a diff, comment, and approve."
+        illustration={<Terminal />}
+        meta="stdio · 30 sec install"
+        cta={variant === "hero" ? "Connect an agent" : "Connect your agent"}
+        onClick={connectAgent}
+      />
+      <TrackCard
+        primary={false}
+        eyebrow="Path B · Guided"
+        chip={<span className="df-pill df-pill-ghost">No agent needed</span>}
+        title="Forge in the browser"
+        body='No agent yet? A hosted pipeline walks you from "I have an idea" to "ready to merge" — same review, audit and history apply.'
         illustration={<MiniTrail />}
         meta="No setup · in-browser"
         cta={variant === "hero" ? "Start a forge" : "Walk the six phases"}
@@ -53,23 +64,12 @@ export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
           el?.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
       />
-      <TrackCard
-        kind="mcp"
-        eyebrow="Path B · BYOA"
-        chip={<span className="df-pill df-pill-steel">New</span>}
-        title="Bring your own agent"
-        body="Connect Claude Code, Cursor, Codex, Zed — any MCP client — and let your IDE agent drive while you watch, comment, and approve."
-        illustration={<Terminal />}
-        meta="stdio · 30 sec install"
-        cta={variant === "hero" ? "Connect an agent" : "Connect your agent"}
-        onClick={connectAgent}
-      />
     </div>
   );
 }
 
 function TrackCard({
-  kind,
+  primary,
   eyebrow,
   chip,
   title,
@@ -79,7 +79,7 @@ function TrackCard({
   cta,
   onClick,
 }: {
-  kind: "forger" | "mcp";
+  primary: boolean;
   eyebrow: string;
   chip: React.ReactNode;
   title: string;
@@ -89,16 +89,15 @@ function TrackCard({
   cta: string;
   onClick: () => void;
 }) {
-  const isForger = kind === "forger";
-  const baseBorder = isForger ? "rgba(255,77,0,0.30)" : "rgba(138,160,184,0.25)";
-  const hoverBorder = isForger ? "rgba(255,77,0,0.55)" : "rgba(138,160,184,0.50)";
-  const hoverShadow = isForger
+  const baseBorder = primary ? "rgba(255,77,0,0.30)" : "rgba(138,160,184,0.25)";
+  const hoverBorder = primary ? "rgba(255,77,0,0.55)" : "rgba(138,160,184,0.50)";
+  const hoverShadow = primary
     ? "0 12px 36px -8px rgba(255,77,0,0.20)"
     : "0 12px 36px -8px rgba(138,160,184,0.15)";
-  const bg = isForger
+  const bg = primary
     ? "linear-gradient(180deg, rgba(255,77,0,0.06), rgba(14,16,17,0.65))"
     : "linear-gradient(180deg, rgba(138,160,184,0.05), rgba(14,16,17,0.65))";
-  const arrowColor = isForger ? "var(--df-amber-200)" : "var(--df-steel-100)";
+  const arrowColor = primary ? "var(--df-amber-200)" : "var(--df-steel-100)";
 
   return (
     <button
@@ -140,7 +139,7 @@ function TrackCard({
             fontSize: 11,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: isForger ? "var(--df-amber-300)" : "var(--df-steel-100)",
+            color: primary ? "var(--df-amber-300)" : "var(--df-steel-100)",
             fontWeight: 600,
           }}
         >

@@ -79,8 +79,11 @@ export function LandingPage() {
         {/* Trust-layer capabilities */}
         <TrustLayerFeatures />
 
-        {/* Six phases preview */}
-        <section style={{ maxWidth: 1100, margin: "80px auto", padding: "0 56px" }}>
+        {/* MCP — the primary route */}
+        <McpTeaserCard />
+
+        {/* Six phases preview — the secondary, no-agent route */}
+        <section style={{ maxWidth: 1100, margin: "40px auto 80px", padding: "0 56px" }}>
           <div style={{ textAlign: "center", marginBottom: 44 }}>
             <span
               className="df-mono"
@@ -88,11 +91,11 @@ export function LandingPage() {
                 fontSize: 11,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: "var(--df-amber-300)",
+                color: "var(--df-steel-100)",
                 fontWeight: 600,
               }}
             >
-              Hosted route · no agent required
+              Path B · hosted route · no agent required
             </span>
             <h2 style={{ fontSize: 36, fontWeight: 600, letterSpacing: "-0.03em", margin: "14px 0 12px" }}>
               Six phases.{" "}
@@ -128,7 +131,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        <McpTeaserCard />
         <AgentBadgesStrip />
         <AppFooter />
       </div>

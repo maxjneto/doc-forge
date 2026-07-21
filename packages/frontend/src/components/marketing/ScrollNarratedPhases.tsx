@@ -143,17 +143,17 @@ export function ScrollNarratedPhases() {
             fontSize: 11,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: "var(--df-amber-300)",
+            color: "var(--df-steel-100)",
             fontWeight: 600,
           }}
         >
-          Path A · The Forger
+          Path B · The Forger · no agent needed
         </span>
         <h2 style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.03em", margin: "14px 0 14px" }}>
-          Six phases, <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>one coherent document</em>.
+          No agent yet? <em style={{ fontStyle: "normal", color: "var(--df-steel-100)" }}>The hosted pipeline drives</em>.
         </h2>
         <p style={{ fontSize: 15, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 600, margin: "0 auto" }}>
-          Scroll through the pipeline. The timeline on the left lights up as each phase comes into view.
+          Six phases from idea to merge-ready — the same review, audit and history apply to what it writes. Scroll through; the timeline on the left lights up as each phase comes into view.
         </p>
       </div>
 

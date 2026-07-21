@@ -21,17 +21,17 @@ export function McpTeaserCard() {
         <div>
           <span
             className="df-mono"
-            style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-steel-100)", fontWeight: 600 }}
+            style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300)", fontWeight: 600 }}
           >
-            Path B · DocForge MCP
+            Path A · DocForge MCP · the main way in
           </span>
           <h2 style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", margin: "14px 0 14px" }}>
-            Or skip the phases.
+            Your agent drives.
             <br />
-            <em style={{ fontStyle: "normal", color: "var(--df-steel-100)" }}>Let your agent drive.</em>
+            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>You review every change.</em>
           </h2>
           <p style={{ fontSize: 14.5, color: "var(--df-dim)", lineHeight: 1.6, margin: "0 0 22px" }}>
-            DocForge speaks MCP — the Model Context Protocol that connects Claude Code, Cursor, Codex, Zed, Continue, and any other MCP-capable client to your documents. They edit, you watch, you both share version history. No more pasting markdown between tools.
+            DocForge speaks MCP — the Model Context Protocol that connects Claude Code, Cursor, Codex, Zed, Continue, and any other MCP-capable client to your documents. Your agent writes; each change lands as a reviewable diff you accept or reject; the system audits for contradictions and keeps every version attributed. No more pasting markdown between tools.
           </p>
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button

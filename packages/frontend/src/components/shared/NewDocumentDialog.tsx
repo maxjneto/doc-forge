@@ -10,6 +10,8 @@ const ICON_MAP: Record<string, string> = {
   prd: "list_alt",
   "tech-spec": "schema",
   adr: "account_tree",
+  postmortem: "monitor_heart",
+  runbook: "menu_book",
 };
 
 const GUIDED_COST = 3;

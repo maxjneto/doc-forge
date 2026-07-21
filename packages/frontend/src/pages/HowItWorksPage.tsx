@@ -61,9 +61,9 @@ export function HowItWorksPage() {
               maxWidth: 820,
             }}
           >
-            Two ways to forge.
+            Point your agent at DocForge.
             <br />
-            One <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>shared workspace</em>.
+            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>Review what it writes</em>.
           </h1>
           <p style={{ fontSize: 16, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 580, margin: "0 auto" }}>
             DocForge is the review and trust layer for agent-written docs. Use the hosted pipeline to walk through a
@@ -77,8 +77,8 @@ export function HowItWorksPage() {
           <TrackPickerCards variant="picker" />
         </section>
 
-        <ScrollNarratedPhases />
         <McpStepBlocks />
+        <ScrollNarratedPhases />
         <AppFooter />
       </div>
     </div>

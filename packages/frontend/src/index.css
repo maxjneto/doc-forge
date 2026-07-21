@@ -108,10 +108,25 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Material Symbols */
+/* Material Symbols — self-sufficient so icons render even if Google's helper
+   class hasn't loaded/applied (without font-family + liga the glyph name shows
+   as literal text, e.g. "account_tree"). */
 .material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
   font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Utility classes */

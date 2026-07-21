@@ -17,15 +17,15 @@ export function McpStepBlocks() {
             fontSize: 11,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: "var(--df-steel-100)",
+            color: "var(--df-amber-300)",
             fontWeight: 600,
           }}
         >
-          Path B · DocForge MCP
+          Path A · DocForge MCP · start here
         </span>
         <h2 style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.030em", margin: "14px 0 14px" }}>
-          Or skip the phases.{" "}
-          <em style={{ fontStyle: "normal", color: "var(--df-steel-100)" }}>Let your agent drive.</em>
+          Your agent&apos;s document workspace.{" "}
+          <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>You stay in the loop.</em>
         </h2>
         <p style={{ fontSize: 15.5, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
           DocForge is your IDE agent's document workspace — the shared, version-controlled surface where your agent can
