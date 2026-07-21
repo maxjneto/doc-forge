@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -25,6 +25,12 @@ class Document(Base):
     audit_problems: Mapped[list | None] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     document_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="guided")
+    # How agent (API-key) writes are handled: "suggest" turns them into pending
+    # suggestions for human review; "direct" writes straight to the document.
+    agent_write_policy: Mapped[str] = mapped_column(String(20), nullable=False, default="suggest")
+    # Quality gate: when True, accepting a suggestion is blocked while the
+    # document has open high-severity audit findings (dismiss or resolve first).
+    require_gate_on_accept: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -33,5 +39,7 @@ class Document(Base):
     chat_messages = relationship("ChatMessage", back_populates="document", cascade="all, delete-orphan")
     audit_findings = relationship("AuditFinding", back_populates="document", cascade="all, delete-orphan")
     contract = relationship("DocumentContract", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    suggestions = relationship("Suggestion", back_populates="document", cascade="all, delete-orphan")
+    feedback_items = relationship("Feedback", back_populates="document", cascade="all, delete-orphan")
     document_type = relationship("DocumentType")
     user = relationship("User", back_populates="documents")

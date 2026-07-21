@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.ai.core import (
     build_context_report,
+    enforce_context_budget,
     get_system_prompt,
     log_usage,
     truncate_section,
@@ -77,12 +78,16 @@ def build_audit_context(
 ) -> str:
     order = section_order or ["context", "proposal", "implementation", "risks"]
     build_context_report("audit", {k: v for k, v in sections_content.items()})
+    # All sections matter equally to the audit, so over-budget trimming is
+    # proportional and preserves each section's head AND tail (contradictions
+    # tend to hide at the end of a document).
+    enforced = enforce_context_budget("audit", dict(sections_content), proportional=True)
     parts = []
     contract_block = _render_contract_block(document_contract)
     if contract_block:
         parts.append(contract_block)
     for section_type in order:
-        content = sections_content.get(section_type, "(Section not available)")
+        content = enforced.get(section_type, "(Section not available)")
         content = truncate_section(content, "audit", section_type)
         parts.append(f"=== SECTION: {section_type.upper()} ===\n{content}")
     return "\n\n".join(parts)
@@ -118,7 +123,14 @@ async def run_audit(doc_id: str, document_type_id: str | None = None, posthog_di
             "terminology": db_contract.terminology,
             "constraints": db_contract.constraints,
         }
-    user_content = build_audit_context(sections_content, document_contract=contract_dict)
+    # Canonical RFC order first, then any other sections (editor body,
+    # custom-type sections) so non-guided documents are fully audited too.
+    canonical = ["context", "proposal", "implementation", "risks"]
+    order = [k for k in canonical if k in sections_content]
+    order += [k for k in sections_content if k not in canonical]
+    user_content = build_audit_context(
+        sections_content, section_order=order, document_contract=contract_dict
+    )
 
     response = await call_with_retry(
         phase="audit",

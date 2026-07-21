@@ -8,7 +8,16 @@ from loguru import logger
 from app.config import settings
 from app.inngest_client import inngest_client
 from app.logging_config import setup_logging
-from app.routers import document_types, documents, sections
+from app.routers import (
+    billing,
+    document_types,
+    documents,
+    pipeline,
+    pipeline_definitions,
+    quality_gate,
+    sections,
+    suggestions,
+)
 from app.routers import users as users_router
 from app.workflows.registry import ALL_FUNCTIONS
 
@@ -47,6 +56,11 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(documents.router, prefix="/api")
 app.include_router(sections.router, prefix="/api")
+app.include_router(suggestions.router, prefix="/api")
+app.include_router(pipeline.router, prefix="/api")
+app.include_router(pipeline_definitions.router, prefix="/api")
+app.include_router(quality_gate.router, prefix="/api")
+app.include_router(billing.router, prefix="/api")
 app.include_router(users_router.router, prefix="/api")
 app.include_router(document_types.router, prefix="/api")
 

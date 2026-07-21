@@ -16,6 +16,10 @@ class DocumentType(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # NULL = global (seeded) type visible to everyone; set = user-owned custom type
+    user_id: Mapped[str | None] = mapped_column(
+        String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     section_definitions = relationship(

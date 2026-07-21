@@ -46,8 +46,11 @@ async def test_create_document_no_credits_rejected(client_factory):
 
 @pytest.mark.asyncio
 async def test_credit_deduction_is_atomic(client_factory):
-    """After creating a document, credit count decreases by exactly 1."""
-    user = User(id="user_atomic", email="atom@test.com", name="Atom", credits=2)
+    """After creating a guided document, credits decrease by exactly GUIDED_DOCUMENT_COST."""
+    from app.config import settings
+
+    starting = settings.GUIDED_DOCUMENT_COST + 2
+    user = User(id="user_atomic", email="atom@test.com", name="Atom", credits=starting)
 
     async with client_factory(user) as client:
         with patch("app.routers.documents.inngest_client") as mock_inngest:
@@ -62,7 +65,7 @@ async def test_credit_deduction_is_atomic(client_factory):
     async with TestSession() as session:
         result = await session.execute(select(User).where(User.id == "user_atomic"))
         db_user = result.scalar_one()
-        assert db_user.credits == 1
+        assert db_user.credits == starting - settings.GUIDED_DOCUMENT_COST
 
 
 @pytest.mark.asyncio

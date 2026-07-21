@@ -167,6 +167,10 @@ async def update_document(
         raise HTTPException(status_code=404, detail="Document not found")
     if payload.title is not None:
         doc.title = payload.title
+    if payload.agent_write_policy is not None:
+        doc.agent_write_policy = payload.agent_write_policy
+    if payload.require_gate_on_accept is not None:
+        doc.require_gate_on_accept = payload.require_gate_on_accept
     await db.commit()
     await db.refresh(doc)
     return DocumentResponse.model_validate(doc)
@@ -205,6 +209,11 @@ async def create_document(
 ):
     logger.info("[router] create_document | title='{}' mode='{}' user_id={}", payload.title, payload.mode, current_user.id)
 
+    from app.services import tiers as tiers_service
+    limit_error = await tiers_service.check_document_limit(db, current_user)
+    if limit_error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
+
     if payload.mode == "editor":
         return await _create_editor_document(payload, db, current_user, request)
 
@@ -215,11 +224,16 @@ async def create_document(
     if err:
         raise HTTPException(status_code=422, detail={"field": err.field, "message": err.message})
 
-    # Resolve document type
+    # Resolve document type — global (seeded) or a custom type the caller owns
+    from sqlalchemy import or_
     dt_result = await db.execute(
         select(DocumentType)
         .options(selectinload(DocumentType.section_definitions))
-        .where(DocumentType.slug == payload.document_type_slug, DocumentType.is_active.is_(True))
+        .where(
+            DocumentType.slug == payload.document_type_slug,
+            DocumentType.is_active.is_(True),
+            or_(DocumentType.user_id.is_(None), DocumentType.user_id == current_user.id),
+        )
     )
     doc_type = dt_result.scalar_one_or_none()
     if not doc_type:

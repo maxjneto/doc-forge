@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 
 class DocumentUpdateRequest(BaseModel):
     title: str | None = Field(default=None, max_length=200)
+    agent_write_policy: Literal["suggest", "direct"] | None = None
+    require_gate_on_accept: bool | None = None
 
 
 class DocumentCreate(BaseModel):
@@ -52,6 +54,8 @@ class DocumentResponse(BaseModel):
     title: str
     current_phase: str
     document_mode: str = "guided"
+    agent_write_policy: str = "suggest"
+    require_gate_on_accept: bool = False
     created_at: datetime
     updated_at: datetime
     has_api_key_activity: bool = False

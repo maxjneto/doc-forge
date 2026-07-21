@@ -17,6 +17,7 @@ from app.schemas.section import (
     SectionVersionUpdateRequest,
     VersionRestoreResponse,
 )
+from app.schemas.suggestion import SectionWriteResponse
 from app.services.db import create_version_snapshot, restore_version, update_section_content
 from app.services.observability import capture_event
 
@@ -139,7 +140,7 @@ async def update_section_version(
     return SectionVersionResponse.model_validate(version)
 
 
-@router.patch("/sections/{section_id}/content", response_model=SectionVersionResponse)
+@router.patch("/sections/{section_id}/content", response_model=None)
 async def update_section_content_endpoint(
     request: Request,
     section_id: uuid.UUID,
@@ -147,9 +148,39 @@ async def update_section_content_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Write section content.
+
+    Human (JWT) writes always apply directly and return the updated version.
+    Agent (API-key) writes are governed by the document's `agent_write_policy`:
+    with "suggest" (the default) the write becomes a pending suggestion for
+    human review and the response carries `mode: "suggestion"`.
+    """
     section = await _assert_section_ownership(section_id, current_user, db)
     api_key_id = getattr(request.state, "api_key_id", None)
     note = getattr(payload, "note", None)
+
+    if api_key_id:
+        doc_result = await db.execute(
+            select(Document).where(Document.id == section.document_id)
+        )
+        doc = doc_result.scalar_one()
+        if doc.agent_write_policy == "suggest":
+            from app.services.db import create_suggestion
+
+            suggestion = await create_suggestion(
+                db, section_id, section.document_id, payload.content,
+                note=note, api_key_id=api_key_id,
+            )
+            capture_event(str(current_user.id), str(section.document_id), "mcp_suggestion_created", {
+                "content_length": len(payload.content),
+                "has_note": bool(note),
+            })
+            return SectionWriteResponse(
+                mode="suggestion",
+                suggestion_id=suggestion.id,
+                content_length=len(payload.content),
+            )
+
     try:
         version = await update_section_content(
             db, section_id, payload.content,

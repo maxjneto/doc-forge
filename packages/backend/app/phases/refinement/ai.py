@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.core import (
     build_context_report,
+    compress_chat_history,
+    enforce_context_budget,
     load_yaml_prompt,
     log_usage,
     truncate_chat_history,
@@ -104,6 +106,20 @@ def build_refinement_context(
         "current_content": current_content,
         "cross_section": cross_section_context,
     })
+    # Active enforcement: trim the most-expendable components first; the
+    # section being refined is only touched as a last resort.
+    enforced = enforce_context_budget(
+        "refinement",
+        {
+            "general_context": general_context,
+            "current_content": current_content,
+            "cross_section": cross_section_context,
+        },
+        priority=["cross_section", "general_context", "current_content"],
+    )
+    general_context = enforced["general_context"]
+    current_content = enforced["current_content"]
+    cross_section_context = enforced["cross_section"]
 
     context_block = f"## Consolidated Context\n{general_context}"
     contract_block = _render_contract_block(document_contract)
@@ -165,6 +181,12 @@ async def refine_section(
         forced_tool_name or "auto-required",
     )
     system_prompt = await build_refinement_system_prompt(section_type, db, document_type_id)
+    # Summarize chat overflow with a lightweight AI call so early refinement
+    # decisions survive long sessions (build_refinement_context's sync window
+    # then becomes a no-op that preserves the summary message).
+    chat_history = await compress_chat_history(
+        chat_history, posthog_distinct_id=posthog_distinct_id
+    )
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(
         build_refinement_context(

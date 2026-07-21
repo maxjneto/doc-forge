@@ -20,8 +20,15 @@ from app.schemas.api_key import (
     ApiKeyListItem,
     ApiKeyUpdateRequest,
 )
+from app.services import tiers as tiers_service
 
 router = APIRouter(tags=["users"])
+
+
+@router.get("/tiers")
+async def list_tiers():
+    """Public single source of truth for plan tiers (pricing/billing pages + limits)."""
+    return {"tiers": tiers_service.get_tiers()}
 
 
 @router.get("/users/me")
@@ -32,6 +39,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "name": current_user.name,
         "credits": current_user.credits,
         "weekly_credits": settings.WEEKLY_CREDITS,
+        "plan": current_user.plan,
     }
 
 
@@ -41,6 +49,9 @@ async def create_api_key(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    limit_error = await tiers_service.check_api_key_limit(db, current_user)
+    if limit_error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
     raw_key = secrets.token_urlsafe(32)
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
     api_key = ApiKey(

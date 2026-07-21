@@ -9,6 +9,10 @@ SSEEventType = Literal[
     "audit_results",
     "document_updated",
     "error",
+    "suggestion_created",
+    "suggestion_resolved",
+    "feedback_created",
+    "feedback_resolved",
 ]
 
 

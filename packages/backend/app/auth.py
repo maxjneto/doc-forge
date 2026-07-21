@@ -102,15 +102,45 @@ async def _get_user_by_api_key(raw_key: str, db: AsyncSession) -> User | None:
     api_key = result.scalar_one_or_none()
     if api_key is None:
         return None
+    is_first_use = api_key.last_used_at is None
     await db.execute(
         update(ApiKey).where(ApiKey.id == api_key.id).values(last_used_at=func.now())
     )
     await db.commit()
     result = await db.execute(select(User).where(User.id == api_key.user_id))
-    return result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
+    if is_first_use and user is not None:
+        # Funnel step 1 (product-plan §9): the moment an agent's key is used
+        # for the first time — fired once per key, not per request, to keep
+        # PostHog volume sane.
+        from app.services.observability import capture_account_event
+
+        capture_account_event(user.id, "mcp_connected", {"harness": api_key.harness})
+    return user
 
 
 # ─── Dependency ──────────────────────────────────────────────
+
+async def get_current_user_optional(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> Optional["User"]:
+    """Like get_current_user, but anonymous access yields None instead of 401.
+
+    Used by endpoints that are public but enrich their response for
+    authenticated callers (e.g. listing global + own custom document types).
+    """
+    if not x_api_key and credentials is None:
+        request.state.api_key_id = None
+        return None
+    try:
+        return await get_current_user(request, credentials, db, x_api_key)
+    except HTTPException:
+        request.state.api_key_id = None
+        return None
+
 
 async def get_current_user(
     request: Request,

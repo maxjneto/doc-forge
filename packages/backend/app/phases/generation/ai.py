@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.core import (
     build_context_report,
     clean_section_output,
+    enforce_context_budget,
     get_system_prompt,
     load_yaml_prompt,
     log_usage,
@@ -53,6 +54,19 @@ def build_generation_context(
         "section_summary": section_summary,
         "cross_section": cross_section_context,
     })
+    # Active enforcement: the approved summary is the anchor of this call and
+    # is never trimmed; references and general context give way first.
+    enforced = enforce_context_budget(
+        "generation",
+        {
+            "general_context": general_context,
+            "section_summary": section_summary,
+            "cross_section": cross_section_context,
+        },
+        priority=["cross_section", "general_context"],
+    )
+    general_context = enforced["general_context"]
+    cross_section_context = enforced["cross_section"]
     parts = [f"## Consolidated Context\n{general_context}"]
     if user_preferences:
         parts.append(f"\n## Preferences\n{user_preferences}")

@@ -77,6 +77,10 @@ async def get_system_prompt(
 
     yaml_keys = (phase, section_key, "system") if section_key else (phase, "system")
     prompt = load_yaml_prompt("documents", *yaml_keys)
+    if not prompt and section_key:
+        # Section-specific YAML entry missing — fall back to the phase-wide
+        # default (the YAML file is the doc-type-agnostic canonical fallback).
+        prompt = load_yaml_prompt("documents", phase, "system")
     if prompt:
         logger.debug(
             "[prompt_loader] loaded from YAML | phase={} section_key={}", phase, section_key

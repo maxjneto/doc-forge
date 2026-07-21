@@ -34,6 +34,18 @@ def capture_event(
     posthog_client.capture(distinct_id=distinct_id, event=event_name, properties=full_props)
 
 
+def capture_account_event(
+    distinct_id: str,
+    event_name: str,
+    properties: dict | None = None,
+) -> None:
+    """Account-level event with no document context (e.g. plan changes) —
+    use capture_event instead when the event is scoped to a document."""
+    if posthog_client is None:
+        return
+    posthog_client.capture(distinct_id=distinct_id, event=event_name, properties=properties or {})
+
+
 def capture_span(
     distinct_id: str,
     doc_id: str,

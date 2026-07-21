@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -39,7 +39,13 @@ class SectionVersion(Base):
     change_summary: Mapped[str | None] = mapped_column(String(500), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Python-side default (not just server_default): version retention pruning
+    # and ordering rely on strict creation order, and DB clock resolution
+    # (SQLite's CURRENT_TIMESTAMP is second-granular) isn't fine enough for
+    # versions created in rapid succession.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), server_default=func.now()
+    )
 
     section = relationship("Section", back_populates="versions")
     parent_version = relationship("SectionVersion", remote_side="SectionVersion.id")

@@ -7,8 +7,10 @@ from app.models.document import Document
 from app.models.document_activity import DocumentActivity
 from app.models.document_contract import DocumentContract
 from app.models.document_type import DocumentType, SectionDefinition
+from app.models.pipeline import PipelineDefinition, PipelineRun
 from app.models.prompt_template import PromptTemplate
 from app.models.section import Section, SectionVersion
+from app.models.suggestion import Feedback, Suggestion
 from app.models.user import User
 
 __all__ = [
@@ -26,4 +28,8 @@ __all__ = [
     "DocumentContract",
     "ApiKey",
     "DocumentActivity",
+    "Suggestion",
+    "Feedback",
+    "PipelineRun",
+    "PipelineDefinition",
 ]

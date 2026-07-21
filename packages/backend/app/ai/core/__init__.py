@@ -12,7 +12,10 @@ from app.ai.core.truncation import (
     CHAT_HISTORY_WINDOW,
     SECTION_MAX_CHARS,
     build_context_report,
+    compress_chat_history,
+    enforce_context_budget,
     truncate_chat_history,
+    truncate_middle,
     truncate_section,
 )
 
@@ -22,7 +25,10 @@ __all__ = [
     "DEFAULT_MODEL",
     "GUARDRAIL_MODEL",
     "truncate_section",
+    "truncate_middle",
     "truncate_chat_history",
+    "compress_chat_history",
+    "enforce_context_budget",
     "build_context_report",
     "BUDGET",
     "SECTION_MAX_CHARS",
