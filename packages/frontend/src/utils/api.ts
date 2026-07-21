@@ -185,6 +185,42 @@ export async function apiFetchMe(getToken: GetToken) {
   return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number; weekly_credits: number; plan: string }>;
 }
 
+export type ExportFormat = "md" | "pdf" | "docx";
+
+/**
+ * Fetch a document export from the backend and trigger a browser download.
+ * Markdown is free; PDF/DOCX return 403 for free-plan users (surfaced as an
+ * Error the caller can show).
+ */
+export async function apiExportDocument(
+  documentId: string,
+  format: ExportFormat,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/export?format=${format}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) {
+    let detail = `Export failed (${res.status})`;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(detail);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("content-disposition") ?? "";
+  const match = cd.match(/filename="?([^"]+)"?/);
+  const filename = match?.[1] ?? `document.${format}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function apiCreateDocument(
   title: string,
   documentContext: string,

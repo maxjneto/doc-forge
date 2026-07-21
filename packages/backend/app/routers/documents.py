@@ -4,8 +4,8 @@ import uuid
 from pathlib import Path
 
 import inngest
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response, StreamingResponse
 from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ from app.models import (
     Section,
     SectionVersion,
 )
-from app.models.document_type import DocumentType
+from app.models.document_type import DocumentType, SectionDefinition
 from app.models.user import User
 from app.schemas.audit import AuditFindingResponse
 from app.schemas.document import (
@@ -43,6 +43,7 @@ from app.schemas.document import (
 )
 from app.schemas.events import AnswerQuestionRequest, EventRequest
 from app.services import db as db_service
+from app.services import export as export_service
 from app.services import sse as sse_service
 from app.services.observability import capture_event, capture_trace
 
@@ -149,6 +150,67 @@ async def get_document(
         sections=sections,
         discovery_questions=discovery_questions,
         audit_problems=doc.audit_problems,
+    )
+
+
+@router.get("/documents/{document_id}/export")
+async def export_document(
+    document_id: uuid.UUID,
+    format: str = Query("md", description="md | pdf | docx"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export the document's active content as Markdown, PDF or Word.
+
+    Markdown is free; PDF and DOCX are a Pro perk (see product-plan §9 / tiers).
+    """
+    fmt = format.lower()
+    if fmt not in export_service.EXPORT_FORMATS:
+        raise HTTPException(status_code=400, detail=f"Unsupported export format: {format}")
+    if fmt in export_service.PAID_FORMATS and (current_user.plan or "free") == "free":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{fmt.upper()} export is a Pro feature.",
+        )
+
+    result = await db.execute(
+        select(Document)
+        .options(selectinload(Document.sections).selectinload(Section.versions))
+        .where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Section order + display names come from the type's definitions; sections
+    # without a definition (e.g. editor "body") sort last and title-case.
+    order_map: dict[str, tuple[int, str]] = {}
+    if doc.document_type_id:
+        defs = await db.execute(
+            select(SectionDefinition).where(
+                SectionDefinition.document_type_id == doc.document_type_id
+            )
+        )
+        for sd in defs.scalars().all():
+            order_map[sd.section_key] = (sd.order, sd.display_name)
+
+    ordered = sorted(
+        doc.sections, key=lambda s: order_map.get(s.section_type, (10_000, ""))[0]
+    )
+    assembled: list[tuple[str, str | None]] = []
+    for s in ordered:
+        heading = order_map.get(s.section_type, (0, s.section_type.replace("_", " ").title()))[1]
+        active = next((v for v in s.versions if v.is_active), None)
+        assembled.append((heading, active.content if active else None))
+
+    md = export_service.build_markdown(doc.title, assembled)
+    mime, ext = export_service.EXPORT_FORMATS[fmt]
+    data = export_service.render(fmt, md)
+    filename = export_service.safe_filename(doc.title, ext)
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

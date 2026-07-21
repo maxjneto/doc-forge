@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
 import type { Section, GuidedSectionType as SectionType, AuditFinding } from "@/types";
-import { apiFetchAuditFindings, apiDismissAuditFinding } from "@/utils/api";
+import { apiFetchAuditFindings, apiDismissAuditFinding, apiExportDocument, type ExportFormat } from "@/utils/api";
 import { MarkdownRenderer } from "@/components/shared";
 
 const SECTION_ORDER: SectionType[] = [
@@ -22,12 +22,16 @@ const SECTION_HEADINGS: Record<SectionType, string> = {
 // ─── Export menu ────────────────────────────────────────────
 
 interface ExportMenuProps {
+  documentId: string;
   onExportMarkdown: () => void;
   onClose: () => void;
 }
 
-function ExportMenu({ onExportMarkdown, onClose }: ExportMenuProps) {
+function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
+  const [busy, setBusy] = useState<ExportFormat | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -39,19 +43,33 @@ function ExportMenu({ onExportMarkdown, onClose }: ExportMenuProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
 
+  async function handleBackendExport(format: ExportFormat) {
+    setBusy(format);
+    setError(null);
+    try {
+      await apiExportDocument(documentId, format, getToken);
+      posthog.capture("document_exported", { document_id: documentId, export_format: format });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const items = [
     {
       icon: "code",
       label: "Markdown",
       sub: ".MD FILE",
-      onClick: onExportMarkdown,
+      onClick: () => { onExportMarkdown(); onClose(); },
       primary: true,
       enabled: true,
     },
-    { icon: "hub",            label: "GitHub-flavored MD",     sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
-    { icon: "picture_as_pdf", label: "PDF",                    sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
-    { icon: "forum",          label: "Copy as Linear comment",  sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
-    { icon: "description",    label: "Confluence wiki",         sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false },
+    { icon: "picture_as_pdf", label: "PDF",   sub: busy === "pdf"  ? "EXPORTING…" : ".PDF FILE · PRO",  onClick: () => handleBackendExport("pdf"),  enabled: busy === null, primary: false },
+    { icon: "description",    label: "Word",  sub: busy === "docx" ? "EXPORTING…" : ".DOCX FILE · PRO", onClick: () => handleBackendExport("docx"), enabled: busy === null, primary: false },
+    { icon: "forum",          label: "Copy as Linear comment",  sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false, primary: false },
+    { icon: "description",    label: "Confluence wiki",         sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false, primary: false },
   ];
 
   return (
@@ -74,7 +92,7 @@ function ExportMenu({ onExportMarkdown, onClose }: ExportMenuProps) {
       {items.map((item) => (
         <button
           key={item.label}
-          onClick={() => { if (item.enabled) { item.onClick(); onClose(); } }}
+          onClick={() => { if (item.enabled) item.onClick(); }}
           style={{
             display: "flex",
             alignItems: "center",
@@ -117,6 +135,11 @@ function ExportMenu({ onExportMarkdown, onClose }: ExportMenuProps) {
           </div>
         </button>
       ))}
+      {error && (
+        <div style={{ padding: "8px 10px", fontSize: 11, color: "#ff8a8a", lineHeight: 1.4 }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -518,6 +541,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
 
                 {showExportMenu && (
                   <ExportMenu
+                    documentId={documentId}
                     onExportMarkdown={handleExportMarkdown}
                     onClose={() => setShowExportMenu(false)}
                   />
