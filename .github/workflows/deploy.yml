@@ -1,7 +1,8 @@
 name: Deploy (VPS)
 
-# Deploys by SSHing into the VPS and rebuilding the Compose stack from the
-# freshly pulled source (images are built on the box — no registry needed).
+# Deploys by SSHing into the VPS and pulling the freshly built images from GHCR.
+# Runs automatically after "Build & push images (GHCR)" succeeds on main, so the
+# images always exist before the VPS pulls them. The VPS never builds anything.
 #
 # Configure these repo secrets to enable it (the deploy step self-skips when
 # VPS_HOST is empty, so forks and unconfigured repos stay green):
@@ -9,15 +10,23 @@ name: Deploy (VPS)
 #   VPS_USER     - SSH user
 #   VPS_SSH_KEY  - private key with access to the server
 #   VPS_PATH     - checkout dir on the server (optional, default /opt/docforge)
+#
+# The VPS must be able to pull from GHCR. If the packages are private, run
+# `docker login ghcr.io` once on the box (it persists in ~/.docker/config.json);
+# if they are public, no login is needed.
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Build & push images (GHCR)"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # On workflow_run, only deploy if the build actually succeeded.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     env:
       VPS_HOST: ${{ secrets.VPS_HOST }}
     steps:
@@ -32,7 +41,8 @@ jobs:
             set -e
             cd "${{ secrets.VPS_PATH || '/opt/docforge' }}"
             git pull --ff-only
-            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
 
       - name: Skipped (no VPS secrets configured)

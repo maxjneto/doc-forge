@@ -19,6 +19,17 @@ bare Ubuntu box, etc.). Caddy handles TLS automatically.
 Only Caddy is reachable from the internet; Postgres and Redis never leave the
 internal Docker network.
 
+## Images are built in CI, not on the box
+
+The `backend`, `frontend` and `mcp` images are built by
+`.github/workflows/build.yml` on GitHub's runners and pushed to GHCR
+(`ghcr.io/<owner>/doc-forge-*`). The VPS only **pulls** them. This keeps a
+small (1-core) box from ever running the heavy Vite/npm build, which is slow and
+OOM-prone on constrained hardware.
+
+`VITE_*` values are baked into the frontend image at build time, so set them as
+GitHub Actions secrets (see the header of `build.yml`), not in the VPS `.env`.
+
 ## Prerequisites
 
 - A VPS with Docker Engine + the Compose plugin installed.
@@ -26,6 +37,7 @@ internal Docker network.
   - `docforge.example.com`      → app + API
   - `mcp.docforge.example.com`  → MCP endpoint
 - Ports 80 and 443 open.
+- The `build.yml` workflow has run at least once so the GHCR images exist.
 
 ## Bring-up
 
@@ -33,10 +45,15 @@ internal Docker network.
 git clone <this repo> docforge && cd docforge
 
 cp deploy/.env.prod.example .env
-# Edit .env: set the two domains, ACME_EMAIL, POSTGRES_PASSWORD, the Inngest
-# keys, your Azure OpenAI + Clerk keys, and (optionally) Stripe/PostHog.
+# Edit .env: set IMAGE_OWNER, the two domains, ACME_EMAIL, POSTGRES_PASSWORD,
+# the Inngest keys, your Azure OpenAI + Clerk (CLERK_JWKS_URL) keys, and
+# (optionally) Stripe/PostHog.
 
-docker compose -f docker-compose.prod.yml up -d --build
+# Only if the GHCR packages are private — persists in ~/.docker/config.json:
+docker login ghcr.io          # username = GitHub user, password = a PAT (read:packages)
+
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 The backend runs `alembic upgrade head` on start, so the schema (including the
@@ -53,12 +70,18 @@ curl -s  https://docforge.example.com/api/tiers | head   # API
 
 ## Updating
 
+Push to `main` → `build.yml` rebuilds and pushes the images → `deploy.yml`
+pulls them onto the VPS automatically (if the `VPS_*` secrets are set). Manual
+equivalent on the box:
+
 ```bash
 git pull
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-Migrations run on every backend start; they are idempotent.
+Migrations run on every backend start; they are idempotent. To roll back, set
+`IMAGE_TAG=<older-commit-sha>` in `.env` and re-run the two commands above.
 
 ## Notes / decisions
 
@@ -77,7 +100,13 @@ Migrations run on every backend start; they are idempotent.
 
 ## CI/CD
 
-`.github/workflows/*` build and push images to GHCR on pushes to `main` and can
-optionally deploy over SSH — see the comments in each workflow for the repo
-secrets to set (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`). Deploy steps are skipped
-automatically when those secrets are absent, so CI stays green without them.
+- `build.yml` — builds `backend`/`frontend`/`mcp` and pushes to GHCR on every
+  push to `main`. Needs the `VITE_CLERK_PUBLISHABLE_KEY` (and optional
+  `VITE_POSTHOG_KEY`) repo secrets for the frontend bundle.
+- `deploy.yml` — runs after `build.yml` succeeds and SSHes into the VPS to
+  `pull` + `up -d`. Set repo secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+  (and optional `VPS_PATH`, default `/opt/docforge`). The deploy self-skips when
+  `VPS_HOST` is absent, so CI stays green without it.
+
+If the GHCR packages are private, give the VPS pull access once with
+`docker login ghcr.io` (PAT with `read:packages`); it persists on the box.

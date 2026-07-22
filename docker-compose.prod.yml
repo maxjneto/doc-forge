@@ -1,8 +1,13 @@
 # DocForge — production stack for a single VPS (replaces Azure Container Apps).
 #
 #   cp deploy/.env.prod.example .env
-#   # edit .env (domain, secrets, keys)
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   # edit .env (domain, secrets, keys, IMAGE_OWNER)
+#   docker login ghcr.io            # once, if the packages are private
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# The three app images (backend/frontend/mcp) are built by
+# .github/workflows/build.yml and pulled from GHCR — the VPS never builds.
 #
 # Caddy terminates TLS (automatic Let's Encrypt) and routes:
 #   https://$DOCFORGE_DOMAIN/api/*  -> backend:8000   (API + SSE + inngest)
@@ -80,8 +85,7 @@ services:
       retries: 5
 
   backend:
-    build:
-      context: ./packages/backend
+    image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -106,8 +110,7 @@ services:
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   mcp:
-    build:
-      context: ./packages/mcp
+    image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-mcp:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - backend
@@ -118,14 +121,8 @@ services:
       PORT: "8001"
 
   frontend:
-    build:
-      context: ./packages/frontend
-      target: prod
-      args:
-        VITE_API_BASE: /api
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
-        VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
-        VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-https://us.i.posthog.com}
+    # VITE_* are baked into this image at build time by the GHCR workflow.
+    image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
 
 volumes:
