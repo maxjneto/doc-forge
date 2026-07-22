@@ -13,11 +13,16 @@ bare Ubuntu box, etc.). Caddy handles TLS automatically.
 | `backend`  | FastAPI (API, SSE, Inngest webhook)              | internal |
 | `mcp`      | MCP streamable-HTTP server                        | internal |
 | `postgres` | Database (durable volume)                         | internal |
-| `redis`    | SSE pub/sub fan-out (durable volume)              | internal |
-| `inngest`  | Self-hosted job runner for the guided executor   | internal |
 
-Only Caddy is reachable from the internet; Postgres and Redis never leave the
-internal Docker network.
+Only Caddy is reachable from the internet; Postgres never leaves the internal
+Docker network.
+
+**Managed off-box:** the guided executor runs on **Inngest Cloud** (set
+`INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` from the dashboard and register
+`https://<domain>/api/inngest` there). **SSE uses in-process queues** for a
+single backend replica — no Redis needed. If you ever run multiple backend
+replicas, add a `redis` service and set `REDIS_URL` so events fan out across
+them.
 
 ## Images are built in CI, not on the box
 
@@ -91,10 +96,12 @@ Migrations run on every backend start; they are idempotent. To roll back, set
 - **Stripe webhooks** target `https://docforge.example.com/api/billing/webhook`
   — register that URL in the Stripe dashboard and put the signing secret in
   `.env` as `STRIPE_WEBHOOK_SECRET`.
-- **Inngest** runs as a single self-hosted node (`inngest start`) with a durable
-  sqlite volume. That is enough for the hosted guided executor on one box. For
-  HA move to Inngest Cloud — the `INNGEST_EVENT_KEY`/`INNGEST_SIGNING_KEY` are
-  already wired.
+- **Inngest** uses **Inngest Cloud** (free tier). In production the backend SDK
+  targets Inngest Cloud by default (`app/inngest_client.py` only overrides the
+  URL outside production), so the keys in `.env` are the Cloud Event/Signing
+  keys, and the app is registered at `https://<domain>/api/inngest`. Self-hosting
+  is possible but would require forcing `api_base_url`/`event_api_base_url` in
+  production too — not wired today.
 - **Backups:** snapshot the `pgdata` volume (e.g. `docker compose exec postgres
   pg_dump -U postgres docforge`) on a schedule.
 

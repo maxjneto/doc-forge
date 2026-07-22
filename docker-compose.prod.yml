@@ -15,7 +15,12 @@
 #   https://$DOCFORGE_MCP_DOMAIN/*  -> mcp:8001        (MCP streamable HTTP)
 #
 # Only Caddy publishes ports (80/443). Everything else talks over the internal
-# network, so Postgres/Redis are never exposed to the internet.
+# network, so Postgres is never exposed to the internet.
+#
+# Single-VPS profile: the guided executor uses Inngest Cloud (managed) and SSE
+# uses in-process queues (single backend replica), so there is no self-hosted
+# Inngest or Redis here. Re-add Redis + set REDIS_URL only if you scale the
+# backend to multiple replicas.
 
 services:
   caddy:
@@ -52,54 +57,19 @@ services:
       timeout: 3s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  inngest:
-    # Single-node Inngest for the hosted guided executor. Durable across
-    # restarts via the sqlite volume. For HA/multi-node, move to Inngest Cloud
-    # (the INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY below are already plumbed).
-    image: inngest/inngest:latest
-    restart: unless-stopped
-    command: inngest start
-    environment:
-      INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:?set INNGEST_EVENT_KEY in .env}
-      INNGEST_SIGNING_KEY: ${INNGEST_SIGNING_KEY:?set INNGEST_SIGNING_KEY in .env}
-      INNGEST_SQLITE_DIR: /data
-      INNGEST_LOG_LEVEL: info
-    volumes:
-      - inngestdata:/data
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/localhost/8288"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   backend:
     image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      inngest:
-        condition: service_healthy
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-docforge}
-      REDIS_URL: redis://redis:6379/0
-      INNGEST_DEV_SERVER_URL: http://inngest:8288
+      # No REDIS_URL → SSE uses in-process queues (single replica).
+      # No INNGEST_DEV_SERVER_URL → the SDK targets Inngest Cloud in production;
+      # INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY come from .env (env_file above).
       IS_PRODUCTION: "true"
       CORS_ORIGINS: '["https://${DOCFORGE_DOMAIN}"]'
       CLERK_AUTHORIZED_PARTIES: '["https://${DOCFORGE_DOMAIN}"]'
@@ -127,7 +97,5 @@ services:
 
 volumes:
   pgdata:
-  redisdata:
-  inngestdata:
   caddy_data:
   caddy_config:
