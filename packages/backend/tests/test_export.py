@@ -94,6 +94,46 @@ async def test_unknown_format_rejected(client_factory):
     assert res.status_code == 400
 
 
+async def _seed_editor_document(user_id: str, content: str, title: str = "My Doc") -> str:
+    """Insert a free-editor doc: one 'body' section, content written directly."""
+    async with TestSession() as session:
+        if await session.get(User, user_id) is None:
+            session.add(User(id=user_id, email=f"{user_id}@t.com", name="T", credits=5))
+            await session.flush()
+        doc = Document(
+            user_id=user_id,
+            title=title,
+            current_phase="editing",
+            document_context="",
+            document_mode="editor",
+        )
+        session.add(doc)
+        await session.flush()
+        section = Section(document_id=doc.id, section_type="body", status="refining")
+        session.add(section)
+        await session.flush()
+        session.add(SectionVersion(
+            section_id=section.id, version_name="v1", content=content, is_active=True,
+        ))
+        await session.commit()
+        return str(doc.id)
+
+
+@pytest.mark.asyncio
+async def test_editor_document_export_has_no_duplicate_headings(client_factory):
+    """Free-editor content is the whole Markdown doc — no '# title' / '## Body'
+    wrapper should be added on top of it (that duplicated the content's own
+    heading in production)."""
+    content = "# My Doc\n\n## Section\n\nSome body text."
+    doc_id = await _seed_editor_document("u_exp_editor", content, title="My Doc")
+    async with client_factory(User(id="u_exp_editor", email="e@t.com", name="T", credits=5, plan="free")) as client:
+        res = await client.get(f"/api/documents/{doc_id}/export?format=md")
+    assert res.status_code == 200
+    body = res.text
+    assert body.count("# My Doc") == 1
+    assert "## Body" not in body
+
+
 @pytest.mark.asyncio
 async def test_export_other_users_document_404(client_factory):
     doc_id = await _seed_document("u_exp_owner")

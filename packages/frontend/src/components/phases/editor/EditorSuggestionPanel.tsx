@@ -8,6 +8,7 @@ import {
   apiAcceptSuggestion,
   apiRejectSuggestion,
 } from "@/utils/api";
+import { ScrollFadeContainer } from "./ScrollFadeContainer";
 
 const dmp = new DiffMatchPatch();
 
@@ -21,12 +22,12 @@ function SuggestionDiff({ oldText, newText }: { oldText: string; newText: string
     <pre
       style={{
         fontFamily: "var(--df-font-mono, monospace)",
-        fontSize: 10,
-        lineHeight: 1.6,
+        fontSize: 12,
+        lineHeight: 1.65,
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
         margin: 0,
-        color: "rgba(227,226,226,0.6)",
+        color: "rgba(227,226,226,0.68)",
       }}
     >
       {diffs.map(([op, text], i) => (
@@ -165,29 +166,32 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
             <p
               style={{
                 margin: "0 0 8px",
-                fontSize: 10.5,
-                lineHeight: 1.5,
-                color: "rgba(227,226,226,0.62)",
+                fontSize: 12,
+                lineHeight: 1.55,
+                color: "rgba(227,226,226,0.7)",
               }}
             >
               {suggestion.note}
             </p>
           )}
-          <div className="df-mono" style={{ fontSize: 9, color: "rgba(227,226,226,0.25)", marginBottom: 6 }}>
+          <div className="df-mono" style={{ fontSize: 9.5, color: "rgba(227,226,226,0.3)", marginBottom: 6 }}>
             {new Date(suggestion.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
           </div>
 
-          {/* Diff */}
+          {/* Diff — capped and independently scrollable so a long change
+              doesn't push the Accept/Reject buttons out of view. Wheel
+              scroll chains to the outer list once this reaches its own
+              boundary (no overscroll-behavior:contain set). */}
           <div
-            className="hide-scrollbar"
+            className="df-scroll-thin"
             style={{
               padding: 8,
               borderRadius: 6,
               background: "rgba(0,0,0,0.25)",
               border: "1px solid rgba(255,255,255,0.06)",
-              maxHeight: 220,
-              overflowY: "auto",
               marginBottom: 8,
+              maxHeight: 160,
+              overflowY: "auto",
             }}
           >
             <SuggestionDiff
@@ -248,8 +252,8 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
                   onClick={() => setRejecting(false)}
                   className="df-mono"
                   style={{
-                    fontSize: 9.5,
-                    padding: "4px 10px",
+                    fontSize: 11.5,
+                    padding: "6px 12px",
                     borderRadius: 4,
                     border: "1px solid rgba(255,255,255,0.08)",
                     background: "transparent",
@@ -264,8 +268,8 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
                   disabled={busy}
                   className="df-mono"
                   style={{
-                    fontSize: 9.5,
-                    padding: "4px 10px",
+                    fontSize: 11.5,
+                    padding: "6px 12px",
                     borderRadius: 4,
                     border: "1px solid rgba(232,100,100,0.4)",
                     background: "rgba(232,100,100,0.12)",
@@ -284,8 +288,8 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
                   disabled={busy}
                   className="df-mono"
                   style={{
-                    fontSize: 9.5,
-                    padding: "4px 10px",
+                    fontSize: 11.5,
+                    padding: "6px 12px",
                     borderRadius: 4,
                     border: "1px solid rgba(232,100,100,0.35)",
                     background: "transparent",
@@ -300,8 +304,8 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
                   disabled={busy}
                   className="df-mono"
                   style={{
-                    fontSize: 9.5,
-                    padding: "4px 10px",
+                    fontSize: 11.5,
+                    padding: "6px 12px",
                     borderRadius: 4,
                     border: "1px solid rgba(80,200,120,0.4)",
                     background: "rgba(80,200,120,0.12)",
@@ -328,12 +332,17 @@ interface EditorSuggestionPanelProps {
   documentId: string;
   refreshTick: number;
   onSuggestionResolved: () => void;
+  /** Reports the current pending count upward, e.g. for a tab badge. */
+  onCountChange?: (count: number) => void;
 }
 
+/** Review tab content — full height, single scroll region shared by every
+ * suggestion card (diffs render inline, no nested scroll of their own). */
 export function EditorSuggestionPanel({
   documentId,
   refreshTick,
   onSuggestionResolved,
+  onCountChange,
 }: EditorSuggestionPanelProps) {
   const { getToken } = useAuth();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -350,81 +359,43 @@ export function EditorSuggestionPanel({
   }, [documentId, getToken]);
 
   useEffect(() => refetch(), [refetch, refreshTick]);
-
-  if (suggestions.length === 0) return null;
+  useEffect(() => onCountChange?.(suggestions.length), [suggestions.length, onCountChange]);
 
   return (
-    <div
-      style={{
-        flexShrink: 0,
-        maxHeight: "45%",
-        display: "flex",
-        flexDirection: "column",
-        borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-        background: "rgba(120,160,255,0.02)",
-        overflow: "hidden",
-      }}
-    >
-      {/* Header */}
+    <ScrollFadeContainer fadeColor="rgba(9,10,12,0.97)">
       <div
         style={{
-          padding: "14px 18px 12px",
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          className="df-mono"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "#8aa8ff",
-          }}
-        >
-          › Review
-        </span>
-        <span
-          className="df-mono"
-          style={{
-            fontSize: 9,
-            padding: "1px 6px",
-            borderRadius: 8,
-            background: "rgba(120,160,255,0.15)",
-            color: "#b8c8ff",
-            fontWeight: 600,
-          }}
-        >
-          {suggestions.length}
-        </span>
-      </div>
-
-      {/* List */}
-      <div
-        className="hide-scrollbar"
-        style={{
-          flex: 1,
-          overflowY: "auto",
           padding: "12px 14px",
           display: "flex",
           flexDirection: "column",
           gap: 10,
         }}
       >
-        {suggestions.map((s) => (
-          <SuggestionCard
-            key={s.id}
-            suggestion={s}
-            onResolved={() => {
-              refetch();
-              onSuggestionResolved();
+        {suggestions.length === 0 ? (
+          <p
+            style={{
+              margin: 0,
+              padding: "8px 4px",
+              fontSize: 12,
+              lineHeight: 1.55,
+              color: "rgba(227,226,226,0.38)",
             }}
-          />
-        ))}
+          >
+            No pending suggestions. Agent writes will show up here for review.
+          </p>
+        ) : (
+          suggestions.map((s) => (
+            <SuggestionCard
+              key={s.id}
+              suggestion={s}
+              onResolved={() => {
+                refetch();
+                onSuggestionResolved();
+              }}
+            />
+          ))
+        )}
       </div>
-    </div>
+    </ScrollFadeContainer>
   );
 }

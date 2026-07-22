@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # rule); agent-run submissions are free — pro-BYOA incentive.
     QUALITY_GATE_COST: int = 1
 
+    # AI-assisted section role_description generation (Customize page, custom
+    # document types). Free (no credits) but Pro-only and rate-limited per user.
+    AI_SECTION_SUMMARY_RATE_LIMIT: int = 10
+    AI_SECTION_SUMMARY_WINDOW_HOURS: int = 1
+
     # Version retention (Free plan): oldest inactive versions beyond this count
     # are pruned when a new one is created. None/0 on paid plans (see tiers.py).
     FREE_MAX_VERSIONS_PER_SECTION: int = 20

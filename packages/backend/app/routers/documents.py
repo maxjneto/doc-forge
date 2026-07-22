@@ -182,28 +182,37 @@ async def export_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Section order + display names come from the type's definitions; sections
-    # without a definition (e.g. editor "body") sort last and title-case.
-    order_map: dict[str, tuple[int, str]] = {}
-    if doc.document_type_id:
-        defs = await db.execute(
-            select(SectionDefinition).where(
-                SectionDefinition.document_type_id == doc.document_type_id
+    if doc.document_mode == "editor":
+        # Free-editor documents are one Markdown blob the user/agent writes
+        # directly (headings included) — no per-section heading to add, and
+        # prepending the doc title would just duplicate a heading already in
+        # the content.
+        body_section = next((s for s in doc.sections if s.section_type == "body"), None)
+        active = next((v for v in body_section.versions if v.is_active), None) if body_section else None
+        md = export_service.build_freeform_markdown(active.content if active else None)
+    else:
+        # Section order + display names come from the type's definitions; sections
+        # without a definition sort last and title-case.
+        order_map: dict[str, tuple[int, str]] = {}
+        if doc.document_type_id:
+            defs = await db.execute(
+                select(SectionDefinition).where(
+                    SectionDefinition.document_type_id == doc.document_type_id
+                )
             )
+            for sd in defs.scalars().all():
+                order_map[sd.section_key] = (sd.order, sd.display_name)
+
+        ordered = sorted(
+            doc.sections, key=lambda s: order_map.get(s.section_type, (10_000, ""))[0]
         )
-        for sd in defs.scalars().all():
-            order_map[sd.section_key] = (sd.order, sd.display_name)
+        assembled: list[tuple[str, str | None]] = []
+        for s in ordered:
+            heading = order_map.get(s.section_type, (0, s.section_type.replace("_", " ").title()))[1]
+            active = next((v for v in s.versions if v.is_active), None)
+            assembled.append((heading, active.content if active else None))
 
-    ordered = sorted(
-        doc.sections, key=lambda s: order_map.get(s.section_type, (10_000, ""))[0]
-    )
-    assembled: list[tuple[str, str | None]] = []
-    for s in ordered:
-        heading = order_map.get(s.section_type, (0, s.section_type.replace("_", " ").title()))[1]
-        active = next((v for v in s.versions if v.is_active), None)
-        assembled.append((heading, active.content if active else None))
-
-    md = export_service.build_markdown(doc.title, assembled)
+        md = export_service.build_markdown(doc.title, assembled)
     mime, ext = export_service.EXPORT_FORMATS[fmt]
     data = export_service.render(fmt, md)
     filename = export_service.safe_filename(doc.title, ext)

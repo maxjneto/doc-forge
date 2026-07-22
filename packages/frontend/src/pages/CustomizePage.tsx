@@ -7,6 +7,7 @@ import {
   apiListDocumentTypes,
   apiCreateDocumentType,
   apiUpsertPrompt,
+  apiGenerateSectionSummary,
   apiListPipelineDefinitions,
   apiClonePipelineDefinition,
   apiUpdatePipelineDefinition,
@@ -16,9 +17,12 @@ import type { DocumentType, PipelineDefinition, PipelineStep } from "@/types";
 
 const PHASES = ["discovery", "alignment", "generation", "refinement", "audit", "coherence"];
 
+type CustomizeTab = "pipelines" | "documentTypes";
+
 export function CustomizePage() {
   const { getToken } = useAuth();
   const [plan, setPlan] = useState<string | null>(null);
+  const [tab, setTab] = useState<CustomizeTab>("pipelines");
 
   useEffect(() => {
     document.body.style.overflow = "auto";
@@ -49,12 +53,43 @@ export function CustomizePage() {
           <UpgradeNotice />
         ) : (
           <>
-            <PipelinesSection getToken={getToken} />
-            <DocumentTypesSection getToken={getToken} />
+            <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--df-outline)", marginBottom: 28 }}>
+              <TabButton label="Pipelines" active={tab === "pipelines"} onClick={() => setTab("pipelines")} />
+              <TabButton label="Document types" active={tab === "documentTypes"} onClick={() => setTab("documentTypes")} />
+            </div>
+            {/* Both sections stay mounted; switching tabs only toggles display,
+                so neither refetches on every tab switch. */}
+            <div style={{ display: tab === "pipelines" ? "block" : "none" }}>
+              <PipelinesSection getToken={getToken} />
+            </div>
+            <div style={{ display: tab === "documentTypes" ? "block" : "none" }}>
+              <DocumentTypesSection getToken={getToken} />
+            </div>
           </>
         )}
       </main>
     </div>
+  );
+}
+
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "10px 16px",
+        background: "transparent",
+        border: "none",
+        borderBottom: `2px solid ${active ? "var(--df-amber-500)" : "transparent"}`,
+        color: active ? "#e3e2e2" : "var(--df-faint)",
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -100,7 +135,7 @@ function PipelinesSection({ getToken }: { getToken: () => Promise<string | null>
 
   useEffect(() => {
     refresh();
-    apiListDocumentTypes().then(setDocTypes).catch(() => {});
+    apiListDocumentTypes(getToken).then(setDocTypes).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleClone() {
@@ -170,6 +205,7 @@ function PipelinesSection({ getToken }: { getToken: () => Promise<string | null>
               onDelete={() => handleDelete(d.id)}
               onSaved={refresh}
               getToken={getToken}
+              docTypes={docTypes}
             />
           ))}
         </div>
@@ -186,23 +222,45 @@ interface PipelineRowProps {
   onDelete: () => void;
   onSaved: () => void;
   getToken: () => Promise<string | null>;
+  docTypes: DocumentType[];
 }
 
-function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSaved, getToken }: PipelineRowProps) {
-  const [stepsJson, setStepsJson] = useState(() => JSON.stringify(definition.steps, null, 2));
+const PIPELINE_GROUPS: { phase: string; label: string }[] = [
+  { phase: "discovery", label: "Discovery" },
+  { phase: "alignment", label: "Alignment" },
+  { phase: "generation", label: "Generation" },
+  { phase: "audit", label: "Audit" },
+];
+
+/** Structured editor over `definition.steps` — grouped by phase in the order
+ * they already appear in the array (discovery → alignment → generation →
+ * audit, per clone_baseline_definition). Only `prompt` is ever rewritten by
+ * the user; `phase`/`section_key`/`checkpoint` are always copied straight
+ * from the original step object, so there's no client-side JSON to validate. */
+function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSaved, getToken, docTypes }: PipelineRowProps) {
+  const baseDocType = docTypes.find((dt) => dt.id === definition.baseDocumentTypeId) ?? null;
   const [nameDraft, setNameDraft] = useState(definition.name);
+  const [steps, setSteps] = useState<PipelineStep[]>(() => definition.steps.map((s) => ({ ...s })));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function sectionLabel(key: string | null | undefined): string {
+    if (!key) return "";
+    return baseDocType?.sections.find((s) => s.sectionKey === key)?.displayName ?? key;
+  }
+
+  function updatePrompt(index: number, prompt: string) {
+    setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, prompt } : s)));
+  }
 
   async function handleSave() {
     setSaving(true);
     setError(null);
     try {
-      const steps = JSON.parse(stepsJson) as PipelineStep[];
       await apiUpdatePipelineDefinition(definition.id, { name: nameDraft, steps }, getToken);
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Invalid steps JSON");
+      setError(e instanceof Error ? e.message : "Failed to save pipeline");
     } finally {
       setSaving(false);
     }
@@ -229,22 +287,55 @@ function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSave
       </div>
 
       {expanded && (
-        <div style={{ padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
           <input
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
             style={inputStyle}
           />
-          <textarea
-            value={stepsJson}
-            onChange={(e) => setStepsJson(e.target.value)}
-            rows={12}
-            className="df-mono"
-            style={{ ...inputStyle, fontSize: 11.5, lineHeight: 1.5, resize: "vertical" }}
-          />
-          <p style={{ fontSize: 11, color: "var(--df-faint)", margin: 0 }}>
-            Each step: <code className="df-mono">{"{ phase, section_key?, prompt?, checkpoint? }"}</code>. Set <code className="df-mono">prompt</code> to override the default instructions for that step.
-          </p>
+
+          {PIPELINE_GROUPS.map((group) => {
+            const groupSteps = steps
+              .map((step, index) => ({ step, index }))
+              .filter(({ step }) => step.phase === group.phase);
+            if (groupSteps.length === 0) return null;
+            return (
+              <div key={group.phase}>
+                <div className="df-mono" style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--df-faint)", marginBottom: 8 }}>
+                  {group.label}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {groupSteps.map(({ step, index }) => (
+                    <div
+                      key={index}
+                      style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--df-outline)" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, flex: 1 }}>
+                          {step.section_key ? sectionLabel(step.section_key) : group.label}
+                        </span>
+                        {step.checkpoint === "human" && (
+                          <span
+                            className="df-mono"
+                            style={{ fontSize: 9.5, letterSpacing: "0.04em", padding: "2px 7px", borderRadius: 4, background: "rgba(255,196,0,0.12)", color: "#ffd25e" }}
+                          >
+                            requires human approval
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        value={step.prompt ?? ""}
+                        onChange={(e) => updatePrompt(index, e.target.value)}
+                        rows={4}
+                        style={{ ...inputStyle, fontSize: 12, lineHeight: 1.5, resize: "vertical" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
           {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: 0 }}>{error}</p>}
           <div>
             <button onClick={handleSave} disabled={saving} style={primaryBtnStyle}>
@@ -265,7 +356,7 @@ function DocumentTypesSection({ getToken }: { getToken: () => Promise<string | n
 
   async function refresh() {
     try {
-      setTypes(await apiListDocumentTypes());
+      setTypes(await apiListDocumentTypes(getToken));
     } catch {
       setTypes([]);
     }
@@ -308,39 +399,79 @@ function DocumentTypesSection({ getToken }: { getToken: () => Promise<string | n
 }
 
 interface SectionDraft {
-  section_key: string;
   display_name: string;
-  order: number;
   role_description: string;
 }
 
+function slugifySectionKey(text: string): string {
+  const slug = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+  return slug || "section";
+}
+
+/** Derive unique section_keys for the whole draft list in one pass —
+ * duplicates (e.g. two sections both named "Notes") get -2, -3, ... suffixes,
+ * since the backend requires section_key to be unique per request. */
+function computeSectionKeys(sections: SectionDraft[]): string[] {
+  const counts: Record<string, number> = {};
+  return sections.map((s) => {
+    const base = slugifySectionKey(s.display_name);
+    const count = (counts[base] ?? 0) + 1;
+    counts[base] = count;
+    return count === 1 ? base : `${base}-${count}`;
+  });
+}
+
 function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<string | null>; onCreated: () => void }) {
-  const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [sections, setSections] = useState<SectionDraft[]>([
-    { section_key: "", display_name: "", order: 1, role_description: "" },
+    { display_name: "", role_description: "" },
   ]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const sectionKeys = computeSectionKeys(sections);
 
   function updateSection(i: number, patch: Partial<SectionDraft>) {
     setSections((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
 
   function addSection() {
-    setSections((prev) => [...prev, { section_key: "", display_name: "", order: prev.length + 1, role_description: "" }]);
+    setSections((prev) => [...prev, { display_name: "", role_description: "" }]);
   }
 
   function removeSection(i: number) {
     setSections((prev) => prev.filter((_, idx) => idx !== i));
   }
 
+  function moveSection(i: number, dir: -1 | 1) {
+    setSections((prev) => {
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = prev.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+
   async function handleSubmit() {
     setSaving(true);
     setError(null);
     try {
-      await apiCreateDocumentType({ slug, name, description, sections }, getToken);
+      await apiCreateDocumentType({
+        name,
+        description,
+        sections: sections.map((s, i) => ({
+          section_key: sectionKeys[i],
+          display_name: s.display_name,
+          order: i + 1,
+          role_description: s.role_description,
+        })),
+      }, getToken);
       onCreated();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create document type");
@@ -351,10 +482,7 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
 
   return (
     <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", gap: 10 }}>
-        <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug (e.g. adr)" style={{ ...inputStyle, flex: 1 }} />
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (e.g. ADR)" style={{ ...inputStyle, flex: 1 }} />
-      </div>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (e.g. ADR)" style={inputStyle} />
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -367,34 +495,48 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
         Sections
       </div>
       {sections.map((s, i) => (
-        <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <input
-            value={s.section_key}
-            onChange={(e) => updateSection(i, { section_key: e.target.value })}
-            placeholder="section_key"
-            style={{ ...inputStyle, width: 110 }}
-          />
-          <input
-            value={s.display_name}
-            onChange={(e) => updateSection(i, { display_name: e.target.value })}
-            placeholder="Display name"
-            style={{ ...inputStyle, width: 140 }}
-          />
-          <input
-            type="number"
-            value={s.order}
-            onChange={(e) => updateSection(i, { order: Number(e.target.value) })}
-            style={{ ...inputStyle, width: 60 }}
-          />
-          <input
+        <div
+          key={i}
+          style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--df-outline)", display: "flex", flexDirection: "column", gap: 8 }}
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <button onClick={() => moveSection(i, -1)} disabled={i === 0} style={reorderBtnStyle}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>keyboard_arrow_up</span>
+              </button>
+              <button onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1} style={reorderBtnStyle}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>keyboard_arrow_down</span>
+              </button>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <input
+                value={s.display_name}
+                onChange={(e) => updateSection(i, { display_name: e.target.value })}
+                placeholder="Display name (e.g. Context)"
+                style={inputStyle}
+              />
+              <div className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", marginTop: 4 }}>
+                key: {sectionKeys[i]}
+              </div>
+            </div>
+            <button onClick={() => removeSection(i)} style={{ ...ghostBtnStyle, border: "none" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+            </button>
+          </div>
+          <textarea
             value={s.role_description}
             onChange={(e) => updateSection(i, { role_description: e.target.value })}
             placeholder="What this section should contain"
-            style={{ ...inputStyle, flex: 1 }}
+            rows={2}
+            style={inputStyle}
           />
-          <button onClick={() => removeSection(i)} style={{ ...ghostBtnStyle, border: "none" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
-          </button>
+          <SectionRoleGenButton
+            documentTypeName={name}
+            documentTypeDescription={description}
+            sectionDisplayName={s.display_name}
+            getToken={getToken}
+            onGenerated={(text) => updateSection(i, { role_description: text })}
+          />
         </div>
       ))}
       <div>
@@ -406,10 +548,57 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
 
       {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: 0 }}>{error}</p>}
       <div>
-        <button onClick={handleSubmit} disabled={saving || !slug || !name} style={primaryBtnStyle}>
+        <button onClick={handleSubmit} disabled={saving || !name} style={primaryBtnStyle}>
           {saving ? "Creating…" : "Create document type"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function SectionRoleGenButton({
+  documentTypeName, documentTypeDescription, sectionDisplayName, getToken, onGenerated,
+}: {
+  documentTypeName: string;
+  documentTypeDescription: string;
+  sectionDisplayName: string;
+  getToken: () => Promise<string | null>;
+  onGenerated: (text: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const disabled = !documentTypeName.trim() || !documentTypeDescription.trim() || !sectionDisplayName.trim();
+
+  async function handleClick() {
+    if (disabled || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const text = await apiGenerateSectionSummary({
+        document_type_name: documentTypeName,
+        document_type_description: documentTypeDescription,
+        section_display_name: sectionDisplayName,
+      }, getToken);
+      onGenerated(text);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button
+        onClick={handleClick}
+        disabled={disabled || loading}
+        title={disabled ? "Fill in the type's name, description, and this section's display name first" : undefined}
+        style={{ ...ghostBtnStyle, opacity: disabled ? 0.45 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
+        {loading ? "Generating…" : "Generate with AI"}
+      </button>
+      {error && <span style={{ fontSize: 11, color: "var(--df-error, #f55)" }}>{error}</span>}
     </div>
   );
 }
@@ -508,6 +697,20 @@ const cardStyle: CSSProperties = {
   borderRadius: 12,
   background: "rgba(18,20,20,0.5)",
   overflow: "hidden",
+};
+
+const reorderBtnStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 20,
+  height: 16,
+  padding: 0,
+  background: "transparent",
+  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.09))",
+  borderRadius: 4,
+  color: "var(--df-dim)",
+  cursor: "pointer",
 };
 
 const ghostBtnStyle: CSSProperties = {

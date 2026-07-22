@@ -1,5 +1,7 @@
 """Tests for M4 customization: pipeline definitions, custom types, custom prompts."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from app.models.user import User
@@ -78,7 +80,7 @@ async def test_customization_is_pro_gated(client_factory):
         assert res.status_code == 403
 
         res = await client.post("/api/document-types", json={
-            "slug": "my-type", "name": "My Type", "description": "x",
+            "name": "My Type", "description": "x",
             "sections": [{"section_key": "body", "display_name": "Body", "order": 1, "role_description": "r"}],
         })
         assert res.status_code == 403
@@ -90,7 +92,6 @@ async def test_custom_document_type_with_prompts_and_pipeline(client_factory):
     and runnable as a pipeline."""
     async with client_factory(_pro_user("u_cust4")) as client:
         res = await client.post("/api/document-types", json={
-            "slug": "design-doc",
             "name": "Design Doc",
             "description": "Two-section internal design doc.",
             "sections": [
@@ -101,10 +102,13 @@ async def test_custom_document_type_with_prompts_and_pipeline(client_factory):
             ],
         })
         assert res.status_code == 201, res.text
-        assert res.json()["is_custom"] is True
+        created = res.json()
+        assert created["is_custom"] is True
+        slug = created["slug"]  # server-generated: slugify(name) + per-user suffix
+        assert slug.startswith("design-doc")
 
         # Custom prompt for the type (single source: pipeline + resources)
-        res = await client.put("/api/document-types/design-doc/prompts", json={
+        res = await client.put(f"/api/document-types/{slug}/prompts", json={
             "phase": "discovery",
             "prompt_text": "DESIGN-DOC DISCOVERY PROMPT: enumerate affected teams first.",
         })
@@ -113,11 +117,11 @@ async def test_custom_document_type_with_prompts_and_pipeline(client_factory):
         # Listed for the owner
         res = await client.get("/api/document-types")
         slugs = [t["slug"] for t in res.json()]
-        assert "design-doc" in slugs and "rfc" in slugs
+        assert slug in slugs and "rfc" in slugs
 
         # Pipeline over the custom type serves the custom prompt
         res = await client.post("/api/pipeline/documents", json={
-            "document_type_slug": "design-doc",
+            "document_type_slug": slug,
             "document_context": CONTEXT,
         })
         assert res.status_code == 201, res.text
@@ -129,19 +133,77 @@ async def test_custom_document_type_with_prompts_and_pipeline(client_factory):
     async with client_factory(_pro_user("u_cust5")) as other:
         res = await other.get("/api/document-types")
         slugs = [t["slug"] for t in res.json()]
-        assert "design-doc" not in slugs
+        assert slug not in slugs
         res = await other.post("/api/pipeline/documents", json={
-            "document_type_slug": "design-doc",
+            "document_type_slug": slug,
             "document_context": CONTEXT,
         })
         assert res.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_slug_collision_rejected(client_factory):
+async def test_duplicate_name_gets_distinct_generated_slug(client_factory):
+    """Slug is server-generated (slugify(name) + per-user suffix), retried on
+    collision — creating two types with the same name no longer 409s, it just
+    gets a distinct slug."""
     async with client_factory(_pro_user("u_cust6")) as client:
-        res = await client.post("/api/document-types", json={
-            "slug": "rfc", "name": "Clash", "description": "x",
+        payload = {
+            "name": "Clash", "description": "x",
             "sections": [{"section_key": "body", "display_name": "Body", "order": 1, "role_description": "r"}],
-        })
-        assert res.status_code == 409
+        }
+        res1 = await client.post("/api/document-types", json=payload)
+        assert res1.status_code == 201, res1.text
+        res2 = await client.post("/api/document-types", json=payload)
+        assert res2.status_code == 201, res2.text
+        assert res1.json()["slug"] != res2.json()["slug"]
+
+
+# ─── AI-assisted section summary (free, Pro-gated, rate-limited) ─────────────
+
+_SUMMARY_PAYLOAD = {
+    "document_type_name": "ADR",
+    "document_type_description": "Architecture Decision Record.",
+    "section_display_name": "Consequences",
+}
+
+
+def _mock_ai_response(text: str) -> MagicMock:
+    response = MagicMock()
+    response.choices = [MagicMock()]
+    response.choices[0].message.content = text
+    return response
+
+
+@pytest.mark.asyncio
+async def test_generate_section_summary(client_factory):
+    async with client_factory(_pro_user("u_cust10")) as client:
+        with patch(
+            "app.guardrails.call_with_retry",
+            new=AsyncMock(return_value=_mock_ai_response("Names the trade-offs of the chosen decision.")),
+        ):
+            res = await client.post("/api/document-types/generate-section-summary", json=_SUMMARY_PAYLOAD)
+        assert res.status_code == 200, res.text
+        assert res.json()["role_description"] == "Names the trade-offs of the chosen decision."
+
+
+@pytest.mark.asyncio
+async def test_generate_section_summary_is_pro_gated(client_factory):
+    free_user = User(id="u_cust11", email="free2@test.com", name="F", credits=5)
+    async with client_factory(free_user) as client:
+        res = await client.post("/api/document-types/generate-section-summary", json=_SUMMARY_PAYLOAD)
+        assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_generate_section_summary_rate_limited(client_factory):
+    """Only AI_SECTION_SUMMARY_RATE_LIMIT (10) calls/hour are allowed; the 11th 429s."""
+    async with client_factory(_pro_user("u_cust12")) as client:
+        with patch(
+            "app.guardrails.call_with_retry",
+            new=AsyncMock(return_value=_mock_ai_response("Some generated role description.")),
+        ):
+            for _ in range(10):
+                res = await client.post("/api/document-types/generate-section-summary", json=_SUMMARY_PAYLOAD)
+                assert res.status_code == 200, res.text
+            res = await client.post("/api/document-types/generate-section-summary", json=_SUMMARY_PAYLOAD)
+        assert res.status_code == 429

@@ -2,15 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import type { GateStatus } from "@/utils/api";
 import { apiDismissAuditFinding, apiFetchGateStatus, apiSetRequireGateOnAccept } from "@/utils/api";
+import { ScrollFadeContainer } from "./ScrollFadeContainer";
 
 interface EditorGatePanelProps {
   documentId: string;
   refreshTick: number;
+  /** Reports (openFindings, blocking) upward for the tab badge. */
+  onStatusChange?: (openFindings: number, blocking: boolean) => void;
 }
 
-/** Quality gate badge + findings list ("CI for documents"). Toggle always visible;
- * findings list only when there's something to show. */
-export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProps) {
+/** Quality gate tab content — full height, single scroll region. Own header/
+ * border removed: the tab bar carries the "Quality Gate" label + badge. */
+export function EditorGatePanel({ documentId, refreshTick, onStatusChange }: EditorGatePanelProps) {
   const { getToken } = useAuth();
   const [gate, setGate] = useState<GateStatus | null>(null);
   const [togglePending, setTogglePending] = useState(false);
@@ -27,6 +30,10 @@ export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProp
   }, [documentId, getToken]);
 
   useEffect(() => refetch(), [refetch, refreshTick]);
+  useEffect(() => {
+    if (gate) onStatusChange?.(gate.openFindings, gate.blocking);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gate?.openFindings, gate?.blocking]);
 
   if (!gate) return null;
 
@@ -47,20 +54,11 @@ export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProp
   }
 
   return (
-    <div
-      style={{
-        flexShrink: 0,
-        maxHeight: "35%",
-        display: "flex",
-        flexDirection: "column",
-        borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-        background: "rgba(255,196,0,0.02)",
-        overflow: "hidden",
-      }}
-    >
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      {/* Toggle row — Gate-specific control, not tab-bar material */}
       <div
         style={{
-          padding: "12px 18px 10px",
+          padding: "10px 14px",
           borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
           display: "flex",
           alignItems: "center",
@@ -68,32 +66,6 @@ export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProp
           flexShrink: 0,
         }}
       >
-        <span
-          className="df-mono"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "#ffd25e",
-          }}
-        >
-          › Quality gate
-        </span>
-        {gate.openFindings > 0 && (
-          <span
-            className="df-mono"
-            style={{
-              fontSize: 9,
-              padding: "1px 6px",
-              borderRadius: 8,
-              background: gate.openHighFindings > 0 ? "rgba(232,100,100,0.2)" : "rgba(255,196,0,0.15)",
-              color: gate.openHighFindings > 0 ? "#e88" : "#ffd25e",
-              fontWeight: 600,
-            }}
-          >
-            {gate.openFindings}
-          </span>
-        )}
         {gate.blocking && (
           <span
             className="df-mono"
@@ -118,7 +90,7 @@ export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProp
           title="When on, suggestions can't be accepted while high-severity findings are open."
           className="df-mono"
           style={{
-            fontSize: 8.5,
+            fontSize: 9,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             padding: "2px 7px",
@@ -134,18 +106,21 @@ export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProp
         </button>
       </div>
 
-      {gate.findings.length > 0 && (
+      {/* Findings — single scroll region for the whole tab */}
+      <ScrollFadeContainer fadeColor="rgba(20,16,4,0.97)">
       <div
-        className="hide-scrollbar"
         style={{
-          flex: 1,
-          overflowY: "auto",
           padding: "10px 14px",
           display: "flex",
           flexDirection: "column",
           gap: 8,
         }}
       >
+        {gate.findings.length === 0 && (
+          <p style={{ margin: 0, padding: "8px 4px", fontSize: 12, lineHeight: 1.55, color: "rgba(227,226,226,0.38)" }}>
+            No findings. Run the quality gate to check for cross-section contradictions.
+          </p>
+        )}
         {gate.findings.map((f) => (
           <div
             key={f.id}
@@ -189,13 +164,13 @@ export function EditorGatePanel({ documentId, refreshTick }: EditorGatePanelProp
                 Dismiss
               </button>
             </div>
-            <p style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, color: "rgba(227,226,226,0.62)" }}>
+            <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: "rgba(227,226,226,0.7)" }}>
               {f.description}
             </p>
           </div>
         ))}
       </div>
-      )}
+      </ScrollFadeContainer>
     </div>
   );
 }

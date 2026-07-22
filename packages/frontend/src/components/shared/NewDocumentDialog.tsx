@@ -39,7 +39,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
   const canAffordEditor = credits === undefined || credits >= EDITOR_COST;
 
   useEffect(() => {
-    apiListDocumentTypes()
+    apiListDocumentTypes(getToken)
       .then((types) => {
         setDocTypes(types);
         setLoading(false);
@@ -48,7 +48,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         setError(true);
         setLoading(false);
       });
-  }, []);
+  }, [getToken]);
 
   function handleSelectGuided(doc: DocumentType) {
     if (!canAffordGuided) return;

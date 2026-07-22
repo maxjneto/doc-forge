@@ -10,6 +10,7 @@ import {
   apiUpdateSectionVersion,
   apiUpdateSectionContent,
 } from "@/utils/api";
+import { ScrollFadeContainer } from "./ScrollFadeContainer";
 
 const dmp = new DiffMatchPatch();
 
@@ -118,36 +119,18 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
           <span
             className="df-mono"
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: version.isActive ? 600 : 400,
               color: version.isActive
                 ? "var(--df-amber-200, #ffb59e)"
                 : "var(--df-faint, rgba(227,226,226,0.38))",
               flex: 1,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              lineHeight: 1.35,
+              wordBreak: "break-word",
             }}
           >
             {version.versionName}
           </span>
-          {version.isActive && (
-            <span
-              className="df-mono"
-              style={{
-                fontSize: 9,
-                letterSpacing: "0.10em",
-                textTransform: "uppercase",
-                padding: "1px 5px",
-                borderRadius: 3,
-                background: "rgba(255,77,0,0.15)",
-                color: "var(--df-amber-300, #ff8d4a)",
-                flexShrink: 0,
-              }}
-            >
-              Active
-            </span>
-          )}
           {/* Pencil */}
           <button
             onClick={openEdit}
@@ -176,7 +159,7 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
           <div style={{ marginTop: 3, paddingLeft: 11 }}>
             <span
               className="df-mono"
-              style={{ fontSize: 9, color: "var(--df-mute, rgba(227,226,226,0.18))", display: "block" }}
+              style={{ fontSize: 10.5, lineHeight: 1.4, color: "var(--df-faint, rgba(227,226,226,0.38))", display: "block" }}
             >
               {version.changeSummary}
             </span>
@@ -186,7 +169,7 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
         {/* Timestamp */}
         {!editOpen && (
           <div style={{ marginTop: 3, paddingLeft: 11 }}>
-            <span className="df-mono" style={{ fontSize: 9, color: "var(--df-mute, rgba(227,226,226,0.18))" }}>
+            <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-mute, rgba(227,226,226,0.18))" }}>
               {new Date(version.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
             </span>
           </div>
@@ -278,9 +261,9 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "5px 10px",
               borderRadius: 4,
               border: "1px solid rgba(255,77,0,0.30)",
               background: "rgba(255,77,0,0.08)",
@@ -288,13 +271,14 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
               cursor: "pointer",
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>swap_horiz</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>swap_horiz</span>
             Switch to version
           </button>
         )}
       </div>
 
-      {/* Diff pane */}
+      {/* Diff pane — renders inline (no nested scroll: the tab's single
+          outer scroll owns this) */}
       {showDiff && (
         <div
           style={{
@@ -303,12 +287,9 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
             borderRadius: 6,
             background: "rgba(255,255,255,0.02)",
             border: "1px solid rgba(255,255,255,0.06)",
-            maxHeight: 200,
-            overflowY: "auto",
           }}
-          className="hide-scrollbar"
         >
-          <div className="df-mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: "rgba(227,226,226,0.25)", marginBottom: 6, textTransform: "uppercase" }}>
+          <div className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", color: "rgba(227,226,226,0.3)", marginBottom: 6, textTransform: "uppercase" }}>
             Diff vs current
           </div>
           <DiffView oldText={currentContent} newText={version.content} />
@@ -328,12 +309,12 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
     <pre
       style={{
         fontFamily: "var(--df-font-mono, monospace)",
-        fontSize: 10,
-        lineHeight: 1.6,
+        fontSize: 12,
+        lineHeight: 1.65,
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
         margin: 0,
-        color: "rgba(227,226,226,0.6)",
+        color: "rgba(227,226,226,0.68)",
       }}
     >
       {diffs.map(([op, text], i) => (
@@ -362,6 +343,8 @@ interface EditorVersionPanelProps {
   onVersionSwitch: (switchedContent: string) => void;
 }
 
+/** Versions tab content — full height; the tab bar carries the "Versions"
+ * label, so no own header here. */
 export function EditorVersionPanel({ sectionId, documentId, currentContent, refreshTick, onVersionSwitch }: EditorVersionPanelProps) {
   const { getToken } = useAuth();
   const [versions, setVersions] = useState<SectionVersion[]>([]);
@@ -452,75 +435,52 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
   return (
     <aside
       style={{
-        width: 240,
-        flexShrink: 0,
+        width: "100%",
+        flex: 1,
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
-        background: "rgba(0,0,0,0.20)",
-        overflow: "hidden",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          padding: "14px 18px 12px",
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          className="df-mono"
-          style={{
-            fontSize: 9.5,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "var(--df-faint, rgba(227,226,226,0.38))",
-          }}
-        >
-          › Versions
-        </span>
-      </div>
-
-      {/* Version list with tree-style trunk */}
-      <div
-        className="hide-scrollbar"
-        style={{ flex: 1, overflowY: "auto", padding: "16px 18px 0" }}
-      >
-        {versions.length === 0 ? (
-          <p style={{ fontSize: 11, color: "var(--df-mute, rgba(227,226,226,0.18))", lineHeight: 1.5, margin: 0 }}>
-            No versions yet. Save a snapshot to start tracking history.
-          </p>
-        ) : (
-          <div style={{ position: "relative" }}>
-            {/* Vertical trunk */}
-            <div
-              style={{
-                position: "absolute",
-                left: 6,
-                top: 6,
-                bottom: 0,
-                width: 1,
-                background: "var(--df-outline, rgba(255,255,255,0.06))",
-              }}
-            />
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {versions.map((v) => (
-                <VersionItem
-                  key={v.id}
-                  version={v}
-                  isSelected={selectedId === v.id}
-                  currentContent={currentContent}
-                  onSelect={() => setSelectedId(selectedId === v.id ? null : v.id)}
-                  onSwitch={handleSwitch}
-                  onPatch={handlePatch}
-                />
-              ))}
+      {/* Version list with tree-style trunk — single scroll region for the tab */}
+      <ScrollFadeContainer fadeColor="rgba(0,0,0,0.94)">
+        <div style={{ padding: "16px 18px 0" }}>
+          {versions.length === 0 ? (
+            <p style={{ fontSize: 11, color: "var(--df-mute, rgba(227,226,226,0.18))", lineHeight: 1.5, margin: 0 }}>
+              No versions yet. Save a snapshot to start tracking history.
+            </p>
+          ) : (
+            <div style={{ position: "relative" }}>
+              {/* Vertical trunk */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: 6,
+                  top: 6,
+                  bottom: 0,
+                  width: 1,
+                  background: "var(--df-outline, rgba(255,255,255,0.06))",
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {versions.map((v) => (
+                  <VersionItem
+                    key={v.id}
+                    version={v}
+                    isSelected={selectedId === v.id}
+                    currentContent={currentContent}
+                    onSelect={() => setSelectedId(selectedId === v.id ? null : v.id)}
+                    onSwitch={handleSwitch}
+                    onPatch={handlePatch}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </ScrollFadeContainer>
 
-      {/* Action buttons */}
+      {/* Action buttons — pinned below the scroll area, always visible */}
       <div
         style={{
           padding: "14px 16px",

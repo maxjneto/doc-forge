@@ -139,7 +139,7 @@ body {
 }
 
 .df-scroll-thin::-webkit-scrollbar {
-  width: 3px;
+  width: 6px;
 }
 .df-scroll-thin::-webkit-scrollbar-track {
   background: transparent;
@@ -147,6 +147,9 @@ body {
 .df-scroll-thin::-webkit-scrollbar-thumb {
   background: var(--df-outline-md);
   border-radius: 99px;
+}
+.df-scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,77,0,0.45);
 }
 .df-scroll-thin {
   scrollbar-width: thin;

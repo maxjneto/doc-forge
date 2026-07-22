@@ -416,7 +416,6 @@ function mapDocumentType(raw: Record<string, unknown>): DocumentType {
 
 export async function apiCreateDocumentType(
   payload: {
-    slug: string;
     name: string;
     description: string;
     sections: { section_key: string; display_name: string; order: number; role_description: string }[];
@@ -537,17 +536,37 @@ export async function apiUpdateDocumentTitle(
   return mapDocument(await res.json());
 }
 
-export async function apiListDocumentTypes(): Promise<DocumentType[]> {
-  const res = await fetch(`${API_BASE}/document-types`);
+export async function apiListDocumentTypes(getToken: GetToken): Promise<DocumentType[]> {
+  const res = await fetch(`${API_BASE}/document-types`, {
+    headers: await authHeaders(getToken),
+  });
   if (!res.ok) throw new Error("Failed to fetch document types");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapDocumentType);
 }
 
-export async function apiGetDocumentType(slug: string): Promise<DocumentType> {
-  const res = await fetch(`${API_BASE}/document-types/${slug}`);
+export async function apiGetDocumentType(slug: string, getToken: GetToken): Promise<DocumentType> {
+  const res = await fetch(`${API_BASE}/document-types/${slug}`, {
+    headers: await authHeaders(getToken),
+  });
   if (!res.ok) throw new Error("Failed to fetch document type");
   return mapDocumentType(await res.json());
+}
+
+export async function apiGenerateSectionSummary(
+  payload: { document_type_name: string; document_type_description: string; section_display_name: string },
+  getToken: GetToken,
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/document-types/generate-section-summary`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to generate section summary");
+  }
+  return ((await res.json()) as { role_description: string }).role_description;
 }
 
 function mapApiKey(raw: Record<string, unknown>): ApiKey {

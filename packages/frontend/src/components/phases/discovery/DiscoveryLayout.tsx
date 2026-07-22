@@ -229,10 +229,10 @@ export function DiscoveryLayout({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiGetDocumentType(documentTypeSlug).then((dt) => {
+    apiGetDocumentType(documentTypeSlug, getToken).then((dt) => {
       setSections(dt.sections.slice().sort((a, b) => a.order - b.order));
     }).catch(() => {});
-  }, [documentTypeSlug]);
+  }, [documentTypeSlug, getToken]);
 
   useEffect(() => {
     if (documentId) setSubState("forging");

@@ -3,10 +3,8 @@ import posthog from "posthog-js";
 import type { Section } from "@/types";
 import { EditorNavPanel, parseHeadings, type Heading } from "./EditorNavPanel";
 import { EditorCenterPanel, type EditorMode } from "./EditorCenterPanel";
-import { EditorVersionPanel } from "./EditorVersionPanel";
 import { EditorActivityRail } from "./EditorActivityRail";
-import { EditorSuggestionPanel } from "./EditorSuggestionPanel";
-import { EditorGatePanel } from "./EditorGatePanel";
+import { EditorSidebarTabs } from "./EditorSidebarTabs";
 
 interface EditorLayoutProps {
   documentId: string;
@@ -81,6 +79,7 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
       }}
     >
       <EditorNavPanel
+        documentId={documentId}
         headings={headings}
         activeSlug={activeSlug}
         onNavigate={handleNavigate}
@@ -106,25 +105,18 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
             flexDirection: "column",
             flexShrink: 0,
             borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-            width: 240,
+            width: 340,
             overflow: "hidden",
           }}
         >
-          <EditorGatePanel documentId={documentId} refreshTick={sseTick + activityTick} />
-          <EditorSuggestionPanel
+          <EditorSidebarTabs
             documentId={documentId}
-            refreshTick={sseTick}
+            sectionId={bodySection.id}
+            currentContent={content}
+            refreshTick={sseTick + activityTick}
             onSuggestionResolved={bumpActivity}
+            onVersionSwitch={(c) => { handleVersionSwitch(c); bumpActivity(); }}
           />
-          <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
-            <EditorVersionPanel
-              sectionId={bodySection.id}
-              documentId={documentId}
-              currentContent={content}
-              refreshTick={sseTick + activityTick}
-              onVersionSwitch={(c) => { handleVersionSwitch(c); bumpActivity(); }}
-            />
-          </div>
         </div>
       )}
 

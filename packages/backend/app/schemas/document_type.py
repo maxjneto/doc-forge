@@ -33,7 +33,6 @@ class SectionDefinitionCreate(BaseModel):
 
 
 class DocumentTypeCreateRequest(BaseModel):
-    slug: str = Field(min_length=2, max_length=50, pattern=r"^[a-z0-9-]+$")
     name: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=2000)
     sections: list[SectionDefinitionCreate] = Field(min_length=1, max_length=12)
@@ -53,3 +52,13 @@ class PromptTemplateResponse(BaseModel):
     prompt_text: str
 
     model_config = {"from_attributes": True}
+
+
+class SectionSummaryGenerateRequest(BaseModel):
+    document_type_name: str = Field(min_length=1, max_length=100)
+    document_type_description: str = Field(min_length=1, max_length=2000)
+    section_display_name: str = Field(min_length=1, max_length=100)
+
+
+class SectionSummaryGenerateResponse(BaseModel):
+    role_description: str

@@ -1,3 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
+import { apiExportDocument, type ExportFormat } from "@/utils/api";
+
 export interface Heading {
   level: number;
   text: string;
@@ -145,9 +149,113 @@ function TreeNode({ node, activeSlug, onNavigate, isLast }: TreeNodeProps) {
   );
 }
 
+// ─── Export menu ────────────────────────────────────────────
+
+interface ExportMenuProps {
+  documentId: string;
+  onExportMarkdown: () => void;
+  onClose: () => void;
+}
+
+function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
+  const [busy, setBusy] = useState<ExportFormat | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  async function handleBackendExport(format: ExportFormat) {
+    setBusy(format);
+    setError(null);
+    try {
+      // PDF/Word render server-side from the last SAVED version — unlike the
+      // Markdown quick-export, they can't reflect unsaved edits in the textarea.
+      await apiExportDocument(documentId, format, getToken);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const items: { key: string; icon: string; label: string; sub: string; onClick: () => void; enabled: boolean }[] = [
+    { key: "md", icon: "code", label: "Markdown", sub: ".MD FILE", onClick: () => { onExportMarkdown(); onClose(); }, enabled: true },
+    { key: "pdf", icon: "picture_as_pdf", label: "PDF", sub: busy === "pdf" ? "EXPORTING…" : ".PDF FILE · PRO", onClick: () => handleBackendExport("pdf"), enabled: busy === null },
+    { key: "docx", icon: "description", label: "Word", sub: busy === "docx" ? "EXPORTING…" : ".DOCX FILE · PRO", onClick: () => handleBackendExport("docx"), enabled: busy === null },
+  ];
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "absolute",
+        bottom: "calc(100% + 6px)",
+        left: 12,
+        right: 12,
+        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        background: "rgba(18,20,20,0.98)",
+        backdropFilter: "blur(8px)",
+        borderRadius: 8,
+        padding: 6,
+        boxShadow: "0 -12px 28px rgba(0,0,0,0.4)",
+        zIndex: 20,
+      }}
+    >
+      {items.map((item) => (
+        <button
+          key={item.key}
+          onClick={() => { if (item.enabled) item.onClick(); }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 10px",
+            borderRadius: 4,
+            fontSize: 12.5,
+            color: "var(--df-on-surface-soft, #c6c5c4)",
+            background: "transparent",
+            border: "none",
+            cursor: item.enabled ? "pointer" : "not-allowed",
+            width: "100%",
+            textAlign: "left",
+            opacity: item.enabled ? 1 : 0.45,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 16, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+          >
+            {item.icon}
+          </span>
+          <div style={{ flex: 1 }}>
+            {item.label}
+            <div className="df-mono" style={{ fontSize: 9, color: "var(--df-faint, rgba(227,226,226,0.38))" }}>
+              {item.sub}
+            </div>
+          </div>
+        </button>
+      ))}
+      {error && (
+        <div style={{ padding: "8px 10px", fontSize: 11, color: "#ff8a8a", lineHeight: 1.4 }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Nav Panel ────────────────────────────────────────────────
 
 interface EditorNavPanelProps {
+  documentId: string;
   headings: Heading[];
   activeSlug: string | null;
   onNavigate: (slug: string) => void;
@@ -155,7 +263,8 @@ interface EditorNavPanelProps {
   activitySlot?: React.ReactNode;
 }
 
-export function EditorNavPanel({ headings, activeSlug, onNavigate, onExport, activitySlot }: EditorNavPanelProps) {
+export function EditorNavPanel({ documentId, headings, activeSlug, onNavigate, onExport, activitySlot }: EditorNavPanelProps) {
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const tree = buildTree(headings);
 
   return (
@@ -218,9 +327,9 @@ export function EditorNavPanel({ headings, activeSlug, onNavigate, onExport, act
       )}
 
       {/* Export */}
-      <div style={{ padding: "12px 22px 24px", borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))", flexShrink: 0 }}>
+      <div style={{ position: "relative", padding: "12px 22px 24px", borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))", flexShrink: 0 }}>
         <button
-          onClick={onExport}
+          onClick={() => setShowExportMenu((v) => !v)}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 11, fontWeight: 600,
@@ -229,8 +338,16 @@ export function EditorNavPanel({ headings, activeSlug, onNavigate, onExport, act
           }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>file_download</span>
-          Export Markdown
+          Export
+          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>expand_more</span>
         </button>
+        {showExportMenu && (
+          <ExportMenu
+            documentId={documentId}
+            onExportMarkdown={onExport}
+            onClose={() => setShowExportMenu(false)}
+          />
+        )}
       </div>
     </nav>
   );

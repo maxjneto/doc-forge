@@ -40,6 +40,7 @@ htmlcov/
 
 # Docs
 docs/
+docforge-kit-png/
 
 # Claude
 .claude/
