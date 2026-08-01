@@ -485,9 +485,17 @@ async def submit_step(
             raise PipelineError(
                 f"Summaries too short (min {MIN_SUMMARY_CHARS} chars): {', '.join(short)}."
             )
-        await db_service.save_summaries(
-            db, doc.id, {k: str(v).strip() for k, v in summaries.items() if k in sections}
-        )
+        cleaned_summaries = {k: str(v).strip() for k, v in summaries.items() if k in sections}
+        # Em bloco decision (docs/product/pipeline-collaboration-implementation.md
+        # Fase 2/4): a section only counts as "addressed" a rejection when its
+        # summary text actually changed on resubmission — unrelated sections
+        # keep whatever open feedback they had.
+        changed_keys = [
+            k for k, v in cleaned_summaries.items() if v != (sections[k].summary or "")
+        ]
+        await db_service.save_summaries(db, doc.id, cleaned_summaries)
+        if changed_keys:
+            await db_service.resolve_feedback_for_sections(db, doc.id, changed_keys)
         await db_service.set_phase(db, doc.id, "alignment")
         run.status = "waiting_human"
         sse_service.publish(str(doc.id), SSEEvent(
@@ -574,9 +582,23 @@ async def approve_alignment(db: AsyncSession, doc: Document, run: PipelineRun) -
     step = _current_step(run)
     if run.status != "waiting_human" or step is None or step["phase"] != "alignment":
         raise PipelineError("Pipeline is not waiting for alignment approval.")
+    # Server-side gate (em bloco decision, docs/product/pipeline-collaboration-
+    # implementation.md Fase 2/4): don't trust the client's local "all
+    # approved" state — refuse to release generation while a per-section
+    # rejection is still unresolved (section_id set, not a suggestion review).
+    open_items = await db_service.list_feedback(db, doc.id, status="open")
+    if any(f.section_id is not None and f.suggestion_id is None for f in open_items):
+        raise PipelineError(
+            "Some sections still have open feedback from a rejection — wait for "
+            "the agent to address it and resubmit before approving."
+        )
     _mark_done_and_advance(run)
     run.status = "running"
     await db_service.set_phase(db, doc.id, "generation")
+    sse_service.publish(str(doc.id), SSEEvent(
+        type="document_updated",
+        payload={"doc_id": str(doc.id), "change": "pipeline_alignment_approved"},
+    ))
     await db_service.log_activity(
         db, doc.id, "pipeline_approved",
         description="You approved the alignment summaries",
@@ -591,22 +613,38 @@ async def reject_alignment(
     doc: Document,
     run: PipelineRun,
     comment: str,
+    section_key: str | None = None,
     author_user_id: str | None = None,
 ) -> dict:
     """Human checkpoint: send the summaries back to the agent with feedback.
 
     The alignment step stays current; the run returns to `running` so the
     agent's next get_next_step serves alignment again — with the rejection
-    comment waiting in the feedback queue.
+    comment waiting in the feedback queue. `section_key`, when given, scopes
+    the feedback to that section (services.db.create_feedback's `section_id`)
+    instead of the whole checkpoint — the "em bloco" decision
+    (docs/product/pipeline-collaboration-implementation.md Fase 2/4) still
+    resubmits all sections together, but this lets the agent (via
+    get_pending_feedback) and the human (via the per-section card) see which
+    section the note is actually about.
     """
     step = _current_step(run)
     if run.status != "waiting_human" or step is None or step["phase"] != "alignment":
         raise PipelineError("Pipeline is not waiting for alignment approval.")
     if not comment.strip():
         raise PipelineError("A rejection comment is required — it becomes agent feedback.")
+    section_id = None
+    if section_key is not None:
+        sections = await _sections_by_key(db, doc.id)
+        section = sections.get(section_key)
+        if section is None:
+            raise PipelineError(f"Unknown section_key: {section_key!r}.")
+        section_id = section.id
     run.status = "running"
+    label = f"Alignment summary for '{section_key}' rejected" if section_key else "Alignment summaries rejected"
     await db_service.create_feedback(
-        db, doc.id, f"Alignment summaries rejected: {comment.strip()}",
+        db, doc.id, f"{label}: {comment.strip()}",
+        section_id=section_id,
         author_user_id=author_user_id,
     )
     await db_service.log_activity(

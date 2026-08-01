@@ -206,6 +206,87 @@ async def test_pipeline_alignment_rejection_returns_to_agent(client_factory):
 
 
 @pytest.mark.asyncio
+async def test_pipeline_per_section_rejection_blocks_approve_until_resolved(client_factory):
+    """Em bloco decision (docs/product/pipeline-collaboration-implementation.md
+    Fase 2/4): rejecting one section's summary tags feedback with that
+    section_id and blocks approve_alignment server-side, even if the client
+    thinks everything is approved. Resubmitting a *changed* summary for the
+    rejected section auto-resolves it; approve is then allowed. The other
+    three sections were never touched and never had feedback to begin with."""
+    user = User(id="u_pipe6", email="p6@test.com", name="P", credits=5)
+    async with client_factory(user) as client:
+        doc_id = await _start(client)
+        for _ in range(4):
+            await client.post(
+                f"/api/documents/{doc_id}/pipeline/submit",
+                json={"payload": {"content": LONG_TEXT}},
+            )
+        summaries = {k: f"This section will cover {k} in detail, grounded in discovery."
+                     for k in ["context", "proposal", "implementation", "risks"]}
+        await client.post(
+            f"/api/documents/{doc_id}/pipeline/submit",
+            json={"payload": {"summaries": summaries}},
+        )
+
+        # Reject only 'proposal', scoped by section_key
+        res = await client.post(
+            f"/api/documents/{doc_id}/pipeline/reject",
+            json={"comment": "Missing the Redis dependency.", "section_key": "proposal"},
+        )
+        assert res.status_code == 200
+
+        detail = await client.get(f"/api/documents/{doc_id}")
+        proposal_section = next(
+            s for s in detail.json()["sections"] if s["section_type"] == "proposal"
+        )
+        feedback = await client.get(f"/api/documents/{doc_id}/feedback", params={"status": "open"})
+        items = feedback.json()["feedback"]
+        assert len(items) == 1
+        assert items[0]["section_id"] == proposal_section["id"]
+
+        # Approve is refused server-side while the rejection is unresolved,
+        # regardless of what the client's local UI state thinks.
+        res = await client.post(f"/api/documents/{doc_id}/pipeline/approve")
+        assert res.status_code == 409
+
+        # Resubmitting with the SAME text for every section (including
+        # 'proposal') must not auto-resolve anything — nothing changed. Each
+        # submit puts the run back in "waiting_human", so approve is
+        # reachable again here — and still correctly refused.
+        res = await client.post(
+            f"/api/documents/{doc_id}/pipeline/submit",
+            json={"payload": {"summaries": summaries}},
+        )
+        assert res.status_code == 200
+        feedback = await client.get(f"/api/documents/{doc_id}/feedback", params={"status": "open"})
+        assert len(feedback.json()["feedback"]) == 1
+        res = await client.post(f"/api/documents/{doc_id}/pipeline/approve")
+        assert res.status_code == 409
+
+        # Reject again (allowed: run is "waiting_human" after the resubmit
+        # above) to get a fresh "running" state, then resubmit with a
+        # genuinely revised 'proposal' summary — this resolves ALL open
+        # feedback for that section, including the earlier rejection.
+        res = await client.post(
+            f"/api/documents/{doc_id}/pipeline/reject",
+            json={"comment": "Still missing it.", "section_key": "proposal"},
+        )
+        assert res.status_code == 200
+        revised = {**summaries, "proposal": "Revised proposal summary covering the Redis dependency explicitly."}
+        res = await client.post(
+            f"/api/documents/{doc_id}/pipeline/submit",
+            json={"payload": {"summaries": revised}},
+        )
+        assert res.status_code == 200
+        feedback = await client.get(f"/api/documents/{doc_id}/feedback", params={"status": "open"})
+        assert feedback.json()["feedback"] == []
+
+        res = await client.post(f"/api/documents/{doc_id}/pipeline/approve")
+        assert res.status_code == 200
+        assert res.json()["phase"] == "generation"
+
+
+@pytest.mark.asyncio
 async def test_pipeline_rejects_thin_submissions(client_factory):
     user = User(id="u_pipe3", email="p3@test.com", name="P", credits=5)
     async with client_factory(user) as client:

@@ -725,6 +725,41 @@ async def list_feedback(
     return list(result.scalars().all())
 
 
+async def resolve_feedback_for_sections(
+    db: AsyncSession,
+    doc_id: uuid.UUID,
+    section_keys: list[str],
+) -> None:
+    """Auto-resolve open feedback tied to sections whose content just changed.
+
+    Used by the pipeline alignment checkpoint (em bloco decision, see
+    docs/product/pipeline-collaboration-implementation.md Fase 2/ponto 4):
+    a per-section rejection is treated as addressed once the agent resubmits
+    a materially different summary for that section — no explicit
+    resolve_feedback call required from the agent.
+    """
+    if not section_keys:
+        return
+    result = await db.execute(
+        select(Feedback)
+        .join(Section, Feedback.section_id == Section.id)
+        .where(
+            Feedback.document_id == doc_id,
+            Feedback.status == "open",
+            Section.section_type.in_(section_keys),
+        )
+    )
+    items = result.scalars().all()
+    if not items:
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    for f in items:
+        f.status = "resolved"
+        f.resolution_note = "Auto-resolved: section content changed on resubmission."
+        f.resolved_at = now
+    await db.commit()
+
+
 async def resolve_feedback(
     db: AsyncSession,
     feedback: Feedback,

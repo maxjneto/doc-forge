@@ -848,11 +848,12 @@ export async function apiRejectPipelineAlignment(
   documentId: string,
   comment: string,
   getToken: GetToken,
+  sectionKey?: string,
 ): Promise<void> {
   const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/reject`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ comment }),
+    body: JSON.stringify({ comment, section_key: sectionKey ?? null }),
   });
   if (!res.ok) throw new Error("Failed to reject pipeline checkpoint");
 }

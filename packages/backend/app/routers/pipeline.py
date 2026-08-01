@@ -192,12 +192,16 @@ async def reject_alignment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Human checkpoint: send summaries back to the agent with a comment."""
+    """Human checkpoint: send summaries back to the agent with a comment.
+    Optional `section_key` scopes the feedback to one section instead of the
+    whole checkpoint (docs/product/pipeline-collaboration-implementation.md
+    Fase 2/4)."""
     doc, run = await _get_owned_pipeline(document_id, current_user, db)
     comment = str(payload.get("comment") or "")
+    section_key = payload.get("section_key") or None
     try:
         result = await pipeline_service.reject_alignment(
-            db, doc, run, comment, author_user_id=current_user.id
+            db, doc, run, comment, section_key=section_key, author_user_id=current_user.id
         )
     except PipelineError as e:
         raise HTTPException(status_code=409, detail=str(e))

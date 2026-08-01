@@ -58,6 +58,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
   });
 
   const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   useEffect(() => {
     setCards((prev) => {
@@ -93,13 +94,14 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
 
   const handleReject = async (type: SectionType, reason: string) => {
     if (isPipeline) {
-      // BYOA pipeline: rejection unblocks the run and becomes agent feedback —
+      // BYOA pipeline: rejection unblocks the run and becomes agent feedback,
+      // scoped to this section (section_key, not a string-prefixed comment) —
       // the user's agent revises the summaries and resubmits.
       setCards((prev) => ({
         ...prev,
         [type]: { ...prev[type], status: "pending", rejectionReason: reason },
       }));
-      await apiRejectPipelineAlignment(documentId, `[${type}] ${reason}`, getToken);
+      await apiRejectPipelineAlignment(documentId, reason, getToken, type);
       return;
     }
     setCards((prev) => ({
@@ -114,11 +116,21 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
 
   const handleConfirm = async () => {
     setConfirming(true);
-    if (isPipeline) {
-      await apiApprovePipelineAlignment(documentId, getToken);
-      return;
+    setConfirmError(null);
+    try {
+      if (isPipeline) {
+        await apiApprovePipelineAlignment(documentId, getToken);
+        return;
+      }
+      await apiSendEvent(documentId, "approved_alignment", { all_approved: true }, getToken);
+    } catch {
+      // Backend gate refused (e.g. a section still has open feedback from a
+      // rejection the client didn't know about) — surface it instead of
+      // leaving the button stuck on "Confirming…" forever.
+      setConfirmError("Some sections still have unresolved feedback — wait for the agent to address it and try again.");
+    } finally {
+      setConfirming(false);
     }
-    await apiSendEvent(documentId, "approved_alignment", { all_approved: true }, getToken);
   };
 
   const handleReopen = (type: SectionType) => {
@@ -271,6 +283,14 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                   arrow_forward
                 </span>
               </button>
+              {confirmError && (
+                <div
+                  className="df-mono"
+                  style={{ marginTop: 6, fontSize: 10.5, color: "var(--df-amber-300, #ff8d4a)", maxWidth: 220, textAlign: "right" }}
+                >
+                  {confirmError}
+                </div>
+              )}
             </div>
           </div>
 
