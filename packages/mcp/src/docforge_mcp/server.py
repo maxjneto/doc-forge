@@ -19,7 +19,11 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 import docforge_mcp.client as api
 from docforge_mcp.client import DocForgeError, _api_key_var
-from docforge_mcp.resources.loader import list_recipes, list_writing_guides, read_resource
+from docforge_mcp.resources.loader import (
+    list_recipes,
+    list_writing_guides,
+    read_resource,
+)
 
 # DNS rebinding protection is handled by Cloudflare in production; disable the
 # built-in check so requests with custom Host headers (mcp.doc-forge.dev) are
@@ -471,7 +475,7 @@ async def get_version_content(document_id: str, version_id: str, *, ctx: Context
         version_id: Version UUID. Obtain via list_versions.
     """
     _use_api_key(ctx)
-    doc, section_id = await _resolve_body_section(document_id)
+    _, section_id = await _resolve_body_section(document_id)
     versions = await api.list_versions(section_id)
     version = next((v for v in versions if v.get("id") == version_id), None)
     if version is None:
@@ -714,8 +718,10 @@ async def get_quality_gate(document_id: str, *, ctx: Context) -> str:
     findings = status_data.get("findings", [])
     lines = [
         f"Gate on accept: {'ENABLED' if status_data.get('require_gate_on_accept') else 'disabled'}",
-        f"Open findings: {status_data.get('open_findings', 0)} "
-        f"({status_data.get('open_high_findings', 0)} high)",
+        (
+            f"Open findings: {status_data.get('open_findings', 0)} "
+            f"({status_data.get('open_high_findings', 0)} high)"
+        ),
     ]
     if status_data.get("blocking"):
         lines.append("BLOCKING: suggestions cannot be accepted until high findings are resolved.")
