@@ -5,14 +5,25 @@ import { EditorNavPanel, parseHeadings, type Heading } from "./EditorNavPanel";
 import { EditorCenterPanel, type EditorMode } from "./EditorCenterPanel";
 import { EditorActivityRail } from "./EditorActivityRail";
 import { EditorSidebarTabs } from "./EditorSidebarTabs";
+import { EditorCompletionBanner } from "./EditorCompletionBanner";
 
 interface EditorLayoutProps {
   documentId: string;
   sections: Section[];
   sseTick: number;
+  /** True right after a BYOA pipeline hands off audit→editing (A-lite) —
+   * shows EditorCompletionBanner once. */
+  justCompleted?: boolean;
+  onCompletionBannerDismissed?: () => void;
 }
 
-export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProps) {
+export function EditorLayout({
+  documentId,
+  sections,
+  sseTick,
+  justCompleted = false,
+  onCompletionBannerDismissed,
+}: EditorLayoutProps) {
   const bodySection = sections.find((s) => s.sectionType === "body");
   const initialContent = (bodySection?.activeVersionContent ?? "").trim();
 
@@ -89,14 +100,19 @@ export function EditorLayout({ documentId, sections, sseTick }: EditorLayoutProp
         }
       />
 
-      <EditorCenterPanel
-        content={content}
-        mode={mode}
-        headings={headings}
-        onModeChange={setMode}
-        onChange={handleChange}
-        onActiveSlugChange={setActiveSlug}
-      />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {justCompleted && onCompletionBannerDismissed && (
+          <EditorCompletionBanner onDismiss={onCompletionBannerDismissed} />
+        )}
+        <EditorCenterPanel
+          content={content}
+          mode={mode}
+          headings={headings}
+          onModeChange={setMode}
+          onChange={handleChange}
+          onActiveSlugChange={setActiveSlug}
+        />
+      </div>
 
       {bodySection && (
         <div

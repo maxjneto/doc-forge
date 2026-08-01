@@ -118,12 +118,25 @@ async def test_pipeline_full_flow(client_factory):
         assert res.status_code == 200
         assert res.json()["status"] == "completed"
 
-        # Document reached completed phase; sections have active content
+        # Document hands off to the free editor (A-lite, not the old dedicated
+        # completed screen — docs/product/pipeline-collaboration-implementation.md
+        # Fase 2/ponto 6). The pipeline RUN is still "completed" above; only the
+        # document-facing phase differs.
         detail = await client.get(f"/api/documents/{doc_id}")
         data = detail.json()
-        assert data["document"]["current_phase"] == "completed"
+        assert data["document"]["current_phase"] == "editing"
         contents = {s["section_type"]: s["active_version_content"] for s in data["sections"]}
         assert all(contents[k] for k in ["context", "proposal", "implementation", "risks"])
+
+        # A-lite: the N sections are concatenated into a synthetic `body`
+        # section (one heading per section, in document-type order) so the
+        # single-section EditorLayout has something to render.
+        body = contents["body"]
+        assert "## Context" in body
+        assert "## Proposal" in body
+        assert "## Implementation" in body
+        assert "## Risks" in body
+        assert body.index("## Context") < body.index("## Proposal") < body.index("## Implementation") < body.index("## Risks")
 
         # Audit findings persisted
         findings = await client.get(f"/api/documents/{doc_id}/audit-findings")

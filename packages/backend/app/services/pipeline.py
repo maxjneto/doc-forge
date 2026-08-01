@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Document, PipelineDefinition, PipelineRun, Section
-from app.models.document_type import DocumentType
+from app.models.document_type import DocumentType, SectionDefinition
 from app.schemas.sse import SSEEvent
 from app.services import db as db_service
 from app.services import sse as sse_service
@@ -228,6 +228,53 @@ async def _sections_by_key(db: AsyncSession, doc_id: uuid.UUID) -> dict[str, Sec
         .where(Section.document_id == doc_id)
     )
     return {s.section_type: s for s in result.scalars().all()}
+
+
+async def _concatenate_sections_to_body(db: AsyncSession, doc: Document) -> str:
+    """A-lite (docs/product/pipeline-collaboration-implementation.md, Fase 2/6):
+    glue the N pipeline sections into one Markdown body, in SectionDefinition
+    order, so the single-section EditorLayout has something to show once the
+    pipeline hands off to free editing. Each section becomes a heading."""
+    sections = await _sections_by_key(db, doc.id)
+    section_defs: list[SectionDefinition] = []
+    if doc.document_type_id is not None:
+        dt_result = await db.execute(
+            select(DocumentType)
+            .options(selectinload(DocumentType.section_definitions))
+            .where(DocumentType.id == doc.document_type_id)
+        )
+        doc_type = dt_result.scalar_one_or_none()
+        if doc_type:
+            section_defs = sorted(doc_type.section_definitions, key=lambda sd: sd.order)
+
+    blocks = []
+    for sd in section_defs:
+        section = sections.get(sd.section_key)
+        active = next((v for v in section.versions if v.is_active), None) if section else None
+        content = (active.content if active else "").strip()
+        if content:
+            blocks.append(f"## {sd.display_name}\n\n{content}")
+    return "\n\n".join(blocks)
+
+
+async def _handoff_to_editing(db: AsyncSession, doc: Document) -> None:
+    """Create/update the synthetic `body` section EditorLayout reads, then
+    flip the phase. Trade-off accepted (Max, 23/07/2026): Gate/Review/Versions
+    in the editor sidebar operate on this single concatenated section, not on
+    the original N pipeline sections, from this point on."""
+    concatenated = await _concatenate_sections_to_body(db, doc)
+    result = await db.execute(
+        select(Section).where(Section.document_id == doc.id, Section.section_type == "body")
+    )
+    body_section = result.scalar_one_or_none()
+    if body_section is None:
+        body_section = Section(document_id=doc.id, section_type="body", status="finalized")
+        db.add(body_section)
+        await db.flush()
+    await db_service.create_section_version(
+        db, body_section.id, "Pipeline complete", concatenated, doc_id=doc.id
+    )
+    await db_service.set_phase(db, doc.id, "editing")
 
 
 async def _step_instructions(
@@ -501,7 +548,15 @@ async def submit_step(
     # Completion check
     if run.current_step_index >= len(run.steps) and run.status == "running":
         run.status = "completed"
-        await db_service.set_phase(db, doc.id, "completed")
+        # Document-facing phase is "editing", not "completed": the pipeline
+        # RUN is done (agents see status="completed" via describe_next_step),
+        # but the human always lands in the free editor now (A-lite, see
+        # _handoff_to_editing) instead of the old dedicated completed screen.
+        await _handoff_to_editing(db, doc)
+        sse_service.publish(str(doc.id), SSEEvent(
+            type="document_updated",
+            payload={"doc_id": str(doc.id), "change": "pipeline_completed"},
+        ))
 
     await db_service.log_activity(
         db, doc.id, "pipeline_step",

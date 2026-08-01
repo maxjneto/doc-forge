@@ -48,6 +48,11 @@ export function DocumentPage() {
 
   // Track phase transitions for phase_completed and phase_entered
   const prevPhaseRef = useRef<Phase | null>(null);
+  // True for one render right after a BYOA pipeline hands off audit→editing
+  // (A-lite, docs/product/pipeline-collaboration-implementation.md Fase 2/6)
+  // — drives EditorCompletionBanner. Hosted/guided docs still land on
+  // audit→completed and keep the dedicated CompletedLayout screen instead.
+  const [justCompletedPipeline, setJustCompletedPipeline] = useState(false);
   useEffect(() => {
     if (!activeDocId) return;
     if (prevPhaseRef.current && prevPhaseRef.current !== currentPhase) {
@@ -56,8 +61,11 @@ export function DocumentPage() {
         from_phase: prevPhaseRef.current,
         to_phase: currentPhase,
       });
-      if (prevPhaseRef.current === "audit" && currentPhase === "completed") {
+      if (prevPhaseRef.current === "audit" && (currentPhase === "completed" || currentPhase === "editing")) {
         posthog.capture("first_document_completed", { document_id: activeDocId });
+      }
+      if (prevPhaseRef.current === "audit" && currentPhase === "editing") {
+        setJustCompletedPipeline(true);
       }
     }
     posthog.capture("phase_entered", { to_phase: currentPhase, document_id: activeDocId });
@@ -150,6 +158,8 @@ export function DocumentPage() {
             documentId={activeDocId!}
             sections={sections}
             sseTick={sseTick}
+            justCompleted={justCompletedPipeline}
+            onCompletionBannerDismissed={() => setJustCompletedPipeline(false)}
           />
         )}
       </PhaseTransition>
