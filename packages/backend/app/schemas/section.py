@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -25,6 +26,10 @@ class SectionVersionUpdateRequest(BaseModel):
 class SectionContentUpdateRequest(BaseModel):
     content: str
     note: str | None = None
+    # "append" concatenates `content` after the current active version instead
+    # of replacing it — lets MCP callers add to a document without resending
+    # the whole body (see append_section in the MCP server).
+    mode: Literal["replace", "append"] = "replace"
 
 
 class SectionSnapshotRequest(BaseModel):

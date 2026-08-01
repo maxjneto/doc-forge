@@ -154,10 +154,24 @@ async def update_section_content_endpoint(
     Agent (API-key) writes are governed by the document's `agent_write_policy`:
     with "suggest" (the default) the write becomes a pending suggestion for
     human review and the response carries `mode: "suggestion"`.
+
+    `payload.mode == "append"` concatenates `payload.content` after the
+    current active version's content server-side, instead of replacing it —
+    the caller never has to resend the whole body to add to the end.
     """
     section = await _assert_section_ownership(section_id, current_user, db)
     api_key_id = getattr(request.state, "api_key_id", None)
     note = getattr(payload, "note", None)
+
+    content = payload.content
+    if payload.mode == "append":
+        active_result = await db.execute(
+            select(SectionVersion)
+            .where(SectionVersion.section_id == section_id, SectionVersion.is_active.is_(True))
+        )
+        active = active_result.scalar_one_or_none()
+        existing = (active.content if active else "") or ""
+        content = f"{existing}\n\n{payload.content}" if existing else payload.content
 
     if api_key_id:
         doc_result = await db.execute(
@@ -168,22 +182,23 @@ async def update_section_content_endpoint(
             from app.services.db import create_suggestion
 
             suggestion = await create_suggestion(
-                db, section_id, section.document_id, payload.content,
+                db, section_id, section.document_id, content,
                 note=note, api_key_id=api_key_id,
             )
             capture_event(str(current_user.id), str(section.document_id), "mcp_suggestion_created", {
-                "content_length": len(payload.content),
+                "content_length": len(content),
                 "has_note": bool(note),
+                "mode": payload.mode,
             })
             return SectionWriteResponse(
                 mode="suggestion",
                 suggestion_id=suggestion.id,
-                content_length=len(payload.content),
+                content_length=len(content),
             )
 
     try:
         version = await update_section_content(
-            db, section_id, payload.content,
+            db, section_id, content,
             doc_id=section.document_id,
             api_key_id=api_key_id,
             note=note,
@@ -193,8 +208,9 @@ async def update_section_content_endpoint(
 
     if api_key_id:
         capture_event(str(current_user.id), str(section.document_id), "mcp_section_written", {
-            "content_length": len(payload.content),
+            "content_length": len(content),
             "has_note": bool(note),
+            "mode": payload.mode,
         })
 
     return SectionVersionResponse.model_validate(version)

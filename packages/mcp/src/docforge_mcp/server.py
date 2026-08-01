@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -66,6 +67,50 @@ async def _resolve_body_section(document_id: str) -> tuple[dict, str]:
     return doc, body["id"]
 
 
+def _body_content(doc: dict) -> str:
+    sections = doc.get("sections", [])
+    body = next((s for s in sections if s.get("section_type") == "body"), None)
+    return (body.get("active_version_content") or "") if body else ""
+
+
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+
+def _extract_headings(content: str) -> list[dict]:
+    return [
+        {"level": len(m.group(1)), "text": m.group(2), "start": m.start()}
+        for m in _HEADING_RE.finditer(content)
+    ]
+
+
+def _heading_span(content: str, heading: str) -> tuple[int, int, int] | None:
+    """Return (start, end, level) for the section under `heading`: `start` is
+    where the heading line begins, `end` is where the next heading of equal
+    or higher level begins (or len(content)). None if the heading isn't found."""
+    headings = _extract_headings(content)
+    idx = next(
+        (i for i, h in enumerate(headings) if h["text"].strip().lower() == heading.strip().lower()),
+        None,
+    )
+    if idx is None:
+        return None
+    target = headings[idx]
+    end = len(content)
+    for later in headings[idx + 1:]:
+        if later["level"] <= target["level"]:
+            end = later["start"]
+            break
+    return target["start"], end, target["level"]
+
+
+def _extract_section_by_heading(content: str, heading: str) -> str | None:
+    span = _heading_span(content, heading)
+    if span is None:
+        return None
+    start, end, _ = span
+    return content[start:end].rstrip()
+
+
 # ─── Tools ──────────────────────────────────────────────────
 
 @mcp.tool()
@@ -114,30 +159,65 @@ async def create_document(title: str, context: str = "", *, ctx: Context) -> str
 
 
 @mcp.tool()
-async def get_document(document_id: str, *, ctx: Context) -> str:
-    """Read a document's metadata and current body section content.
-    Always call this before write_section to see what's already there.
+async def get_document(document_id: str, full: bool = False, *, ctx: Context) -> str:
+    """Read a document's metadata and outline (section headings) by default —
+    call this before write_section to see the current structure.
+    Pass full=True for the complete body content (e.g. before a full rewrite
+    with write_section). To read just one section, use get_section instead of
+    full=True — cheaper when the document is large and you only need part of it.
 
     Args:
         document_id: Document UUID.
+        full: If True, return the complete body content instead of just an outline.
     """
     _use_api_key(ctx)
     doc = await api.get_document(document_id)
-    sections = doc.get("sections", [])
-    body = next((s for s in sections if s.get("section_type") == "body"), None)
-    content = body.get("active_version_content") or "" if body else ""
-    return (
+    content = _body_content(doc)
+    header = (
         f"Title: {doc['title']}\n"
         f"ID: {doc['id']}\n"
         f"Phase: {doc.get('current_phase')}\n"
-        f"Content ({len(content)} chars):\n\n{content}"
     )
+    headings = _extract_headings(content)
+    if full or not headings:
+        return header + f"Content ({len(content)} chars):\n\n{content}"
+    outline = "\n".join(f"{'  ' * (h['level'] - 1)}- {h['text']}" for h in headings)
+    return (
+        header + f"Content: {len(content)} chars across {len(headings)} heading(s).\n\n"
+        f"Outline:\n{outline}\n\n"
+        "Use get_section(document_id, heading) to read one section, or "
+        "get_document(document_id, full=True) to read everything."
+    )
+
+
+@mcp.tool()
+async def get_section(document_id: str, heading: str, *, ctx: Context) -> str:
+    """Read just the content under one Markdown heading in the document body,
+    from that heading up to (not including) the next heading of the same or
+    higher level. Cheaper than get_document(full=True) when you only need part
+    of a large document. Call get_document first to see available headings.
+
+    Args:
+        document_id: Document UUID.
+        heading: Exact heading text (without the '#' markers), e.g. 'Risks'.
+    """
+    _use_api_key(ctx)
+    doc = await api.get_document(document_id)
+    content = _body_content(doc)
+    excerpt = _extract_section_by_heading(content, heading)
+    if excerpt is None:
+        headings = _extract_headings(content)
+        available = ", ".join(h["text"] for h in headings) or "(none found)"
+        raise DocForgeError(f"Heading {heading!r} not found in '{doc['title']}'. Available: {available}.")
+    return excerpt
 
 
 @mcp.tool()
 async def write_section(document_id: str, content: str, note: str = "", *, ctx: Context) -> str:
     """Replace the full body section content of a document.
-    To append, read the current content via get_document first, then compose and write.
+    To add to the end without resending everything, use append_section instead.
+    For a small edit, use patch_section. To read the current content first,
+    call get_document(document_id, full=True).
 
     IMPORTANT: by default your write does NOT apply immediately — it becomes a
     pending SUGGESTION that the user reviews as a diff in their browser and
@@ -164,6 +244,85 @@ async def write_section(document_id: str, content: str, note: str = "", *, ctx: 
         )
     return (
         f"Written {len(content)} characters to '{doc['title']}'. "
+        f"The user's browser has been updated in real-time."
+    )
+
+
+@mcp.tool()
+async def append_section(document_id: str, content: str, note: str = "", *, ctx: Context) -> str:
+    """Append content to the end of a document's body section, without needing
+    to read and resend the existing content first. Same suggestion/direct-write
+    policy as write_section — check the return value to see which applied.
+
+    Args:
+        document_id: Document UUID.
+        content: Markdown content to add after the existing body.
+        note: Optional explanation shown to the reviewer.
+    """
+    _use_api_key(ctx)
+    doc, section_id = await _resolve_body_section(document_id)
+    result = await api.update_section_content(section_id, content, note or None, mode="append")
+    if isinstance(result, dict) and result.get("mode") == "suggestion":
+        return (
+            f"Append suggestion submitted for '{doc['title']}' ({len(content)} characters).\n"
+            f"Suggestion ID: {result.get('suggestion_id')}\n\n"
+            f"PENDING human review — nothing appended yet. Use check_suggestions to "
+            f"see if it was accepted or rejected."
+        )
+    return (
+        f"Appended {len(content)} characters to '{doc['title']}'. "
+        f"The user's browser has been updated in real-time."
+    )
+
+
+@mcp.tool()
+async def patch_section(
+    document_id: str, anchor: str, old_text: str, new_text: str, note: str = "", *, ctx: Context
+) -> str:
+    """Edit part of a document's body by exact text replacement, scoped to one
+    Markdown heading — like a find-and-replace within that section only.
+    Cheaper and safer than write_section for small changes: you don't resend
+    the whole document, and old_text must match exactly once within the
+    section or the call fails (ambiguous or missing match — make old_text more
+    specific and retry).
+
+    Args:
+        document_id: Document UUID.
+        anchor: Exact heading text the edit is scoped to (see get_document for the outline).
+        old_text: Exact existing text to replace, within that section.
+        new_text: Replacement text.
+        note: Optional explanation shown to the reviewer.
+    """
+    _use_api_key(ctx)
+    doc = await api.get_document(document_id)
+    content = _body_content(doc)
+    span = _heading_span(content, anchor)
+    if span is None:
+        headings = _extract_headings(content)
+        available = ", ".join(h["text"] for h in headings) or "(none found)"
+        raise DocForgeError(f"Heading {anchor!r} not found in '{doc['title']}'. Available: {available}.")
+    start, end, _level = span
+    section_slice = content[start:end]
+    occurrences = section_slice.count(old_text)
+    if occurrences == 0:
+        raise DocForgeError(f"old_text not found under heading {anchor!r}.")
+    if occurrences > 1:
+        raise DocForgeError(
+            f"old_text matches {occurrences} times under heading {anchor!r} — "
+            "make it more specific so the edit is unambiguous."
+        )
+    patched_slice = section_slice.replace(old_text, new_text, 1)
+    new_content = content[:start] + patched_slice + content[end:]
+    _, section_id = await _resolve_body_section(document_id)
+    result = await api.update_section_content(section_id, new_content, note or None)
+    if isinstance(result, dict) and result.get("mode") == "suggestion":
+        return (
+            f"Patch suggestion submitted for '{doc['title']}' (section {anchor!r}).\n"
+            f"Suggestion ID: {result.get('suggestion_id')}\n\n"
+            f"PENDING human review — nothing changed yet."
+        )
+    return (
+        f"Patched section {anchor!r} in '{doc['title']}'. "
         f"The user's browser has been updated in real-time."
     )
 
@@ -473,13 +632,17 @@ async def start_pipeline(
 
 
 @mcp.tool()
-async def get_next_step(document_id: str, *, ctx: Context) -> str:
+async def get_next_step(document_id: str, known_context_hash: str = "", *, ctx: Context) -> str:
     """Get the current pipeline step: instructions + accumulated context.
     Also use this to resume a pipeline after an interruption, or to poll after
-    a human checkpoint.
+    a human checkpoint. Pass known_context_hash (the hash from your last call
+    for this document, if any) to skip resending the context block when
+    nothing has changed since.
 
     Args:
         document_id: Document UUID.
+        known_context_hash: The context hash from your previous get_next_step
+            response for this document, if you have one.
     """
     _use_api_key(ctx)
     step = await api.get_next_step(document_id)
@@ -491,31 +654,32 @@ async def get_next_step(document_id: str, *, ctx: Context) -> str:
         f"{step.get('phase')}"
         + (f" / {step.get('section_key')}" if step.get("section_key") else "")
     )
+    context_hash = step.get("context_hash", "")
+    if known_context_hash and known_context_hash == context_hash:
+        return (
+            f"{header}\n\n{step.get('instructions', '')}\n\n"
+            f"--- CONTEXT UNCHANGED (hash={context_hash}) ---\n"
+            "Same as your last call for this document — no need to re-read it."
+        )
     context = step.get("context") or {}
     return (
         f"{header}\n\n{step.get('instructions', '')}\n\n"
-        f"--- CONTEXT (JSON) ---\n{_json(context)}"
+        f"--- CONTEXT (hash={context_hash}) ---\n{_json(context)}"
     )
 
 
 @mcp.tool()
-async def submit_step(document_id: str, payload_json: str, *, ctx: Context) -> str:
+async def submit_step(document_id: str, payload: dict[str, Any], *, ctx: Context) -> str:
     """Submit the result of the current pipeline step.
     The payload shape depends on the step — get_next_step tells you exactly
-    what to send. Pass it here as a JSON string, e.g.
-    '{"content": "..."}' or '{"summaries": {"context": "..."}}' or '{"findings": []}'.
+    what to send, e.g. {"content": "..."} or {"summaries": {"context": "..."}}
+    or {"findings": []}.
 
     Args:
         document_id: Document UUID.
-        payload_json: JSON object string with the step's payload.
+        payload: Object with the step's payload (shape depends on the current phase).
     """
     _use_api_key(ctx)
-    try:
-        payload = json.loads(payload_json)
-    except json.JSONDecodeError as e:
-        raise DocForgeError(f"payload_json is not valid JSON: {e}")
-    if not isinstance(payload, dict):
-        raise DocForgeError("payload_json must be a JSON object.")
     result = await api.submit_step(document_id, payload)
     status = result.get("status")
     if status == "completed":
@@ -610,9 +774,7 @@ async def resource_get_document(document_id: str, ctx: Context) -> str:
     """Current body content of the document as Markdown."""
     _use_api_key(ctx)
     doc = await api.get_document(document_id)
-    sections = doc.get("sections", [])
-    body = next((s for s in sections if s.get("section_type") == "body"), None)
-    content = body.get("active_version_content") or "" if body else ""
+    content = _body_content(doc)
     return f"---\ntitle: {doc['title']}\nid: {doc['id']}\n---\n\n{content}"
 
 

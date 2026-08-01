@@ -11,6 +11,8 @@ PipelineDefinition; the run snapshot format stays the same.
 """
 
 import datetime
+import hashlib
+import json
 import uuid
 
 from loguru import logger
@@ -366,6 +368,9 @@ async def describe_next_step(db: AsyncSession, doc: Document, run: PipelineRun) 
     if step is None:
         return {"status": "completed", "message": "Pipeline finished."}
     instructions, context = await _step_instructions(db, doc, step)
+    context_hash = hashlib.sha256(
+        json.dumps(context, sort_keys=True, default=str).encode()
+    ).hexdigest()[:16]
     return {
         "status": "running",
         "step_index": step["index"],
@@ -374,6 +379,7 @@ async def describe_next_step(db: AsyncSession, doc: Document, run: PipelineRun) 
         "section_key": step.get("section_key"),
         "instructions": instructions,
         "context": context,
+        "context_hash": context_hash,
     }
 
 
