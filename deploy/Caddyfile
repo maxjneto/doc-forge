@@ -40,12 +40,12 @@
 #
 # Update the hostname below to whatever DNS record you actually created —
 # it does not need to be a subdomain of docforge's own domain.
-partiu.copasim.com {
+webrole.copasim.com {
 	handle /ws* {
-		reverse_proxy partiu-signaling:8787
+		reverse_proxy webrole-signaling:8787
 	}
 
 	handle {
-		reverse_proxy partiu-web:80
+		reverse_proxy webrole-web:80
 	}
 }
