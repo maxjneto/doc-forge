@@ -30,3 +30,22 @@
 		flush_interval -1
 	}
 }
+
+# partiu — separate app, deployed independently from its own repo/compose
+# project (../partiu). Only wired in here because this Caddy is the one
+# process bound to 80/443 on the VPS; it never rebuilds or restarts when
+# partiu redeploys, and vice-versa. Containers are reachable because both
+# compose projects join the external `edge` network (see the `caddy`
+# service's `networks:` in docker-compose.prod.yml).
+#
+# Update the hostname below to whatever DNS record you actually created —
+# it does not need to be a subdomain of docforge's own domain.
+partiu.copasim.com {
+	handle /ws* {
+		reverse_proxy partiu-signaling:8787
+	}
+
+	handle {
+		reverse_proxy partiu-web:80
+	}
+}

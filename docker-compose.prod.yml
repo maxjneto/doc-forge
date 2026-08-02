@@ -41,6 +41,13 @@ services:
       - backend
       - frontend
       - mcp
+    networks:
+      # `default`: talk to backend/frontend/mcp, same as before.
+      # `edge`: reach the partiu stack (separate compose project, deployed
+      # independently — see ../partiu/deploy/README.md), whose containers
+      # publish no host port and are only reachable on this shared network.
+      - default
+      - edge
 
   postgres:
     image: postgres:16-alpine
@@ -99,3 +106,10 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+
+networks:
+  # Created once on the VPS with `docker network create edge`. External
+  # because it's shared with the partiu compose project, not owned by this
+  # one — `docker compose down` here must never delete it.
+  edge:
+    external: true
