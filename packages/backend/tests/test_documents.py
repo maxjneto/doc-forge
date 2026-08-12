@@ -70,6 +70,26 @@ async def test_credit_deduction_is_atomic(client_factory):
 
 
 @pytest.mark.asyncio
+async def test_editor_document_is_available_without_credits(client_factory):
+    """The editor has no hosted AI cost and must remain usable at zero credits."""
+    user = User(id="user_editor_free", email="editor-free@test.com", credits=0)
+
+    async with client_factory(user) as client:
+        res = await client.post(
+            "/api/documents",
+            json={"title": "Free editor", "mode": "editor"},
+        )
+
+    assert res.status_code == 201, res.text
+
+    async with TestSession() as session:
+        db_user = (await session.execute(
+            select(User).where(User.id == "user_editor_free")
+        )).scalar_one()
+        assert db_user.credits == 0
+
+
+@pytest.mark.asyncio
 async def test_create_document_dispatches_inngest_event(client_factory):
     """Document creation dispatches the docforge/document.started event."""
     user = User(id="user_evt", email="evt@test.com", name="Evt", credits=5)

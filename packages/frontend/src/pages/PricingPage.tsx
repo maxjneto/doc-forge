@@ -80,7 +80,7 @@ export function PricingPage() {
               color: "#e3e2e2",
             }}
           >
-            Simple, credit-based pricing.
+            Workflow access, with credits only for hosted AI.
           </h1>
           <p
             style={{
@@ -91,7 +91,7 @@ export function PricingPage() {
               margin: "0 auto",
             }}
           >
-            Each document consumes one credit. Credits reset weekly. No seats, no overage surprises.
+            Credits pay only for hosted AI runs. Editor documents and workflows run by your own MCP agent do not consume credits.
           </p>
         </div>
 
@@ -220,7 +220,7 @@ export function PricingPage() {
             color: "var(--df-mute)",
           }}
         >
-          Pricing details subject to change during beta. All credits reset on Sunday at midnight UTC.
+          Pricing details are subject to change during beta. Weekly allowances renew every Monday at 00:00 UTC.
         </p>
       </main>
 

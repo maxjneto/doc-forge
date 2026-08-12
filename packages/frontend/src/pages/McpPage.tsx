@@ -529,7 +529,7 @@ function GenericPanel({ copy, copied }: PanelProps) {
 const TOOLS_INFO = [
   { name: "get_user_info",         desc: "Check your account name, email, and remaining credits." },
   { name: "list_documents",        desc: "List all your editor documents." },
-  { name: "create_document",       desc: "Create a new document (costs 1 credit)." },
+  { name: "create_document",       desc: "Create a new editor document without consuming credits." },
   { name: "get_document",          desc: "Read a document's current body content and metadata." },
   { name: "get_section",           desc: "Read one heading-scoped section of the document." },
   { name: "write_section",         desc: "Replace the full document body; suggest or apply according to policy." },

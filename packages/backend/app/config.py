@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     # Credit system — override via env vars to reconfigure without code changes
     WEEKLY_CREDITS: int = 5
     GUIDED_DOCUMENT_COST: int = 3
-    EDITOR_DOCUMENT_COST: int = 1
 
     # Free tier limits (enforced in the backend; served via GET /api/tiers).
     # Calibrated generous on purpose — the MCP funnel is the growth engine.

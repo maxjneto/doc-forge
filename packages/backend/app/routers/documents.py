@@ -419,20 +419,7 @@ async def _create_editor_document(
     current_user: User,
     request: Request,
 ) -> DocumentResponse:
-    """Create a free-editor document: one body section, no workflow, no Inngest."""
-    # Atomically deduct credit
-    cost = settings.EDITOR_DOCUMENT_COST
-    result = await db.execute(
-        update(User)
-        .where(User.id == current_user.id, User.credits >= cost)
-        .values(credits=User.credits - cost)
-    )
-    if result.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="No credits remaining. Credits reset weekly.",
-        )
-    await db.commit()
+    """Create a free-editor document: one body section, no paid AI work."""
 
     title = payload.title or f"Document — {datetime.datetime.utcnow().strftime('%b %d, %Y')}"
     doc = Document(

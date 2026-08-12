@@ -32,6 +32,7 @@ export function HomePage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [credits, setCredits] = useState<number | undefined>(undefined);
   const [weeklyCredits, setWeeklyCredits] = useState<number>(5);
+  const [guidedCost, setGuidedCost] = useState<number>(3);
   const [error, setError] = useState<string | null>(null);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
   const [search, setSearch] = useState("");
@@ -107,6 +108,7 @@ export function HomePage() {
         const user = await apiFetchMe(getToken);
         setCredits(user.credits);
         setWeeklyCredits(user.weekly_credits);
+        setGuidedCost(user.credit_costs.guided_document);
       } catch {
         // non-critical
       }
@@ -225,7 +227,6 @@ export function HomePage() {
             )}
             <button
               onClick={() => setShowNewDocDialog(true)}
-              disabled={credits === 0}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -238,8 +239,7 @@ export function HomePage() {
                 border: "1px solid var(--df-amber-500)",
                 background: "var(--df-amber-500)",
                 color: "#fff",
-                cursor: credits === 0 ? "not-allowed" : "pointer",
-                opacity: credits === 0 ? 0.4 : 1,
+                cursor: "pointer",
                 boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
                 fontFamily: "inherit",
               }}
@@ -508,7 +508,7 @@ export function HomePage() {
       )}
 
       {showNewDocDialog && (
-        <NewDocumentDialog credits={credits} onClose={() => setShowNewDocDialog(false)} />
+        <NewDocumentDialog credits={credits} guidedCost={guidedCost} onClose={() => setShowNewDocDialog(false)} />
       )}
     </div>
   );

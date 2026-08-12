@@ -28,7 +28,7 @@ def get_tiers() -> list[dict]:
                 f"Up to {settings.FREE_MAX_ACTIVE_DOCUMENTS} active documents",
                 "Suggestion review & feedback loop",
                 "Curated writing guides (ADR, postmortem, runbook, RFC)",
-                f"{settings.WEEKLY_CREDITS} weekly credits for guided/pipeline runs",
+                f"{settings.WEEKLY_CREDITS} weekly credits for hosted AI runs",
             ],
             "limits": {
                 "max_active_documents": settings.FREE_MAX_ACTIVE_DOCUMENTS,
@@ -44,7 +44,7 @@ def get_tiers() -> list[dict]:
             "slug": "pro",
             "name": "Pro",
             "price_monthly_usd": None,  # price point pending market benchmark (§9 open question)
-            "credits": "More credits / month + top-up",
+            "credits": f"{settings.WEEKLY_CREDITS} hosted AI credits / week during beta",
             "description": (
                 "For individuals shipping documentation with agents: unlimited agents, "
                 "custom pipelines and full history."
@@ -56,12 +56,12 @@ def get_tiers() -> list[dict]:
                 "Custom pipelines, document types & prompts",
                 "Full version history",
                 "PDF export",
-                "More credits + on-demand top-up",
+                f"{settings.WEEKLY_CREDITS} weekly hosted AI credits during beta",
             ],
             "limits": {
                 "max_active_documents": None,
                 "max_api_keys": None,
-                "weekly_credits": None,
+                "weekly_credits": settings.WEEKLY_CREDITS,
                 "max_versions_per_section": None,
             },
             "cta": "Upgrade to Pro" if settings.STRIPE_ENABLED else "Coming soon",
@@ -72,9 +72,9 @@ def get_tiers() -> list[dict]:
             "slug": "team",
             "name": "Team",
             "price_monthly_usd": None,
-            "credits": "Pooled credits per workspace",
+            "credits": "Credit model not defined",
             "description": (
-                "Distribute your team's documentation standards to every connected agent, "
+                "Planned for distributing your team's documentation standards to every connected agent, "
                 "with audit trail and policy gates."
             ),
             "features": [
@@ -92,9 +92,9 @@ def get_tiers() -> list[dict]:
                 "weekly_credits": None,
                 "max_versions_per_section": None,
             },
-            "cta": "Upgrade to Team" if settings.STRIPE_ENABLED else "Coming soon",
+            "cta": "Coming soon",
             "highlight": False,
-            "available": settings.STRIPE_ENABLED,
+            "available": False,
         },
     ]
 

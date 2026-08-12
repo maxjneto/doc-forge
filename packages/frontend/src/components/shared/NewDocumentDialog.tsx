@@ -15,17 +15,15 @@ const ICON_MAP: Record<string, string> = {
   runbook: "menu_book",
 };
 
-const GUIDED_COST = 3;
-const EDITOR_COST = 1;
-
 type DialogTab = "guided" | "editor";
 
 interface NewDocumentDialogProps {
   onClose: () => void;
   credits?: number;
+  guidedCost?: number;
 }
 
-export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) {
+export function NewDocumentDialog({ onClose, credits, guidedCost = 3 }: NewDocumentDialogProps) {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const { t } = useI18n();
@@ -37,8 +35,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
   const [documentTitle, setDocumentTitle] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const canAffordGuided = credits === undefined || credits >= GUIDED_COST;
-  const canAffordEditor = credits === undefined || credits >= EDITOR_COST;
+  const canAffordGuided = credits === undefined || credits >= guidedCost;
 
   useEffect(() => {
     apiListDocumentTypes(getToken)
@@ -60,7 +57,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
   }
 
   async function handleCreateEditor() {
-    if (creating || !canAffordEditor) return;
+    if (creating) return;
     setCreating(true);
     setCreateError(null);
     try {
@@ -185,7 +182,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
               {!canAffordGuided && credits !== undefined && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#e86464", background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.2)", borderRadius: "6px", padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "16px" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>warning</span>
-                  {t("newDocument.needsCredits", { cost: GUIDED_COST, credits })}
+                  {t("newDocument.needsCredits", { cost: guidedCost, credits })}
                 </span>
               )}
             </div>
@@ -215,12 +212,9 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
             <p style={{ margin: "0 0 28px", fontSize: "13px", color: "rgba(200,198,197,0.5)", lineHeight: 1.6, textAlign: "center", maxWidth: 400 }}>
               {t("newDocument.editorDescription")}
             </p>
-            {!canAffordEditor && credits !== undefined && (
-              <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>warning</span>
-                {t("newDocument.needsOneCredit", { cost: EDITOR_COST, credits })}
-              </p>
-            )}
+            <span className="df-pill df-pill-steel" style={{ marginBottom: 18 }}>
+              {t("newDocument.noCredits")}
+            </span>
             {createError && (
               <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
                 <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>error</span>
@@ -229,14 +223,14 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
             )}
             <button
               onClick={handleCreateEditor}
-              disabled={creating || !canAffordEditor}
+              disabled={creating}
               style={{
                 display: "inline-flex", alignItems: "center", gap: "8px",
                 padding: "10px 24px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
                 border: "1px solid rgba(255,77,0,0.5)",
-                background: (creating || !canAffordEditor) ? "var(--color-heat-bg-soft)" : "var(--color-heat-bg)",
-                color: (creating || !canAffordEditor) ? "rgba(255,77,0,0.5)" : "var(--df-amber-500)",
-                cursor: (creating || !canAffordEditor) ? "not-allowed" : "pointer",
+                background: creating ? "var(--color-heat-bg-soft)" : "var(--color-heat-bg)",
+                color: creating ? "rgba(255,77,0,0.5)" : "var(--df-amber-500)",
+                cursor: creating ? "not-allowed" : "pointer",
                 transition: "all 0.15s",
               }}
             >

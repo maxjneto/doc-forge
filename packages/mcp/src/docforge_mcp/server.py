@@ -120,7 +120,7 @@ def _extract_section_by_heading(content: str, heading: str) -> str | None:
 @mcp.tool()
 async def get_user_info(*, ctx: Context) -> str:
     """Get the current user's info: name, email, credits, weekly_credits.
-    Call this before create_document to confirm the user has enough credits."""
+    Credits are used only by hosted AI operations; editor and BYOA work are free."""
     _use_api_key(ctx)
     data = await api.get_user_info()
     return (
@@ -143,7 +143,7 @@ async def list_documents(*, ctx: Context) -> str:
 
 @mcp.tool()
 async def create_document(title: str, context: str = "", *, ctx: Context) -> str:
-    """Create a new DocForge editor document. Costs 1 credit — call get_user_info first.
+    """Create a new DocForge editor document without consuming credits.
     Returns the document id, title, and browser URL.
 
     Args:
@@ -604,7 +604,7 @@ async def start_pipeline(
     ctx: Context,
 ) -> str:
     """Start a structured document pipeline that YOU execute step by step.
-    Costs 1 credit. The server drives the state machine: call get_next_step for
+    Does not consume credits. The server drives the state machine: call get_next_step for
     instructions, do the work with your own tools (read the repo, talk to your
     user), then submit_step. The user approves checkpoints in the browser.
     The pipeline is durable — if your session dies, any future session resumes

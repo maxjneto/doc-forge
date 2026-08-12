@@ -94,19 +94,9 @@ async def start_pipeline_document(
     if limit_error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
 
-    # BYOA route is cheap to serve — costs the editor-document credit, not the guided one
-    cost = settings.EDITOR_DOCUMENT_COST
-    result = await db.execute(
-        update(User)
-        .where(User.id == current_user.id, User.credits >= cost)
-        .values(credits=User.credits - cost)
-    )
-    if result.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="No credits remaining. Credits reset weekly.",
-        )
-    await db.commit()
+    # BYOA remains available independently of hosted-AI credits.
+    # The user's agent performs the model work. Workflow state is part of the
+    # plan and does not consume hosted-AI credits (product-plan §9.2).
 
     doc, run = await pipeline_service.start_pipeline(
         db, current_user.id, doc_type, payload.title, payload.document_context,

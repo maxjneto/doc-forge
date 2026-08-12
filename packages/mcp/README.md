@@ -84,7 +84,7 @@ Show me the URL as soon as you create it so I can follow along.
 ```
 
 For a free-form editor document, the agent will:
-1. Check your credits with `get_user_info`
+1. Confirm your account and hosted-AI credit status with `get_user_info`
 2. Create a document and show you the URL
 3. Read your source files
 4. Read the current document and write, append, or patch content according to the document's write policy

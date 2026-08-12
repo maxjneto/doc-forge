@@ -56,7 +56,7 @@ If `get_activity` shows a write by someone other than you between your last read
 |------|---------|
 | `get_user_info` | Auth check, credits, name. |
 | `list_documents` | Find a document id. |
-| `create_document` | New editor document. Costs 1 credit. |
+| `create_document` | New editor document. Does not consume credits. |
 | `get_document` | Read body + metadata. |
 | `write_section` | Propose (default) or apply body content. |
 | `append_section` | Append content without resending the full body. |

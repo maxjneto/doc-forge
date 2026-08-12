@@ -8,7 +8,7 @@ All tools accept and return plain text. Document IDs are UUIDs. The server resol
 
 Returns the authenticated user's name, email, credit balance, and weekly allowance.
 
-**Call before `create_document`** to confirm the user has at least 1 credit.
+Credits are only consumed by hosted AI operations. Editor and BYOA workflows do not use them.
 
 ```
 Name: Max
@@ -31,7 +31,7 @@ Lists all your DocForge editor documents.
 
 ## `create_document`
 
-Creates a new editor document. Costs 1 credit.
+Creates a new editor document without consuming credits.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -291,7 +291,7 @@ http://localhost:5173/document/abc123...
 |---|---|
 | `list_document_types` | List the available structured document types and their sections. |
 | `list_pipelines` | List custom pipeline definitions available to the user. |
-| `start_pipeline` | Start a durable agent-executed pipeline; costs 1 credit. |
+| `start_pipeline` | Start a durable agent-executed pipeline without consuming credits. |
 | `get_next_step` | Read the current step, context, or human-waiting/completed status. |
 | `submit_step` | Submit discovery context, alignment summaries, generated content, or audit findings. |
 
@@ -340,7 +340,7 @@ Composable mini-playbooks for common workflows.
 ## Recommended workflow
 
 ```
-1. `get_user_info()`                         → confirm credits
+1. `get_user_info()`                         → confirm account and hosted-AI credit status
 2. `create_document("My Spec")`              → get id + show URL to user
 3. `get_pending_feedback(id)` and `get_document(id)` → read before editing
 4. Read local files with the agent's own tools

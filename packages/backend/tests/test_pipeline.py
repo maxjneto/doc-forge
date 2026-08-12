@@ -39,6 +39,15 @@ async def _start(client) -> str:
 
 
 @pytest.mark.asyncio
+async def test_byoa_pipeline_is_available_without_credits(client_factory):
+    """The user's agent performs the model work, so the pipeline is credit-free."""
+    user = User(id="u_pipe_free", email="pipe-free@test.com", credits=0)
+    async with client_factory(user) as client:
+        doc_id = await _start(client)
+        assert doc_id
+
+
+@pytest.mark.asyncio
 async def test_pipeline_full_flow(client_factory):
     user = User(id="u_pipe1", email="p1@test.com", name="P", credits=5)
     async with client_factory(user) as client:
