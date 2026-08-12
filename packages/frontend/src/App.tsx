@@ -3,7 +3,7 @@ import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { HomePage, DocumentPage, LoadingPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, CustomizePage } from "./pages";
+import { HomePage, DocumentPage, LoadingPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, CustomizePage, PublicDocumentPage } from "./pages";
 import { ProtectedRoute } from "./components/shared";
 import CookieConsentBanner from "./components/shared/CookieConsentBanner";
 import { useClerkPosthogIdentity } from "./hooks/useClerkPosthogIdentity";
@@ -37,6 +37,9 @@ function AppInner() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/legal/:doc" element={<LegalPage />} />
+        {/* Public read-only view — outside ProtectedRoute on purpose: the
+            token in the URL is the capability, not a session. */}
+        <Route path="/public/:token" element={<PublicDocumentPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/home" element={<HomePage />} />
           <Route path="/mcp" element={<McpPage />} />
