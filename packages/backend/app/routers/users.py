@@ -21,6 +21,7 @@ from app.schemas.api_key import (
     ApiKeyUpdateRequest,
 )
 from app.services import tiers as tiers_service
+from app.services.credits import next_credit_reset, weekly_allowance
 
 router = APIRouter(tags=["users"])
 
@@ -38,7 +39,13 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "name": current_user.name,
         "credits": current_user.credits,
-        "weekly_credits": settings.WEEKLY_CREDITS,
+        "weekly_credits": weekly_allowance(current_user.plan),
+        "credits_reset_at": current_user.credits_reset_at,
+        "next_credit_reset_at": next_credit_reset(),
+        "credit_costs": {
+            "guided_document": settings.GUIDED_DOCUMENT_COST,
+            "quality_gate": settings.QUALITY_GATE_COST,
+        },
         "plan": current_user.plan,
     }
 

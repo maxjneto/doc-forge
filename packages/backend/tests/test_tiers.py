@@ -79,4 +79,10 @@ async def test_pro_plan_bypasses_limits(client_factory):
 async def test_me_exposes_plan(client_factory):
     async with client_factory() as client:
         res = await client.get("/api/users/me")
-        assert res.json()["plan"] == "free"
+        payload = res.json()
+        assert payload["plan"] == "free"
+        assert payload["next_credit_reset_at"]
+        assert payload["credit_costs"] == {
+            "guided_document": settings.GUIDED_DOCUMENT_COST,
+            "quality_gate": settings.QUALITY_GATE_COST,
+        }

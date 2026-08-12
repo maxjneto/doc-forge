@@ -188,12 +188,36 @@ export async function apiCreatePortalSession(getToken: GetToken): Promise<string
   return ((await res.json()) as { url: string }).url;
 }
 
-export async function apiFetchMe(getToken: GetToken) {
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string | null;
+  credits: number;
+  weekly_credits: number;
+  plan: string;
+  credits_reset_at: string | null;
+  next_credit_reset_at: string;
+  credit_costs: {
+    guided_document: number;
+    quality_gate: number;
+  };
+}
+
+export async function apiFetchMe(getToken: GetToken): Promise<CurrentUser> {
   const res = await fetch(`${API_BASE}/users/me`, {
     headers: await authHeaders(getToken),
   });
   if (!res.ok) throw new Error("Failed to fetch user");
-  return res.json() as Promise<{ id: string; email: string; name: string | null; credits: number; weekly_credits: number; plan: string }>;
+  return res.json() as Promise<CurrentUser>;
+}
+
+export async function apiListDocuments(getToken: GetToken): Promise<Document[]> {
+  const res = await fetch(`${API_BASE}/documents`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch documents");
+  const data = (await res.json()) as { documents: Record<string, unknown>[] };
+  return data.documents.map(mapDocument);
 }
 
 export type ExportFormat = "md" | "pdf" | "docx";

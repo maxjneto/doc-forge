@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import async_session
 from app.inngest_client import inngest_client
 from app.models.user import User
+from app.services.credits import credit_period_start
 
 
 @inngest_client.create_function(
@@ -18,7 +19,12 @@ async def weekly_credit_reset(ctx: inngest.Context):
     logger.info("[credits] weekly reset started | weekly_credits={}", settings.WEEKLY_CREDITS)
 
     async with async_session() as db:
-        result = await db.execute(update(User).values(credits=settings.WEEKLY_CREDITS))
+        result = await db.execute(
+            update(User).values(
+                credits=settings.WEEKLY_CREDITS,
+                credits_reset_at=credit_period_start(),
+            )
+        )
         await db.commit()
         logger.info("[credits] weekly reset complete | rows_updated={}", result.rowcount)
 

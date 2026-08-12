@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.services.credits import credit_period_start, refresh_credits_if_due
 
 security = HTTPBearer(auto_error=False)
 
@@ -169,7 +170,7 @@ async def get_current_user(
         api_key_id = result.scalar_one_or_none()
         request.state.api_key_id = api_key_id
         logger.debug("[auth] API key auth succeeded | user={} key_id={}", user.id, api_key_id)
-        return user
+        return await refresh_credits_if_due(db, user)
 
     # JWT path
     if credentials is None:
@@ -200,7 +201,13 @@ async def get_current_user(
     # Atomic upsert — avoids race condition when concurrent requests create the same user
     stmt = (
         insert(User)
-        .values(id=user_id, email=email, name=name or "", credits=settings.WEEKLY_CREDITS)
+        .values(
+            id=user_id,
+            email=email,
+            name=name or "",
+            credits=settings.WEEKLY_CREDITS,
+            credits_reset_at=credit_period_start(),
+        )
         .on_conflict_do_update(
             index_elements=["id"],
             set_={"email": email, "name": name or ""},
@@ -211,4 +218,4 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
-    return user
+    return await refresh_credits_if_due(db, user)
