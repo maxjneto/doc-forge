@@ -6,14 +6,14 @@ All tools accept and return plain text. Document IDs are UUIDs. The server resol
 
 ## `get_user_info`
 
-Returns the authenticated user's name, email, credit balance, and weekly allowance.
+Returns the authenticated user's name, email, remaining document creations, and weekly allowance.
 
-Credits are only consumed by hosted AI operations. Editor and BYOA workflows do not use them.
+Each new document uses one weekly document creation. Editing and working in existing documents does not.
 
 ```
 Name: Max
 Email: max@example.com
-Credits: 12 (weekly allowance: 20)
+Document creations remaining: 12 (weekly allowance: 20)
 ```
 
 ---
@@ -31,7 +31,7 @@ Lists all your DocForge editor documents.
 
 ## `create_document`
 
-Creates a new editor document without consuming credits.
+Creates a new editor document using one weekly document creation.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -291,7 +291,7 @@ http://localhost:5173/document/abc123...
 |---|---|
 | `list_document_types` | List the available structured document types and their sections. |
 | `list_pipelines` | List custom pipeline definitions available to the user. |
-| `start_pipeline` | Start a durable agent-executed pipeline without consuming credits. |
+| `start_pipeline` | Start a durable agent-executed pipeline using one weekly document creation. |
 | `get_next_step` | Read the current step, context, or human-waiting/completed status. |
 | `submit_step` | Submit discovery context, alignment summaries, generated content, or audit findings. |
 
@@ -340,7 +340,7 @@ Composable mini-playbooks for common workflows.
 ## Recommended workflow
 
 ```
-1. `get_user_info()`                         → confirm account and hosted-AI credit status
+1. `get_user_info()`                         → confirm remaining weekly document creations
 2. `create_document("My Spec")`              → get id + show URL to user
 3. `get_pending_feedback(id)` and `get_document(id)` → read before editing
 4. Read local files with the agent's own tools

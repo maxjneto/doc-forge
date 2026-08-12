@@ -7,7 +7,7 @@
 ![Clerk](https://img.shields.io/badge/Auth-Clerk-black)
 ![MCP](https://img.shields.io/badge/MCP-Server-blueviolet)
 
-DocForge has two browser creation modes plus an agent-driven pipeline. **AI Guided** drives users through a structured six-phase workflow (discovery → alignment → generation → refinement → audit → completed). **Editor** opens a Markdown workspace immediately. An external agent can use MCP either to collaborate on an editor document or to execute a durable structured pipeline with browser checkpoints.
+DocForge is editor-first and agent-first. Create a Markdown document in the browser or through MCP; both paths use the same document, version history, publication and sharing controls. Agents may execute durable BYOA pipelines while supplying their own model credentials.
 
 A built-in **MCP server** lets AI agents (e.g. Claude Code) read and write to DocForge editor documents in real-time — the agent reads local files using its own tools, writes structured content into a shared document, and the user watches it fill in live via SSE.
 
@@ -27,7 +27,7 @@ A built-in **MCP server** lets AI agents (e.g. Claude Code) read and write to Do
 
 ## How It Works
 
-### AI-Guided Mode
+### Legacy hosted workflow
 
 Documents flow through six sequential phases, each with defined inputs, outputs, and user checkpoints:
 
@@ -40,9 +40,12 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 | **5. Audit** | AI audits all sections for contradictions, terminology drift, and scope violations. Failing sections reopen for revision. |
 | **6. Completed** | The guided run ends with a document ready to review and export. Depending on the flow, the user may continue in the completed view or the free editor. |
 
-### Editor Mode
+> The hosted guided workflow is preserved in the codebase but disabled for
+> public accounts. New documents are created in the editor or by an agent.
 
-A Markdown editor for writing without the guided AI workflow. Headings become navigation, source and preview are available, edits auto-save, and users can create named snapshots, inspect diffs, restore versions, comment, share, publish, and export. MCP agents can collaborate in this mode.
+### Editor and Agent Mode
+
+A Markdown editor is the public creation flow. Headings become navigation, source and preview are available, edits auto-save, and users can create named snapshots, inspect diffs, restore versions, comment, share, publish, and export. MCP agents collaborate on the same document and may run durable BYOA pipelines.
 
 ### MCP Agent and Pipeline Mode
 
@@ -58,7 +61,7 @@ See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp
 
 ## Features
 
-- **Two browser creation modes** — AI Guided (structured six-phase workflow) or Editor (immediate Markdown editing). The configured credit costs are environment variables, not fixed product constants.
+- **Editor-first creation** — Browser, MCP and BYOA pipeline creation all produce the same editable Markdown document. Each creation uses one weekly document-creation slot.
 - **Context-aware discovery** — AI asks follow-up questions scoped to each individual section and synthesizes per-section context before alignment begins, grounding each section summary in directly relevant information.
 - **Alignment checkpoint** — Section summaries are shown for approval before any full content is generated, preventing wasted generation cycles.
 - **Document Contract** — After alignment, a structured contract (entities, decisions, terminology, constraints) is extracted and injected into every downstream AI call to enforce consistency across all sections.
@@ -72,8 +75,8 @@ See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp
 - **Token-aware context management** — Char-based token estimation with per-phase budgets truncates context intelligently to avoid exceeding model limits.
 - **Multi-document type support** — Document types, section definitions, and AI prompt templates are database-driven, making it straightforward to add new document types beyond RFC.
 - **Real-time updates** — Server-sent events push phase transitions and section updates to the frontend instantly, alongside 2-second polling as a fallback.
-- **Durable workflow orchestration** — The entire AI-guided workflow runs as retriable Inngest functions. No state is lost on restart or failure.
-- **Configurable credit system** — Weekly credit allocation and per-mode costs are set via environment variables (`WEEKLY_CREDITS`, `GUIDED_DOCUMENT_COST`, `EDITOR_DOCUMENT_COST`).
+- **Durable workflow orchestration** — Agent-run pipelines remain retriable Inngest functions, so document state is not lost on restart or failure.
+- **Weekly document capacity** — Limits are configurable per plan and reset every Monday at 00:00 UTC. Hosted guided creation is feature-flagged off for public accounts.
 
 ---
 
@@ -194,7 +197,7 @@ See [packages/mcp/README.md](packages/mcp/README.md) for Claude Code integration
 
 | File / Scope | Variables |
 |---|---|
-| `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL`, `WEEKLY_CREDITS` (default `5`), `GUIDED_DOCUMENT_COST` (default `3`), `EDITOR_DOCUMENT_COST` (default `1`) |
+| `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL`, `FREE_WEEKLY_DOCUMENT_CREDITS` (default `5`), `PRO_WEEKLY_DOCUMENT_CREDITS` (default `50`), `HOSTED_GUIDED_WORKFLOW_ENABLED` (default `false`) |
 | `packages/frontend/.env` | `VITE_API_BASE`, `VITE_CLERK_PUBLISHABLE_KEY` |
 | MCP server (env) | `DOCFORGE_API_BASE` (default `http://localhost:8000/api`), `DOCFORGE_FRONTEND_BASE` (default `http://localhost:5173`), `HOST`, `PORT` (default `8001`) |
 

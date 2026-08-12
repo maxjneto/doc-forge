@@ -1,5 +1,9 @@
 # DocForge — Plano de Produto
 
+> **Atualização de 11/08/2026:** qualquer regra sobre créditos de IA, criação
+> guiada hospedada ou exportação deve ser considerada substituída por
+> [agent-first-document-quotas.md](agent-first-document-quotas.md).
+
 > **Status:** rascunho vivo — base para discussão e priorização.
 > **Criado:** 15/07/2026 · **Última atualização:** 15/07/2026
 > **Escopo:** direção de produto centrada no MCP. Não cobre refatorações técnicas nem a recuperação da infra Azure (tratadas à parte).

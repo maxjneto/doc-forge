@@ -23,7 +23,7 @@ Do not spam pending suggestions: if one is already pending on a section, prefer 
 
 Before any meaningful edit:
 
-1. `get_user_info` — confirms you're authenticated and shows remaining credits.
+1. `get_user_info` — confirms you're authenticated and shows remaining document creations for the week.
 2. `get_document` — reads the current body content. **Always do this before writing**, even if you wrote it yourself a moment ago — the human may have edited.
 3. `get_activity` — see what's happened recently and *who* did it. Skip entries authored by your own actor name to avoid reacting to your own writes.
 
@@ -54,9 +54,9 @@ If `get_activity` shows a write by someone other than you between your last read
 
 | Tool | Purpose |
 |------|---------|
-| `get_user_info` | Auth check, credits, name. |
+| `get_user_info` | Auth check, document-creation allowance, name. |
 | `list_documents` | Find a document id. |
-| `create_document` | New editor document. Does not consume credits. |
+| `create_document` | New editor document. Uses one weekly document creation. |
 | `get_document` | Read body + metadata. |
 | `write_section` | Propose (default) or apply body content. |
 | `append_section` | Append content without resending the full body. |

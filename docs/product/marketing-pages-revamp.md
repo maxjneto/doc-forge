@@ -1,5 +1,9 @@
 # DocForge — Revamp de How it works, Billing e Legal/Contact
 
+> **Atualização de 11/08/2026:** os campos e mensagens de crédito deste plano
+> foram substituídos pela capacidade semanal de documentos descrita em
+> [agent-first-document-quotas.md](agent-first-document-quotas.md).
+
 > **Status:** implementação parcial; Billing concluído em 11/08/2026.
 > **Contexto:** levantamento pedido pelo Max após notar que `HowItWorksPage` não reflete todas as funcionalidades já commitadas (M1–M5), que `BillingPage` é hoje um clone de `PricingPage`, e que `LegalPage`/Contact fogem do padrão visual do resto do site.
 
