@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
-import DiffMatchPatch from "diff-match-patch";
 import type { Suggestion } from "@/types";
 import {
   apiFetchSuggestions,
@@ -9,53 +8,20 @@ import {
   apiRejectSuggestion,
 } from "@/utils/api";
 import { ScrollFadeContainer } from "./ScrollFadeContainer";
-
-const dmp = new DiffMatchPatch();
-
-// ─── Diff view (same visual language as EditorVersionPanel) ───
-
-function SuggestionDiff({ oldText, newText }: { oldText: string; newText: string }) {
-  const diffs = dmp.diff_main(oldText, newText);
-  dmp.diff_cleanupSemantic(diffs);
-
-  return (
-    <pre
-      style={{
-        fontFamily: "var(--df-font-mono, monospace)",
-        fontSize: 12,
-        lineHeight: 1.65,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-        margin: 0,
-        color: "rgba(227,226,226,0.68)",
-      }}
-    >
-      {diffs.map(([op, text], i) => (
-        <span
-          key={i}
-          style={{
-            background: op === 1 ? "rgba(80,200,120,0.15)" : op === -1 ? "rgba(232,100,100,0.15)" : "transparent",
-            color: op === 1 ? "#50c878" : op === -1 ? "#e86464" : "rgba(227,226,226,0.45)",
-            textDecoration: op === -1 ? "line-through" : "none",
-          }}
-        >
-          {text}
-        </span>
-      ))}
-    </pre>
-  );
-}
+import { Card, Pill, Button } from "@/components/ui";
+import type { TriageState } from "./EditorSidebarTabs";
+import { diffHunks, CHANGE_LABEL } from "@/utils/diff";
 
 // ─── Single suggestion card ───────────────────────────────────
 
 interface SuggestionCardProps {
   suggestion: Suggestion;
+  index: number;
   onResolved: () => void;
 }
 
-function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
+function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) {
   const { getToken } = useAuth();
-  const [expanded, setExpanded] = useState(true);
   const [rejecting, setRejecting] = useState(false);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -97,232 +63,114 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
     }
   }
 
+  const hunks = diffHunks(suggestion.currentContent ?? "", suggestion.proposedContent ?? "");
+  const sections = Array.from(
+    new Set(hunks.map((h) => h.heading?.text).filter(Boolean) as string[]),
+  );
+  // Dominant kind across the proposal. Per-change pills arrive with hunk-level
+  // triage (revamp plan, Fase 2b) — until then one card covers one proposal.
+  const kind = hunks.length > 0 ? hunks[0].kind : "rewrite";
+
   return (
-    <div
-      style={{
-        borderRadius: 8,
-        border: "1px solid rgba(120,160,255,0.25)",
-        background: "rgba(120,160,255,0.05)",
-        overflow: "hidden",
-      }}
-    >
-      {/* Header */}
-      <div
-        onClick={() => setExpanded(!expanded)}
-        style={{
-          padding: "8px 10px",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          cursor: "pointer",
-        }}
-      >
-        <span className="material-symbols-outlined" style={{ fontSize: 14, color: "#8aa8ff" }}>
-          rate_review
+    <Card tone="heat" style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      {/* #n · TIPO · §seção */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+          #{index}
         </span>
-        <span
-          className="df-mono"
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: "#b8c8ff",
-            flex: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {suggestion.agentName ?? "Agent"}
+        <Pill tone="heat" dot={false}>
+          {CHANGE_LABEL[kind]}
+        </Pill>
+        <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+          {sections.length === 0
+            ? "documento"
+            : sections.length === 1
+              ? sections[0]
+              : `${sections.length} seções`}
         </span>
         {suggestion.isStale && (
-          <span
-            className="df-mono"
-            title="The document changed after this was proposed — review the diff carefully."
-            style={{
-              fontSize: 8.5,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "1px 5px",
-              borderRadius: 3,
-              background: "rgba(255,196,0,0.15)",
-              color: "#ffd25e",
-              flexShrink: 0,
-            }}
-          >
-            Stale
-          </span>
+          <Pill tone="warn" dot={false}>
+            desatualizada
+          </Pill>
         )}
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 14, color: "rgba(227,226,226,0.3)" }}
-        >
-          {expanded ? "expand_less" : "expand_more"}
-        </span>
       </div>
 
-      {expanded && (
-        <div style={{ padding: "0 10px 10px" }}>
-          {suggestion.note && (
-            <p
-              style={{
-                margin: "0 0 8px",
-                fontSize: 12,
-                lineHeight: 1.55,
-                color: "rgba(227,226,226,0.7)",
-              }}
-            >
-              {suggestion.note}
-            </p>
-          )}
-          <div className="df-mono" style={{ fontSize: 9.5, color: "rgba(227,226,226,0.3)", marginBottom: 6 }}>
-            {new Date(suggestion.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
-          </div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.45, fontWeight: 600, color: "var(--df-on-surface)" }}>
+        {suggestion.agentName ?? "Agente"} propôs {hunks.length}{" "}
+        {hunks.length === 1 ? "mudança" : "mudanças"}
+      </div>
 
-          {/* Diff — capped and independently scrollable so a long change
-              doesn't push the Accept/Reject buttons out of view. Wheel
-              scroll chains to the outer list once this reaches its own
-              boundary (no overscroll-behavior:contain set). */}
+      {/* › POR QUE — the reviewer needs the reasoning, not just the diff.
+          A one-line note is all the model carries today; structured kinds
+          (alternatives, evidence, risks) need a backend field. */}
+      {suggestion.note && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div
-            className="df-scroll-thin"
-            style={{
-              padding: 8,
-              borderRadius: 6,
-              background: "rgba(0,0,0,0.25)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              marginBottom: 8,
-              maxHeight: 160,
-              overflowY: "auto",
-            }}
+            className="df-mono"
+            style={{ fontSize: 9, letterSpacing: "0.16em", color: "var(--df-faint)" }}
           >
-            <SuggestionDiff
-              oldText={suggestion.currentContent ?? ""}
-              newText={suggestion.proposedContent ?? ""}
-            />
+            › POR QUE
           </div>
-
-          {/* Reject comment input */}
-          {rejecting && (
-            <textarea
-              autoFocus
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Why? Your comment becomes feedback the agent reads before rewriting…"
-              maxLength={4000}
-              rows={3}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                marginBottom: 8,
-                padding: "6px 8px",
-                borderRadius: 6,
-                background: "rgba(0,0,0,0.3)",
-                border: "1px solid rgba(232,100,100,0.3)",
-                fontSize: 10.5,
-                lineHeight: 1.5,
-                color: "rgba(227,226,226,0.75)",
-                fontFamily: "inherit",
-                outline: "none",
-                resize: "vertical",
-              }}
-            />
-          )}
-
-          {error && (
-            <p
-              style={{
-                margin: "0 0 8px",
-                padding: "6px 8px",
-                borderRadius: 6,
-                background: "rgba(232,100,100,0.1)",
-                border: "1px solid rgba(232,100,100,0.3)",
-                fontSize: 10,
-                lineHeight: 1.5,
-                color: "#e88",
-              }}
-            >
-              {error}
-            </p>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-            {rejecting ? (
-              <>
-                <button
-                  onClick={() => setRejecting(false)}
-                  className="df-mono"
-                  style={{
-                    fontSize: 11.5,
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    background: "transparent",
-                    color: "rgba(227,226,226,0.38)",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={busy}
-                  className="df-mono"
-                  style={{
-                    fontSize: 11.5,
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: "1px solid rgba(232,100,100,0.4)",
-                    background: "rgba(232,100,100,0.12)",
-                    color: "#e88",
-                    cursor: busy ? "not-allowed" : "pointer",
-                    opacity: busy ? 0.6 : 1,
-                  }}
-                >
-                  {busy ? "Rejecting…" : "Confirm reject"}
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setRejecting(true)}
-                  disabled={busy}
-                  className="df-mono"
-                  style={{
-                    fontSize: 11.5,
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: "1px solid rgba(232,100,100,0.35)",
-                    background: "transparent",
-                    color: "#e88",
-                    cursor: "pointer",
-                  }}
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={handleAccept}
-                  disabled={busy}
-                  className="df-mono"
-                  style={{
-                    fontSize: 11.5,
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: "1px solid rgba(80,200,120,0.4)",
-                    background: "rgba(80,200,120,0.12)",
-                    color: "#50c878",
-                    cursor: busy ? "not-allowed" : "pointer",
-                    opacity: busy ? 0.6 : 1,
-                    fontWeight: 600,
-                  }}
-                >
-                  {busy ? "Accepting…" : "Accept"}
-                </button>
-              </>
-            )}
+          <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "var(--df-dim)" }}>
+            {suggestion.note}
           </div>
         </div>
       )}
-    </div>
+
+      {rejecting && (
+        <textarea
+          autoFocus
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Por quê? Seu comentário vira feedback que o agente lê antes de reescrever…"
+          maxLength={4000}
+          rows={3}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "8px 10px",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--df-surface-mid)",
+            border: "1px solid var(--color-error-border)",
+            fontSize: 11.5,
+            lineHeight: 1.5,
+            color: "var(--df-dim)",
+            fontFamily: "inherit",
+            outline: "none",
+            resize: "vertical",
+          }}
+        />
+      )}
+
+      {error && (
+        <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--df-error)" }}>{error}</div>
+      )}
+
+      <div style={{ display: "flex", gap: 7 }}>
+        {rejecting ? (
+          <>
+            <Button variant="ghost" onClick={() => setRejecting(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" grow disabled={busy} onClick={handleReject}>
+              {busy ? "Recusando…" : "Confirmar recusa"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="primary" grow disabled={busy} onClick={handleAccept}>
+              {busy ? "Aceitando…" : "Aceitar"}
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={() => setRejecting(true)}>
+              Recusar
+            </Button>
+            <Button variant="ghost" onClick={() => setRejecting(true)}>
+              Comentar
+            </Button>
+          </>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -334,6 +182,9 @@ interface EditorSuggestionPanelProps {
   onSuggestionResolved: () => void;
   /** Reports the current pending count upward, e.g. for a tab badge. */
   onCountChange?: (count: number) => void;
+  /** Reports the pending suggestions themselves, so the nav can tally them per section. */
+  onPendingChange?: (suggestions: Suggestion[]) => void;
+  triage?: TriageState;
 }
 
 /** Review tab content — full height, single scroll region shared by every
@@ -343,6 +194,8 @@ export function EditorSuggestionPanel({
   refreshTick,
   onSuggestionResolved,
   onCountChange,
+  onPendingChange,
+  triage,
 }: EditorSuggestionPanelProps) {
   const { getToken } = useAuth();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -360,9 +213,11 @@ export function EditorSuggestionPanel({
 
   useEffect(() => refetch(), [refetch, refreshTick]);
   useEffect(() => onCountChange?.(suggestions.length), [suggestions.length, onCountChange]);
+  useEffect(() => onPendingChange?.(suggestions), [suggestions, onPendingChange]);
 
   return (
-    <ScrollFadeContainer fadeColor="rgba(9,10,12,0.97)">
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <ScrollFadeContainer fadeColor="rgba(9,10,12,0.97)">
       <div
         style={{
           padding: "12px 14px",
@@ -381,13 +236,14 @@ export function EditorSuggestionPanel({
               color: "rgba(227,226,226,0.38)",
             }}
           >
-            No pending suggestions. Agent writes will show up here for review.
+            Nada pendente. Escritas de agente aparecem aqui para revisão.
           </p>
         ) : (
-          suggestions.map((s) => (
+          suggestions.map((s, i) => (
             <SuggestionCard
               key={s.id}
               suggestion={s}
+              index={i + 1}
               onResolved={() => {
                 refetch();
                 onSuggestionResolved();
@@ -396,6 +252,67 @@ export function EditorSuggestionPanel({
           ))
         )}
       </div>
-    </ScrollFadeContainer>
+      </ScrollFadeContainer>
+
+      {/* Triage footer — the mock's `↑↓ NAVEGAR · A ACEITAR · R RECUSAR`
+          and `Salvar triagem`. Only meaningful once there is something to
+          triage; the server applies base + accepted hunks. */}
+      {triage && triage.total > 0 && (
+        <div
+          style={{
+            flexShrink: 0,
+            borderTop: "1px solid var(--df-outline)",
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 11,
+          }}
+        >
+          {triage.error && (
+            <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--df-error)" }}>
+              {triage.error}
+            </div>
+          )}
+          <div
+            className="df-mono"
+            style={{ fontSize: 9, letterSpacing: "0.06em", color: "var(--df-faint)" }}
+          >
+            ↑↓ NAVEGAR · A ACEITAR · R RECUSAR
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                background: "var(--df-outline)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${(triage.decided / triage.total) * 100}%`,
+                  height: "100%",
+                  background: "var(--df-amber-500)",
+                  transition: "width 0.2s",
+                }}
+              />
+            </div>
+            <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+              {triage.decided} / {triage.total}
+            </span>
+          </div>
+          <Button
+            variant={triage.decided > 0 ? "primary" : "secondary"}
+            disabled={triage.decided === 0}
+            onClick={triage.onSave}
+          >
+            {triage.accepted === 0
+              ? "Recusar tudo"
+              : `Salvar triagem — ${triage.accepted} de ${triage.total}`}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

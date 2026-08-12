@@ -1,71 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { apiExportDocument, type ExportFormat } from "@/utils/api";
-
-export interface Heading {
-  level: number;
-  text: string;
-  slug: string;
-}
-
-export function parseHeadings(content: string): Heading[] {
-  const headings: Heading[] = [];
-  const slugCount: Record<string, number> = {};
-
-  for (const line of content.split("\n")) {
-    const match = /^[ \t]*(#{1,5})\s+(.+)/.exec(line);
-    if (!match) continue;
-    const level = match[1].length;
-    const text = match[2].trim();
-    const base = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-    slugCount[base] = (slugCount[base] ?? 0) + 1;
-    const slug = slugCount[base] === 1 ? base : `${base}-${slugCount[base] - 1}`;
-    headings.push({ level, text, slug });
-  }
-
-  return headings;
-}
+import type { Heading, SectionCounts } from "@/utils/documentStructure";
+import { DocumentOutline } from "@/components/shared";
 
 // ─── Tree structure ───────────────────────────────────────────
+
+// ─── Tree node ────────────────────────────────────────────────
 
 interface HeadingNode {
   heading: Heading;
   children: HeadingNode[];
 }
 
-function buildTree(headings: Heading[]): HeadingNode[] {
-  const roots: HeadingNode[] = [];
-  const stack: HeadingNode[] = [];
-
-  for (const h of headings) {
-    const node: HeadingNode = { heading: h, children: [] };
-    while (stack.length > 0 && stack[stack.length - 1].heading.level >= h.level) {
-      stack.pop();
-    }
-    if (stack.length === 0) {
-      roots.push(node);
-    } else {
-      stack[stack.length - 1].children.push(node);
-    }
-    stack.push(node);
-  }
-
-  return roots;
-}
-
-// ─── Tree node ────────────────────────────────────────────────
-
 interface TreeNodeProps {
   node: HeadingNode;
   activeSlug: string | null;
+  counts: SectionCounts;
   onNavigate: (slug: string) => void;
   isLast: boolean;
 }
 
-function TreeNode({ node, activeSlug, onNavigate, isLast }: TreeNodeProps) {
+export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeNodeProps) {
   const { heading, children } = node;
   const isActive = activeSlug === heading.slug;
   const hasChildren = children.length > 0;
+  // Pending items anchored in this section — `heat` when there is something to
+  // look at, so the nav doubles as the document's control panel.
+  const count = counts[heading.slug] ?? 0;
+
+  const restColor = heading.level === 1 ? "var(--df-dim)" : "var(--df-faint)";
 
   return (
     <div style={{ position: "relative" }}>
@@ -73,40 +37,49 @@ function TreeNode({ node, activeSlug, onNavigate, isLast }: TreeNodeProps) {
         onClick={() => onNavigate(heading.slug)}
         title={heading.text}
         style={{
-          display: "block",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
           width: "100%",
           textAlign: "left",
           padding: "5px 8px",
           margin: "1px 0",
-          borderRadius: 5,
+          borderRadius: "var(--radius-sm)",
           fontSize: heading.level === 1 ? 12.5 : 11.5,
           fontWeight: isActive ? 600 : heading.level === 1 ? 500 : 400,
-          color: isActive
-            ? "var(--df-amber-200, #ffb59e)"
-            : heading.level === 1
-            ? "var(--df-dim, rgba(227,226,226,0.62))"
-            : "var(--df-faint, rgba(227,226,226,0.38))",
-          background: isActive ? "rgba(255,77,0,0.05)" : "transparent",
+          color: isActive ? "var(--df-amber-200)" : restColor,
+          background: isActive ? "var(--color-heat-05)" : "transparent",
           border: "none",
-          borderLeft: `2px solid ${isActive ? "var(--df-amber-500, #ff4d00)" : "transparent"}`,
+          borderLeft: `2px solid ${isActive ? "var(--df-amber-500)" : "transparent"}`,
           cursor: "pointer",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
           transition: "color 0.12s, background 0.12s",
         }}
         onMouseEnter={(e) => {
-          if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))";
+          if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = "var(--df-dim)";
         }}
         onMouseLeave={(e) => {
-          if (!isActive)
-            (e.currentTarget as HTMLButtonElement).style.color =
-              heading.level === 1
-                ? "var(--df-dim, rgba(227,226,226,0.62))"
-                : "var(--df-faint, rgba(227,226,226,0.38))";
+          if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = restColor;
         }}
       >
-        {heading.text}
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {heading.text}
+        </span>
+        {count > 0 && (
+          <span
+            className="df-mono"
+            style={{ fontSize: 9, fontWeight: 500, color: "var(--df-amber-300)", flexShrink: 0 }}
+          >
+            {count}
+          </span>
+        )}
       </button>
 
       {hasChildren && (
@@ -119,7 +92,7 @@ function TreeNode({ node, activeSlug, onNavigate, isLast }: TreeNodeProps) {
               top: 0,
               bottom: isLast ? 12 : 0,
               width: 1,
-              background: "var(--df-outline, rgba(255,255,255,0.06))",
+              background: "var(--df-outline)",
             }}
           />
           {children.map((child, i) => (
@@ -132,12 +105,13 @@ function TreeNode({ node, activeSlug, onNavigate, isLast }: TreeNodeProps) {
                   top: 12,
                   width: 10,
                   height: 1,
-                  background: "var(--df-outline, rgba(255,255,255,0.06))",
+                  background: "var(--df-outline)",
                 }}
               />
               <TreeNode
                 node={child}
                 activeSlug={activeSlug}
+                counts={counts}
                 onNavigate={onNavigate}
                 isLast={i === children.length - 1}
               />
@@ -200,7 +174,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
         bottom: "calc(100% + 6px)",
         left: 12,
         right: 12,
-        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        border: "1px solid var(--df-outline)",
         background: "rgba(18,20,20,0.98)",
         backdropFilter: "blur(8px)",
         borderRadius: 8,
@@ -220,7 +194,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
             padding: "8px 10px",
             borderRadius: 4,
             fontSize: 12.5,
-            color: "var(--df-on-surface-soft, #c6c5c4)",
+            color: "var(--df-dim)",
             background: "transparent",
             border: "none",
             cursor: item.enabled ? "pointer" : "not-allowed",
@@ -231,13 +205,13 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
         >
           <span
             className="material-symbols-outlined"
-            style={{ fontSize: 16, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+            style={{ fontSize: 16, color: "var(--df-faint)" }}
           >
             {item.icon}
           </span>
           <div style={{ flex: 1 }}>
             {item.label}
-            <div className="df-mono" style={{ fontSize: 9, color: "var(--df-faint, rgba(227,226,226,0.38))" }}>
+            <div className="df-mono" style={{ fontSize: 9, color: "var(--df-faint)" }}>
               {item.sub}
             </div>
           </div>
@@ -258,14 +232,23 @@ interface EditorNavPanelProps {
   documentId: string;
   headings: Heading[];
   activeSlug: string | null;
+  /** Pending items per section slug — rendered as a heat-coloured tally. */
+  counts?: SectionCounts;
   onNavigate: (slug: string) => void;
   onExport: () => void;
   activitySlot?: React.ReactNode;
 }
 
-export function EditorNavPanel({ documentId, headings, activeSlug, onNavigate, onExport, activitySlot }: EditorNavPanelProps) {
+export function EditorNavPanel({
+  documentId,
+  headings,
+  activeSlug,
+  counts = {},
+  onNavigate,
+  onExport,
+  activitySlot,
+}: EditorNavPanelProps) {
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const tree = buildTree(headings);
 
   return (
     <nav
@@ -274,8 +257,8 @@ export function EditorNavPanel({ documentId, headings, activeSlug, onNavigate, o
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-        background: "rgba(0,0,0,0.20)",
+        borderRight: "1px solid var(--df-outline)",
+        background: "var(--color-shade-20)",
         overflow: "hidden",
       }}
     >
@@ -285,7 +268,7 @@ export function EditorNavPanel({ documentId, headings, activeSlug, onNavigate, o
           style={{
             fontSize: 10,
             letterSpacing: "0.16em",
-            color: "var(--df-faint, rgba(227,226,226,0.38))",
+            color: "var(--df-faint)",
             marginBottom: 14,
             textTransform: "uppercase",
           }}
@@ -293,47 +276,30 @@ export function EditorNavPanel({ documentId, headings, activeSlug, onNavigate, o
           › Structure
         </div>
 
-        {tree.length === 0 ? (
-          <p
-            style={{
-              fontSize: 11,
-              color: "var(--df-faint, rgba(227,226,226,0.28))",
-              lineHeight: 1.5,
-              margin: 0,
-            }}
-          >
-            Start typing ## headings to navigate sections.
-          </p>
-        ) : (
-          <div>
-            {tree.map((node, i) => (
-              <TreeNode
-                key={node.heading.slug}
-                node={node}
-                activeSlug={activeSlug}
-                onNavigate={onNavigate}
-                isLast={i === tree.length - 1}
-              />
-            ))}
-          </div>
-        )}
+        <DocumentOutline
+          headings={headings}
+          activeSlug={activeSlug}
+          counts={counts}
+          onNavigate={onNavigate}
+          emptyText="Start typing ## headings to navigate sections."
+        />
       </div>
 
       {/* Activity */}
       {activitySlot && (
-        <div style={{ padding: "14px 16px", borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px", borderTop: "1px solid var(--df-outline)", flexShrink: 0 }}>
           {activitySlot}
         </div>
       )}
 
       {/* Export */}
-      <div style={{ position: "relative", padding: "12px 22px 24px", borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))", flexShrink: 0 }}>
+      <div style={{ position: "relative", padding: "12px 22px 24px", borderTop: "1px solid var(--df-outline)", flexShrink: 0 }}>
         <button
           onClick={() => setShowExportMenu((v) => !v)}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 11, fontWeight: 600,
-            color: "var(--df-faint, rgba(227,226,226,0.38))",
+            color: "var(--df-faint)",
             background: "transparent", border: "none", cursor: "pointer", padding: 0,
           }}
         >

@@ -16,6 +16,11 @@ import type {
   PipelineDefinition,
   PipelineStep,
   PromptTemplate,
+  Artifact,
+  Folder,
+  DocumentMember,
+  MemberRole,
+  SharedDocument,
 } from "@/types";
 
 export const API_BASE =
@@ -35,7 +40,11 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
     hasApiKeyActivity: Boolean(raw.has_api_key_activity),
+    folderId: (raw.folder_id as string | null) ?? null,
     lastApiKeyName: (raw.last_api_key_name as string) ?? null,
+    publishedVersionId: (raw.published_version_id as string | null) ?? null,
+    publishedAt: (raw.published_at as string | null) ?? null,
+    hasUnpublishedChanges: Boolean(raw.has_unpublished_changes),
   };
 }
 
@@ -66,6 +75,8 @@ export function mapVersion(raw: Record<string, unknown>): SectionVersion {
     changeSummary: (raw.change_summary as string) ?? null,
     content: raw.content as string,
     isActive: raw.is_active as boolean,
+    isPublished: Boolean(raw.is_published),
+    publishedAt: (raw.published_at as string | null) ?? null,
     createdAt: raw.created_at as string,
   };
 }
@@ -333,6 +344,8 @@ function mapAuditFinding(raw: Record<string, unknown>): AuditFinding {
     sectionType: raw.section_type as AuditFinding["sectionType"],
     description: raw.description as string,
     severity: raw.severity as AuditFinding["severity"],
+    quote: (raw.quote as string | null) ?? null,
+    category: (raw.category as string | null) ?? null,
     dismissed: raw.dismissed as boolean,
     createdAt: raw.created_at as string,
   };
@@ -887,4 +900,260 @@ export async function apiUpdateCompletedDocument(
   });
   if (!res.ok) throw new Error("Failed to save completed document");
   return res.json();
+}
+
+// ─── Artifacts ────────────────────────────────────────────────
+
+function mapArtifact(raw: Record<string, unknown>): Artifact {
+  return {
+    id: raw.id as string,
+    documentId: raw.document_id as string,
+    key: raw.key as string,
+    kind: raw.kind as Artifact["kind"],
+    title: raw.title as string,
+    content: raw.content as string,
+    author: (raw.author as string | null) ?? null,
+    isAgent: Boolean(raw.is_agent),
+    revision: raw.revision as number,
+    anchored: Boolean(raw.anchored),
+    createdAt: raw.created_at as string,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+export async function apiFetchArtifacts(
+  documentId: string,
+  getToken: GetToken,
+): Promise<Artifact[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/artifacts`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch artifacts");
+  const data = await res.json();
+  return (data.artifacts as Record<string, unknown>[]).map(mapArtifact);
+}
+
+export async function apiDeleteArtifact(artifactId: string, getToken: GetToken): Promise<void> {
+  const res = await fetch(`${API_BASE}/artifacts/${artifactId}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to delete artifact");
+}
+
+/**
+ * Accept some of a proposal's changes and turn down the rest.
+ *
+ * Indexes are the `CHANGE n OF m` numbers the reviewer saw. The server
+ * recomputes the hunks with the same algorithm and applies the subset — the
+ * browser numbers the changes, it does not decide what the document becomes.
+ */
+export async function apiTriageSuggestion(
+  suggestionId: string,
+  acceptedIndexes: number[],
+  comment: string | null,
+  getToken: GetToken,
+): Promise<Suggestion> {
+  const res = await fetch(`${API_BASE}/suggestions/${suggestionId}/triage`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ accepted_indexes: acceptedIndexes, comment }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Failed to save triage");
+  }
+  return mapSuggestion(await res.json());
+}
+
+// ─── Folders and sharing ──────────────────────────────────────
+
+export async function apiFetchFolders(getToken: GetToken): Promise<Folder[]> {
+  const res = await fetch(`${API_BASE}/folders`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error("Failed to fetch folders");
+  const data = await res.json();
+  return (data.folders as Record<string, unknown>[]).map((f) => ({
+    id: f.id as string,
+    name: f.name as string,
+    parentId: (f.parent_id as string | null) ?? null,
+    documentCount: f.document_count as number,
+    directDocumentCount: (f.direct_document_count as number | undefined) ?? f.document_count as number,
+  }));
+}
+
+export async function apiCreateFolder(
+  name: string,
+  parentId: string | null,
+  getToken: GetToken,
+): Promise<Folder> {
+  const res = await fetch(`${API_BASE}/folders`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ name, parent_id: parentId }),
+  });
+  if (!res.ok) throw new Error("Failed to create folder");
+  const f = await res.json();
+  return { id: f.id, name: f.name, parentId: f.parent_id ?? null, documentCount: 0, directDocumentCount: 0 };
+}
+
+export async function apiDeleteFolder(folderId: string, getToken: GetToken): Promise<void> {
+  const res = await fetch(`${API_BASE}/folders/${folderId}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to delete folder");
+}
+
+export async function apiUpdateFolder(
+  folderId: string,
+  update: { name?: string; parentId?: string | null },
+  getToken: GetToken,
+): Promise<Folder> {
+  const body: Record<string, unknown> = {};
+  if (update.name !== undefined) body.name = update.name;
+  if (update.parentId !== undefined) body.parent_id = update.parentId;
+  const res = await fetch(`${API_BASE}/folders/${folderId}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.detail ?? "Failed to update folder");
+  }
+  const f = await res.json();
+  return {
+    id: f.id,
+    name: f.name,
+    parentId: f.parent_id ?? null,
+    documentCount: f.document_count ?? 0,
+    directDocumentCount: f.direct_document_count ?? 0,
+  };
+}
+
+/** Move a document into a folder, or to the root with `null`. */
+export async function apiMoveDocument(
+  documentId: string,
+  folderId: string | null,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/folder`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ folder_id: folderId }),
+  });
+  if (!res.ok) throw new Error("Failed to move document");
+}
+
+function mapMember(raw: Record<string, unknown>): DocumentMember {
+  return {
+    id: raw.id as string,
+    email: raw.email as string,
+    role: raw.role as MemberRole,
+    accepted: Boolean(raw.accepted),
+  };
+}
+
+export async function apiFetchMembers(
+  documentId: string,
+  getToken: GetToken,
+): Promise<{ members: DocumentMember[]; myRole: string }> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/members`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch members");
+  const data = await res.json();
+  return {
+    members: (data.members as Record<string, unknown>[]).map(mapMember),
+    myRole: data.my_role as string,
+  };
+}
+
+export async function apiShareDocument(
+  documentId: string,
+  email: string,
+  role: MemberRole,
+  getToken: GetToken,
+): Promise<DocumentMember> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/members`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ email, role }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? "Failed to share document");
+  }
+  return mapMember(await res.json());
+}
+
+export async function apiUnshareDocument(
+  documentId: string,
+  memberId: string,
+  getToken: GetToken,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/members/${memberId}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to remove member");
+}
+
+export async function apiFetchSharedDocuments(getToken: GetToken): Promise<SharedDocument[]> {
+  const res = await fetch(`${API_BASE}/shared-documents`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch shared documents");
+  const data = await res.json();
+  return (data.documents as Record<string, unknown>[]).map((d) => ({
+    id: d.id as string,
+    title: d.title as string,
+    role: d.role as MemberRole,
+    updatedAt: d.updated_at as string,
+  }));
+}
+
+export async function apiPublishDocument(
+  documentId: string,
+  getToken: GetToken,
+): Promise<{ label: string }> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/publish`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? "Failed to publish");
+  }
+  return await res.json();
+}
+
+/**
+ * Turn the read-only public link on or off.
+ *
+ * The token is the capability, so turning it off clears it and any link
+ * already shared stops working.
+ */
+export async function apiSetPublicLink(
+  documentId: string,
+  enabled: boolean,
+  getToken: GetToken,
+): Promise<{ token: string | null; enabled: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/documents/${documentId}/public-link?enabled=${enabled}`,
+    { method: "POST", headers: await authHeaders(getToken) },
+  );
+  if (!res.ok) throw new Error("Failed to update public link");
+  return await res.json();
+}
+
+export async function apiGetPublicLink(
+  documentId: string,
+  getToken: GetToken,
+): Promise<{ token: string | null; enabled: boolean }> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/public-link`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch public link");
+  return await res.json();
 }

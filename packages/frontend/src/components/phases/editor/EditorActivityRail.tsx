@@ -62,7 +62,7 @@ export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRa
         style={{
           fontSize: 10,
           letterSpacing: "0.16em",
-          color: "var(--df-faint, rgba(227,226,226,0.38))",
+          color: "var(--df-faint)",
           textTransform: "uppercase",
         }}
       >
@@ -81,10 +81,10 @@ export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRa
             const actorColor = harness
               ? harness.fg
               : e.isAgent
-              ? "var(--df-steel-100, #dbe5f0)"
-              : "#e3e2e2";
-            const badgeBg = harness ? harness.bg : e.isAgent ? "var(--df-steel-bg, rgba(138,160,184,0.10))" : "rgba(255,77,0,0.08)";
-            const badgeFg = harness ? harness.fg : e.isAgent ? "var(--df-steel-200, #c5d3e2)" : "var(--df-amber-300, #ff8d4a)";
+              ? "var(--df-steel-100)"
+              : "var(--df-on-surface)";
+            const badgeBg = harness ? harness.bg : e.isAgent ? "var(--df-steel-bg)" : "var(--color-heat-08)";
+            const badgeFg = harness ? harness.fg : e.isAgent ? "var(--df-steel-200)" : "var(--df-amber-300)";
             return (
               <div
                 key={e.id}
@@ -115,7 +115,7 @@ export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRa
                     <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{icon}</span>
                   )}
                 </span>
-                <div style={{ fontSize: 11, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.4, minWidth: 0 }}>
+                <div style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.4, minWidth: 0 }}>
                   <span
                     className={e.isAgent ? "df-mono" : undefined}
                     style={{
@@ -127,7 +127,7 @@ export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRa
                   >
                     {e.actorName}
                   </span>{" "}
-                  <span style={{ color: "var(--df-faint, rgba(227,226,226,0.45))" }}>
+                  <span style={{ color: "var(--df-faint)" }}>
                     {humanizeAction(e.actionType)}
                   </span>
                   <span
@@ -135,7 +135,7 @@ export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRa
                     style={{
                       display: "block",
                       fontSize: 9.5,
-                      color: "var(--df-faint, rgba(227,226,226,0.32))",
+                      color: "var(--df-faint)",
                       letterSpacing: "0.04em",
                       marginTop: 2,
                     }}

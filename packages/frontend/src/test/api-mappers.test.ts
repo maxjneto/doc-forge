@@ -29,8 +29,21 @@ describe("API response mappers", () => {
       createdAt: "2025-01-01T00:00:00Z",
       updatedAt: "2025-01-02T00:00:00Z",
       hasApiKeyActivity: false,
+      folderId: null,
       lastApiKeyName: null,
+      publishedVersionId: null,
+      publishedAt: null,
+      hasUnpublishedChanges: false,
     });
+  });
+
+  it("mapDocument reads the folder it is filed under", () => {
+    expect(
+      mapDocument({ id: "d1", folder_id: "f-9", created_at: "", updated_at: "" }).folderId,
+    ).toBe("f-9");
+    // A document at the root has no folder, and null must survive as null
+    // rather than becoming undefined — the filter compares against it.
+    expect(mapDocument({ id: "d1", created_at: "", updated_at: "" }).folderId).toBeNull();
   });
 
   it("mapSection handles optional documentId", () => {

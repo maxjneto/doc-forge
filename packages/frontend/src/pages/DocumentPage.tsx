@@ -155,6 +155,11 @@ export function DocumentPage() {
         )}
         {currentPhase === "editing" && (
           <EditorLayout
+            documentTitle={document?.title ?? "Documento"}
+            isMcpManaged={Boolean(document?.hasApiKeyActivity)}
+            publishedAt={document?.publishedAt}
+            hasUnpublishedChanges={document?.hasUnpublishedChanges}
+            onPublished={refreshNow}
             documentId={activeDocId!}
             sections={sections}
             sseTick={sseTick}

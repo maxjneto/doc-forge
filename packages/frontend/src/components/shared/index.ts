@@ -7,3 +7,4 @@ export type { ForgeLoaderStep } from "./ForgeLoader";
 export { ProtectedRoute } from "./ProtectedRoute";
 export { NewDocumentDialog } from "./NewDocumentDialog";
 export { AppFooter } from "./AppFooter";
+export { DocumentOutline } from "./DocumentOutline";
