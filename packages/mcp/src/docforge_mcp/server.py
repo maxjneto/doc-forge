@@ -119,14 +119,14 @@ def _extract_section_by_heading(content: str, heading: str) -> str | None:
 
 @mcp.tool()
 async def get_user_info(*, ctx: Context) -> str:
-    """Get the current user's info: name, email, credits, weekly_credits.
-    Credits are used only by hosted AI operations; editor and BYOA work are free."""
+    """Get account info and remaining document creations for the current week."""
     _use_api_key(ctx)
     data = await api.get_user_info()
     return (
         f"Name: {data.get('name') or '(no name)'}\n"
         f"Email: {data.get('email')}\n"
-        f"Credits: {data.get('credits')} (weekly allowance: {data.get('weekly_credits')})"
+        f"Document creations remaining: {data.get('document_creations_remaining')} "
+        f"(weekly allowance: {data.get('weekly_document_creations')})"
     )
 
 
@@ -143,7 +143,7 @@ async def list_documents(*, ctx: Context) -> str:
 
 @mcp.tool()
 async def create_document(title: str, context: str = "", *, ctx: Context) -> str:
-    """Create a new DocForge editor document without consuming credits.
+    """Create a new DocForge editor document using one weekly document creation.
     Returns the document id, title, and browser URL.
 
     Args:
@@ -604,7 +604,7 @@ async def start_pipeline(
     ctx: Context,
 ) -> str:
     """Start a structured document pipeline that YOU execute step by step.
-    Does not consume credits. The server drives the state machine: call get_next_step for
+    Uses one weekly document creation. The server drives the state machine: call get_next_step for
     instructions, do the work with your own tools (read the repo, talk to your
     user), then submit_step. The user approves checkpoints in the browser.
     The pipeline is durable — if your session dies, any future session resumes
@@ -774,7 +774,7 @@ async def get_quality_gate(document_id: str, *, ctx: Context) -> str:
     """Quality gate status + everything you need to run the audit yourself.
     Read all sections, check them against each other for contradictions,
     terminology drift and inconsistencies, then submit_quality_findings.
-    Running the gate yourself is free; a server-run gate costs the user credits.
+    Running the gate yourself is the public workflow; hosted gates are currently unavailable.
 
     Args:
         document_id: Document UUID.
