@@ -79,7 +79,7 @@ export function ConnectedAgentsCard() {
                   ? <img src={HARNESS_META[k.harness].logo} width={14} height={14} alt={HARNESS_META[k.harness].label} />
                   : initials(k.name)}
               </span>
-              <span style={{ fontSize: 12.5, color: k.harness && isHarness(k.harness) ? HARNESS_META[k.harness].fg : "#e3e2e2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12.5, color: k.harness && isHarness(k.harness) ? HARNESS_META[k.harness].fg : "var(--df-on-surface)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {k.name}
               </span>
               <span

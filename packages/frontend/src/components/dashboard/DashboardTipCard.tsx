@@ -23,7 +23,7 @@ export function DashboardTipCard() {
         >
           Tip
         </span>
-        <div style={{ fontSize: 13, color: "#e3e2e2", lineHeight: 1.55, marginTop: 8 }}>
+        <div style={{ fontSize: 13, color: "var(--df-on-surface)", lineHeight: 1.55, marginTop: 8 }}>
           Connect <b>Claude Code</b> to keep editing a forge from your terminal. It picks up the same version history
           and audit checkpoints.
         </div>

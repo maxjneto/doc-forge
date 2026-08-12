@@ -44,9 +44,9 @@ function Tab({
         borderRadius: 8,
         fontSize: 13,
         fontWeight: 500,
-        color: active ? "#e3e2e2" : "var(--df-dim)",
-        background: active ? "rgba(255,77,0,0.06)" : "transparent",
-        border: `1px solid ${active ? "rgba(255,77,0,0.25)" : "transparent"}`,
+        color: active ? "var(--df-on-surface)" : "var(--df-dim)",
+        background: active ? "var(--color-heat-bg-soft)" : "transparent",
+        border: `1px solid ${active ? "var(--color-heat-25)" : "transparent"}`,
         cursor: "pointer",
         transition: "all 0.15s",
         fontFamily: "inherit",
@@ -64,7 +64,7 @@ function Tab({
           fontWeight: 600,
           padding: "2px 7px",
           borderRadius: 999,
-          background: active ? "rgba(255,77,0,0.15)" : "rgba(255,255,255,0.05)",
+          background: active ? "var(--color-heat-15)" : "rgba(255,255,255,0.05)",
           color: active ? "var(--df-amber-200)" : "var(--df-faint)",
         }}
       >

@@ -101,7 +101,7 @@ export function RecentActivityCard() {
                   borderRadius: 4,
                   display: "grid",
                   placeItems: "center",
-                  background: e.isAgent ? "var(--df-steel-bg)" : "rgba(255,77,0,0.08)",
+                  background: e.isAgent ? "var(--df-steel-bg)" : "var(--color-heat-08)",
                   color: e.isAgent ? "var(--df-steel-200)" : "var(--df-amber-300)",
                   alignSelf: "flex-start",
                 }}
@@ -110,12 +110,12 @@ export function RecentActivityCard() {
                   ? <img src={harnessLogo} width={11} height={11} alt="" />
                   : <span className="material-symbols-outlined" style={{ fontSize: 11 }}>{icon}</span>}
               </span>
-              <div style={{ fontSize: 12, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.45 }}>
+              <div style={{ fontSize: 12, color: "var(--df-dim)", lineHeight: 1.45 }}>
                 <span
                   className={e.isAgent ? "df-mono" : undefined}
                   style={{
                     fontWeight: 600,
-                    color: e.isAgent && e.harness && isHarness(e.harness) ? HARNESS_META[e.harness].fg : e.isAgent ? "var(--df-steel-100)" : "#e3e2e2",
+                    color: e.isAgent && e.harness && isHarness(e.harness) ? HARNESS_META[e.harness].fg : e.isAgent ? "var(--df-steel-100)" : "var(--df-on-surface)",
                     fontSize: e.isAgent ? 11 : undefined,
                     letterSpacing: e.isAgent ? "0.04em" : undefined,
                   }}
