@@ -1,6 +1,7 @@
 import type { AuditFinding } from "@/types";
 import type { AnchorPrecision } from "@/utils/documentStructure";
 import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 
 interface EditorFindingCalloutProps {
   finding: AuditFinding;
@@ -23,6 +24,7 @@ export function EditorFindingCallout({
   precision,
   paragraph,
 }: EditorFindingCalloutProps) {
+  const { t } = useI18n();
   const blocking = finding.severity === "high";
 
   // Split the paragraph around the quote so only the offending words carry the
@@ -53,7 +55,7 @@ export function EditorFindingCallout({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <Pill tone={blocking ? "heat" : "warn"} dot={false}>
-          {blocking ? "BLOQUEANTE" : "AVISO"}
+          {t(blocking ? "editor.blocking" : "editor.warning").toUpperCase()}
         </Pill>
         {finding.category && (
           <span
@@ -66,10 +68,10 @@ export function EditorFindingCallout({
         {precision !== "quote" && (
           <span
             className="df-mono"
-            title="O texto mudou desde que o problema foi apontado — mostrando no nível da seção."
+            title={t("editor.anchorChanged")}
             style={{ fontSize: 9.5, color: "var(--df-mute)" }}
           >
-            ÂNCORA APROXIMADA
+            {t("editor.approximateAnchor").toUpperCase()}
           </span>
         )}
       </div>

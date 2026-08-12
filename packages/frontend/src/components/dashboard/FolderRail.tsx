@@ -14,6 +14,7 @@ import {
   useFolderDragState,
 } from "./folderPointerDrag";
 import { useDocumentDragState } from "./documentPointerDrag";
+import { useI18n } from "@/i18n";
 
 interface FolderRailProps {
   selected: string | null;
@@ -48,6 +49,7 @@ export function FolderRail({
   viewCounts = { all: 0, drafts: 0, published: 0 },
 }: FolderRailProps) {
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
@@ -70,8 +72,8 @@ export function FolderRail({
           initialized.current = true;
         }
       })
-      .catch(() => setError("Não foi possível carregar as pastas."));
-  }, [getToken, onFoldersChange]);
+      .catch(() => setError(t("folder.loadError")));
+  }, [getToken, onFoldersChange, t]);
 
   useEffect(() => refetch(), [refetch, refreshTick]);
 
@@ -106,7 +108,7 @@ export function FolderRail({
       if (created.parentId) setExpanded((current) => new Set(current).add(created.parentId!));
       refetch();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao criar pasta.");
+      setError(e instanceof Error ? e.message : t("folder.createError"));
     }
   }
 
@@ -118,13 +120,13 @@ export function FolderRail({
       await apiUpdateFolder(folder.id, { name }, getToken);
       refetch();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao renomear pasta.");
+      setError(e instanceof Error ? e.message : t("folder.renameError"));
     }
   }
 
   async function remove(folder: Folder) {
     const confirmed = window.confirm(
-      `Excluir “${folder.name}”? Os documentos voltarão para a raiz e as subpastas também serão removidas.`,
+      t("folder.deleteConfirm", { name: folder.name }),
     );
     if (!confirmed) return;
     try {
@@ -132,7 +134,7 @@ export function FolderRail({
       if (selected === folder.id) onSelect(null);
       refetch();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao excluir pasta.");
+      setError(e instanceof Error ? e.message : t("folder.deleteError"));
     }
   }
 
@@ -164,7 +166,7 @@ export function FolderRail({
             await onDropDocument(documentId, target);
           }
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Não foi possível mover o item.");
+          setError(e instanceof Error ? e.message : t("folder.moveError"));
         }
       },
     };
@@ -180,7 +182,7 @@ export function FolderRail({
         <Input
           autoFocus
           value={draft}
-          placeholder="Nome da pasta"
+          placeholder={t("folder.createPrompt")}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => { if (!draft.trim()) setCreatingParent(undefined); }}
           onKeyDown={(event) => {
@@ -234,7 +236,7 @@ export function FolderRail({
           <button
             data-no-folder-drag
             onClick={(event) => { event.stopPropagation(); if (children.length) toggle(folder.id); }}
-            aria-label={isExpanded ? "Recolher pasta" : "Expandir pasta"}
+            aria-label={isExpanded ? t("folder.collapse") : t("folder.expand")}
             style={{ width: 18, padding: 0, border: 0, background: "transparent", color: "var(--df-faint)", cursor: children.length ? "pointer" : "default" }}
           >
             {children.length > 0 && (
@@ -269,13 +271,13 @@ export function FolderRail({
             </button>
           )}
           {folder.documentCount > 0 && (
-            <span className="df-mono" title={`${folder.documentCount} documento(s), incluindo subpastas`} style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+            <span className="df-mono" title={t("folder.documentCount", { count: folder.documentCount })} style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
               {folder.documentCount}
             </span>
           )}
-          <button data-no-folder-drag onClick={() => startCreate(folder.id)} title="Nova subpasta" style={actionStyle}>+</button>
-          <button data-no-folder-drag onClick={() => { setEditingId(folder.id); setEditingName(folder.name); }} title="Renomear" style={actionStyle}>✎</button>
-          <button data-no-folder-drag onClick={() => void remove(folder)} title="Excluir" style={actionStyle}>×</button>
+          <button data-no-folder-drag onClick={() => startCreate(folder.id)} title={t("folder.newSubfolder")} style={actionStyle}>+</button>
+          <button data-no-folder-drag onClick={() => { setEditingId(folder.id); setEditingName(folder.name); }} title={t("common.rename")} style={actionStyle}>✎</button>
+          <button data-no-folder-drag onClick={() => void remove(folder)} title={t("common.delete")} style={actionStyle}>×</button>
         </div>
         {createRow(folder.id, depth + 1)}
         {isExpanded && children.map((child) => row(child, depth + 1))}
@@ -287,9 +289,9 @@ export function FolderRail({
     <nav style={{ width: "100%", minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
         <span className="df-mono" style={{ flex: 1, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--df-faint)" }}>
-          › Biblioteca
+          › {t("dashboard.libraryShort")}
         </span>
-        <Button variant="ghost" onClick={() => startCreate(null)} title="Nova pasta" style={{ padding: "2px 7px" }}>+</Button>
+        <Button variant="ghost" onClick={() => startCreate(null)} title={t("dashboard.newFolder")} style={{ padding: "2px 7px" }}>+</Button>
       </div>
 
       <div
@@ -307,7 +309,7 @@ export function FolderRail({
       >
         <span className="material-symbols-outlined" style={{ fontSize: 17, color: "var(--df-faint)" }}>home</span>
         <button onClick={() => { onSelectView?.("all"); onSelect(null); }} style={{ flex: 1, textAlign: "left", padding: 0, border: 0, background: "transparent", color: activeView === "all" && selected === null && !sharedSelected ? "var(--df-amber-200)" : "var(--df-dim)", font: "inherit", fontSize: 12.5, cursor: "pointer" }}>
-          Todos os documentos
+          {t("dashboard.allDocuments")}
         </button>
         <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>{viewCounts.all}</span>
       </div>
@@ -315,8 +317,8 @@ export function FolderRail({
       {onSelectView && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, margin: "3px 0 8px" }}>
           {([
-            { id: "drafts" as const, label: "Rascunhos", icon: "edit_note", count: viewCounts.drafts },
-            { id: "published" as const, label: "Publicados", icon: "verified", count: viewCounts.published },
+            { id: "drafts" as const, label: t("dashboard.drafts"), icon: "edit_note", count: viewCounts.drafts },
+            { id: "published" as const, label: t("common.published"), icon: "verified", count: viewCounts.published },
           ]).map((view) => (
             <button
               key={view.id}
@@ -340,7 +342,7 @@ export function FolderRail({
           style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, padding: "12px 8px 7px", border: 0, borderTop: "1px solid var(--df-outline)", background: "transparent", color: sharedSelected ? "var(--df-amber-200)" : "var(--df-dim)", font: "inherit", fontSize: 12.5, cursor: "pointer" }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 17 }}>group</span>
-          <span style={{ flex: 1, textAlign: "left" }}>Compartilhados comigo</span>
+          <span style={{ flex: 1, textAlign: "left" }}>{t("dashboard.sharedWithMe")}</span>
           {sharedCount > 0 && <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>{sharedCount}</span>}
         </button>
       )}

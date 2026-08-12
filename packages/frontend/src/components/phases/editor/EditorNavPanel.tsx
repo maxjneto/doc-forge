@@ -3,6 +3,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { apiExportDocument, type ExportFormat } from "@/utils/api";
 import type { Heading, SectionCounts } from "@/utils/documentStructure";
 import { DocumentOutline } from "@/components/shared";
+import { useI18n } from "@/i18n";
 
 // ─── Tree structure ───────────────────────────────────────────
 
@@ -134,6 +135,7 @@ interface ExportMenuProps {
 function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,7 +156,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
       await apiExportDocument(documentId, format, getToken);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Export failed");
+      setError(e instanceof Error ? e.message : t("editor.exportError"));
     } finally {
       setBusy(null);
     }
@@ -162,8 +164,8 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
 
   const items: { key: string; icon: string; label: string; sub: string; onClick: () => void; enabled: boolean }[] = [
     { key: "md", icon: "code", label: "Markdown", sub: ".MD FILE", onClick: () => { onExportMarkdown(); onClose(); }, enabled: true },
-    { key: "pdf", icon: "picture_as_pdf", label: "PDF", sub: busy === "pdf" ? "EXPORTING…" : ".PDF FILE · PRO", onClick: () => handleBackendExport("pdf"), enabled: busy === null },
-    { key: "docx", icon: "description", label: "Word", sub: busy === "docx" ? "EXPORTING…" : ".DOCX FILE · PRO", onClick: () => handleBackendExport("docx"), enabled: busy === null },
+    { key: "pdf", icon: "picture_as_pdf", label: "PDF", sub: busy === "pdf" ? t("editor.exporting").toUpperCase() : ".PDF · PRO", onClick: () => handleBackendExport("pdf"), enabled: busy === null },
+    { key: "docx", icon: "description", label: "Word", sub: busy === "docx" ? t("editor.exporting").toUpperCase() : ".DOCX · PRO", onClick: () => handleBackendExport("docx"), enabled: busy === null },
   ];
 
   return (
@@ -248,6 +250,7 @@ export function EditorNavPanel({
   onExport,
   activitySlot,
 }: EditorNavPanelProps) {
+  const { t } = useI18n();
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   return (
@@ -273,7 +276,7 @@ export function EditorNavPanel({
             textTransform: "uppercase",
           }}
         >
-          › Structure
+          › {t("editor.structure")}
         </div>
 
         <DocumentOutline
@@ -281,7 +284,7 @@ export function EditorNavPanel({
           activeSlug={activeSlug}
           counts={counts}
           onNavigate={onNavigate}
-          emptyText="Start typing ## headings to navigate sections."
+          emptyText={t("editor.headingHint")}
         />
       </div>
 
@@ -304,7 +307,7 @@ export function EditorNavPanel({
           }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>file_download</span>
-          Export
+          {t("editor.export")}
           <span className="material-symbols-outlined" style={{ fontSize: 12 }}>expand_more</span>
         </button>
         {showExportMenu && (

@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
 import { apiListDocumentTypes, apiCreateDocument } from "@/utils/api";
 import type { DocumentType } from "@/types";
+import { useI18n } from "@/i18n";
 
 const ICON_MAP: Record<string, string> = {
   rfc: "rate_review",
@@ -27,6 +28,7 @@ interface NewDocumentDialogProps {
 export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) {
   const navigate = useNavigate();
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [tab, setTab] = useState<DialogTab>("guided");
   const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,9 +78,9 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
     } catch (err) {
       setCreating(false);
       if (err instanceof Error && err.message === "INSUFFICIENT_CREDITS") {
-        setCreateError("Not enough credits. Your weekly credits may have been used up.");
+        setCreateError(t("newDocument.notEnoughCredits"));
       } else {
-        setCreateError("Something went wrong. Please try again.");
+        setCreateError(t("newDocument.genericError"));
       }
     }
   }
@@ -108,7 +110,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
           <div>
             <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--df-on-surface)" }}>
-              New Document
+              {t("newDocument.title")}
             </h2>
           </div>
           <button
@@ -121,10 +123,10 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
 
         {/* Tab toggle */}
         <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--color-white-03)", borderRadius: "8px", padding: "4px", width: "fit-content" }}>
-          {(["guided", "editor"] as DialogTab[]).map((t) => (
+          {(["guided", "editor"] as DialogTab[]).map((tabId) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabId}
+              onClick={() => setTab(tabId)}
               style={{
                 padding: "6px 16px",
                 borderRadius: "6px",
@@ -132,12 +134,12 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
                 fontWeight: 600,
                 border: "none",
                 cursor: "pointer",
-                background: tab === t ? "rgba(255,77,0,0.12)" : "transparent",
-                color: tab === t ? "var(--df-amber-500)" : "rgba(200,198,197,0.45)",
+                background: tab === tabId ? "rgba(255,77,0,0.12)" : "transparent",
+                color: tab === tabId ? "var(--df-amber-500)" : "rgba(200,198,197,0.45)",
                 transition: "all 0.15s",
               }}
             >
-              {t === "guided" ? "AI Guided" : "Editor"}
+              {t(tabId === "guided" ? "newDocument.guided" : "newDocument.editor")}
             </button>
           ))}
         </div>
@@ -147,14 +149,14 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
           <label
             style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(200,198,197,0.45)", marginBottom: "8px" }}
           >
-            Document title
+            {t("newDocument.documentTitle")}
           </label>
           <input
             type="text"
             value={documentTitle}
             onChange={(e) => setDocumentTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && tab === "editor") handleCreateEditor(); }}
-            placeholder={tab === "guided" ? "Auto-generated from context" : "Untitled Document"}
+            placeholder={t(tab === "guided" ? "newDocument.autoTitle" : "newDocument.untitled")}
             maxLength={200}
             style={{
               width: "100%",
@@ -178,23 +180,23 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
               <p style={{ margin: 0, fontSize: "13px", color: "rgba(200,198,197,0.5)" }}>
-                Choose a document type. The AI will guide you through structured discovery and generation.
+                {t("newDocument.guidedDescription")}
               </p>
               {!canAffordGuided && credits !== undefined && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#e86464", background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.2)", borderRadius: "6px", padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "16px" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>warning</span>
-                  Needs {GUIDED_COST} credits - you have {credits}
+                  {t("newDocument.needsCredits", { cost: GUIDED_COST, credits })}
                 </span>
               )}
             </div>
             {loading && (
               <div style={{ color: "rgba(200,198,197,0.4)", fontSize: "13px", textAlign: "center", padding: "32px 0" }}>
-                Loading document types…
+                {t("newDocument.loadingTypes")}
               </div>
             )}
             {error && (
               <div style={{ color: "rgba(200,198,197,0.4)", fontSize: "13px", textAlign: "center", padding: "32px 0" }}>
-                Could not load document types. Please try again.
+                {t("newDocument.typesError")}
               </div>
             )}
             {!loading && !error && (
@@ -211,12 +213,12 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         {tab === "editor" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "16px", paddingBottom: "8px" }}>
             <p style={{ margin: "0 0 28px", fontSize: "13px", color: "rgba(200,198,197,0.5)", lineHeight: 1.6, textAlign: "center", maxWidth: 400 }}>
-              Start with a blank canvas. Write freely in Markdown - headings become your document structure.
+              {t("newDocument.editorDescription")}
             </p>
             {!canAffordEditor && credits !== undefined && (
               <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
                 <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>warning</span>
-                You need {EDITOR_COST} credit to create an editor document - you have {credits}.
+                {t("newDocument.needsOneCredit", { cost: EDITOR_COST, credits })}
               </p>
             )}
             {createError && (
@@ -241,7 +243,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
               <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
                 {creating ? "hourglass_empty" : "edit_note"}
               </span>
-              {creating ? "Creating…" : "Create Editor Document"}
+              {creating ? t("common.creating") : t("newDocument.createEditor")}
             </button>
           </div>
         )}

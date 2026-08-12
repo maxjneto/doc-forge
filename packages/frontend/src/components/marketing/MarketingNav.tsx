@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { useAuth, useClerk, UserButton } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { BrandMark } from "./BrandMark";
+import { LanguageSwitcher } from "@/components/shared";
+import { useI18n } from "@/i18n";
 
 type NavKey = "how-it-works" | "pricing" | null;
 
@@ -9,6 +11,7 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   function handleCta() {
     if (isSignedIn) navigate("/home");
@@ -32,8 +35,9 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
     >
       <BrandMark />
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 24 }}>
-        <NavLinkItem to="/how-it-works" active={active === "how-it-works"}>How it works</NavLinkItem>
-        <NavLinkItem to="/pricing" active={active === "pricing"}>Pricing</NavLinkItem>
+        <NavLinkItem to="/how-it-works" active={active === "how-it-works"}>{t("nav.howItWorks")}</NavLinkItem>
+        <NavLinkItem to="/pricing" active={active === "pricing"}>{t("nav.pricing")}</NavLinkItem>
+        <LanguageSwitcher compact />
         <button
           onClick={handleCta}
           style={{
@@ -49,7 +53,7 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
             boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
           }}
         >
-          {isSignedIn ? "Open workspace" : "Start forging"}
+          {isSignedIn ? t("nav.openWorkspace") : t("nav.startForging")}
         </button>
         {isSignedIn && <UserButton />}
       </div>

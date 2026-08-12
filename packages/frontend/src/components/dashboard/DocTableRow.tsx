@@ -1,17 +1,18 @@
 import { useRef, useState } from "react";
 import type { Document, Phase } from "@/types";
 import { consumeDocumentDragClick, startDocumentPointerDrag } from "./documentPointerDrag";
+import { useI18n } from "@/i18n";
 
 const PHASE_ORDER: Phase[] = ["discovery", "alignment", "generation", "refinement", "audit", "completed"];
 
-const PHASE_LABEL: Record<Phase, string> = {
-  discovery: "Discovery",
-  alignment: "Alignment",
-  generation: "Generation",
-  refinement: "Refinement",
-  audit: "Audit",
-  completed: "Forged",
-  editing: "Editor",
+const PHASE_LABEL_KEY: Record<Phase, string> = {
+  discovery: "phase.discovery",
+  alignment: "phase.alignment",
+  generation: "phase.generation",
+  refinement: "phase.refinement",
+  audit: "phase.audit",
+  completed: "phase.forged",
+  editing: "phase.editor",
 };
 
 function PhaseTrail({ currentPhase }: { currentPhase: Phase }) {
@@ -63,6 +64,7 @@ export function DocTableRow({
   onMoveToFolder?: (folderId: string | null) => void;
   onRequestMove?: () => void;
 }) {
+  const { t, dateLocale } = useI18n();
   const [renaming, setRenaming] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,9 +73,9 @@ export function DocTableRow({
   const isMcp = doc.documentMode === "editor" && Boolean(doc.hasApiKeyActivity);
   const publicationState = doc.publishedAt
     ? doc.hasUnpublishedChanges
-      ? "CHANGES SINCE PUBLISH"
-      : "PUBLISHED"
-    : "DRAFT";
+      ? t("dashboard.changesSincePublish")
+      : t("common.published")
+    : t("common.draft");
 
   const startRename = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -100,7 +102,7 @@ export function DocTableRow({
     : "var(--df-dim)";
   const phaseColor = isCompleted ? "var(--df-steel-100)" : "var(--df-amber-300)";
 
-  const ctaLabel = isCompleted || isMcp ? "Open" : "Resume";
+  const ctaLabel = isCompleted || isMcp ? t("common.open") : t("common.resume");
   const ctaIcon = "arrow_forward";
   const ctaStyle: React.CSSProperties = isCompleted
     ? {
@@ -114,7 +116,7 @@ export function DocTableRow({
         background: "var(--color-heat-bg-soft)",
       };
 
-  const formattedDate = new Date(doc.updatedAt).toLocaleDateString("en-US", {
+  const formattedDate = new Date(doc.updatedAt).toLocaleDateString(dateLocale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -210,7 +212,7 @@ export function DocTableRow({
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
-              title={`Last edited by ${doc.lastApiKeyName}`}
+              title={t("dashboard.lastEditedBy", { name: doc.lastApiKeyName })}
             >
               {doc.lastApiKeyName}
             </span>
@@ -235,7 +237,7 @@ export function DocTableRow({
           <button
             data-no-document-drag
             onClick={startRename}
-            title="Rename"
+            title={t("common.rename")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -258,7 +260,7 @@ export function DocTableRow({
           className="df-mono"
           style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.08em", marginTop: 3 }}
         >
-          {doc.documentMode === "editor" ? (isMcp ? "EDITOR · MCP-MANAGED" : "EDITOR · MARKDOWN") : "GUIDED · RFC"}
+          {doc.documentMode === "editor" ? (isMcp ? t("dashboard.editorMcp") : t("dashboard.editorMarkdown")) : t("dashboard.guidedRfc")}
         </div>
       </div>
 
@@ -268,7 +270,7 @@ export function DocTableRow({
           className="df-mono"
           style={{ fontSize: 10.5, letterSpacing: "0.08em", color: phaseColor }}
         >
-          {PHASE_LABEL[phase]}
+          {t(PHASE_LABEL_KEY[phase])}
         </span>
       </div>
 
@@ -287,8 +289,8 @@ export function DocTableRow({
               e.stopPropagation();
               onRequestMove();
             }}
-            title="Mover para outra pasta"
-            aria-label="Mover para outra pasta"
+            title={t("dashboard.move")}
+            aria-label={t("dashboard.move")}
             style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--df-outline-md)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>drive_file_move</span>
@@ -301,7 +303,7 @@ export function DocTableRow({
               e.stopPropagation();
               onShare();
             }}
-            title="Compartilhar"
+            title={t("common.share")}
             style={{
               display: "inline-flex",
               alignItems: "center",

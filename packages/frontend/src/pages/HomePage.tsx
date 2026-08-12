@@ -23,10 +23,12 @@ import {
   ShareDialog,
   type LibraryView,
 } from "@/components/dashboard";
+import { useI18n } from "@/i18n";
 
 export function HomePage() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [credits, setCredits] = useState<number | undefined>(undefined);
   const [weeklyCredits, setWeeklyCredits] = useState<number>(5);
@@ -73,7 +75,7 @@ export function HomePage() {
       setFolderName("");
       setCreatingFolder(false);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível criar a pasta.");
+      setError(reason instanceof Error ? reason.message : t("folder.createError"));
     } finally {
       setCreatingFolderPending(false);
     }
@@ -97,7 +99,7 @@ export function HomePage() {
         const data = await res.json();
         setDocuments((data.documents as Record<string, unknown>[]).map(mapDocument));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load documents");
+        setError(err instanceof Error ? err.message : t("folder.loadError"));
       }
     }
     async function fetchUser() {
@@ -192,9 +194,9 @@ export function HomePage() {
           }}
         >
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>Biblioteca</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>{t("dashboard.library")}</h1>
             <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--df-faint)" }}>
-              Organize documentos em pastas e navegue pela estrutura do seu workspace.
+              {t("dashboard.libraryDescription")}
             </p>
           </div>
 
@@ -210,14 +212,14 @@ export function HomePage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  Credits remaining
+                  {t("dashboard.creditsRemaining")}
                 </span>
                 <span
                   className="df-mono"
                   style={{ fontSize: 12, color: "var(--df-amber-300)", letterSpacing: "0.04em" }}
                 >
                   <b>{credits}</b>
-                  <span style={{ color: "var(--df-dim)" }}> of {weeklyCredits} this week</span>
+                  <span style={{ color: "var(--df-dim)" }}> {t("dashboard.creditsThisWeek", { total: weeklyCredits })}</span>
                 </span>
               </div>
             )}
@@ -243,7 +245,7 @@ export function HomePage() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-              Novo documento
+              {t("dashboard.newDocument")}
             </button>
           </div>
         </div>
@@ -280,10 +282,10 @@ export function HomePage() {
                 onClick={() => { setFolderId(null); setLibraryView("all"); setShowingShared(false); }}
                 style={{ padding: 0, border: 0, background: "transparent", color: breadcrumb.length ? "var(--df-faint)" : "var(--df-on-surface)", font: "inherit", cursor: "pointer" }}
               >
-                Biblioteca
+                {t("dashboard.libraryShort")}
               </button>
-              {!showingShared && libraryView !== "all" && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>{libraryView === "drafts" ? "Rascunhos" : "Publicados"}</span></>}
-              {showingShared && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>Compartilhados comigo</span></>}
+              {!showingShared && libraryView !== "all" && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>{libraryView === "drafts" ? t("dashboard.drafts") : t("common.published")}</span></>}
+              {showingShared && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>{t("dashboard.sharedWithMe")}</span></>}
               {!showingShared && breadcrumb.map((folder, index) => (
                 <span key={folder.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <span>/</span>
@@ -301,24 +303,24 @@ export function HomePage() {
               <div>
                 <h2 style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--df-on-surface)" }}>
                   {showingShared
-                    ? "Documentos compartilhados"
+                    ? t("dashboard.sharedDocuments")
                     : folderId
-                      ? "Conteúdo da pasta"
+                      ? t("dashboard.folderContent")
                       : libraryView === "drafts"
-                        ? "Rascunhos"
+                        ? t("dashboard.drafts")
                         : libraryView === "published"
-                          ? "Documentos publicados"
-                          : "Conteúdo da biblioteca"}
+                          ? t("dashboard.publishedDocuments")
+                          : t("dashboard.libraryContent")}
                 </h2>
                 {libraryView === "all" && !showingShared && (
                   <span style={{ display: "block", marginTop: 3, fontSize: 10.5, color: "var(--df-faint)" }}>
-                    Mostrando apenas pastas e documentos desta localização.
+                    {t("dashboard.locationHint")}
                   </span>
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
-                  {showingShared ? shared.length : filtered.length + visibleFolders.length} itens
+                  {showingShared ? shared.length : filtered.length + visibleFolders.length} {t((showingShared ? shared.length : filtered.length + visibleFolders.length) === 1 ? "common.item" : "common.items")}
                 </span>
                 {!showingShared && libraryView === "all" && (
                   <button
@@ -326,7 +328,7 @@ export function HomePage() {
                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 9px", border: "1px solid var(--df-outline)", borderRadius: 6, background: "var(--color-white-03)", color: "var(--df-dim)", font: "inherit", fontSize: 11, cursor: "pointer" }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: 15 }}>create_new_folder</span>
-                    Nova pasta
+                    {t("dashboard.newFolder")}
                   </button>
                 )}
               </div>
@@ -347,7 +349,7 @@ export function HomePage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search documents…"
+                  placeholder={t("dashboard.searchDocuments")}
                   style={{
                     background: "transparent", border: "none", color: "#e3e2e2",
                     outline: "none", font: "12px / 1 'Inter', sans-serif",
@@ -389,9 +391,9 @@ export function HomePage() {
                 }}
               >
                 <span />
-                <span>Nome</span>
-                <span>Status / conteúdo</span>
-                <span>Modificado</span>
+                <span>{t("dashboard.name")}</span>
+                <span>{t("dashboard.statusContent")}</span>
+                <span>{t("dashboard.modified")}</span>
                 <span />
               </div>
 
@@ -406,16 +408,16 @@ export function HomePage() {
                       if (event.key === "Enter") void submitFolder();
                       if (event.key === "Escape") { setCreatingFolder(false); setFolderName(""); }
                     }}
-                    placeholder="Nome da pasta"
+                    placeholder={t("folder.createPrompt")}
                     style={{ minWidth: 0, padding: "5px 0", border: 0, borderBottom: "1px solid var(--df-outline-md)", outline: 0, background: "transparent", color: "var(--df-on-surface)", font: "500 13px 'Inter', sans-serif" }}
                   />
-                  <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)" }}>NOVA PASTA</span>
+                  <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)" }}>{t("dashboard.newFolderLabel").toUpperCase()}</span>
                   <span />
                   <div style={{ justifySelf: "end", display: "flex", gap: 6 }}>
                     <button onClick={() => void submitFolder()} disabled={!folderName.trim() || creatingFolderPending} style={{ padding: "6px 9px", border: 0, borderRadius: 5, background: "var(--df-amber-500)", color: "var(--df-on-primary)", font: "inherit", fontSize: 10.5, cursor: "pointer", opacity: !folderName.trim() || creatingFolderPending ? 0.5 : 1 }}>
-                      {creatingFolderPending ? "Criando…" : "Criar"}
+                      {creatingFolderPending ? t("common.creating") : t("common.create")}
                     </button>
-                    <button onClick={() => { setCreatingFolder(false); setFolderName(""); }} aria-label="Cancelar" style={{ padding: 5, border: 0, background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}>
+                    <button onClick={() => { setCreatingFolder(false); setFolderName(""); }} aria-label={t("common.cancel")} style={{ padding: 5, border: 0, background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                     </button>
                   </div>
@@ -441,7 +443,7 @@ export function HomePage() {
                     color: "var(--df-faint)",
                   }}
                 >
-                  {search ? "Nenhum item corresponde à busca." : "Esta localização está vazia."}
+                  {search ? t("dashboard.emptySearch") : t("dashboard.empty")}
                 </div>
               )}
 

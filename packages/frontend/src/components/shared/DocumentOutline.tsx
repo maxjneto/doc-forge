@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Heading, SectionCounts } from "@/utils/documentStructure";
+import { useI18n } from "@/i18n";
 
 interface HeadingNode {
   heading: Heading;
@@ -66,7 +67,7 @@ export function DocumentOutline({
   activeSlug,
   counts = {},
   onNavigate,
-  emptyText = "Nenhuma seção encontrada.",
+  emptyText,
 }: {
   headings: Heading[];
   activeSlug: string | null;
@@ -74,7 +75,8 @@ export function DocumentOutline({
   onNavigate: (slug: string) => void;
   emptyText?: string;
 }) {
+  const { t } = useI18n();
   const tree = useMemo(() => buildTree(headings), [headings]);
-  if (tree.length === 0) return <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: "var(--df-faint)" }}>{emptyText}</p>;
+  if (tree.length === 0) return <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: "var(--df-faint)" }}>{emptyText ?? t("outline.empty")}</p>;
   return <>{tree.map((node) => <OutlineNode key={node.heading.slug} node={node} activeSlug={activeSlug} counts={counts} onNavigate={onNavigate} />)}</>;
 }

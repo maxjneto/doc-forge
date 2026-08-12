@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetchMyActivity } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { MyActivityEvent } from "@/types";
+import { useI18n } from "@/i18n";
 
 const ICON_BY_ACTION: Record<string, string> = {
   write: "edit_note",
@@ -13,30 +14,32 @@ const ICON_BY_ACTION: Record<string, string> = {
   phase_changed: "whatshot",
 };
 
-function humanizeAction(actionType: string): string {
+function humanizeAction(actionType: string, t: (key: string) => string): string {
   const map: Record<string, string> = {
-    write: "edited",
-    snapshot: "snapshotted",
-    version_selected: "restored a version of",
+    write: t("dashboard.action.write"),
+    snapshot: t("dashboard.action.snapshot"),
+    version_selected: t("dashboard.action.versionSelected"),
   };
   return map[actionType] ?? actionType.replace(/_/g, " ");
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, locale: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "narrow" });
+  if (s < 60) return formatter.format(-s, "second");
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return formatter.format(-m, "minute");
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return formatter.format(-h, "hour");
   const d = Math.floor(h / 24);
-  return `${d}d ago`;
+  return formatter.format(-d, "day");
 }
 
 export function RecentActivityCard() {
   const { getToken } = useAuth();
   const navigate = useNavigate();
+  const { t, dateLocale } = useI18n();
   const [events, setEvents] = useState<MyActivityEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,27 +51,27 @@ export function RecentActivityCard() {
       })
       .catch((e) => {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load activity");
+          setError(e instanceof Error ? e.message : t("dashboard.activityError"));
           setEvents([]);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [getToken]);
+  }, [getToken, t]);
 
   return (
     <section style={cardStyle}>
       <header style={headStyle}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Recent activity</span>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{t("dashboard.recentActivity")}</span>
       </header>
       <div className="df-scroll-thin" style={{ padding: "6px 0", maxHeight: 320, overflowY: "auto" }}>
-        {events === null && <Empty>Loading…</Empty>}
+        {events === null && <Empty>{t("common.loading")}</Empty>}
         {events && events.length === 0 && (
           <Empty>
             {error
-              ? "Couldn't load activity."
-              : "No activity yet. Start a forge or connect an agent to see updates here."}
+              ? t("dashboard.activityError")
+              : t("dashboard.noActivity")}
           </Empty>
         )}
         {events && events.map((e, i) => {
@@ -122,7 +125,7 @@ export function RecentActivityCard() {
                 >
                   {e.actorName}
                 </span>{" "}
-                {humanizeAction(e.actionType)}{" "}
+                {humanizeAction(e.actionType, t)}{" "}
                 <span
                   className="df-mono"
                   style={{ color: "var(--df-amber-200)", fontSize: 11, letterSpacing: "0.04em" }}
@@ -139,7 +142,7 @@ export function RecentActivityCard() {
                     marginTop: 3,
                   }}
                 >
-                  {timeAgo(e.createdAt)}
+                  {timeAgo(e.createdAt, dateLocale)}
                   {e.description ? ` · ${e.description}` : ""}
                 </span>
               </div>

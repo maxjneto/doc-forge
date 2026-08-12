@@ -7,6 +7,7 @@ import { HomePage, DocumentPage, LoadingPage, LandingPage, LegalPage, HowItWorks
 import { ProtectedRoute } from "./components/shared";
 import CookieConsentBanner from "./components/shared/CookieConsentBanner";
 import { useClerkPosthogIdentity } from "./hooks/useClerkPosthogIdentity";
+import { I18nProvider } from "./i18n";
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
@@ -57,9 +58,11 @@ export default function App() {
   return (
     <PostHogProvider client={posthog}>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <BrowserRouter>
-          <AppInner />
-        </BrowserRouter>
+        <I18nProvider>
+          <BrowserRouter>
+            <AppInner />
+          </BrowserRouter>
+        </I18nProvider>
       </ClerkProvider>
     </PostHogProvider>
   );

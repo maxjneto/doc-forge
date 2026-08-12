@@ -11,6 +11,7 @@ import { EditorFindingCallout } from "./EditorFindingCallout";
 import { resolveAnchor } from "@/utils/documentStructure";
 import type { AuditFinding } from "@/types";
 import { scrollToDocumentHeading, useDocumentScrollSpy } from "@/utils/useDocumentScrollSpy";
+import { useI18n } from "@/i18n";
 
 /** `::artefato[key]` — the explicit anchor an agent writes into the body. */
 const ARTIFACT_DIRECTIVE = /^::artefato\[([a-z0-9][a-z0-9-]*)\]\s*$/gm;
@@ -77,6 +78,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
     },
     ref,
   ) {
+    const { t } = useI18n();
     const scrollRef = useRef<HTMLDivElement>(null);
     const previewContentRef = useRef<HTMLDivElement>(null);
     const sourceRef = useRef<MarkdownEditorHandle>(null);
@@ -189,7 +191,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
                   transition: "all 0.15s",
                 }}
               >
-                {m.charAt(0).toUpperCase() + m.slice(1)}
+                {t(m === "source" ? "editor.source" : m === "preview" ? "editor.preview" : "editor.diff")}
                 {m === "diff" && hunks.length > 0 ? ` ${hunks.length}` : ""}
               </button>
             ))}
@@ -229,7 +231,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
                     padding: 0,
                   }}
                 >
-                  ← VOLTAR AO DOCUMENTO
+                  ← {t("editor.backToDocument").toUpperCase()}
                 </button>
               </div>
               <ArtifactDetail
@@ -341,6 +343,8 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
               </div>
             ) : (
               <MarkdownEditor
+                key={t("editor.markdownPlaceholder")}
+                placeholderText={t("editor.markdownPlaceholder")}
                 ref={sourceRef}
                 value={content}
                 onChange={onChange}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "@/i18n";
 
 export type SaveState =
   | { status: "idle"; savedAt: number | null }
@@ -6,13 +7,13 @@ export type SaveState =
   | { status: "saving" }
   | { status: "error"; message: string };
 
-function ago(ts: number): string {
+function ago(ts: number, locale: string): string {
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (s < 5) return "agora";
-  if (s < 60) return `há ${s}s`;
-  const m = Math.round(s / 60);
-  if (m < 60) return `há ${m}min`;
-  return `há ${Math.round(m / 60)}h`;
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" });
+  if (s < 60) return formatter.format(-s, "second");
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return formatter.format(-minutes, "minute");
+  return formatter.format(-Math.round(minutes / 60), "hour");
 }
 
 interface EditorStatusBarProps {
@@ -27,6 +28,7 @@ interface EditorStatusBarProps {
  * tab, so on the Gate or Review tab there was no save control on screen at all.
  */
 export function EditorStatusBar({ saveState, agentLabel }: EditorStatusBarProps) {
+  const { t, dateLocale } = useI18n();
   const [, tick] = useState(0);
 
   // Re-render on a slow timer so "há 12s" keeps counting up.
@@ -39,14 +41,14 @@ export function EditorStatusBar({ saveState, agentLabel }: EditorStatusBarProps)
   const save = (() => {
     switch (saveState.status) {
       case "saving":
-        return { text: "salvando…", color: "var(--df-faint)" };
+        return { text: t("editor.saveState.saving"), color: "var(--df-faint)" };
       case "dirty":
-        return { text: "não salvo", color: "var(--df-warn)" };
+        return { text: t("editor.saveState.unsaved"), color: "var(--df-warn)" };
       case "error":
-        return { text: `falha ao salvar — ${saveState.message}`, color: "var(--df-error)" };
+        return { text: t("editor.saveFailure", { message: saveState.message }), color: "var(--df-error)" };
       case "idle":
         return saveState.savedAt
-          ? { text: `salvo ${ago(saveState.savedAt)}`, color: "var(--df-faint)" }
+          ? { text: t("editor.savedAt", { time: ago(saveState.savedAt, dateLocale) }), color: "var(--df-faint)" }
           : { text: "", color: "var(--df-faint)" };
     }
   })();
@@ -75,7 +77,7 @@ export function EditorStatusBar({ saveState, agentLabel }: EditorStatusBarProps)
             }}
           />
           <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
-            {agentLabel} conectado via MCP
+            {t("editor.connectedViaMcp", { name: agentLabel })}
           </span>
         </div>
       )}

@@ -9,17 +9,18 @@ import {
   apiUnshareDocument,
 } from "@/utils/api";
 import { Button, Card, Input, Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 
-const ROLE_LABEL: Record<MemberRole, string> = {
-  viewer: "Leitor",
-  commenter: "Comentarista",
-  editor: "Editor",
+const ROLE_LABEL_KEY: Record<MemberRole, string> = {
+  viewer: "share.viewer",
+  commenter: "share.commenter",
+  editor: "share.editor",
 };
 
-const ROLE_HINT: Record<MemberRole, string> = {
-  viewer: "Lê o documento e os artefatos.",
-  commenter: "Lê e deixa comentários — que viram feedback para o seu agente.",
-  editor: "Lê, comenta e edita o texto.",
+const ROLE_HINT_KEY: Record<MemberRole, string> = {
+  viewer: "share.viewerDescription",
+  commenter: "share.commenterDescription",
+  editor: "share.editorDescription",
 };
 
 interface ShareDialogProps {
@@ -39,6 +40,7 @@ interface ShareDialogProps {
  */
 export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = null }: ShareDialogProps) {
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [members, setMembers] = useState<DocumentMember[]>([]);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("commenter");
@@ -55,7 +57,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
       setPublicToken(r.token);
       setCopied(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao atualizar o link");
+      setError(e instanceof Error ? e.message : t("share.updateLinkError"));
     }
   }
 
@@ -90,7 +92,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
       setEmail("");
       refetch();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao compartilhar");
+      setError(e instanceof Error ? e.message : t("share.inviteError"));
     } finally {
       setBusy(false);
     }
@@ -121,7 +123,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
       >
         <div onClick={(e) => e.stopPropagation()}>
           <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.02em", marginBottom: 4 }}>
-            Compartilhar
+            {t("common.share")}
           </div>
           <div style={{ fontSize: 12.5, color: "var(--df-faint)", marginBottom: 18 }}>
             {documentTitle}
@@ -130,7 +132,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <Input
               value={email}
-              placeholder="email@exemplo.com"
+              placeholder={t("share.email")}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void invite();
@@ -138,12 +140,12 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
               style={{ flex: 1 }}
             />
             <Button variant="primary" disabled={busy || !email.trim()} onClick={() => void invite()}>
-              {busy ? "Convidando…" : "Convidar"}
+              {busy ? t("share.inviting") : t("share.invite")}
             </Button>
           </div>
 
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-            {(Object.keys(ROLE_LABEL) as MemberRole[]).map((r) => (
+            {(Object.keys(ROLE_LABEL_KEY) as MemberRole[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRole(r)}
@@ -158,12 +160,12 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                   color: r === role ? "var(--df-amber-300)" : "var(--df-faint)",
                 }}
               >
-                {ROLE_LABEL[r]}
+                {t(ROLE_LABEL_KEY[r])}
               </button>
             ))}
           </div>
           <div style={{ fontSize: 11.5, color: "var(--df-faint)", marginBottom: 18, lineHeight: 1.5 }}>
-            {ROLE_HINT[role]}
+            {t(ROLE_HINT_KEY[role])}
           </div>
 
           {error && (
@@ -189,12 +191,12 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                   >
                     {m.email}
                   </span>
-                  {!m.accepted && <Pill tone="ghost">convite pendente</Pill>}
+                  {!m.accepted && <Pill tone="ghost">{t("share.pendingInvite")}</Pill>}
                   <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
-                    {ROLE_LABEL[m.role].toUpperCase()}
+                    {t(ROLE_LABEL_KEY[m.role]).toUpperCase()}
                   </span>
                   <Button variant="ghost" onClick={() => void remove(m.id)} style={{ padding: "4px 8px" }}>
-                    remover
+                    {t("common.remove")}
                   </Button>
                 </div>
               ))}
@@ -213,15 +215,15 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ flex: 1, fontSize: 12.5, color: "var(--df-on-surface)" }}>
-                Link público somente-leitura
+                {t("share.publicLink")}
               </div>
               <Button
                 variant={publicToken ? "secondary" : "primary"}
                 disabled={!publicToken && !publishedAt}
                 onClick={() => void togglePublic()}
-                title={!publicToken && !publishedAt ? "Publique uma versão antes de criar o link" : undefined}
+                title={!publicToken && !publishedAt ? t("share.publishFirst") : undefined}
               >
-                {publicToken ? "Desativar" : "Ativar"}
+                {publicToken ? t("common.deactivate") : t("common.activate")}
               </Button>
             </div>
             {publicUrl ? (
@@ -250,20 +252,20 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                     setCopied(true);
                   }}
                 >
-                  {copied ? "Copiado" : "Copiar"}
+                  {copied ? t("share.copied") : t("common.copy")}
                 </Button>
               </div>
             ) : (
               <div style={{ fontSize: 11.5, color: "var(--df-faint)", lineHeight: 1.5 }}>
                 {publishedAt
-                  ? "Qualquer pessoa com o link lê a última versão publicada, sem precisar de conta. Desativar invalida os links já enviados."
-                  : "Publique uma versão do documento antes de ativar o link público."}
+                  ? t("share.publicEnabled")
+                  : t("share.publicDisabled")}
               </div>
             )}
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button onClick={onClose}>Fechar</Button>
+            <Button onClick={onClose}>{t("common.close")}</Button>
           </div>
         </div>
       </Card>

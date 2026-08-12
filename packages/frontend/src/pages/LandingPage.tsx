@@ -8,8 +8,10 @@ import {
   AgentBadgesStrip,
 } from "@/components/marketing";
 import { AppFooter } from "@/components/shared";
+import { useI18n } from "@/i18n";
 
 export function LandingPage() {
+  const { t } = useI18n();
   useEffect(() => {
     document.body.style.overflow = "auto";
     return () => {
@@ -47,7 +49,7 @@ export function LandingPage() {
             textAlign: "center",
           }}
         >
-          <span className="df-pill df-pill-heat">The trust layer for agent-written docs</span>
+          <span className="df-pill df-pill-heat">{t("landing.badge")}</span>
           <h1
             style={{
               fontSize: "clamp(36px, 5vw, 60px)",
@@ -58,8 +60,8 @@ export function LandingPage() {
               maxWidth: 920,
             }}
           >
-            Where agent work becomes a document you{" "}
-            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>can trust</em>.
+            {t("landing.title")} {" "}
+            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>{t("landing.titleAccent")}</em>.
           </h1>
           <p
             style={{
@@ -70,7 +72,7 @@ export function LandingPage() {
               margin: "0 0 12px",
             }}
           >
-            Your agent can propose changes for review or write according to the document policy; you keep the feedback loop, quality gate and version history. Connect your own IDE agent over MCP, or use the guided browser flow.
+            {t("landing.description")}
           </p>
 
           <TrackPickerCards variant="hero" />
@@ -95,14 +97,14 @@ export function LandingPage() {
                 fontWeight: 600,
               }}
             >
-              Path B · hosted route · no agent required
+              {t("landing.hostedPath")}
             </span>
             <h2 style={{ fontSize: 36, fontWeight: 600, letterSpacing: "-0.03em", margin: "14px 0 12px" }}>
-              Six phases.{" "}
-              <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>One coherent document.</em>
+              {t("landing.sixPhases")} {" "}
+              <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>{t("landing.oneDocument")}</em>
             </h2>
             <p style={{ fontSize: 15, color: "var(--df-dim)", maxWidth: 560, margin: "0 auto", lineHeight: 1.55 }}>
-              No agent in your IDE yet? The hosted pipeline walks you through the same phases — and the same review, audit and history apply to what it writes.
+              {t("landing.phasesDescription")}
             </p>
           </div>
 
@@ -125,7 +127,7 @@ export function LandingPage() {
                 textDecoration: "none",
               }}
             >
-              See the full walkthrough
+              {t("landing.walkthrough")}
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
             </Link>
           </div>
@@ -138,18 +140,19 @@ export function LandingPage() {
   );
 }
 
-const TRUST_FEATURES: { icon: string; title: string; body: string; tag?: string }[] = [
-  { icon: "difference", title: "Suggestion review", body: "Agent writes land as pending diffs. Approve or reject by section — like reviewing a pull request." },
-  { icon: "forum", title: "Feedback loop", body: "Comment on what's wrong; your agent reads it back over MCP and revises. The loop closes both ways." },
-  { icon: "fact_check", title: "Quality gates", body: "Automatic audits flag contradictions and terminology drift between sections before you accept.", tag: "CI for docs" },
-  { icon: "account_tree", title: "Bring your own agent", body: "Your IDE agent runs the document pipeline step by step over MCP — you keep the human checkpoints." },
-  { icon: "description", title: "Structured document types", body: "Guided workflows for RFC, ADR, postmortem and runbook — the structure is enforced as you write." },
-  { icon: "tune", title: "Your own pipelines & prompts", body: "Clone the baseline and encode how your team writes. Served to every connected agent.", tag: "Pro" },
-  { icon: "download", title: "Export anywhere", body: "Download any document as Markdown, PDF or Word." },
-  { icon: "history", title: "Versioned & attributed", body: "Every version is kept and labelled with who wrote it — you, or which agent." },
+const TRUST_FEATURES: { icon: string; titleKey: string; bodyKey: string; tag?: string }[] = [
+  { icon: "difference", titleKey: "landing.feature.suggestions", bodyKey: "landing.feature.suggestionsBody" },
+  { icon: "forum", titleKey: "landing.feature.feedback", bodyKey: "landing.feature.feedbackBody" },
+  { icon: "fact_check", titleKey: "landing.feature.gates", bodyKey: "landing.feature.gatesBody", tag: "CI for docs" },
+  { icon: "account_tree", titleKey: "landing.feature.agent", bodyKey: "landing.feature.agentBody" },
+  { icon: "description", titleKey: "landing.feature.types", bodyKey: "landing.feature.typesBody" },
+  { icon: "tune", titleKey: "landing.feature.pipelines", bodyKey: "landing.feature.pipelinesBody", tag: "Pro" },
+  { icon: "download", titleKey: "landing.feature.export", bodyKey: "landing.feature.exportBody" },
+  { icon: "history", titleKey: "landing.feature.history", bodyKey: "landing.feature.historyBody" },
 ];
 
 function TrustLayerFeatures() {
+  const { t } = useI18n();
   return (
     <section style={{ maxWidth: 1100, margin: "24px auto 0", padding: "0 56px" }}>
       <div style={{ textAlign: "center", marginBottom: 36 }}>
@@ -163,14 +166,14 @@ function TrustLayerFeatures() {
             fontWeight: 600,
           }}
         >
-          The trust layer
+          {t("landing.trustLayer")}
         </span>
         <h2 style={{ fontSize: 34, fontWeight: 600, letterSpacing: "-0.03em", margin: "12px 0 10px" }}>
-          Not just watching your agent write.{" "}
-          <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>Reviewing it.</em>
+          {t("landing.reviewTitle")} {" "}
+          <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>{t("landing.reviewAccent")}</em>
         </h2>
         <p style={{ fontSize: 15, color: "var(--df-dim)", maxWidth: 600, margin: "0 auto", lineHeight: 1.55 }}>
-          Rendering an agent's output is easy. The hard, valuable part is trusting it — the review, audit and history that turn agent work into a document you'd sign your name to.
+          {t("landing.reviewDescription")}
         </p>
       </div>
 
@@ -183,7 +186,7 @@ function TrustLayerFeatures() {
       >
         {TRUST_FEATURES.map((f) => (
           <div
-            key={f.title}
+            key={f.titleKey}
             style={{
               border: "1px solid rgba(255,255,255,0.07)",
               background: "rgba(255,255,255,0.015)",
@@ -201,7 +204,7 @@ function TrustLayerFeatures() {
               >
                 {f.icon}
               </span>
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#e3e2e2" }}>{f.title}</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#e3e2e2" }}>{t(f.titleKey)}</span>
               {f.tag && (
                 <span
                   className="df-mono"
@@ -220,7 +223,7 @@ function TrustLayerFeatures() {
                 </span>
               )}
             </div>
-            <p style={{ fontSize: 13, color: "var(--df-dim)", lineHeight: 1.5, margin: 0 }}>{f.body}</p>
+            <p style={{ fontSize: 13, color: "var(--df-dim)", lineHeight: 1.5, margin: 0 }}>{t(f.bodyKey)}</p>
           </div>
         ))}
       </div>

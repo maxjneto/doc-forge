@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth, useClerk } from "@clerk/clerk-react";
+import { useI18n } from "@/i18n";
 
 type Variant = "hero" | "picker";
 
@@ -7,6 +8,7 @@ export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   function startForger() {
     if (variant === "hero") {
@@ -41,24 +43,24 @@ export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
     >
       <TrackCard
         primary
-        eyebrow="Path A · Agent-connected"
-        chip={<span className="df-pill df-pill-heat">Recommended</span>}
-        title="Bring your own agent"
-        body="Connect Claude Code, Codex, Cursor, or another MCP client. Your agent can write a free-form editor document or run a structured pipeline while you keep the review checkpoints."
+        eyebrow={t("track.agentEyebrow")}
+        chip={<span className="df-pill df-pill-heat">{t("track.recommended")}</span>}
+        title={t("track.agentTitle")}
+        body={t("track.agentBody")}
         illustration={<Terminal />}
         meta="MCP · Streamable HTTP"
-        cta={variant === "hero" ? "Connect an agent" : "Connect your agent"}
+        cta={t(variant === "hero" ? "track.connectAgent" : "track.connectYourAgent")}
         onClick={connectAgent}
       />
       <TrackCard
         primary={false}
-        eyebrow="Path B · AI Guided"
-        chip={<span className="df-pill df-pill-ghost">No agent needed</span>}
-        title="Forge in the browser"
-        body='No agent yet? Choose a document type and let DocForge guide you from context to a reviewed, audited document — no setup required.'
+        eyebrow={t("track.guidedEyebrow")}
+        chip={<span className="df-pill df-pill-ghost">{t("track.noAgent")}</span>}
+        title={t("track.guidedTitle")}
+        body={t("track.guidedBody")}
         illustration={<MiniTrail />}
-        meta="No setup · in-browser"
-        cta={variant === "hero" ? "Start a forge" : "Walk the six phases"}
+        meta={t("track.noSetup")}
+        cta={t(variant === "hero" ? "track.startForge" : "track.walkPhases")}
         onClick={variant === "hero" ? startForger : () => {
           const el = document.getElementById("forger");
           el?.scrollIntoView({ behavior: "smooth", block: "start" });

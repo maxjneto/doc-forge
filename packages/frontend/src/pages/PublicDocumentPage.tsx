@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { DocumentOutline, MarkdownRenderer } from "@/components/shared";
+import { DocumentOutline, LanguageSwitcher, MarkdownRenderer } from "@/components/shared";
 import { API_BASE } from "@/utils/api";
 import { parseHeadings } from "@/utils/documentStructure";
 import { scrollToDocumentHeading, useDocumentScrollSpy } from "@/utils/useDocumentScrollSpy";
+import { useI18n } from "@/i18n";
 
 /**
  * A document read through its public link.
@@ -13,6 +14,7 @@ import { scrollToDocumentHeading, useDocumentScrollSpy } from "@/utils/useDocume
  * text — never members, versions, suggestions or gate findings.
  */
 export function PublicDocumentPage() {
+  const { t, dateLocale } = useI18n();
   const { token } = useParams<{ token: string }>();
   const [doc, setDoc] = useState<{ title: string; content: string; updated_at: string | null } | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -64,7 +66,7 @@ export function PublicDocumentPage() {
         }}
       >
         <p style={{ fontSize: 13.5, color: "var(--df-faint)", textAlign: "center", lineHeight: 1.6 }}>
-          Este link não está ativo ou o documento ainda não possui uma versão publicada.
+          {t("public.invalid")}
         </p>
       </div>
     );
@@ -97,15 +99,16 @@ export function PublicDocumentPage() {
         </div>
         <span style={{ flex: 1 }} />
         <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
-          VERSÃO PUBLICADA · SOMENTE LEITURA
+          {t("public.badge").toUpperCase()}
         </span>
+        <LanguageSwitcher compact />
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         {doc && headings.length > 0 && (
           <aside style={{ width: 220, flexShrink: 0, overflowY: "auto", padding: "28px 16px", borderRight: "1px solid var(--df-outline)", background: "var(--color-shade-20)" }} className="df-scroll-thin public-document-outline">
             <div className="df-mono" style={{ marginBottom: 14, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--df-faint)" }}>
-              › Estrutura
+              › {t("public.structure")}
             </div>
             <DocumentOutline headings={headings} activeSlug={activeSlug} onNavigate={navigateTo} />
           </aside>
@@ -127,13 +130,13 @@ export function PublicDocumentPage() {
             </h1>
             {doc.updated_at && (
               <div className="df-mono" style={{ marginTop: -18, marginBottom: 28, fontSize: 9.5, letterSpacing: "0.08em", color: "var(--df-faint)" }}>
-                PUBLICADO EM {new Date(doc.updated_at).toLocaleDateString("pt-BR")}
+                {t("public.publishedOn", { date: new Date(doc.updated_at).toLocaleDateString(dateLocale) }).toUpperCase()}
               </div>
             )}
             <MarkdownRenderer content={doc.content} variant="editor" headingIds />
           </>
         ) : (
-          <p style={{ fontSize: 13, color: "var(--df-faint)" }}>Carregando…</p>
+          <p style={{ fontSize: 13, color: "var(--df-faint)" }}>{t("common.loading")}</p>
         )}
           </div>
         </main>

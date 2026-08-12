@@ -6,6 +6,7 @@ import type { Suggestion } from "@/types";
 import { Tab } from "@/components/ui";
 import { EditorArtifactPanel } from "./EditorArtifactPanel";
 import type { Artifact, AuditFinding } from "@/types";
+import { useI18n } from "@/i18n";
 
 type Tab = "gate" | "review" | "artifacts" | "versions";
 
@@ -59,6 +60,7 @@ export function EditorSidebarTabs({
   onGoToFinding,
   onRequestArtifact,
 }: EditorSidebarTabsProps) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("versions");
   const [reviewCount, setReviewCount] = useState(0);
   const [gateStatus, setGateStatus] = useState({ openFindings: 0, blocking: false });
@@ -93,15 +95,15 @@ export function EditorSidebarTabs({
           flexShrink: 0,
         }}
       >
-        <Tab label="Gate" count={gateStatus.openFindings} active={tab === "gate"} onClick={() => setTab("gate")} />
-        <Tab label="Review" count={reviewCount} active={tab === "review"} onClick={() => setTab("review")} />
+        <Tab label={t("editor.gate")} count={gateStatus.openFindings} active={tab === "gate"} onClick={() => setTab("gate")} />
+        <Tab label={t("editor.review")} count={reviewCount} active={tab === "review"} onClick={() => setTab("review")} />
         <Tab
-          label="Artefatos"
+          label={t("editor.artifacts")}
           count={artifactCount}
           active={tab === "artifacts"}
           onClick={() => setTab("artifacts")}
         />
-        <Tab label="Versions" active={tab === "versions"} onClick={() => setTab("versions")} />
+        <Tab label={t("editor.versions")} active={tab === "versions"} onClick={() => setTab("versions")} />
       </div>
 
       {/* Active tab content — all three stay mounted (display:none when

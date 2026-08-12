@@ -4,14 +4,16 @@ import { UserButton } from "@clerk/clerk-react";
 import { useKilnAudio } from "@/hooks/useKilnAudio";
 import { ApiKeyPanel } from "@/components/shared/ApiKeyPanel";
 import type { Phase } from "@/types";
+import { useI18n } from "@/i18n";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
-const PHASE_STEPS: { id: Phase; label: string; num: string }[] = [
-  { id: "discovery",   label: "Discovery",   num: "01" },
-  { id: "alignment",   label: "Alignment",   num: "02" },
-  { id: "generation",  label: "Generation",  num: "03" },
-  { id: "refinement",  label: "Refinement",  num: "04" },
-  { id: "audit",       label: "Audit",       num: "05" },
-  { id: "completed",   label: "Completed",   num: "06" },
+const PHASE_STEPS: { id: Phase; labelKey: string; num: string }[] = [
+  { id: "discovery",   labelKey: "phase.discovery",   num: "01" },
+  { id: "alignment",   labelKey: "phase.alignment",   num: "02" },
+  { id: "generation",  labelKey: "phase.generation",  num: "03" },
+  { id: "refinement",  labelKey: "phase.refinement",  num: "04" },
+  { id: "audit",       labelKey: "phase.audit",       num: "05" },
+  { id: "completed",   labelKey: "phase.completed",   num: "06" },
 ];
 
 const PHASE_ORDER = PHASE_STEPS.map((p) => p.id);
@@ -32,6 +34,7 @@ function getStepState(
 function KilnToggle() {
   const [active, setActive] = useState(false);
   const { start, stop } = useKilnAudio();
+  const { t } = useI18n();
 
   const toggle = () => {
     if (active) {
@@ -46,7 +49,7 @@ function KilnToggle() {
   return (
     <button
       onClick={toggle}
-      title={active ? "Mute kiln ambience" : "Play kiln ambience"}
+      title={active ? t("kiln.mute") : t("kiln.play")}
       style={{
         display: "flex",
         alignItems: "center",
@@ -101,6 +104,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }: TopBarProps) {
+  const { t } = useI18n();
   const isCompleted = phase === "completed";
   const isRefinement = phase === "refinement";
   const isEditing = phase === "editing";
@@ -181,11 +185,11 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
       {dashboardNav && !phase && (
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 4 }}>
           {[
-            { to: "/home", label: "Dashboard" },
-            { to: "/how-it-works", label: "How it works" },
+            { to: "/home", label: t("nav.dashboard") },
+            { to: "/how-it-works", label: t("nav.howItWorks") },
             { to: "/mcp", label: "DocForge MCP" },
-            { to: "/customize", label: "Customize" },
-            { to: "/billing", label: "Billing" },
+            { to: "/customize", label: t("nav.customize") },
+            { to: "/billing", label: t("nav.billing") },
           ].map((item) => (
             <NavLink
               key={item.to}
@@ -273,7 +277,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                       color,
                     }}
                   >
-                    {step.num} {step.label}
+                    {step.num} {t(step.labelKey)}
                   </span>
                 </div>
               </div>
@@ -290,7 +294,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
         {/* API Keys */}
         <button
           onClick={() => setShowApiKeys(true)}
-          title="Manage API Keys"
+          title={t("nav.manageApiKeys")}
           style={{
             display: "flex", alignItems: "center", gap: 5,
             padding: "4px 10px", borderRadius: 6,
@@ -303,8 +307,10 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>key</span>
-          <span className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}>API Keys</span>
+          <span className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}>{t("nav.apiKeys")}</span>
         </button>
+
+        <LanguageSwitcher compact />
 
         {/* Doc title / credits */}
         {docTitle && phase ? (
@@ -360,7 +366,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
             {onRenameTitle && (
               <button
                 onClick={() => setEditingTitle((v) => !v)}
-                title="Rename document"
+                title={t("common.rename")}
                 style={{
                   display: "flex",
                   alignItems: "center",

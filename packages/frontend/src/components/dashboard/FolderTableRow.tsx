@@ -5,6 +5,7 @@ import {
   useFolderDragState,
 } from "./folderPointerDrag";
 import { useDocumentDragState } from "./documentPointerDrag";
+import { useI18n } from "@/i18n";
 
 interface FolderTableRowProps {
   folder: Folder;
@@ -19,6 +20,7 @@ export function FolderTableRow({
   onOpen,
   onDropFolder,
 }: FolderTableRowProps) {
+  const { t } = useI18n();
   const folderDrag = useFolderDragState();
   const documentDrag = useDocumentDragState();
   const isFolderDropTarget = folderDrag.active && folderDrag.hasTarget && folderDrag.targetId === folder.id;
@@ -58,18 +60,18 @@ export function FolderTableRow({
           {folder.name}
         </div>
         <div className="df-mono" style={{ marginTop: 4, fontSize: 9.5, letterSpacing: "0.07em", color: "var(--df-faint)" }}>
-          PASTA
+          {t("common.folder").toUpperCase()}
         </div>
       </div>
 
       <div className="df-mono" style={{ fontSize: 10.5, color: "var(--df-faint)" }}>
-        {itemCount} ite{itemCount === 1 ? "m" : "ns"}
+        {itemCount} {t(itemCount === 1 ? "common.item" : "common.items")}
       </div>
 
       <span className="df-mono" style={{ fontSize: 10.5, color: "var(--df-mute)" }}>—</span>
 
       <span style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "var(--df-faint)" }}>
-        Abrir
+        {t("folder.open")}
         <span className="material-symbols-outlined" style={{ fontSize: 15 }}>chevron_right</span>
       </span>
 

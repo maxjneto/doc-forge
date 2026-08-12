@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { apiPublishDocument } from "@/utils/api";
 import { Button, Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 
 interface EditorDocumentBarProps {
   documentId: string;
@@ -39,6 +40,7 @@ export function EditorDocumentBar({
 }: EditorDocumentBarProps) {
   const navigate = useNavigate();
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function EditorDocumentBar({
       setPublished(result.label);
       onPublished?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao publicar");
+      setError(e instanceof Error ? e.message : t("editor.publishError"));
     } finally {
       setBusy(false);
     }
@@ -85,7 +87,7 @@ export function EditorDocumentBar({
           padding: 0,
         }}
       >
-        Documents
+        {t("editor.documents")}
       </button>
       <span style={{ fontSize: 12.5, color: "var(--df-mute)" }}>/</span>
       <span
@@ -104,24 +106,24 @@ export function EditorDocumentBar({
 
       {blocked ? (
         <Pill tone="heat">
-          {blockingFindings} {blockingFindings === 1 ? "bloqueante" : "bloqueantes"}
+          {blockingFindings} {t(blockingFindings === 1 ? "editor.blocker" : "editor.blockers")}
         </Pill>
       ) : savePending ? (
-        <Pill tone="warn">salvando rascunho</Pill>
+        <Pill tone="warn">{t("editor.savingDraft")}</Pill>
       ) : pendingChanges > 0 ? (
         <Pill tone="heat">
-          in review · {pendingChanges} {pendingChanges === 1 ? "mudança" : "mudanças"}
+          {t("editor.inReview")} · {pendingChanges} {t(pendingChanges === 1 ? "editor.change" : "editor.changes")}
         </Pill>
       ) : publishedAt && hasUnpublishedChanges ? (
         <Pill tone="heat" dot>
-          alterações não publicadas
+          {t("editor.unpublishedChanges")}
         </Pill>
       ) : published || publishedAt ? (
         <Pill tone="ok" dot>
-          publicado{published ? ` · ${published}` : ""}
+          {t("editor.published")}{published ? ` · ${published}` : ""}
         </Pill>
       ) : (
-        <Pill tone="ghost">rascunho</Pill>
+        <Pill tone="ghost">{t("common.draft")}</Pill>
       )}
 
       {isMcpManaged && <Pill tone="ghost">mcp-managed</Pill>}
@@ -140,13 +142,13 @@ export function EditorDocumentBar({
         onClick={() => void publish()}
         title={
           blocked
-            ? "Resolva ou descarte os bloqueantes do gate antes de publicar"
+            ? t("editor.resolveBlockers")
             : savePending
-              ? "Aguarde o rascunho ser salvo antes de publicar"
-            : "Marcar esta versão como a que as pessoas devem ler"
+              ? t("editor.waitForSave")
+            : t("editor.publishHint")
         }
       >
-        {busy ? "Publicando…" : publishedAt ? "Publicar nova versão" : "Publicar"}
+        {busy ? t("editor.publishing") : publishedAt ? t("editor.publishNewVersion") : t("editor.publish")}
       </Button>
     </div>
   );

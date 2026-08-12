@@ -8,10 +8,12 @@ import {
   McpStepBlocks,
 } from "@/components/marketing";
 import { AppFooter, TopBar } from "@/components/shared";
+import { useI18n } from "@/i18n";
 
 export function HowItWorksPage() {
   const { hash } = useLocation();
   const { isSignedIn } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     document.body.style.overflow = "auto";
@@ -50,7 +52,7 @@ export function HowItWorksPage() {
 
         {/* Hero */}
         <section style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 56px 60px", textAlign: "center" }}>
-          <span className="df-pill df-pill-ghost">How it works</span>
+          <span className="df-pill df-pill-ghost">{t("how.badge")}</span>
           <h1
             style={{
               fontSize: "clamp(34px, 4.5vw, 54px)",
@@ -61,14 +63,12 @@ export function HowItWorksPage() {
               maxWidth: 820,
             }}
           >
-            Choose how work enters DocForge.
+            {t("how.title")}
             <br />
-            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>Review what it writes</em>.
+            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>{t("how.titleAccent")}</em>
           </h1>
           <p style={{ fontSize: 16, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 580, margin: "0 auto" }}>
-            DocForge is the review and trust layer for technical documents. Start an AI-guided document in the browser,
-            write directly in the Markdown editor, or connect an MCP agent. The result is a shared document with
-            reviewable changes, feedback, quality gates, attribution and version history.
+            {t("how.description")}
           </p>
         </section>
 

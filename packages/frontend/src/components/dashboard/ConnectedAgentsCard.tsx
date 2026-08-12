@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { apiListApiKeys } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { ApiKey } from "@/types";
+import { useI18n } from "@/i18n";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -12,14 +13,15 @@ function initials(name: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function formatCreated(iso: string) {
+function formatCreated(iso: string, locale: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 export function ConnectedAgentsCard() {
   const { getToken } = useAuth();
   const navigate = useNavigate();
+  const { t, dateLocale } = useI18n();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
 
   useEffect(() => {
@@ -40,13 +42,13 @@ export function ConnectedAgentsCard() {
     <>
       <section style={cardStyle}>
         <header style={headStyle}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Connected agents</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t("dashboard.connectedAgents")}</span>
         </header>
         <div style={{ padding: "14px 18px" }}>
-          {keys === null && <Empty>Loading…</Empty>}
+          {keys === null && <Empty>{t("common.loading")}</Empty>}
           {keys && keys.length === 0 && (
             <Empty>
-              No agents connected yet. Generate an API key to hook up Claude Code, Cursor, or any MCP-capable client.
+              {t("dashboard.noAgents")}
             </Empty>
           )}
           {keys && keys.map((k, i) => (
@@ -92,7 +94,7 @@ export function ConnectedAgentsCard() {
                   textTransform: "uppercase",
                 }}
               >
-                Added {formatCreated(k.createdAt)}
+                {t("dashboard.agentAdded", { date: formatCreated(k.createdAt, dateLocale) })}
               </span>
             </div>
           ))}
@@ -126,7 +128,7 @@ export function ConnectedAgentsCard() {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
-            Connect another agent
+            {t("dashboard.connectAgent")}
           </button>
         </div>
       </section>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import posthog from "posthog-js";
+import { useI18n } from "@/i18n";
 
 const CONSENT_KEY = "docforge_cookie_consent";
 
@@ -8,6 +9,7 @@ interface CookieConsentBannerProps {
 }
 
 export default function CookieConsentBanner({ onOptIn }: CookieConsentBannerProps) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(
     () => localStorage.getItem(CONSENT_KEY) === null
   );
@@ -31,21 +33,20 @@ export default function CookieConsentBanner({ onOptIn }: CookieConsentBannerProp
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-4 bg-surface border-t border-outline/20 px-6 py-4 shadow-lg">
       <p className="text-sm text-on-surface/80">
-        We use analytics to understand how DocForge is used and improve the product.
-        No document content is shared.
+        {t("cookie.message")}
       </p>
       <div className="flex shrink-0 gap-2">
         <button
           onClick={handleDecline}
           className="rounded-md px-4 py-2 text-sm text-on-surface/60 hover:text-on-surface transition-colors"
         >
-          Decline
+          {t("cookie.decline")}
         </button>
         <button
           onClick={handleAccept}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors"
         >
-          Accept
+          {t("cookie.accept")}
         </button>
       </div>
     </div>

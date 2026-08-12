@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { useI18n } from "@/i18n";
 
 export function DashboardTipCard() {
+  const { t } = useI18n();
   return (
     <section
       style={{
@@ -21,11 +23,10 @@ export function DashboardTipCard() {
             fontWeight: 600,
           }}
         >
-          Tip
+          {t("dashboard.tip")}
         </span>
         <div style={{ fontSize: 13, color: "var(--df-on-surface)", lineHeight: 1.55, marginTop: 8 }}>
-          Connect <b>Claude Code</b> to keep editing a forge from your terminal. It picks up the same version history
-          and audit checkpoints.
+          {t("dashboard.tipBody")}
         </div>
         <Link
           to="/how-it-works#mcp"
@@ -40,7 +41,7 @@ export function DashboardTipCard() {
             textDecoration: "none",
           }}
         >
-          Set up MCP
+          {t("dashboard.setupMcp")}
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
         </Link>
       </div>

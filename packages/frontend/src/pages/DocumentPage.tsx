@@ -15,12 +15,14 @@ import { EditorLayout } from "@/components/phases/editor/EditorLayout";
 import { AuditLayout } from "@/components/phases/audit/AuditLayout";
 import { ForgeLoader, TopBar } from "@/components/shared";
 import { apiUpdateDocumentTitle } from "@/utils/api";
+import { useI18n } from "@/i18n";
 
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const isNew = urlId === "new";
   const locationState = location.state as { documentTypeSlug?: string; documentTitle?: string | null } | null;
   const documentTypeSlug = locationState?.documentTypeSlug ?? "rfc";
@@ -87,7 +89,7 @@ export function DocumentPage() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
         <div className="text-on-surface-variant/60 text-sm animate-pulse">
-          Loading document...
+          {t("document.loading")}
         </div>
       </div>
     );

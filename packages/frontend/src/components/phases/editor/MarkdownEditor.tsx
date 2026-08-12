@@ -22,6 +22,7 @@ interface MarkdownEditorProps {
   /** Fires with the 0-based caret line, for the table of contents. */
   onCaretLine?: (line: number) => void;
   onScrollLine?: (line: number) => void;
+  placeholderText?: string;
 }
 
 /**
@@ -85,7 +86,7 @@ const highlight = HighlightStyle.define([
 ]);
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  function MarkdownEditor({ value, onChange, onCaretLine, onScrollLine }, ref) {
+  function MarkdownEditor({ value, onChange, onCaretLine, onScrollLine, placeholderText = "# My document\n\n## Section 1\n\nStart writing…" }, ref) {
     const host = useRef<HTMLDivElement>(null);
     const view = useRef<EditorView | null>(null);
     // Handlers change every render; keep them off the extension list so the
@@ -104,7 +105,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         foldGutter({ openText: "▾", closedText: "▸" }),
         highlightActiveLine(),
         EditorView.lineWrapping,
-        placeholder("# My Document\n\n## Section 1\n\nStart writing..."),
+        placeholder(placeholderText),
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
