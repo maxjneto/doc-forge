@@ -218,6 +218,7 @@ async def test_public_link_grants_read_without_an_account_and_revokes(client_fac
         assert enabled.status_code == 200
         token = enabled.json()["token"]
         assert token
+        assert (await client.post(f"/api/documents/{doc_id}/publish")).status_code == 200
 
     # No auth override at all — an anonymous reader.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as anon:
