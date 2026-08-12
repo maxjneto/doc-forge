@@ -252,7 +252,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
           ) : (
           <div
             style={{
-              maxWidth: mode === "source" ? 820 : 720,
+              maxWidth: 820,
               margin: "0 auto",
               padding: "40px 56px 80px",
             }}

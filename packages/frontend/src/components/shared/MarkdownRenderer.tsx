@@ -124,7 +124,13 @@ export function MarkdownRenderer({
   const getHeadingId = () => headingSlugs[headingIndex++];
 
   return (
-    <article className={cn("w-full markdown-preview", className)}>
+    <article
+      className={cn(
+        "w-full markdown-preview text-[var(--df-on-surface)]",
+        isEditor ? "text-[14px] leading-7" : "text-[13px] leading-6",
+        className,
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -132,7 +138,7 @@ export function MarkdownRenderer({
             <h1
               id={getHeadingId()}
               className={cn(
-                "font-semibold tracking-tight text-on-surface",
+                "font-semibold tracking-tight text-[var(--df-on-surface)]",
                 isEditor ? "text-2xl mb-6 mt-8 first:mt-0" : "text-base mb-2 mt-3 first:mt-0"
               )}
             >
@@ -143,7 +149,7 @@ export function MarkdownRenderer({
             <h2
               id={getHeadingId()}
               className={cn(
-                "font-semibold tracking-tight text-on-surface",
+                "font-semibold tracking-tight text-[var(--df-on-surface)]",
                 isEditor ? "text-lg mt-10 mb-4" : "text-sm mb-2 mt-3 first:mt-0"
               )}
             >
@@ -154,7 +160,7 @@ export function MarkdownRenderer({
             <h3
               id={getHeadingId()}
               className={cn(
-                "font-semibold tracking-tight text-on-surface",
+                "font-semibold tracking-tight text-[var(--df-on-surface)]",
                 isEditor ? "text-base mt-8 mb-3" : "text-sm mb-2 mt-3 first:mt-0"
               )}
             >
@@ -165,7 +171,7 @@ export function MarkdownRenderer({
             <h4
               id={getHeadingId()}
               className={cn(
-                "font-medium tracking-tight text-on-surface",
+                "font-medium tracking-tight text-[var(--df-on-surface)]",
                 isEditor ? "text-sm mt-6 mb-2" : "text-sm mb-1 mt-2 first:mt-0"
               )}
             >
@@ -176,7 +182,7 @@ export function MarkdownRenderer({
             <h5
               id={getHeadingId()}
               className={cn(
-                "font-medium tracking-tight text-on-surface/80",
+                "font-medium tracking-tight text-[var(--df-dim)]",
                 isEditor ? "text-xs mt-4 mb-1" : "text-xs mb-1 mt-2 first:mt-0"
               )}
             >
@@ -186,22 +192,22 @@ export function MarkdownRenderer({
           p: ({ children }) => (
             <p
               className={cn(
-                "text-on-surface-variant leading-relaxed",
-                isEditor ? "text-on-surface-variant/90 mb-3" : "mb-2 last:mb-0"
+                "text-[var(--df-on-surface)] leading-7",
+                isEditor ? "mb-4" : "mb-2 last:mb-0"
               )}
             >
               {children}
             </p>
           ),
           ul: ({ children }) => (
-            <ul className={cn("list-disc pl-5 mb-3 space-y-1", isEditor ? "text-on-surface-variant/80" : "")}>{children}</ul>
+            <ul className="list-disc pl-5 mb-4 space-y-1 text-[var(--df-on-surface)] marker:text-[var(--df-faint)]">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className={cn("list-decimal pl-5 mb-3 space-y-1", isEditor ? "text-on-surface-variant/80" : "")}>{children}</ol>
+            <ol className="list-decimal pl-5 mb-4 space-y-1 text-[var(--df-on-surface)] marker:text-[var(--df-faint)]">{children}</ol>
           ),
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-primary/30 pl-3 italic text-on-surface-variant/80 mb-3">
+            <blockquote className="border-l-2 border-[var(--df-steel-border)] pl-4 py-0.5 italic text-[var(--df-dim)] mb-4">
               {children}
             </blockquote>
           ),
@@ -210,23 +216,23 @@ export function MarkdownRenderer({
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="underline decoration-primary/60 underline-offset-2 hover:text-primary"
+              className="text-[var(--df-steel-100)] underline decoration-[var(--df-steel-border)] underline-offset-2 transition-colors hover:text-[var(--df-on-surface)]"
             >
               {children}
             </a>
           ),
           table: ({ children }) => (
             <div className="overflow-x-auto mb-3">
-              <table className="w-full border-collapse text-sm">{children}</table>
+              <table className="w-full border-collapse text-[13px]">{children}</table>
             </div>
           ),
           th: ({ children }) => (
-            <th className="text-left border border-outline-variant/30 bg-surface-container-high/40 px-2 py-1 font-semibold text-on-surface">
+            <th className="text-left border border-[var(--df-outline-md)] bg-[var(--df-surface-high)] px-3 py-2 font-semibold text-[var(--df-on-surface)]">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="border border-outline-variant/20 px-2 py-1 text-on-surface-variant/90">
+            <td className="border border-[var(--df-outline)] px-3 py-2 text-[var(--df-dim)]">
               {children}
             </td>
           ),
@@ -245,9 +251,9 @@ export function MarkdownRenderer({
             return (
               <pre
                 className={cn(
-                  "font-mono text-[12px] border border-outline-variant/20 rounded-md overflow-x-auto mb-3",
+                  "font-mono text-[12px] border border-[var(--df-outline-md)] rounded-md overflow-x-auto mb-4",
                   isEditor
-                    ? "bg-surface-container-high/30 p-6 border-l border-primary/50 rounded-r-lg"
+                    ? "bg-[var(--df-surface-mid)] p-5 border-l-2 border-l-[var(--df-steel-300)] rounded-r-lg"
                     : "bg-black/30 px-3 py-2"
                 )}
               >
@@ -268,14 +274,14 @@ export function MarkdownRenderer({
 
             if (isBlockLike) {
               return (
-                <code className={cn("font-mono text-[12px]", isEditor ? "text-primary-fixed-dim/90" : "text-on-surface-variant/80")}>
+                <code className={cn("font-mono text-[12px]", isEditor ? "text-[var(--df-steel-100)]" : "text-[var(--df-dim)]")}>
                   {normalizedCode}
                 </code>
               );
             }
 
             return (
-              <code className="font-mono text-[12px] bg-black/25 px-1 py-0.5 rounded">
+              <code className="font-mono text-[12px] text-[var(--df-steel-100)] bg-[var(--df-steel-bg)] border border-[var(--df-steel-border)] px-1.5 py-0.5 rounded">
                 {children}
               </code>
             );

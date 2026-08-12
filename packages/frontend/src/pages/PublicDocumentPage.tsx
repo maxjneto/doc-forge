@@ -114,7 +114,7 @@ export function PublicDocumentPage() {
           </aside>
         )}
         <main ref={scrollRef} style={{ flex: 1, minWidth: 0, overflowY: "auto" }} className="df-scroll-thin">
-          <div ref={contentRef} style={{ maxWidth: 720, margin: "0 auto", padding: "48px 24px 96px" }}>
+          <div ref={contentRef} style={{ maxWidth: 820, margin: "0 auto", padding: "48px 40px 96px" }}>
         {doc ? (
           <>
             <h1
