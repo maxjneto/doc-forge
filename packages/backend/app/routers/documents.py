@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response, StreamingResponse
 from loguru import logger
 from pydantic import BaseModel
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -75,17 +75,17 @@ def _load_sample_document() -> dict:
 
 @router.get("/documents", response_model=DocumentListResponse)
 async def list_documents(
+    include_archived: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.models.api_key import ApiKey
     from app.models.document_activity import DocumentActivity
 
-    result = await db.execute(
-        select(Document)
-        .where(Document.user_id == current_user.id)
-        .order_by(Document.updated_at.desc())
-    )
+    statement = select(Document).where(Document.user_id == current_user.id)
+    if not include_archived:
+        statement = statement.where(Document.archived_at.is_(None))
+    result = await db.execute(statement.order_by(Document.updated_at.desc()))
     documents = result.scalars().all()
 
     # Per-doc: the most recent API-key-attributed activity, joined to ApiKey.name.
@@ -218,13 +218,14 @@ async def export_document(
     fmt = format.lower()
     if fmt not in export_service.EXPORT_FORMATS:
         raise HTTPException(status_code=400, detail=f"Unsupported export format: {format}")
-    if fmt in export_service.PAID_FORMATS and (current_user.plan or "free") == "free":
+    await access.require(db, document_id, current_user, "read")
+    from app.services import tiers as tiers_service
+    allowed_formats = tiers_service.get_limits(current_user.plan).get("export_formats", [])
+    if fmt not in allowed_formats:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"{fmt.upper()} export is a Pro feature.",
         )
-
-    await access.require(db, document_id, current_user, "read")
     result = await db.execute(
         select(Document)
         .options(selectinload(Document.sections).selectinload(Section.versions))
@@ -335,10 +336,23 @@ async def create_document(
     if limit_error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
 
+    from app.services.credits import consume_document_creation, refund_document_creation
+
     if payload.mode == "editor":
-        return await _create_editor_document(payload, db, current_user, request)
+        await consume_document_creation(db, current_user)
+        try:
+            return await _create_editor_document(payload, db, current_user, request)
+        except Exception:
+            await refund_document_creation(db, current_user.id)
+            raise
 
     # ── Guided mode ──────────────────────────────────────────────
+
+    if not settings.HOSTED_GUIDED_WORKFLOW_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Guided documents are no longer available. Create an editor document or start a BYOA pipeline.",
+        )
 
     # Validate input before touching DB or credits
     err = validate_document_context(payload.document_context)
@@ -361,18 +375,7 @@ async def create_document(
         raise HTTPException(status_code=400, detail=f"Unknown document type: {payload.document_type_slug}")
 
     # Atomically deduct credit — prevents race conditions with concurrent requests
-    cost = settings.GUIDED_DOCUMENT_COST
-    result = await db.execute(
-        update(User)
-        .where(User.id == current_user.id, User.credits >= cost)
-        .values(credits=User.credits - cost)
-    )
-    if result.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="No credits remaining. Credits reset weekly.",
-        )
-    await db.commit()
+    await consume_document_creation(db, current_user)
 
     doc = Document(
         title=payload.title or f"{doc_type.name} — {datetime.datetime.utcnow().strftime('%b %d, %Y')}",
@@ -465,6 +468,47 @@ async def _create_editor_document(
     await db.commit()
 
     logger.info("[router] editor document created | doc_id={} section_id={}", doc.id, section.id)
+    return DocumentResponse.model_validate(doc)
+
+
+@router.post("/documents/{document_id}/archive", response_model=DocumentResponse)
+async def archive_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Archive a document without deleting its content or history."""
+    doc = await access.require(db, document_id, current_user, "manage")
+    if doc.archived_at is None:
+        doc.archived_at = datetime.datetime.now(datetime.timezone.utc)
+        await db_service.log_activity(
+            db, document_id, "document_archived", description="Document archived"
+        )
+        await db.commit()
+        await db.refresh(doc)
+    return DocumentResponse.model_validate(doc)
+
+
+@router.post("/documents/{document_id}/restore", response_model=DocumentResponse)
+async def restore_archived_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Restore an archived document when the active-document limit allows it."""
+    doc = await access.require(db, document_id, current_user, "manage")
+    if doc.archived_at is not None:
+        from app.services import tiers as tiers_service
+
+        limit_error = await tiers_service.check_document_limit(db, current_user)
+        if limit_error:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
+        doc.archived_at = None
+        await db_service.log_activity(
+            db, document_id, "document_restored", description="Document restored"
+        )
+        await db.commit()
+        await db.refresh(doc)
     return DocumentResponse.model_validate(doc)
 
 

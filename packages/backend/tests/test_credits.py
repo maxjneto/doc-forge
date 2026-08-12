@@ -32,7 +32,7 @@ async def test_missing_period_repairs_existing_account(db_session):
         now=datetime(2026, 8, 13, tzinfo=timezone.utc),
     )
 
-    assert refreshed.credits == settings.WEEKLY_CREDITS
+    assert refreshed.credits == settings.FREE_WEEKLY_DOCUMENT_CREDITS
     assert refreshed.credits_reset_at.replace(tzinfo=timezone.utc) == datetime(
         2026, 8, 10, tzinfo=timezone.utc
     )
@@ -77,4 +77,4 @@ async def test_expired_period_refills_on_access(db_session):
         now=datetime(2026, 8, 10, 0, 1, tzinfo=timezone.utc),
     )
 
-    assert refreshed.credits == settings.WEEKLY_CREDITS
+    assert refreshed.credits == settings.FREE_WEEKLY_DOCUMENT_CREDITS

@@ -135,6 +135,7 @@ async def _override_get_db():
 
 async def _seed_user(user: User) -> None:
     """Insert user into test DB so UPDATE queries find it."""
+    from app.services.credits import credit_period_start
     async with TestSession() as session:
         from sqlalchemy import select
         result = await session.execute(select(User).where(User.id == user.id))
@@ -142,6 +143,7 @@ async def _seed_user(user: User) -> None:
             session.add(User(
                 id=user.id, email=user.email, name=user.name,
                 credits=user.credits, plan=user.plan or "free",
+                credits_reset_at=user.credits_reset_at or credit_period_start(),
                 stripe_customer_id=user.stripe_customer_id,
                 stripe_subscription_id=user.stripe_subscription_id,
             ))

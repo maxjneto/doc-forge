@@ -94,14 +94,17 @@ async def start_pipeline_document(
     if limit_error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
 
-    # BYOA remains available independently of hosted-AI credits.
-    # The user's agent performs the model work. Workflow state is part of the
-    # plan and does not consume hosted-AI credits (product-plan §9.2).
+    from app.services.credits import consume_document_creation, refund_document_creation
 
-    doc, run = await pipeline_service.start_pipeline(
-        db, current_user.id, doc_type, payload.title, payload.document_context,
-        definition=definition,
-    )
+    await consume_document_creation(db, current_user)
+    try:
+        doc, run = await pipeline_service.start_pipeline(
+            db, current_user.id, doc_type, payload.title, payload.document_context,
+            definition=definition,
+        )
+    except Exception:
+        await refund_document_creation(db, current_user.id)
+        raise
     api_key_id = getattr(request.state, "api_key_id", None)
     if api_key_id:
         capture_event(str(current_user.id), str(doc.id), "mcp_pipeline_started", {

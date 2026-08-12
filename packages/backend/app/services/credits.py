@@ -31,16 +31,13 @@ def next_credit_reset(now: datetime | None = None) -> datetime:
     return credit_period_start(now) + timedelta(days=7)
 
 
-def weekly_allowance(plan: str) -> int:
-    """Current allowance source.
-
-    Paid-plan allocation is not yet separately configured, so every existing
-    account receives the configured weekly allowance. Keeping this in one
-    function makes a future per-plan allocation explicit instead of silently
-    treating ``None`` as no refill.
-    """
-    del plan
-    return settings.WEEKLY_CREDITS
+def weekly_document_allowance(plan: str) -> int:
+    """Return the number of new documents an account may create per week."""
+    return (
+        settings.PRO_WEEKLY_DOCUMENT_CREDITS
+        if plan == "pro"
+        else settings.FREE_WEEKLY_DOCUMENT_CREDITS
+    )
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
@@ -74,7 +71,7 @@ async def refresh_credits_if_due(
             or_(User.credits_reset_at.is_(None), User.credits_reset_at < period_start),
         )
         .values(
-            credits=weekly_allowance(user.plan),
+            credits=weekly_document_allowance(user.plan),
             credits_reset_at=period_start,
         )
         .execution_options(synchronize_session=False)
@@ -84,3 +81,43 @@ async def refresh_credits_if_due(
         select(User).where(User.id == user.id).execution_options(populate_existing=True)
     )
     return result.scalar_one()
+
+
+async def consume_document_creation(db: AsyncSession, user: User) -> User:
+    """Atomically consume one weekly document-creation allowance.
+
+    The historical ``users.credits`` column now represents document creations.
+    Keeping the decrement in one service prevents editor, MCP and pipeline
+    routes from drifting apart.
+    """
+    user = await refresh_credits_if_due(db, user)
+    result = await db.execute(
+        update(User)
+        .where(User.id == user.id, User.credits >= 1)
+        .values(credits=User.credits - 1)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "WEEKLY_DOCUMENT_LIMIT_REACHED",
+                "message": "No document creations remain this week.",
+                "reset_at": next_credit_reset().isoformat(),
+            },
+        )
+    await db.commit()
+    result = await db.execute(
+        select(User).where(User.id == user.id).execution_options(populate_existing=True)
+    )
+    return result.scalar_one()
+
+
+async def refund_document_creation(db: AsyncSession, user_id: str) -> None:
+    """Return a creation allowance when persistence fails before a document exists."""
+    await db.execute(
+        update(User).where(User.id == user_id).values(credits=User.credits + 1)
+    )
+    await db.commit()

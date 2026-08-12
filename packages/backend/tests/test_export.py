@@ -44,9 +44,9 @@ async def _seed_document(user_id: str, title: str = "My RFC") -> str:
 
 
 @pytest.mark.asyncio
-async def test_markdown_export_is_free(client_factory):
+async def test_markdown_export_requires_pro(client_factory):
     doc_id = await _seed_document("u_exp_md")
-    async with client_factory(User(id="u_exp_md", email="e@t.com", name="T", credits=5, plan="free")) as client:
+    async with client_factory(User(id="u_exp_md", email="e@t.com", name="T", credits=5, plan="pro")) as client:
         res = await client.get(f"/api/documents/{doc_id}/export?format=md")
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/markdown")
@@ -84,6 +84,14 @@ async def test_binary_export_blocked_for_free(client_factory, fmt):
         res = await client.get(f"/api/documents/{doc_id}/export?format={fmt}")
     assert res.status_code == 403
     assert "pro" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_markdown_export_is_blocked_for_free(client_factory):
+    doc_id = await _seed_document("u_exp_free_md")
+    async with client_factory(User(id="u_exp_free_md", email="free-md@t.com", name="F", credits=5, plan="free")) as client:
+        res = await client.get(f"/api/documents/{doc_id}/export?format=md")
+    assert res.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -126,7 +134,7 @@ async def test_editor_document_export_has_no_duplicate_headings(client_factory):
     heading in production)."""
     content = "# My Doc\n\n## Section\n\nSome body text."
     doc_id = await _seed_editor_document("u_exp_editor", content, title="My Doc")
-    async with client_factory(User(id="u_exp_editor", email="e@t.com", name="T", credits=5, plan="free")) as client:
+    async with client_factory(User(id="u_exp_editor", email="e@t.com", name="T", credits=5, plan="pro")) as client:
         res = await client.get(f"/api/documents/{doc_id}/export?format=md")
     assert res.status_code == 200
     body = res.text

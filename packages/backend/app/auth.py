@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.services.credits import credit_period_start, refresh_credits_if_due
+from app.services.credits import credit_period_start, refresh_credits_if_due, weekly_document_allowance
 
 security = HTTPBearer(auto_error=False)
 
@@ -205,7 +205,7 @@ async def get_current_user(
             id=user_id,
             email=email,
             name=name or "",
-            credits=settings.WEEKLY_CREDITS,
+            credits=weekly_document_allowance("free"),
             credits_reset_at=credit_period_start(),
         )
         .on_conflict_do_update(

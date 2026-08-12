@@ -28,18 +28,25 @@ class Settings(BaseSettings):
     # is the equivalent claim — set to your frontend origin(s) in production.
     CLERK_AUTHORIZED_PARTIES: list[str] = ["http://localhost:5173"]
 
-    # Credit system — override via env vars to reconfigure without code changes
-    WEEKLY_CREDITS: int = 5
-    GUIDED_DOCUMENT_COST: int = 3
+    # Document creation quotas — override via env vars to reconfigure without
+    # code changes. The database column retains its historical `credits` name
+    # for a backwards-compatible migration, but its product meaning is one
+    # document creation per unit.
+    FREE_WEEKLY_DOCUMENT_CREDITS: int = 5
+    PRO_WEEKLY_DOCUMENT_CREDITS: int = 50
 
     # Free tier limits (enforced in the backend; served via GET /api/tiers).
     # Calibrated generous on purpose — the MCP funnel is the growth engine.
     FREE_MAX_ACTIVE_DOCUMENTS: int = 10
     FREE_MAX_API_KEYS: int = 1
+    PRO_MAX_ACTIVE_DOCUMENTS: int = 200
+    PRO_MAX_API_KEYS: int = 10
 
-    # Quality gate: server-run audits consume credits (the DocForge-pays-tokens
-    # rule); agent-run submissions are free — pro-BYOA incentive.
-    QUALITY_GATE_COST: int = 1
+    # Hosted capabilities stay available for internal/future use, but are not
+    # public product flows. Agent-run quality gates remain available.
+    HOSTED_GUIDED_WORKFLOW_ENABLED: bool = False
+    HOSTED_QUALITY_GATE_ENABLED: bool = False
+    HOSTED_QUALITY_GATE_COST: int = 0
 
     # AI-assisted section role_description generation (Customize page, custom
     # document types). Free (no credits) but Pro-only and rate-limited per user.

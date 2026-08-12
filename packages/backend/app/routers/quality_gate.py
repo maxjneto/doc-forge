@@ -122,8 +122,13 @@ async def run_quality_gate(
 ):
     """Server-run gate: DocForge audits the document with AI. Consumes credits."""
     doc = await _get_owned_document(document_id, current_user, db)
+    if not settings.HOSTED_QUALITY_GATE_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Hosted quality gates are not currently available. Run the gate with your agent and submit its findings.",
+        )
 
-    cost = settings.QUALITY_GATE_COST
+    cost = settings.HOSTED_QUALITY_GATE_COST
     result = await db.execute(
         update(User)
         .where(User.id == current_user.id, User.credits >= cost)

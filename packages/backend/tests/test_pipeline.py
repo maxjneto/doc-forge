@@ -39,12 +39,14 @@ async def _start(client) -> str:
 
 
 @pytest.mark.asyncio
-async def test_byoa_pipeline_is_available_without_credits(client_factory):
-    """The user's agent performs the model work, so the pipeline is credit-free."""
+async def test_byoa_pipeline_uses_one_weekly_creation(client_factory):
+    """A pipeline creates a document, so it uses the common weekly allowance."""
     user = User(id="u_pipe_free", email="pipe-free@test.com", credits=0)
     async with client_factory(user) as client:
-        doc_id = await _start(client)
-        assert doc_id
+        res = await client.post("/api/pipeline/documents", json={
+            "document_type_slug": "rfc", "title": "Blocked", "document_context": CONTEXT,
+        })
+        assert res.status_code == 429
 
 
 @pytest.mark.asyncio

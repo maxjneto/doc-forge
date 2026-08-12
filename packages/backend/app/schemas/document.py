@@ -16,7 +16,7 @@ class DocumentCreate(BaseModel):
     document_context: str | None = Field(default=None, max_length=20000)
     user_preferences: str | None = Field(default=None, max_length=2000)
     document_type_slug: str | None = Field(default="rfc", max_length=50)
-    mode: Literal["guided", "editor"] = "guided"
+    mode: Literal["guided", "editor"] = "editor"
 
 
 class CompletedSectionUpdate(BaseModel):
@@ -53,7 +53,7 @@ class DocumentResponse(BaseModel):
     id: UUID
     title: str
     current_phase: str
-    document_mode: str = "guided"
+    document_mode: str = "editor"
     agent_write_policy: str = "suggest"
     require_gate_on_accept: bool = False
     created_at: datetime
@@ -65,6 +65,7 @@ class DocumentResponse(BaseModel):
     published_version_id: UUID | None = None
     published_at: datetime | None = None
     has_unpublished_changes: bool = False
+    archived_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

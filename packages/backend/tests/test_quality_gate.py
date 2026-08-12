@@ -111,7 +111,7 @@ async def test_findings_validation(client_factory):
 
 
 @pytest.mark.asyncio
-async def test_server_run_gate_costs_credits_and_saves_findings(client_factory):
+async def test_hosted_gate_is_not_a_public_credit_flow(client_factory):
     user = User(id="u_gate4", email="g4@test.com", name="G", credits=3)
     async with client_factory(user) as client:
         doc_id, section_id = await _editor_doc(client)  # editor documents are free
@@ -122,8 +122,7 @@ async def test_server_run_gate_costs_credits_and_saves_findings(client_factory):
             "problems": [{"section": "body", "issue": "AI-found issue", "severity": "low"}],
         })):
             res = await client.post(f"/api/documents/{doc_id}/quality-gate/run")
-        assert res.status_code == 200, res.text
-        assert res.json()[0]["description"] == "AI-found issue"
+        assert res.status_code == 410, res.text
 
     # 3 - 1 (hosted gate) — asserted against the DB, since the auth
     # override returns an in-memory user object
@@ -139,10 +138,9 @@ async def test_server_run_gate_costs_credits_and_saves_findings(client_factory):
 
 
 @pytest.mark.asyncio
-async def test_server_run_gate_requires_credits(client_factory):
-    user = User(id="u_gate5", email="g5@test.com", name="G", credits=0)
+async def test_hosted_gate_remains_unavailable_with_document_capacity(client_factory):
+    user = User(id="u_gate5", email="g5@test.com", name="G", credits=1)
     async with client_factory(user) as client:
         doc_id, _ = await _editor_doc(client)  # free even with no credits
         res = await client.post(f"/api/documents/{doc_id}/quality-gate/run")
-        assert res.status_code == 402
-        assert "free" in res.json()["detail"].lower()
+        assert res.status_code == 410

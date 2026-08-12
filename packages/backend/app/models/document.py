@@ -38,6 +38,9 @@ class Document(Base):
     # Holding the token grants read, so it is unguessable and revoked by
     # clearing the column.
     public_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    # Archived documents remain intact but do not consume an active-document
+    # slot or appear in the default library listing.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
