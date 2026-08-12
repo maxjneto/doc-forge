@@ -145,7 +145,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
         paddingTop: 56,
         display: "flex",
         flexDirection: "column",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--df-bg)",
         overflow: "hidden",
       }}
     >
@@ -169,7 +169,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
           {/* Progress card */}
           <div
             style={{
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+              border: "1px solid var(--df-outline)",
               borderRadius: 10,
               padding: "16px 22px",
               background: "rgba(18,20,20,0.5)",
@@ -182,7 +182,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span
                 className="df-mono"
-                style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)" }}
+                style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300)" }}
               >
                 Align before generation
               </span>
@@ -191,14 +191,14 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
               </span>
               <span
                 className="df-mono"
-                style={{ fontSize: 11, color: "var(--df-dim, rgba(227,226,226,0.62))" }}
+                style={{ fontSize: 11, color: "var(--df-dim)" }}
               >
-                <span style={{ color: "var(--df-amber-300, #ff8d4a)" }}>{approvedCount} approved</span>
+                <span style={{ color: "var(--df-amber-300)" }}>{approvedCount} approved</span>
                 {revisingCount > 0 && (
-                  <> · <span style={{ color: "var(--df-amber-300, #ff8d4a)" }}>{revisingCount} in revision</span></>
+                  <> · <span style={{ color: "var(--df-amber-300)" }}>{revisingCount} in revision</span></>
                 )}
                 {" · "}
-                <span style={{ color: "var(--df-steel-100, #b9c6d4)" }}>approve all to pour</span>
+                <span style={{ color: "var(--df-steel-100)" }}>approve all to pour</span>
               </span>
             </div>
 
@@ -209,8 +209,8 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                 maxWidth: 360,
                 height: 6,
                 borderRadius: 999,
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                background: "var(--color-white-04)",
+                border: "1px solid var(--df-outline)",
                 position: "relative",
                 overflow: "hidden",
               }}
@@ -220,7 +220,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                   height: "100%",
                   width: `${(approvedCount / SECTION_ORDER.length) * 100}%`,
                   background:
-                    "linear-gradient(90deg, var(--df-amber-700, #6e1d00), var(--df-amber-500, #ff4d00) 60%, var(--df-amber-300, #ff8d4a))",
+                    "linear-gradient(90deg, var(--df-amber-700), var(--df-amber-500) 60%, var(--df-amber-300))",
                   position: "relative",
                   transition: "width 0.4s ease",
                 }}
@@ -254,8 +254,8 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                   borderRadius: 6,
                   fontSize: 12,
                   fontWeight: 600,
-                  border: "1px solid var(--df-amber-500, #ff4d00)",
-                  background: "var(--df-amber-500, #ff4d00)",
+                  border: "1px solid var(--df-amber-500)",
+                  background: "var(--df-amber-500)",
                   color: "#fff",
                   cursor: !allApproved || confirming ? "not-allowed" : "pointer",
                   opacity: !allApproved || confirming ? 0.55 : 1,
@@ -286,7 +286,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
               {confirmError && (
                 <div
                   className="df-mono"
-                  style={{ marginTop: 6, fontSize: 10.5, color: "var(--df-amber-300, #ff8d4a)", maxWidth: 220, textAlign: "right" }}
+                  style={{ marginTop: 6, fontSize: 10.5, color: "var(--df-amber-300)", maxWidth: 220, textAlign: "right" }}
                 >
                   {confirmError}
                 </div>

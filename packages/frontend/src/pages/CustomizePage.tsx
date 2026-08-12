@@ -38,7 +38,7 @@ export function CustomizePage() {
   const locked = plan !== null && plan === "free";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--df-bg, #0a0b0c)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--df-bg)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
       <TopBar dashboardNav />
 
       <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56, maxWidth: 960, margin: "0 auto", width: "100%" }}>
@@ -187,7 +187,7 @@ function PipelinesSection({ getToken }: { getToken: () => Promise<string | null>
               {cloning ? "Cloning…" : "Clone baseline"}
             </button>
           </div>
-          {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: "8px 0 0" }}>{error}</p>}
+          {error && <p style={{ fontSize: 12, color: "var(--df-error)", margin: "8px 0 0" }}>{error}</p>}
         </div>
 
         <div>
@@ -336,7 +336,7 @@ function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSave
             );
           })}
 
-          {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: 0 }}>{error}</p>}
+          {error && <p style={{ fontSize: 12, color: "var(--df-error)", margin: 0 }}>{error}</p>}
           <div>
             <button onClick={handleSave} disabled={saving} style={primaryBtnStyle}>
               {saving ? "Saving…" : "Save changes"}
@@ -546,7 +546,7 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
         </button>
       </div>
 
-      {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: 12, color: "var(--df-error)", margin: 0 }}>{error}</p>}
       <div>
         <button onClick={handleSubmit} disabled={saving || !name} style={primaryBtnStyle}>
           {saving ? "Creating…" : "Create document type"}
@@ -598,7 +598,7 @@ function SectionRoleGenButton({
         <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
         {loading ? "Generating…" : "Generate with AI"}
       </button>
-      {error && <span style={{ fontSize: 11, color: "var(--df-error, #f55)" }}>{error}</span>}
+      {error && <span style={{ fontSize: 11, color: "var(--df-error)" }}>{error}</span>}
     </div>
   );
 }
@@ -680,7 +680,7 @@ function PromptEditor({
           {saving ? "Saving…" : "Save prompt"}
         </button>
         {saved && <span style={{ fontSize: 11, color: "#50c878" }}>Saved</span>}
-        {error && <span style={{ fontSize: 11, color: "var(--df-error, #f55)" }}>{error}</span>}
+        {error && <span style={{ fontSize: 11, color: "var(--df-error)" }}>{error}</span>}
       </div>
     </div>
   );
@@ -707,7 +707,7 @@ const reorderBtnStyle: CSSProperties = {
   height: 16,
   padding: 0,
   background: "transparent",
-  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.09))",
+  border: "1px solid var(--df-outline-md)",
   borderRadius: 4,
   color: "var(--df-dim)",
   cursor: "pointer",
@@ -719,7 +719,7 @@ const ghostBtnStyle: CSSProperties = {
   gap: 5,
   padding: "5px 10px",
   background: "transparent",
-  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.09))",
+  border: "1px solid var(--df-outline-md)",
   borderRadius: 6,
   color: "var(--df-dim)",
   cursor: "pointer",

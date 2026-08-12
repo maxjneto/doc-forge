@@ -47,8 +47,8 @@ function PourBar({ status }: { status: GenerationStatus }) {
       style={{
         height: 8,
         borderRadius: 999,
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        background: "var(--color-white-04)",
+        border: "1px solid var(--df-outline)",
         position: "relative",
         overflow: "hidden",
         minWidth: 180,
@@ -60,8 +60,8 @@ function PourBar({ status }: { status: GenerationStatus }) {
           borderRadius: 999,
           width: `${animatedWidth}%`,
           background: isDone
-            ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
-            : "linear-gradient(90deg, var(--df-amber-700, #6e1d00), var(--df-amber-500, #ff4d00) 60%, var(--df-amber-300, #ff8d4a))",
+            ? "var(--df-amber-trail)"
+            : "linear-gradient(90deg, var(--df-amber-700), var(--df-amber-500) 60%, var(--df-amber-300))",
           transition: "width 8s ease-out",
           position: "relative",
         }}
@@ -106,7 +106,7 @@ export function GenerationLayout({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--df-bg)",
         padding: "56px",
       }}
     >
@@ -114,7 +114,7 @@ export function GenerationLayout({
         style={{
           width: 880,
           maxWidth: "100%",
-          border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          border: "1px solid var(--df-outline)",
           borderRadius: 14,
           padding: "32px 38px",
           background:
@@ -140,11 +140,11 @@ export function GenerationLayout({
                 fontWeight: 600,
                 letterSpacing: "-0.02em",
                 margin: "4px 0 0",
-                color: "#e3e2e2",
+                color: "var(--df-on-surface)",
               }}
             >
               Pouring{" "}
-              <em style={{ fontStyle: "normal", color: "var(--df-amber-300, #ff8d4a)" }}>
+              <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>
                 {SECTION_ORDER.length} sections
               </em>
             </h2>
@@ -153,7 +153,7 @@ export function GenerationLayout({
             className="df-mono"
             style={{
               fontSize: 11,
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
+              color: "var(--df-dim)",
               letterSpacing: "0.04em",
             }}
           >
@@ -166,10 +166,10 @@ export function GenerationLayout({
           const isDone = s.status === "done";
           const isGenerating = s.status === "generating";
           const arrowColor = isDone
-            ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+            ? "var(--df-amber-trail)"
             : isGenerating
-            ? "var(--df-amber-300, #ff8d4a)"
-            : "var(--df-amber-700, #6e1d00)";
+            ? "var(--df-amber-300)"
+            : "var(--df-amber-700)";
 
           const peek = s.section?.summary
             ? `"${s.section.summary.slice(0, 90)}…"`
@@ -184,7 +184,7 @@ export function GenerationLayout({
                 gap: 16,
                 alignItems: "center",
                 padding: "14px 0",
-                borderTop: i === 0 ? "none" : "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                borderTop: i === 0 ? "none" : "1px solid var(--df-outline)",
               }}
             >
               {/* Arrow */}
@@ -201,7 +201,7 @@ export function GenerationLayout({
                   style={{
                     fontSize: 13,
                     fontWeight: 500,
-                    color: isDone ? "var(--df-dim, rgba(227,226,226,0.62))" : "#e3e2e2",
+                    color: isDone ? "var(--df-dim)" : "var(--df-on-surface)",
                   }}
                 >
                   {s.label}
@@ -210,7 +210,7 @@ export function GenerationLayout({
                   <div
                     style={{
                       fontSize: 11.5,
-                      color: "var(--df-faint, rgba(227,226,226,0.38))",
+                      color: "var(--df-faint)",
                       marginTop: 5,
                       lineHeight: 1.45,
                       fontStyle: "italic",
@@ -229,10 +229,10 @@ export function GenerationLayout({
                   letterSpacing: "0.04em",
                   textAlign: "right",
                   color: isDone
-                    ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+                    ? "var(--df-amber-trail)"
                     : isGenerating
-                    ? "var(--df-amber-300, #ff8d4a)"
-                    : "var(--df-amber-700, #6e1d00)",
+                    ? "var(--df-amber-300)"
+                    : "var(--df-amber-700)",
                 }}
               >
                 {isDone ? "forged" : isGenerating ? "pouring…" : "queued"}
@@ -252,14 +252,14 @@ export function GenerationLayout({
             justifyContent: "flex-end",
             marginTop: 22,
             paddingTop: 18,
-            borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderTop: "1px solid var(--df-outline)",
           }}
         >
           <span
             className="df-mono"
             style={{
               fontSize: 11,
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              color: "var(--df-faint)",
               letterSpacing: "0.04em",
             }}
           >
@@ -277,7 +277,7 @@ export function GenerationLayout({
               borderRadius: 10,
               padding: "16px 20px",
               background: "rgba(13,14,15,0.6)",
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+              border: "1px solid var(--df-outline)",
             }}
             className="animate-fade-in"
           >
@@ -289,7 +289,7 @@ export function GenerationLayout({
                     height: 6,
                     borderRadius: 2,
                     width: `${w}%`,
-                    background: "rgba(255,77,0,0.18)",
+                    background: "var(--color-heat-selection)",
                     animation: "pulse 1.6s ease-in-out infinite",
                     animationDelay: `${i * 100}ms`,
                   }}

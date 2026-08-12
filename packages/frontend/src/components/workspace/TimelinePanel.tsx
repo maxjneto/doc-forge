@@ -43,15 +43,15 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
         marginTop: 6,
         padding: "10px 12px",
         borderRadius: 6,
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+        background: "var(--color-white-03)",
+        border: "1px solid var(--df-outline-md)",
         display: "flex",
         flexDirection: "column",
         gap: 8,
       }}
     >
       <div>
-        <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute, rgba(227,226,226,0.18))", marginBottom: 4 }}>NAME</div>
+        <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute)", marginBottom: 4 }}>NAME</div>
         <input
           autoFocus
           value={nameDraft}
@@ -63,7 +63,7 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
             border: "none",
             borderBottom: "1px solid rgba(255,255,255,0.10)",
             fontSize: 10,
-            color: "var(--df-dim, rgba(227,226,226,0.62))",
+            color: "var(--df-dim)",
             fontFamily: "inherit",
             outline: "none",
             padding: "2px 0",
@@ -71,7 +71,7 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
         />
       </div>
       <div>
-        <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute, rgba(227,226,226,0.18))", marginBottom: 4 }}>NOTE</div>
+        <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute)", marginBottom: 4 }}>NOTE</div>
         <input
           value={summaryDraft}
           onChange={(e) => setSummaryDraft(e.target.value)}
@@ -83,7 +83,7 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
             border: "none",
             borderBottom: "1px solid rgba(255,255,255,0.10)",
             fontSize: 10,
-            color: "var(--df-dim, rgba(227,226,226,0.62))",
+            color: "var(--df-dim)",
             fontFamily: "inherit",
             outline: "none",
             padding: "2px 0",
@@ -94,7 +94,7 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
         <button
           onClick={(e) => { e.stopPropagation(); setEditOpen(false); }}
           className="df-mono"
-          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid var(--df-outline, rgba(255,255,255,0.06))", background: "transparent", color: "var(--df-faint, rgba(227,226,226,0.38))", cursor: "pointer" }}
+          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid var(--df-outline)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
         >
           Cancel
         </button>
@@ -102,7 +102,7 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
           onClick={handleSave}
           disabled={saving}
           className="df-mono"
-          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(255,77,0,0.35)", background: "rgba(255,77,0,0.08)", color: "var(--df-amber-200, #ffb59e)", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
+          style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(255,77,0,0.35)", background: "var(--color-heat-08)", color: "var(--df-amber-200)", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -117,10 +117,10 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
       style={{
         display: "flex", alignItems: "center", padding: "2px 4px", marginLeft: "auto",
         background: "transparent", border: "none", cursor: "pointer",
-        color: "var(--df-mute, rgba(227,226,226,0.18))", borderRadius: 3, transition: "color 0.15s", flexShrink: 0,
+        color: "var(--df-mute)", borderRadius: 3, transition: "color 0.15s", flexShrink: 0,
       }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute)"; }}
     >
       <span className="material-symbols-outlined" style={{ fontSize: 12 }}>edit</span>
     </button>
@@ -129,19 +129,19 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
   if (version.isActive) {
     return (
       <div style={{ position: "relative", paddingLeft: 20 }}>
-        <div style={{ position: "absolute", left: 0, top: -10, width: 14, height: 20, borderLeft: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))", borderBottom: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))", borderRadius: "0 0 0 6px" }} />
-        <div style={{ background: "rgba(255,77,0,0.05)", border: "1px solid rgba(255,77,0,0.25)", borderRadius: 6, padding: "5px 8px" }}>
+        <div style={{ position: "absolute", left: 0, top: -10, width: 14, height: 20, borderLeft: "1px solid var(--df-outline-md)", borderBottom: "1px solid var(--df-outline-md)", borderRadius: "0 0 0 6px" }} />
+        <div style={{ background: "var(--color-heat-05)", border: "1px solid rgba(255,77,0,0.25)", borderRadius: 6, padding: "5px 8px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-amber-500, #ff4d00)", boxShadow: "0 0 6px var(--df-amber-500)", flexShrink: 0, cursor: "pointer" }} onClick={() => onRestore(version.id)} />
-            <span className="df-mono" style={{ fontSize: 10, color: "var(--df-amber-200, #ffb59e)", fontWeight: 500, cursor: "pointer", flex: 1 }} onClick={() => onRestore(version.id)}>
+            <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-amber-500)", boxShadow: "0 0 6px var(--df-amber-500)", flexShrink: 0, cursor: "pointer" }} onClick={() => onRestore(version.id)} />
+            <span className="df-mono" style={{ fontSize: 10, color: "var(--df-amber-200)", fontWeight: 500, cursor: "pointer", flex: 1 }} onClick={() => onRestore(version.id)}>
               {version.versionName}
             </span>
-            <span className="df-mono" style={{ fontSize: 9, letterSpacing: "0.10em", textTransform: "uppercase", padding: "2px 5px", borderRadius: 3, background: "rgba(255,77,0,0.15)", color: "var(--df-amber-300, #ff8d4a)", flexShrink: 0 }}>Active</span>
+            <span className="df-mono" style={{ fontSize: 9, letterSpacing: "0.10em", textTransform: "uppercase", padding: "2px 5px", borderRadius: 3, background: "var(--color-heat-15)", color: "var(--df-amber-300)", flexShrink: 0 }}>Active</span>
             {pencilButton}
           </div>
           {version.changeSummary && !editOpen && (
             <div style={{ marginTop: 4, paddingLeft: 2 }}>
-              <span className="df-mono" style={{ fontSize: 9, color: "var(--df-faint, rgba(227,226,226,0.38))", display: "block" }}>{version.changeSummary}</span>
+              <span className="df-mono" style={{ fontSize: 9, color: "var(--df-faint)", display: "block" }}>{version.changeSummary}</span>
             </div>
           )}
           {editPanel}
@@ -155,21 +155,21 @@ function VersionNode({ version, onRestore }: VersionNodeProps) {
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
       onMouseLeave={(e) => { if (!editOpen) (e.currentTarget as HTMLElement).style.opacity = "0.5"; }}
     >
-      <div style={{ position: "absolute", left: 0, top: -10, width: 14, height: 20, borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))", borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))", borderRadius: "0 0 0 6px" }} />
+      <div style={{ position: "absolute", left: 0, top: -10, width: 14, height: 20, borderLeft: "1px solid var(--df-outline)", borderBottom: "1px solid var(--df-outline)", borderRadius: "0 0 0 6px" }} />
       <div style={{ padding: "3px 6px", borderRadius: 4, transition: "background 0.15s" }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-white-03)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-mute, rgba(227,226,226,0.18))", flexShrink: 0, cursor: "pointer" }} onClick={() => onRestore(version.id)} />
-          <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))", cursor: "pointer", flex: 1 }} onClick={() => onRestore(version.id)}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--df-mute)", flexShrink: 0, cursor: "pointer" }} onClick={() => onRestore(version.id)} />
+          <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", cursor: "pointer", flex: 1 }} onClick={() => onRestore(version.id)}>
             {version.versionName}
           </span>
           {pencilButton}
         </div>
         {version.changeSummary && !editOpen && (
           <div style={{ marginTop: 2, paddingLeft: 11 }}>
-            <span className="df-mono" style={{ fontSize: 9, color: "var(--df-mute, rgba(227,226,226,0.18))", display: "block" }}>{version.changeSummary}</span>
+            <span className="df-mono" style={{ fontSize: 9, color: "var(--df-mute)", display: "block" }}>{version.changeSummary}</span>
           </div>
         )}
         {editPanel}
@@ -196,14 +196,14 @@ function SectionNode({ sectionType, status, isActive, versionCount, currentVersi
   const dotColor = status === "finalized"
     ? "#4ade80"
     : isActive
-    ? "var(--df-amber-500, #ff4d00)"
-    : "var(--df-mute, rgba(227,226,226,0.18))";
+    ? "var(--df-amber-500)"
+    : "var(--df-mute)";
 
   const labelColor = status === "finalized"
-    ? "var(--df-steel-100, #b9c6d4)"
+    ? "var(--df-steel-100)"
     : isActive
-    ? "var(--df-amber-200, #ffb59e)"
-    : "var(--df-faint, rgba(227,226,226,0.38))";
+    ? "var(--df-amber-200)"
+    : "var(--df-faint)";
 
   const dotGlow = status === "finalized"
     ? "0 0 6px rgba(74,222,128,0.5)"
@@ -216,7 +216,7 @@ function SectionNode({ sectionType, status, isActive, versionCount, currentVersi
       style={{ position: "relative", paddingLeft: 28, cursor: "pointer" }}
       onClick={onClick}
       onMouseEnter={(e) => {
-        if (!isActive) (e.currentTarget.querySelector(".sn-label") as HTMLElement | null)?.style.setProperty("color", "var(--df-dim, rgba(227,226,226,0.62))");
+        if (!isActive) (e.currentTarget.querySelector(".sn-label") as HTMLElement | null)?.style.setProperty("color", "var(--df-dim)");
       }}
       onMouseLeave={(e) => {
         if (!isActive) (e.currentTarget.querySelector(".sn-label") as HTMLElement | null)?.style.setProperty("color", labelColor);
@@ -268,11 +268,11 @@ function SectionNode({ sectionType, status, isActive, versionCount, currentVersi
             style={{
               fontSize: 9,
               letterSpacing: "0.08em",
-              color: isActive ? "var(--df-amber-500, #ff4d00)" : "var(--df-mute, rgba(227,226,226,0.18))",
+              color: isActive ? "var(--df-amber-500)" : "var(--df-mute)",
               padding: "1px 5px",
               borderRadius: 4,
-              border: `1px solid ${isActive ? "rgba(255,77,0,0.30)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-              background: isActive ? "rgba(255,77,0,0.06)" : "transparent",
+              border: `1px solid ${isActive ? "var(--color-heat-30)" : "var(--df-outline)"}`,
+              background: isActive ? "var(--color-heat-bg-soft)" : "transparent",
             }}
           >
             v{currentVersionIndex} / {versionCount}
@@ -349,7 +349,7 @@ export function TimelinePanel() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderLeft: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderLeft: "1px solid var(--df-outline)",
         background: "rgba(10,11,12,0.7)",
         backdropFilter: "blur(4px)",
         padding: "0",
@@ -361,7 +361,7 @@ export function TimelinePanel() {
       <div
         style={{
           padding: "14px 20px 12px",
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          borderBottom: "1px solid var(--df-outline)",
           flexShrink: 0,
         }}
       >
@@ -371,7 +371,7 @@ export function TimelinePanel() {
             fontSize: 9.5,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: "var(--df-faint, rgba(227,226,226,0.38))",
+            color: "var(--df-faint)",
           }}
         >
           › Version Graph
@@ -392,7 +392,7 @@ export function TimelinePanel() {
               top: 6,
               bottom: 0,
               width: 1,
-              background: "var(--df-outline, rgba(255,255,255,0.06))",
+              background: "var(--df-outline)",
             }}
           />
 
@@ -428,7 +428,7 @@ export function TimelinePanel() {
         <div
           style={{
             padding: "14px 16px",
-            borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderTop: "1px solid var(--df-outline)",
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -448,17 +448,17 @@ export function TimelinePanel() {
               fontSize: 11,
               fontWeight: 500,
               background: "transparent",
-              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-              color: saving ? "var(--df-mute, rgba(227,226,226,0.18))" : "var(--df-faint, rgba(227,226,226,0.38))",
+              border: "1px solid var(--df-outline-md)",
+              color: saving ? "var(--df-mute)" : "var(--df-faint)",
               cursor: saving ? "not-allowed" : "pointer",
               opacity: saving ? 0.5 : 1,
               transition: "all 0.15s",
-              fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
+              fontFamily: "var(--df-font-mono)",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
             }}
-            onMouseEnter={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))"; } }}
-            onMouseLeave={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; } }}
+            onMouseEnter={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.color = "var(--df-dim)"; } }}
+            onMouseLeave={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; } }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>save</span>
             {saving ? "Saving…" : "Save changes"}
@@ -477,17 +477,17 @@ export function TimelinePanel() {
               fontSize: 11,
               fontWeight: 500,
               background: "transparent",
-              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-              color: isAIPending ? "var(--df-mute, rgba(227,226,226,0.18))" : "var(--df-faint, rgba(227,226,226,0.38))",
+              border: "1px solid var(--df-outline-md)",
+              color: isAIPending ? "var(--df-mute)" : "var(--df-faint)",
               cursor: isAIPending ? "not-allowed" : "pointer",
               opacity: isAIPending ? 0.5 : 1,
               transition: "all 0.15s",
-              fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
+              fontFamily: "var(--df-font-mono)",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
             }}
-            onMouseEnter={(e) => { if (!isAIPending) { (e.currentTarget as HTMLElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))"; (e.currentTarget as HTMLElement).style.borderColor = "var(--df-outline-md, rgba(255,255,255,0.10))"; } }}
-            onMouseLeave={(e) => { if (!isAIPending) { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; } }}
+            onMouseEnter={(e) => { if (!isAIPending) { (e.currentTarget as HTMLElement).style.color = "var(--df-dim)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--df-outline-md)"; } }}
+            onMouseLeave={(e) => { if (!isAIPending) { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; } }}
           >
             <span
               className={`material-symbols-outlined ${isAIPending ? "animate-spin" : ""}`}
@@ -509,17 +509,17 @@ export function TimelinePanel() {
               borderRadius: 6,
               fontSize: 11,
               fontWeight: 600,
-              background: "rgba(255,77,0,0.08)",
+              background: "var(--color-heat-08)",
               border: "1px solid rgba(255,77,0,0.30)",
-              color: "var(--df-amber-200, #ffb59e)",
+              color: "var(--df-amber-200)",
               cursor: "pointer",
               transition: "all 0.15s",
-              fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
+              fontFamily: "var(--df-font-mono)",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.14)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 10px rgba(255,77,0,0.20)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.08)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-heat-08)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>task_alt</span>
             Finish Section
@@ -531,7 +531,7 @@ export function TimelinePanel() {
       <div
         style={{
           padding: "10px 20px",
-          borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          borderTop: "1px solid var(--df-outline)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -540,13 +540,13 @@ export function TimelinePanel() {
       >
         <span
           className="df-mono"
-          style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-mute, rgba(227,226,226,0.18))" }}
+          style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-mute)" }}
         >
           Demo
         </span>
         <span
           className="df-mono"
-          style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-mute, rgba(227,226,226,0.18))", display: "flex", alignItems: "center", gap: 5 }}
+          style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-mute)", display: "flex", alignItems: "center", gap: 5 }}
         >
           <span
             style={{

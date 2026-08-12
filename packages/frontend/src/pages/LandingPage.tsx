@@ -70,7 +70,7 @@ export function LandingPage() {
               margin: "0 0 12px",
             }}
           >
-            Your agent proposes changes; you review them as a diff and accept or reject by section; the system audits for contradictions — every edit attributed and versioned. Connect your own IDE agent over MCP, or let the hosted pipeline drive.
+            Your agent can propose changes for review or write according to the document policy; you keep the feedback loop, quality gate and version history. Connect your own IDE agent over MCP, or use the guided browser flow.
           </p>
 
           <TrackPickerCards variant="hero" />

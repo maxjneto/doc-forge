@@ -79,7 +79,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
         position: "absolute",
         top: 42,
         right: 0,
-        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        border: "1px solid var(--df-outline)",
         background: "rgba(18,20,20,0.98)",
         backdropFilter: "blur(8px)",
         borderRadius: 8,
@@ -101,10 +101,10 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
             borderRadius: 4,
             fontSize: 12.5,
             color: item.primary
-              ? "var(--df-amber-200, #ffb59e)"
-              : "var(--df-on-surface-soft, #c6c5c4)",
+              ? "var(--df-amber-200)"
+              : "var(--df-dim)",
             background: item.primary
-              ? "rgba(255,77,0,0.04)"
+              ? "var(--color-heat-04)"
               : "transparent",
             border: "none",
             cursor: item.enabled ? "pointer" : "not-allowed",
@@ -118,8 +118,8 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
             style={{
               fontSize: 16,
               color: item.primary
-                ? "var(--df-amber-300, #ff8d4a)"
-                : "var(--df-faint, rgba(227,226,226,0.38))",
+                ? "var(--df-amber-300)"
+                : "var(--df-faint)",
             }}
           >
             {item.icon}
@@ -128,7 +128,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
             {item.label}
             <div
               className="df-mono"
-              style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+              style={{ fontSize: 10, color: "var(--df-faint)" }}
             >
               {item.sub}
             </div>
@@ -157,9 +157,9 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
     <nav
       style={{
         padding: "32px 22px",
-        borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderRight: "1px solid var(--df-outline)",
         overflow: "hidden",
-        background: "rgba(0,0,0,0.20)",
+        background: "var(--color-shade-20)",
         width: 220,
         flexShrink: 0,
       }}
@@ -169,7 +169,7 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
         style={{
           fontSize: 10,
           letterSpacing: "0.16em",
-          color: "var(--df-faint, rgba(227,226,226,0.38))",
+          color: "var(--df-faint)",
           marginBottom: 14,
           textTransform: "uppercase",
         }}
@@ -193,11 +193,11 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
               fontSize: 13,
               fontWeight: isActive ? 500 : 400,
               color: isActive
-                ? "var(--df-amber-200, #ffb59e)"
-                : "var(--df-dim, rgba(227,226,226,0.62))",
-              background: isActive ? "rgba(255,77,0,0.05)" : "transparent",
+                ? "var(--df-amber-200)"
+                : "var(--df-dim)",
+              background: isActive ? "var(--color-heat-05)" : "transparent",
               border: "none",
-              borderLeft: `2px solid ${isActive ? "var(--df-amber-500, #ff4d00)" : "transparent"}`,
+              borderLeft: `2px solid ${isActive ? "var(--df-amber-500)" : "transparent"}`,
               cursor: "pointer",
             }}
           >
@@ -205,7 +205,7 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
               className="df-mono"
               style={{
                 fontSize: 10,
-                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                color: "var(--df-faint)",
                 marginRight: 8,
               }}
             >
@@ -222,7 +222,7 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
         style={{
           fontSize: 10,
           letterSpacing: "0.16em",
-          color: "var(--df-faint, rgba(227,226,226,0.38))",
+          color: "var(--df-faint)",
           marginBottom: 10,
           marginTop: 28,
           textTransform: "uppercase",
@@ -265,10 +265,10 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
           justifyContent: "space-between",
           marginBottom: 16,
           paddingBottom: 8,
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          borderBottom: "1px solid var(--df-outline)",
         }}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", margin: 0, color: "#e3e2e2" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", margin: 0, color: "var(--df-on-surface)" }}>
           {SECTION_HEADINGS[sectionType]}
         </h2>
         {isEditing ? (
@@ -277,8 +277,8 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               fontSize: 11, fontWeight: 600,
-              color: "var(--df-amber-200, #ffb59e)",
-              background: "rgba(255,77,0,0.10)",
+              color: "var(--df-amber-200)",
+              background: "var(--color-heat-bg)",
               border: "1px solid rgba(255,77,0,0.20)",
               padding: "4px 10px", borderRadius: 4, cursor: "pointer",
             }}
@@ -291,7 +291,7 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               fontSize: 11, fontWeight: 600,
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              color: "var(--df-faint)",
               background: "transparent",
               border: "1px solid transparent",
               padding: "4px 10px", borderRadius: 4, cursor: "pointer",
@@ -312,9 +312,9 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
             width: "100%",
             minHeight: 320,
             background: "rgba(18,20,20,0.5)",
-            border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-            color: "#e3e2e2",
-            fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
+            border: "1px solid var(--df-outline-md)",
+            color: "var(--df-on-surface)",
+            fontFamily: "var(--df-font-mono)",
             fontSize: 13,
             lineHeight: 1.65,
             resize: "vertical",
@@ -430,7 +430,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
         paddingTop: 56,
         display: "flex",
         flexDirection: "column",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--df-bg)",
         overflow: "hidden",
       }}
     >
@@ -463,13 +463,13 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
               style={{
                 width: 64,
                 height: 64,
-                border: "2px solid var(--df-steel-200, #8aa0b8)",
+                border: "2px solid var(--df-steel-200)",
                 borderRadius: "50%",
                 display: "grid",
                 placeItems: "center",
                 flexShrink: 0,
                 position: "relative",
-                color: "var(--df-steel-100, #b9c6d4)",
+                color: "var(--df-steel-100)",
               }}
             >
               <div
@@ -497,7 +497,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                   fontSize: 18,
                   letterSpacing: "0.20em",
                   fontWeight: 600,
-                  color: "var(--df-steel-100, #b9c6d4)",
+                  color: "var(--df-steel-100)",
                 }}
               >
                 DOCUMENT FORGED · v1.0
@@ -506,7 +506,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                 className="df-mono"
                 style={{
                   fontSize: 11,
-                  color: "var(--df-dim, rgba(227,226,226,0.62))",
+                  color: "var(--df-dim)",
                   letterSpacing: "0.08em",
                   marginTop: 4,
                 }}
@@ -523,8 +523,8 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                    border: "1px solid var(--df-amber-500, #ff4d00)",
-                    background: "var(--df-amber-500, #ff4d00)",
+                    border: "1px solid var(--df-amber-500)",
+                    background: "var(--df-amber-500)",
                     color: "#fff",
                     cursor: "pointer",
                     boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
@@ -566,7 +566,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                       fontSize: 10,
                       letterSpacing: "0.16em",
                       textTransform: "uppercase",
-                      color: "var(--df-faint, rgba(227,226,226,0.38))",
+                      color: "var(--df-faint)",
                       marginBottom: 10,
                     }}
                   >
@@ -576,8 +576,8 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                     <div
                       key={finding.id}
                       style={{
-                        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-                        borderLeft: `2px solid ${finding.severity === "high" ? "var(--df-error, #e86464)" : "var(--df-amber-300, #ff8d4a)"}`,
+                        border: "1px solid var(--df-outline)",
+                        borderLeft: `2px solid ${finding.severity === "high" ? "var(--df-error)" : "var(--df-amber-300)"}`,
                         borderRadius: 8,
                         padding: "10px 14px",
                         marginBottom: 8,
@@ -594,15 +594,15 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                           letterSpacing: "0.14em",
                           padding: "3px 7px",
                           borderRadius: 4,
-                          border: `1px solid ${finding.severity === "high" ? "rgba(232,100,100,0.40)" : "rgba(255,77,0,0.30)"}`,
-                          color: finding.severity === "high" ? "var(--df-error, #e86464)" : "var(--df-amber-300, #ff8d4a)",
-                          background: finding.severity === "high" ? "rgba(232,100,100,0.08)" : "rgba(255,77,0,0.06)",
+                          border: `1px solid ${finding.severity === "high" ? "rgba(232,100,100,0.40)" : "var(--color-heat-30)"}`,
+                          color: finding.severity === "high" ? "var(--df-error)" : "var(--df-amber-300)",
+                          background: finding.severity === "high" ? "rgba(232,100,100,0.08)" : "var(--color-heat-bg-soft)",
                           flexShrink: 0,
                         }}
                       >
                         {finding.severity === "high" ? "BLOCKER" : "WARN"}
                       </span>
-                      <span data-ph-mask style={{ fontSize: 12.5, color: "var(--df-on-surface-soft, #c6c5c4)", lineHeight: 1.55, flex: 1 }}>
+                      <span data-ph-mask style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.55, flex: 1 }}>
                         {finding.description}
                       </span>
                       <button
@@ -613,7 +613,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                           } catch {}
                         }}
                         style={{
-                          fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))",
+                          fontSize: 11, color: "var(--df-faint)",
                           background: "transparent", border: "none", cursor: "pointer", flexShrink: 0,
                         }}
                       >

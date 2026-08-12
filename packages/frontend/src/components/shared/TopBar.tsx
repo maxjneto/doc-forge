@@ -53,9 +53,9 @@ function KilnToggle() {
         gap: 5,
         padding: "4px 10px",
         borderRadius: 6,
-        border: `1px solid ${active ? "rgba(255,77,0,0.45)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-        background: active ? "rgba(255,77,0,0.08)" : "transparent",
-        color: active ? "var(--df-amber-300, #ff8d4a)" : "var(--df-faint, rgba(227,226,226,0.38))",
+        border: `1px solid ${active ? "var(--color-heat-border)" : "var(--df-outline)"}`,
+        background: active ? "var(--color-heat-08)" : "transparent",
+        color: active ? "var(--df-amber-300)" : "var(--df-faint)",
         cursor: "pointer",
         transition: "all 0.2s",
       }}
@@ -78,7 +78,7 @@ function KilnToggle() {
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: "var(--df-amber-500, #ff4d00)",
+            background: "var(--df-amber-500)",
             boxShadow: "0 0 6px var(--df-amber-500)",
             animation: "df-pulse 1.6s ease-in-out infinite",
           }}
@@ -139,7 +139,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
         height: 56,
         background: "rgba(13,14,15,0.92)",
         backdropFilter: "blur(8px)",
-        borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderBottom: "1px solid var(--df-outline)",
         display: "flex",
         alignItems: "center",
         padding: "0 22px",
@@ -170,7 +170,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
             fontSize: 13,
             fontWeight: 600,
             letterSpacing: "0.08em",
-            color: "#e3e2e2",
+            color: "var(--df-on-surface)",
           }}
         >
           DOCFORGE
@@ -195,8 +195,8 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                 padding: "6px 12px",
                 borderRadius: 6,
                 fontSize: 12.5,
-                color: isActive ? "#e3e2e2" : "var(--df-dim, rgba(227,226,226,0.62))",
-                background: isActive ? "rgba(255,255,255,0.04)" : "transparent",
+                color: isActive ? "var(--df-on-surface)" : "var(--df-dim)",
+                background: isActive ? "var(--color-white-04)" : "transparent",
                 textDecoration: "none",
                 letterSpacing: "0.02em",
                 transition: "color 0.15s, background 0.15s",
@@ -228,12 +228,12 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
             const isNowSteel = state === "now-steel";
 
             const color = isDone
-              ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+              ? "var(--df-amber-trail)"
               : isNow
-              ? "var(--df-amber-500, #ff4d00)"
+              ? "var(--df-amber-500)"
               : isNowSteel
-              ? "var(--df-steel-100, #b9c6d4)"
-              : "var(--df-mute, rgba(227,226,226,0.18))";
+              ? "var(--df-steel-100)"
+              : "var(--df-mute)";
 
             return (
               <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -243,8 +243,8 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                       width: 18,
                       height: 1,
                       background: isDone || isNowSteel
-                        ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
-                        : "var(--df-mute, rgba(227,226,226,0.18))",
+                        ? "var(--df-amber-trail)"
+                        : "var(--df-mute)",
                     }}
                   />
                 )}
@@ -260,7 +260,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                       boxShadow: isNow
                         ? "0 0 0 3px rgba(255,77,0,0.18), 0 0 12px rgba(255,77,0,0.6)"
                         : isNowSteel
-                        ? "0 0 0 3px var(--df-steel-bg-strong, rgba(138,160,184,0.22))"
+                        ? "0 0 0 3px var(--df-steel-bg-strong)"
                         : "none",
                     }}
                   />
@@ -294,13 +294,13 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
           style={{
             display: "flex", alignItems: "center", gap: 5,
             padding: "4px 10px", borderRadius: 6,
-            border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            border: "1px solid var(--df-outline)",
             background: "transparent",
-            color: "var(--df-faint, rgba(227,226,226,0.38))",
+            color: "var(--df-faint)",
             cursor: "pointer", transition: "all 0.15s",
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-dim)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>key</span>
           <span className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}>API Keys</span>
@@ -313,7 +313,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
               display: "flex",
               alignItems: "center",
               gap: 4,
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+              border: "1px solid var(--df-outline)",
               borderRadius: 4,
               padding: "2px 4px 2px 10px",
               maxWidth: 260,
@@ -335,7 +335,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                   background: "transparent",
                   border: "none",
                   outline: "none",
-                  color: "var(--df-dim, rgba(227,226,226,0.62))",
+                  color: "var(--df-dim)",
                   width: 180,
                   fontFamily: "inherit",
                 }}
@@ -347,7 +347,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                   fontSize: 10,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  color: "var(--df-dim, rgba(227,226,226,0.62))",
+                  color: "var(--df-dim)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -368,13 +368,13 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                   background: "transparent",
                   border: "none",
                   cursor: "pointer",
-                  color: "var(--df-mute, rgba(227,226,226,0.18))",
+                  color: "var(--df-mute)",
                   borderRadius: 3,
                   transition: "color 0.15s",
                   flexShrink: 0,
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute)"; }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>edit</span>
               </button>
@@ -387,14 +387,14 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
               fontSize: 10,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+              color: "var(--df-dim)",
+              border: "1px solid var(--df-outline)",
               borderRadius: 4,
               padding: "4px 10px",
             }}
           >
             CREDITS ·{" "}
-            <b style={{ color: "var(--df-amber-300, #ff8d4a)" }}>{credits}</b>
+            <b style={{ color: "var(--df-amber-300)" }}>{credits}</b>
           </span>
         ) : null}
 

@@ -81,37 +81,37 @@ export function FollowUpQuestions({
           <div
             key={q.id}
             style={{
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-              borderLeft: "2px solid var(--df-amber-trail, rgba(255,77,0,0.42))",
+              border: "1px solid var(--df-outline)",
+              borderLeft: "2px solid var(--df-amber-trail)",
               borderRadius: 10,
               padding: "16px 18px",
-              background: "rgba(255,77,0,0.04)",
+              background: "var(--color-heat-04)",
               animation: "df-answer-enter 0.28s ease-out",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <span
                 className="df-mono"
-                style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+                style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--df-faint)" }}
               >
-                <b style={{ color: "var(--df-amber-300, #ff8d4a)" }}>
+                <b style={{ color: "var(--df-amber-300)" }}>
                   {String(idx + 1).padStart(2, "0")}
                 </b>{" "}
                 · Forged
               </span>
             </div>
-            <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#e3e2e2", marginBottom: 10 }}>
+            <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--df-on-surface)", marginBottom: 10 }}>
               {q.question}
             </div>
             <div
               style={{
                 fontSize: 12.5,
-                color: "var(--df-dim, rgba(227,226,226,0.62))",
+                color: "var(--df-dim)",
                 lineHeight: 1.5,
                 padding: "8px 10px",
                 borderRadius: 6,
-                background: "rgba(0,0,0,0.20)",
-                border: "1px dashed var(--df-outline, rgba(255,255,255,0.06))",
+                background: "var(--color-shade-20)",
+                border: "1px dashed var(--df-outline)",
               }}
             >
               {displayAnswer}
@@ -128,7 +128,7 @@ export function FollowUpQuestions({
             border: "1px solid rgba(255,77,0,0.35)",
             borderRadius: 10,
             padding: "16px 18px",
-            background: "rgba(255,77,0,0.06)",
+            background: "var(--color-heat-bg-soft)",
             boxShadow: "0 0 0 4px rgba(255,77,0,0.05)",
             position: "relative",
             animation: exitingId === questions[currentQuestionIndex]?.id
@@ -139,9 +139,9 @@ export function FollowUpQuestions({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <span
               className="df-mono"
-              style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+              style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--df-faint)" }}
             >
-              <b style={{ color: "var(--df-amber-300, #ff8d4a)" }}>
+              <b style={{ color: "var(--df-amber-300)" }}>
                 {String(currentQuestionIndex + 1).padStart(2, "0")}
               </b>{" "}
               · Heating
@@ -151,7 +151,7 @@ export function FollowUpQuestions({
             />
           </div>
 
-          <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#e3e2e2", marginBottom: 10 }}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--df-on-surface)", marginBottom: 10 }}>
             {questions[currentQuestionIndex].question}
           </div>
 
@@ -164,7 +164,7 @@ export function FollowUpQuestions({
               background: "transparent",
               border: "none",
               fontSize: 13,
-              color: "#e3e2e2",
+              color: "var(--df-on-surface)",
               fontFamily: "inherit",
               lineHeight: 1.5,
               resize: "none",
@@ -183,9 +183,9 @@ export function FollowUpQuestions({
               style={{
                 fontSize: 10,
                 letterSpacing: "0.10em",
-                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                color: "var(--df-faint)",
                 background: "transparent",
-                border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                border: "1px solid var(--df-outline)",
                 padding: "5px 10px",
                 borderRadius: 4,
                 cursor: "pointer",
@@ -210,8 +210,8 @@ export function FollowUpQuestions({
                   borderRadius: 6,
                   fontSize: 12,
                   fontWeight: 600,
-                  border: "1px solid var(--df-amber-500, #ff4d00)",
-                  background: "var(--df-amber-500, #ff4d00)",
+                  border: "1px solid var(--df-amber-500)",
+                  background: "var(--df-amber-500)",
                   color: "#fff",
                   cursor: !currentInput.trim() ? "not-allowed" : "pointer",
                   opacity: !currentInput.trim() ? 0.4 : 1,
@@ -232,8 +232,8 @@ export function FollowUpQuestions({
           style={{
             padding: "16px 18px",
             borderRadius: 10,
-            border: "1px solid var(--df-steel-border, rgba(138,160,184,0.35))",
-            background: "var(--df-steel-bg, rgba(138,160,184,0.10))",
+            border: "1px solid var(--df-steel-border)",
+            background: "var(--df-steel-bg)",
             textAlign: "center",
             animation: "df-answer-enter 0.35s ease-out, df-section-forged-pulse 3s ease-in-out 0.5s infinite",
             position: "relative",
@@ -245,12 +245,12 @@ export function FollowUpQuestions({
             background: "linear-gradient(90deg, transparent 0%, rgba(138,160,184,0.09) 40%, transparent 100%)",
             animation: "df-shimmer-loop 4s ease-in-out 0.6s infinite",
           }} />
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--df-steel-100, #b9c6d4)", display: "block", marginBottom: 6 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--df-steel-100)", display: "block", marginBottom: 6 }}>
             check_circle
           </span>
           <span
             className="df-mono"
-            style={{ fontSize: 11, color: "var(--df-steel-100, #b9c6d4)", letterSpacing: "0.10em" }}
+            style={{ fontSize: 11, color: "var(--df-steel-100)", letterSpacing: "0.10em" }}
           >
             All questions answered - forging context…
           </span>

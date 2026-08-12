@@ -16,8 +16,8 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
       <div
         style={{
           background: "rgba(18,20,20,0.9)",
-          border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          borderLeft: "2px solid var(--df-amber-500, #ff4d00)",
+          border: "1px solid var(--df-outline)",
+          borderLeft: "2px solid var(--df-amber-500)",
           borderRadius: 8,
           padding: "12px 14px",
         }}
@@ -28,13 +28,13 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
             fontSize: 9.5,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            color: "var(--df-amber-300, #ff8d4a)",
+            color: "var(--df-amber-300)",
             marginBottom: 8,
           }}
         >
           Analysis
         </div>
-        <div style={{ fontSize: 12.5, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.6 }}>
           <MarkdownRenderer content={content} variant="chat" />
         </div>
       </div>
@@ -45,7 +45,7 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
     <div
       style={{
         background: "rgba(38,40,41,0.5)",
-        border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+        border: "1px solid var(--df-outline-md)",
         borderRadius: 8,
         padding: "12px 14px",
       }}
@@ -56,13 +56,13 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
           fontSize: 9.5,
           letterSpacing: "0.14em",
           textTransform: "uppercase",
-          color: "var(--df-steel-200, #8aa0b8)",
+          color: "var(--df-steel-200)",
           marginBottom: 8,
         }}
       >
         You
       </div>
-      <div style={{ fontSize: 12.5, color: "var(--df-on-surface, #e3e2e2)", lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12.5, color: "var(--df-on-surface)", lineHeight: 1.6 }}>
         <MarkdownRenderer content={content} variant="chat" />
       </div>
     </div>
@@ -74,8 +74,8 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
     <div
       style={{
         background: "rgba(18,20,20,0.9)",
-        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-        borderLeft: "2px solid var(--df-amber-500, #ff4d00)",
+        border: "1px solid var(--df-outline)",
+        borderLeft: "2px solid var(--df-amber-500)",
         borderRadius: 8,
         padding: "12px 14px",
       }}
@@ -86,7 +86,7 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
           fontSize: 9.5,
           letterSpacing: "0.14em",
           textTransform: "uppercase",
-          color: "var(--df-amber-300, #ff8d4a)",
+          color: "var(--df-amber-300)",
           marginBottom: 8,
         }}
       >
@@ -97,7 +97,7 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
           name={isSending ? "upload" : "autorenew"}
           className={`text-primary scale-90 ${isSending ? "" : "animate-spin"}`}
         />
-        <span style={{ fontSize: 12, color: "var(--df-faint, rgba(227,226,226,0.38))" }}>
+        <span style={{ fontSize: 12, color: "var(--df-faint)" }}>
           {isSending ? "Sending to forge…" : "Drafting response…"}
         </span>
         {!isSending && (
@@ -109,7 +109,7 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
                   width: 4,
                   height: 4,
                   borderRadius: "50%",
-                  background: "var(--df-amber-400, #ff6a14)",
+                  background: "var(--df-amber-400)",
                   opacity: 0.7,
                   animation: `df-pulse 1.6s ease-in-out ${delay}ms infinite`,
                 }}
@@ -177,7 +177,7 @@ export function ChatPanel() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderRight: "1px solid var(--df-outline)",
         background: "rgba(10,11,12,0.7)",
         backdropFilter: "blur(4px)",
         zIndex: 10,
@@ -187,7 +187,7 @@ export function ChatPanel() {
       <div
         style={{
           padding: "14px 16px 12px",
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          borderBottom: "1px solid var(--df-outline)",
           flexShrink: 0,
         }}
       >
@@ -197,7 +197,7 @@ export function ChatPanel() {
             fontSize: 9.5,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: "var(--df-faint, rgba(227,226,226,0.38))",
+            color: "var(--df-faint)",
           }}
         >
           › Chat
@@ -224,7 +224,7 @@ export function ChatPanel() {
               style={{
                 fontSize: 10,
                 letterSpacing: "0.08em",
-                color: "var(--df-mute, rgba(227,226,226,0.18))",
+                color: "var(--df-mute)",
                 textAlign: "center",
                 padding: "0 12px",
               }}
@@ -248,7 +248,7 @@ export function ChatPanel() {
         <div
           style={{
             padding: "12px 14px",
-            borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderTop: "1px solid var(--df-outline)",
             background: "rgba(13,14,15,0.6)",
             flexShrink: 0,
           }}
@@ -264,7 +264,7 @@ export function ChatPanel() {
           >
             <span
               className="df-mono"
-              style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--df-mute, rgba(227,226,226,0.18))" }}
+              style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--df-mute)" }}
             >
               Messages
             </span>
@@ -275,10 +275,10 @@ export function ChatPanel() {
                 fontWeight: 600,
                 color:
                   userMessageCount >= 10
-                    ? "var(--df-error, #e86464)"
+                    ? "var(--df-error)"
                     : userMessageCount >= 8
-                    ? "var(--df-amber-300, #ff8d4a)"
-                    : "var(--df-mute, rgba(227,226,226,0.18))",
+                    ? "var(--df-amber-300)"
+                    : "var(--df-mute)",
               }}
             >
               {userMessageCount}/10
@@ -302,9 +302,9 @@ export function ChatPanel() {
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 500,
-                    border: `1px solid ${isActive ? "rgba(255,77,0,0.45)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-                    color: isActive ? "var(--df-amber-200, #ffb59e)" : "var(--df-faint, rgba(227,226,226,0.38))",
-                    background: isActive ? "rgba(255,77,0,0.08)" : "transparent",
+                    border: `1px solid ${isActive ? "var(--color-heat-border)" : "var(--df-outline)"}`,
+                    color: isActive ? "var(--df-amber-200)" : "var(--df-faint)",
+                    background: isActive ? "var(--color-heat-08)" : "transparent",
                     cursor: isProcessing || isAtLimit ? "not-allowed" : "pointer",
                     opacity: isProcessing || isAtLimit ? 0.5 : 1,
                     transition: "all 0.15s",
@@ -332,8 +332,8 @@ export function ChatPanel() {
               style={{
                 width: "100%",
                 background: "rgba(18,20,20,0.8)",
-                border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-                color: "var(--df-on-surface, #e3e2e2)",
+                border: "1px solid var(--df-outline-md)",
+                color: "var(--df-on-surface)",
                 fontSize: 12.5,
                 borderRadius: 8,
                 padding: "8px 36px 8px 12px",
@@ -345,7 +345,7 @@ export function ChatPanel() {
                 e.currentTarget.style.borderColor = "rgba(255,77,0,0.40)";
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--df-outline-md, rgba(255,255,255,0.10))";
+                e.currentTarget.style.borderColor = "var(--df-outline-md)";
               }}
             />
             <button
@@ -360,13 +360,13 @@ export function ChatPanel() {
                 padding: 4,
                 background: "transparent",
                 border: "none",
-                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                color: "var(--df-faint)",
                 cursor: isProcessing || isAtLimit ? "not-allowed" : "pointer",
                 opacity: isProcessing || isAtLimit ? 0.4 : 1,
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => { if (!isProcessing && !isAtLimit) e.currentTarget.style.color = "var(--df-amber-300, #ff8d4a)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
+              onMouseEnter={(e) => { if (!isProcessing && !isAtLimit) e.currentTarget.style.color = "var(--df-amber-300)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--df-faint)"; }}
             >
               <Icon name="arrow_upward" className="!text-sm" />
             </button>
@@ -378,7 +378,7 @@ export function ChatPanel() {
                 fontSize: 9,
                 marginTop: 4,
                 textAlign: "right",
-                color: input.length >= 1000 ? "var(--df-error, #e86464)" : "var(--df-mute, rgba(227,226,226,0.18))",
+                color: input.length >= 1000 ? "var(--df-error)" : "var(--df-mute)",
               }}
             >
               {input.length}/1000

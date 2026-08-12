@@ -86,8 +86,8 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 width: i % 3 === 0 ? 5 : 3,
                 height: i % 3 === 0 ? 5 : 3,
                 borderRadius: "50%",
-                background: i % 2 === 0 ? "var(--df-amber-500, #ff4d00)" : "var(--df-amber-300, #ff8d4a)",
-                boxShadow: "0 0 6px var(--df-amber-500, #ff4d00)",
+                background: i % 2 === 0 ? "var(--df-amber-500)" : "var(--df-amber-300)",
+                boxShadow: "0 0 6px var(--df-amber-500)",
                 animation: `df-ember-float ${1.0 + (i % 3) * 0.15}s ease-out ${i * 70}ms forwards`,
               }}
             />
@@ -114,14 +114,14 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 borderRadius: 8,
                 border: "1px solid",
                 borderColor: state === "forged"
-                  ? "var(--df-steel-border, rgba(138,160,184,0.35))"
+                  ? "var(--df-steel-border)"
                   : isActive
-                  ? "rgba(255,77,0,0.35)"
-                  : "var(--df-outline, rgba(255,255,255,0.06))",
+                  ? "var(--color-heat-35)"
+                  : "var(--df-outline)",
                 background: state === "forged"
                   ? "rgba(138,160,184,0.05)"
                   : isActive
-                  ? "rgba(255,77,0,0.05)"
+                  ? "var(--color-heat-05)"
                   : "transparent",
                 transition: "border-color 0.3s, background 0.3s",
                 animation: isFlashing
@@ -136,7 +136,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 {state === "forged" ? (
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: 14, color: "var(--df-steel-100, #b9c6d4)" }}
+                    style={{ fontSize: 14, color: "var(--df-steel-100)" }}
                   >
                     check_circle
                   </span>
@@ -147,7 +147,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      background: "var(--df-amber-500, #ff4d00)",
+                      background: "var(--df-amber-500)",
                       boxShadow: "0 0 8px var(--df-amber-500)",
                     }}
                   />
@@ -157,7 +157,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+                      border: "1px solid var(--df-outline-md)",
                       background: "transparent",
                     }}
                   />
@@ -172,10 +172,10 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 <span
                   style={{
                     color: state === "forged"
-                      ? "var(--df-steel-100, #b9c6d4)"
+                      ? "var(--df-steel-100)"
                       : isActive
-                      ? "var(--df-amber-300, #ff8d4a)"
-                      : "var(--df-mute, rgba(227,226,226,0.18))",
+                      ? "var(--df-amber-300)"
+                      : "var(--df-mute)",
                     marginRight: 8,
                   }}
                 >
@@ -184,10 +184,10 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 <span
                   style={{
                     color: state === "forged"
-                      ? "var(--df-steel-100, #b9c6d4)"
+                      ? "var(--df-steel-100)"
                       : isActive
-                      ? "#e3e2e2"
-                      : "var(--df-faint, rgba(227,226,226,0.38))",
+                      ? "var(--df-on-surface)"
+                      : "var(--df-faint)",
                   }}
                 >
                   {section.displayName}
@@ -262,13 +262,13 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                     width: 5,
                     height: 5,
                     borderRadius: "50%",
-                    background: "var(--df-amber-500, #ff4d00)",
+                    background: "var(--df-amber-500)",
                     flexShrink: 0,
                   }}
                 />
                 <span
                   className="df-mono"
-                  style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))", letterSpacing: "0.12em" }}
+                  style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.12em" }}
                 >
                   Analyzing section…
                 </span>

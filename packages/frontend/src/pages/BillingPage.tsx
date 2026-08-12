@@ -77,7 +77,7 @@ export function BillingPage() {
       className="hide-scrollbar"
       style={{
         background: "#050608",
-        color: "var(--df-on-surface, #e3e2e2)",
+        color: "var(--df-on-surface)",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -165,7 +165,7 @@ export function BillingPage() {
           <p
             style={{
               fontSize: 15,
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
+              color: "var(--df-dim)",
               maxWidth: 480,
               lineHeight: 1.6,
               margin: "0 auto",
@@ -188,7 +188,7 @@ export function BillingPage() {
               style={{
                 padding: "28px 24px",
                 background: tier.highlight ? "rgba(255,77,0,0.04)" : "rgba(13,14,15,0.6)",
-                border: `1px solid ${tier.highlight ? "rgba(255,77,0,0.25)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+                border: `1px solid ${tier.highlight ? "rgba(255,77,0,0.25)" : "var(--df-outline)"}`,
                 borderRadius: 10,
                 display: "flex",
                 flexDirection: "column",
@@ -213,7 +213,7 @@ export function BillingPage() {
                     fontSize: 10,
                     letterSpacing: "0.18em",
                     textTransform: "uppercase",
-                    color: tier.highlight ? "var(--df-amber-300, #ff8d4a)" : "var(--df-faint, rgba(227,226,226,0.38))",
+                    color: tier.highlight ? "var(--df-amber-300)" : "var(--df-faint)",
                     marginBottom: 6,
                   }}
                 >
@@ -231,7 +231,7 @@ export function BillingPage() {
                 </span>
               </div>
 
-              <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.55, margin: 0 }}>
+              <p style={{ fontSize: 13, color: "var(--df-dim)", lineHeight: 1.55, margin: 0 }}>
                 {tier.description}
               </p>
 
@@ -240,11 +240,11 @@ export function BillingPage() {
                   <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                     <span
                       className="material-symbols-outlined"
-                      style={{ fontSize: 14, color: "var(--df-amber-300, #ff8d4a)", flexShrink: 0, fontVariationSettings: "'FILL' 1" }}
+                      style={{ fontSize: 14, color: "var(--df-amber-300)", flexShrink: 0, fontVariationSettings: "'FILL' 1" }}
                     >
                       check_circle
                     </span>
-                    <span style={{ color: "var(--df-dim, rgba(227,226,226,0.62))" }}>{f}</span>
+                    <span style={{ color: "var(--df-dim)" }}>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -269,7 +269,7 @@ export function BillingPage() {
             marginTop: 40,
             fontSize: 10,
             letterSpacing: "0.12em",
-            color: "var(--df-mute, rgba(227,226,226,0.18))",
+            color: "var(--df-mute)",
           }}
         >
           Pricing details subject to change during beta. All credits reset on Sunday at midnight UTC.
@@ -314,8 +314,8 @@ function TierCta({ tier, isCurrentPlan, busy, onUpgrade, onManage }: TierCtaProp
         to="/home"
         style={{
           ...baseCtaStyle,
-          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-          color: "var(--df-dim, rgba(227,226,226,0.62))",
+          border: "1px solid var(--df-outline-md)",
+          color: "var(--df-dim)",
           background: "transparent",
         }}
       >
@@ -331,8 +331,8 @@ function TierCta({ tier, isCurrentPlan, busy, onUpgrade, onManage }: TierCtaProp
         disabled={busy}
         style={{
           ...baseCtaStyle,
-          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-          color: "var(--df-dim, rgba(227,226,226,0.62))",
+          border: "1px solid var(--df-outline-md)",
+          color: "var(--df-dim)",
           background: "transparent",
           opacity: busy ? 0.6 : 1,
           cursor: busy ? "wait" : "pointer",
@@ -348,8 +348,8 @@ function TierCta({ tier, isCurrentPlan, busy, onUpgrade, onManage }: TierCtaProp
       <span
         style={{
           ...baseCtaStyle,
-          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-          color: "var(--df-mute, rgba(227,226,226,0.38))",
+          border: "1px solid var(--df-outline-md)",
+          color: "var(--df-mute)",
           background: "transparent",
           opacity: 0.6,
           cursor: "not-allowed",
@@ -370,8 +370,8 @@ function TierCta({ tier, isCurrentPlan, busy, onUpgrade, onManage }: TierCtaProp
           ? { ...baseCtaStyle, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }
           : {
               ...baseCtaStyle,
-              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
+              border: "1px solid var(--df-outline-md)",
+              color: "var(--df-dim)",
               background: "transparent",
               opacity: busy ? 0.6 : 1,
               cursor: busy ? "wait" : "pointer",

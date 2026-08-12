@@ -213,7 +213,7 @@ export function LoadingPage() {
               height: 1,
               width: 64,
               overflow: "hidden",
-              background: "var(--df-outline, rgba(255,255,255,0.06))",
+              background: "var(--df-outline)",
               borderRadius: 1,
             }}
           >
@@ -237,7 +237,7 @@ export function LoadingPage() {
             bottom: 40,
             fontSize: 10,
             letterSpacing: "0.14em",
-            color: "var(--df-mute, rgba(227,226,226,0.18))",
+            color: "var(--df-mute)",
           }}
         >
           Workspace v4.0.12

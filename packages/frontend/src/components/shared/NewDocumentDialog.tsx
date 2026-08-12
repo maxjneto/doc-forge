@@ -107,7 +107,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "#e3e2e2" }}>
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--df-on-surface)" }}>
               New Document
             </h2>
           </div>
@@ -120,7 +120,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
         </div>
 
         {/* Tab toggle */}
-        <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", padding: "4px", width: "fit-content" }}>
+        <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--color-white-03)", borderRadius: "8px", padding: "4px", width: "fit-content" }}>
           {(["guided", "editor"] as DialogTab[]).map((t) => (
             <button
               key={t}
@@ -133,7 +133,7 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
                 border: "none",
                 cursor: "pointer",
                 background: tab === t ? "rgba(255,77,0,0.12)" : "transparent",
-                color: tab === t ? "#FF4D00" : "rgba(200,198,197,0.45)",
+                color: tab === t ? "var(--df-amber-500)" : "rgba(200,198,197,0.45)",
                 transition: "all 0.15s",
               }}
             >
@@ -158,18 +158,18 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
             maxLength={200}
             style={{
               width: "100%",
-              background: "rgba(255,255,255,0.03)",
+              background: "var(--color-white-03)",
               border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: "6px",
               padding: "10px 14px",
               fontSize: "13px",
-              color: "#e3e2e2",
+              color: "var(--df-on-surface)",
               fontFamily: "inherit",
               outline: "none",
               boxSizing: "border-box",
             }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(255,77,0,0.45)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-heat-border)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-white-08)"; }}
           />
         </div>
 
@@ -232,8 +232,8 @@ export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) 
                 display: "inline-flex", alignItems: "center", gap: "8px",
                 padding: "10px 24px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
                 border: "1px solid rgba(255,77,0,0.5)",
-                background: (creating || !canAffordEditor) ? "rgba(255,77,0,0.06)" : "rgba(255,77,0,0.10)",
-                color: (creating || !canAffordEditor) ? "rgba(255,77,0,0.5)" : "#FF4D00",
+                background: (creating || !canAffordEditor) ? "var(--color-heat-bg-soft)" : "var(--color-heat-bg)",
+                color: (creating || !canAffordEditor) ? "rgba(255,77,0,0.5)" : "var(--df-amber-500)",
                 cursor: (creating || !canAffordEditor) ? "not-allowed" : "pointer",
                 transition: "all 0.15s",
               }}
@@ -275,7 +275,7 @@ function DocTypeCard({ doc, onSelect, disabled }: { doc: DocumentType; onSelect:
         (e.currentTarget as HTMLDivElement).style.boxShadow = "0 0 16px rgba(255,77,0,0.15)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,77,0,0.25)";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-heat-25)";
         (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
       }}
     >
@@ -283,13 +283,13 @@ function DocTypeCard({ doc, onSelect, disabled }: { doc: DocumentType; onSelect:
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <span
           className="material-symbols-outlined"
-          style={{ fontSize: "22px", color: "#FF4D00" }}
+          style={{ fontSize: "22px", color: "var(--df-amber-500)" }}
         >
           {icon}
         </span>
         <span style={{
           fontSize: "13px", fontWeight: 700, letterSpacing: "0.04em",
-          textTransform: "uppercase", color: "#e3e2e2",
+          textTransform: "uppercase", color: "var(--df-on-surface)",
         }}>
           {doc.name}
         </span>
@@ -308,7 +308,7 @@ function DocTypeCard({ doc, onSelect, disabled }: { doc: DocumentType; onSelect:
             style={{
               fontSize: "10px", fontWeight: 500, letterSpacing: "0.01em",
               color: "rgba(200,198,197,0.38)",
-              background: "rgba(255,255,255,0.03)",
+              background: "var(--color-white-03)",
               border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: "3px", padding: "2px 6px",
             }}

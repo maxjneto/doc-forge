@@ -35,10 +35,10 @@ export function SummaryCard({
       style={{
         border: "1px solid",
         borderColor: isApproved
-          ? "var(--df-steel-border, rgba(138,160,184,0.35))"
+          ? "var(--df-steel-border)"
           : isRevising
-          ? "rgba(255,77,0,0.30)"
-          : "var(--df-outline, rgba(255,255,255,0.06))",
+          ? "var(--color-heat-30)"
+          : "var(--df-outline)",
         borderRadius: 10,
         padding: "20px 22px",
         background: isApproved
@@ -73,7 +73,7 @@ export function SummaryCard({
             fontSize: 11,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            color: "#e3e2e2",
+            color: "var(--df-on-surface)",
           }}
         >
           › {label}
@@ -100,7 +100,7 @@ export function SummaryCard({
             style={{
               height: 6,
               borderRadius: 2,
-              background: "rgba(255,77,0,0.20)",
+              background: "var(--color-heat-20)",
               animation: "pulse 1.6s ease-in-out infinite",
               width: "90%",
             }}
@@ -109,7 +109,7 @@ export function SummaryCard({
             style={{
               height: 6,
               borderRadius: 2,
-              background: "rgba(255,77,0,0.20)",
+              background: "var(--color-heat-20)",
               animation: "pulse 1.6s ease-in-out infinite",
               width: "75%",
             }}
@@ -118,7 +118,7 @@ export function SummaryCard({
             style={{
               height: 6,
               borderRadius: 2,
-              background: "rgba(255,77,0,0.20)",
+              background: "var(--color-heat-20)",
               animation: "pulse 1.6s ease-in-out infinite",
               width: "60%",
             }}
@@ -129,7 +129,7 @@ export function SummaryCard({
               style={{
                 fontSize: 10,
                 letterSpacing: "0.10em",
-                color: "var(--df-faint, rgba(227,226,226,0.38))",
+                color: "var(--df-faint)",
                 marginTop: 6,
               }}
             >
@@ -143,8 +143,8 @@ export function SummaryCard({
           style={{
             fontSize: 13,
             color: isApproved
-              ? "var(--df-on-surface-soft, #c6c5c4)"
-              : "var(--df-dim, rgba(227,226,226,0.62))",
+              ? "var(--df-dim)"
+              : "var(--df-dim)",
             lineHeight: 1.55,
             margin: 0,
             flex: 1,
@@ -164,12 +164,12 @@ export function SummaryCard({
             style={{
               width: "100%",
               height: 72,
-              background: "rgba(0,0,0,0.20)",
-              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
+              background: "var(--color-shade-20)",
+              border: "1px solid var(--df-outline-md)",
               borderRadius: 6,
               padding: "8px 10px",
               fontSize: 12,
-              color: "#e3e2e2",
+              color: "var(--df-on-surface)",
               fontFamily: "inherit",
               resize: "none",
               outline: "none",
@@ -191,8 +191,8 @@ export function SummaryCard({
               fontSize: 11,
               fontWeight: 600,
               border: "1px solid rgba(255,77,0,0.30)",
-              background: "rgba(255,77,0,0.06)",
-              color: "var(--df-amber-200, #ffb59e)",
+              background: "var(--color-heat-bg-soft)",
+              color: "var(--df-amber-200)",
               cursor: !reason.trim() ? "not-allowed" : "pointer",
               opacity: !reason.trim() ? 0.4 : 1,
             }}
@@ -214,8 +214,8 @@ export function SummaryCard({
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-                  color: "var(--df-on-surface-soft, #c6c5c4)", background: "transparent",
+                  border: "1px solid var(--df-outline-md)",
+                  color: "var(--df-dim)", background: "transparent",
                   cursor: locked ? "not-allowed" : "pointer",
                   opacity: locked ? 0.35 : 1,
                 }}
@@ -229,8 +229,8 @@ export function SummaryCard({
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-                  color: "var(--df-on-surface-soft, #c6c5c4)", background: "transparent",
+                  border: "1px solid var(--df-outline-md)",
+                  color: "var(--df-dim)", background: "transparent",
                   cursor: locked ? "not-allowed" : "pointer",
                   opacity: locked ? 0.35 : 1,
                 }}
@@ -246,9 +246,9 @@ export function SummaryCard({
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid var(--df-steel-border, rgba(138,160,184,0.35))",
-                  color: "var(--df-steel-100, #b9c6d4)",
-                  background: "var(--df-steel-bg, rgba(138,160,184,0.10))",
+                  border: "1px solid var(--df-steel-border)",
+                  color: "var(--df-steel-100)",
+                  background: "var(--df-steel-bg)",
                   cursor: "pointer",
                 }}
               >
@@ -261,8 +261,8 @@ export function SummaryCard({
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
                   border: "1px solid rgba(255,77,0,0.30)",
-                  color: "var(--df-amber-200, #ffb59e)",
-                  background: "rgba(255,77,0,0.06)",
+                  color: "var(--df-amber-200)",
+                  background: "var(--color-heat-bg-soft)",
                   cursor: "pointer",
                 }}
               >

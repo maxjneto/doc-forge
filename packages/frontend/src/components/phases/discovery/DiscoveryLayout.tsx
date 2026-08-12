@@ -76,11 +76,11 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
         <div>
           <div
             className="df-mono"
-            style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)", marginBottom: 6 }}
+            style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300)", marginBottom: 6 }}
           >
             Ghost Document · live preview
           </div>
-          <div style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))" }}>
+          <div style={{ fontSize: 13, color: "var(--df-dim)" }}>
             Sections heat as your answers land.
           </div>
         </div>
@@ -94,7 +94,7 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
       {/* Ghost doc */}
       <div
         style={{
-          border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          border: "1px solid var(--df-outline)",
           borderRadius: 10,
           padding: "26px 28px",
           background: "rgba(13,14,15,0.6)",
@@ -119,14 +119,14 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                 position: "relative",
                 overflow: "hidden",
                 borderColor: isHeated
-                  ? "rgba(255,77,0,0.30)"
+                  ? "var(--color-heat-30)"
                   : isHeating
-                  ? "rgba(255,77,0,0.45)"
-                  : "var(--df-outline, rgba(255,255,255,0.06))",
+                  ? "var(--color-heat-border)"
+                  : "var(--df-outline)",
                 background: isHeated
-                  ? "rgba(255,77,0,0.05)"
+                  ? "var(--color-heat-05)"
                   : isHeating
-                  ? "rgba(255,77,0,0.08)"
+                  ? "var(--color-heat-08)"
                   : "transparent",
                 boxShadow: isHeating ? "0 0 0 4px rgba(255,77,0,0.04)" : "none",
               }}
@@ -149,7 +149,7 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                     top: -1,
                     bottom: -1,
                     width: 3,
-                    background: "var(--df-amber-500, #ff4d00)",
+                    background: "var(--df-amber-500)",
                     boxShadow: "0 0 12px var(--df-amber-500)",
                     borderRadius: "8px 0 0 8px",
                   }}
@@ -163,10 +163,10 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                     fontSize: 10,
                     letterSpacing: "0.14em",
                     color: isHeated
-                      ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+                      ? "var(--df-amber-trail)"
                       : isHeating
-                      ? "var(--df-amber-300, #ff8d4a)"
-                      : "var(--df-faint, rgba(227,226,226,0.38))",
+                      ? "var(--df-amber-300)"
+                      : "var(--df-faint)",
                   }}
                 >
                   › {zone.name}
@@ -179,10 +179,10 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                   style={{
                     fontSize: 10,
                     color: isHeated
-                      ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+                      ? "var(--df-amber-trail)"
                       : isHeating
-                      ? "var(--df-amber-300, #ff8d4a)"
-                      : "var(--df-mute, rgba(227,226,226,0.18))",
+                      ? "var(--df-amber-300)"
+                      : "var(--df-mute)",
                   }}
                 >
                   {isHeated ? "FORGED" : isHeating ? "HEATING" : "PRE-HEAT"}
@@ -201,8 +201,8 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                     background: isHeated
                       ? "rgba(255,77,0,0.22)"
                       : isHeating
-                      ? "rgba(255,77,0,0.30)"
-                      : "rgba(255,255,255,0.04)",
+                      ? "var(--color-heat-30)"
+                      : "var(--color-white-04)",
                   }}
                 />
               ))}
@@ -311,14 +311,14 @@ export function DiscoveryLayout({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--df-bg)",
       }}
     >
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 2fr", overflow: "hidden" }}>
         {/* Left: section stepper */}
         <div
           style={{
-            borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderRight: "1px solid var(--df-outline)",
             padding: "32px",
             display: "flex",
             flexDirection: "column",
@@ -337,7 +337,7 @@ export function DiscoveryLayout({
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   animation: countPulsing ? "df-counter-pulse 0.5s ease-out" : undefined,
-                  color: "var(--df-faint, rgba(227,226,226,0.38))",
+                  color: "var(--df-faint)",
                 }}
               >
                 {answeredCount} / {questions.length} questions forged
@@ -357,8 +357,8 @@ export function DiscoveryLayout({
             )}
             {(!documentId || sections.length === 0) && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 0" }}>
-                <div className="animate-df-pulse" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--df-amber-500, #ff4d00)", flexShrink: 0 }} />
-                <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))", letterSpacing: "0.12em" }}>
+                <div className="animate-df-pulse" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--df-amber-500)", flexShrink: 0 }} />
+                <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.12em" }}>
                   Analyzing your context…
                 </span>
               </div>

@@ -23,13 +23,13 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             fontSize: 22,
             fontWeight: 600,
             letterSpacing: "-0.025em",
-            color: "#e3e2e2",
+            color: "var(--df-on-surface)",
             margin: "0 0 8px",
           }}
         >
           Describe your document
         </h2>
-        <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", margin: 0 }}>
+        <p style={{ fontSize: 13, color: "var(--df-dim)", margin: 0 }}>
           Provide the problem context and your preferences. The forge will do the rest.
         </p>
       </div>
@@ -40,7 +40,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
         <div
           style={{
             background: "rgba(13,14,15,0.6)",
-            border: `1px solid ${activeField === "context" ? "rgba(255,77,0,0.35)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+            border: `1px solid ${activeField === "context" ? "var(--color-heat-35)" : "var(--df-outline)"}`,
             borderRadius: 10,
             padding: "20px 22px",
             transition: "border-color 0.15s",
@@ -49,7 +49,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 15, color: "var(--df-amber-300, #ff8d4a)" }}
+              style={{ fontSize: 15, color: "var(--df-amber-300)" }}
             >
               description
             </span>
@@ -59,7 +59,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
                 fontSize: 10,
                 letterSpacing: "0.16em",
                 textTransform: "uppercase",
-                color: "var(--df-amber-300, #ff8d4a)",
+                color: "var(--df-amber-300)",
               }}
             >
               Context
@@ -68,7 +68,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
           <p
             style={{
               fontSize: 12,
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              color: "var(--df-faint)",
               marginBottom: 12,
               lineHeight: 1.55,
               marginTop: 0,
@@ -87,11 +87,11 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
               width: "100%",
               height: 160,
               background: "rgba(0,0,0,0.25)",
-              border: `1px solid ${activeField === "context" ? "rgba(255,77,0,0.40)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+              border: `1px solid ${activeField === "context" ? "rgba(255,77,0,0.40)" : "var(--df-outline)"}`,
               borderRadius: 6,
               padding: "10px 12px",
               fontSize: 13,
-              color: "#e3e2e2",
+              color: "var(--df-on-surface)",
               fontFamily: "inherit",
               lineHeight: 1.5,
               resize: "none",
@@ -106,7 +106,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
         <div
           style={{
             background: "rgba(13,14,15,0.6)",
-            border: `1px solid ${activeField === "preferences" ? "rgba(255,77,0,0.35)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+            border: `1px solid ${activeField === "preferences" ? "var(--color-heat-35)" : "var(--df-outline)"}`,
             borderRadius: 10,
             padding: "20px 22px",
             transition: "border-color 0.15s",
@@ -115,7 +115,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 15, color: "var(--df-amber-300, #ff8d4a)" }}
+              style={{ fontSize: 15, color: "var(--df-amber-300)" }}
             >
               tune
             </span>
@@ -125,7 +125,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
                 fontSize: 10,
                 letterSpacing: "0.16em",
                 textTransform: "uppercase",
-                color: "var(--df-amber-300, #ff8d4a)",
+                color: "var(--df-amber-300)",
               }}
             >
               Preferences
@@ -134,7 +134,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
           <p
             style={{
               fontSize: 12,
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
+              color: "var(--df-faint)",
               marginBottom: 12,
               lineHeight: 1.55,
               marginTop: 0,
@@ -153,11 +153,11 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
               width: "100%",
               height: 160,
               background: "rgba(0,0,0,0.25)",
-              border: `1px solid ${activeField === "preferences" ? "rgba(255,77,0,0.40)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
+              border: `1px solid ${activeField === "preferences" ? "rgba(255,77,0,0.40)" : "var(--df-outline)"}`,
               borderRadius: 6,
               padding: "10px 12px",
               fontSize: 13,
-              color: "#e3e2e2",
+              color: "var(--df-on-surface)",
               fontFamily: "inherit",
               lineHeight: 1.5,
               resize: "none",

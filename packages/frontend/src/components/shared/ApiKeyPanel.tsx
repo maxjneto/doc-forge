@@ -92,7 +92,7 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "#e3e2e2" }}>
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--df-on-surface)" }}>
               API Keys
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: "12px", color: "rgba(200,198,197,0.5)" }}>
@@ -115,13 +115,13 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
             borderRadius: "8px",
             padding: "16px",
           }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "#FF4D00", marginBottom: "8px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--df-amber-500)", marginBottom: "8px" }}>
               Copy your key — it won't be shown again
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <code style={{
-                flex: 1, fontSize: "12px", color: "#e3e2e2",
-                background: "rgba(255,255,255,0.04)", borderRadius: "4px",
+                flex: 1, fontSize: "12px", color: "var(--df-on-surface)",
+                background: "var(--color-white-04)", borderRadius: "4px",
                 padding: "8px 10px", fontFamily: "monospace",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
@@ -133,8 +133,8 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
                   display: "inline-flex", alignItems: "center", gap: "6px",
                   padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 600,
                   border: "1px solid rgba(255,77,0,0.4)",
-                  background: copied ? "rgba(255,77,0,0.15)" : "rgba(255,77,0,0.08)",
-                  color: "#FF4D00", cursor: "pointer", whiteSpace: "nowrap",
+                  background: copied ? "var(--color-heat-15)" : "var(--color-heat-08)",
+                  color: "var(--df-amber-500)", cursor: "pointer", whiteSpace: "nowrap",
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
@@ -171,17 +171,17 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
               maxLength={100}
               style={{
                 flex: 1,
-                background: "rgba(255,255,255,0.03)",
+                background: "var(--color-white-03)",
                 border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: "6px",
                 padding: "9px 12px",
                 fontSize: "13px",
-                color: "#e3e2e2",
+                color: "var(--df-on-surface)",
                 fontFamily: "inherit",
                 outline: "none",
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(255,77,0,0.45)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-heat-border)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-white-08)"; }}
             />
             <button
               onClick={handleCreate}
@@ -190,8 +190,8 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
                 display: "inline-flex", alignItems: "center", gap: "6px",
                 padding: "9px 18px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
                 border: "1px solid rgba(255,77,0,0.5)",
-                background: (!newKeyName.trim() || creating) ? "rgba(255,77,0,0.06)" : "rgba(255,77,0,0.10)",
-                color: (!newKeyName.trim() || creating) ? "rgba(255,77,0,0.5)" : "#FF4D00",
+                background: (!newKeyName.trim() || creating) ? "var(--color-heat-bg-soft)" : "var(--color-heat-bg)",
+                color: (!newKeyName.trim() || creating) ? "rgba(255,77,0,0.5)" : "var(--df-amber-500)",
                 cursor: (!newKeyName.trim() || creating) ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
               }}
@@ -229,7 +229,7 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
                   borderRadius: "8px",
                 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#e3e2e2" }}>{key.name}</span>
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--df-on-surface)" }}>{key.name}</span>
                     <span style={{ fontSize: "11px", color: "rgba(200,198,197,0.4)" }}>
                       Created {formatDate(key.createdAt)}
                       {key.lastUsedAt ? ` · Last used ${formatDate(key.lastUsedAt)}` : " · Never used"}

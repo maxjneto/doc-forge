@@ -23,22 +23,22 @@ function getSeverityColor(severity: string): { color: string; borderColor: strin
   const s = severity?.toLowerCase();
   if (s === "high" || s === "blocker" || s === "critical") {
     return {
-      color: "var(--df-error, #e86464)",
+      color: "var(--df-error)",
       borderColor: "rgba(232,100,100,0.40)",
       bg: "rgba(232,100,100,0.08)",
     };
   }
   if (s === "medium" || s === "warn" || s === "warning") {
     return {
-      color: "var(--df-amber-300, #ff8d4a)",
-      borderColor: "rgba(255,77,0,0.30)",
-      bg: "rgba(255,77,0,0.06)",
+      color: "var(--df-amber-300)",
+      borderColor: "var(--color-heat-30)",
+      bg: "var(--color-heat-bg-soft)",
     };
   }
   return {
-    color: "var(--df-steel-100, #b9c6d4)",
-    borderColor: "var(--df-steel-border, rgba(138,160,184,0.35))",
-    bg: "var(--df-steel-bg, rgba(138,160,184,0.10))",
+    color: "var(--df-steel-100)",
+    borderColor: "var(--df-steel-border)",
+    bg: "var(--df-steel-bg)",
   };
 }
 
@@ -113,7 +113,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
         paddingTop: 56,
         display: "flex",
         flexDirection: "column",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--df-bg)",
         overflow: "hidden",
       }}
     >
@@ -122,7 +122,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
         {/* ── Left: X-ray doc preview ── */}
         <div
           style={{
-            borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderRight: "1px solid var(--df-outline)",
             padding: "32px 40px",
             overflow: "hidden",
             background:
@@ -133,11 +133,11 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
             <div>
               <div
                 className="df-mono"
-                style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)", marginBottom: 6 }}
+                style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300)", marginBottom: 6 }}
               >
                 X-ray scan · {isScanning ? "live" : hasProblems ? "complete" : "pending"}
               </div>
-              <div style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))" }}>
+              <div style={{ fontSize: 13, color: "var(--df-dim)" }}>
                 Each section is checked for cross-references and consistency.
               </div>
             </div>
@@ -150,7 +150,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
 
           <div
             style={{
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+              border: "1px solid var(--df-outline)",
               borderRadius: 10,
               background: "rgba(13,14,15,0.6)",
               padding: "22px 26px",
@@ -173,28 +173,28 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
               );
 
               const borderColor = isVerified
-                ? "var(--df-steel-border, rgba(138,160,184,0.35))"
+                ? "var(--df-steel-border)"
                 : isScanning_
-                ? "rgba(255,77,0,0.45)"
+                ? "var(--color-heat-border)"
                 : isProblem
                 ? "rgba(232,100,100,0.40)"
-                : "var(--df-outline, rgba(255,255,255,0.06))";
+                : "var(--df-outline)";
 
               const bg = isVerified
-                ? "var(--df-steel-bg, rgba(138,160,184,0.10))"
+                ? "var(--df-steel-bg)"
                 : isScanning_
-                ? "rgba(255,77,0,0.08)"
+                ? "var(--color-heat-08)"
                 : isProblem
                 ? "rgba(232,100,100,0.05)"
                 : "transparent";
 
               const labelColor = isVerified
-                ? "var(--df-steel-100, #b9c6d4)"
+                ? "var(--df-steel-100)"
                 : isScanning_
-                ? "var(--df-amber-300, #ff8d4a)"
+                ? "var(--df-amber-300)"
                 : isProblem
-                ? "var(--df-error, #e86464)"
-                : "var(--df-mute, rgba(227,226,226,0.18))";
+                ? "var(--df-error)"
+                : "var(--df-mute)";
 
               const statusText = isVerified
                 ? hasSectionBlocker
@@ -211,10 +211,10 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
               const skelBg = isVerified
                 ? "rgba(138,160,184,0.20)"
                 : isScanning_
-                ? "rgba(255,77,0,0.20)"
+                ? "var(--color-heat-20)"
                 : isProblem
                 ? "rgba(232,100,100,0.18)"
-                : "rgba(255,255,255,0.04)";
+                : "var(--color-white-04)";
 
               return (
                 <div
@@ -296,7 +296,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
               >
                 <span
                   className="df-mono"
-                  style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+                  style={{ fontSize: 11, color: "var(--df-faint)" }}
                 >
                   No sections to scan
                 </span>
@@ -324,12 +324,12 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                   fontWeight: 600,
                   letterSpacing: "-0.02em",
                   margin: "0 0 4px",
-                  color: "#e3e2e2",
+                  color: "var(--df-on-surface)",
                 }}
               >
                 Audit{hasProblems ? ` · ${auditProblems.length} findings` : ""}
               </h2>
-              <div style={{ fontSize: 12.5, color: "var(--df-dim, rgba(227,226,226,0.62))" }}>
+              <div style={{ fontSize: 12.5, color: "var(--df-dim)" }}>
                 {hasProblems
                   ? "Review each finding. Fix in place opens the workspace with the issue pre-quoted."
                   : "Running the coherence audit across all sections."}
@@ -369,7 +369,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                     position: "absolute",
                     inset: 12,
                     borderRadius: "50%",
-                    background: "rgba(255,77,0,0.20)",
+                    background: "var(--color-heat-20)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -377,20 +377,20 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                 >
                   <span
                     className="material-symbols-outlined"
-                    style={{ color: "var(--df-amber-300, #ff8d4a)", fontSize: 18 }}
+                    style={{ color: "var(--df-amber-300)", fontSize: 18 }}
                   >
                     verified
                   </span>
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 6px", color: "#e3e2e2" }}>
+                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 6px", color: "var(--df-on-surface)" }}>
                   Running audit
                 </p>
                 <p
                   key={auditStep}
                   className="animate-fade-in df-mono"
-                  style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))", letterSpacing: "0.06em" }}
+                  style={{ fontSize: 11, color: "var(--df-faint)", letterSpacing: "0.06em" }}
                 >
                   {AUDIT_STEPS[auditStep]}
                 </p>
@@ -409,15 +409,15 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                 ].map(({ label, count, cls }) => {
                   const style =
                     cls === "blocker"
-                      ? { borderLeft: "2px solid var(--df-error, #e86464)", labelColor: "var(--df-error, #e86464)" }
+                      ? { borderLeft: "2px solid var(--df-error)", labelColor: "var(--df-error)" }
                       : cls === "warn"
-                      ? { borderLeft: "2px solid var(--df-amber-300, #ff8d4a)", labelColor: "var(--df-amber-300, #ff8d4a)" }
-                      : { borderLeft: "2px solid var(--df-steel-200, #8aa0b8)", labelColor: "var(--df-steel-100, #b9c6d4)" };
+                      ? { borderLeft: "2px solid var(--df-amber-300)", labelColor: "var(--df-amber-300)" }
+                      : { borderLeft: "2px solid var(--df-steel-200)", labelColor: "var(--df-steel-100)" };
                   return (
                     <div
                       key={cls}
                       style={{
-                        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                        border: "1px solid var(--df-outline)",
                         borderLeft: style.borderLeft,
                         borderRadius: 8,
                         padding: "10px 14px",
@@ -433,7 +433,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                       </div>
                       <div
                         className="df-mono"
-                        style={{ fontSize: 22, fontWeight: 600, color: "#e3e2e2", letterSpacing: "-0.03em", marginTop: 4 }}
+                        style={{ fontSize: 22, fontWeight: 600, color: "var(--df-on-surface)", letterSpacing: "-0.03em", marginTop: 4 }}
                       >
                         {count}
                       </div>
@@ -448,7 +448,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                   <div
                     key={section}
                     style={{
-                      border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                      border: "1px solid var(--df-outline)",
                       borderRadius: 10,
                       background: "rgba(18,20,20,0.5)",
                       overflow: "hidden",
@@ -458,7 +458,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                       style={{
                         padding: "10px 16px",
                         background: "rgba(255,255,255,0.02)",
-                        borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                        borderBottom: "1px solid var(--df-outline)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -466,13 +466,13 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                     >
                       <span
                         className="df-mono"
-                        style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)" }}
+                        style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-amber-300)" }}
                       >
                         › {section}
                       </span>
                       <span
                         className="df-mono"
-                        style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+                        style={{ fontSize: 10, color: "var(--df-faint)" }}
                       >
                         {problems.length} finding{problems.length > 1 ? "s" : ""}
                       </span>
@@ -488,7 +488,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                             padding: "12px 16px",
                             borderBottom:
                               idx < problems.length - 1
-                                ? "1px solid var(--df-outline, rgba(255,255,255,0.06))"
+                                ? "1px solid var(--df-outline)"
                                 : "none",
                             display: "grid",
                             gridTemplateColumns: "70px 1fr auto",
@@ -512,7 +512,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                             {label}
                           </span>
                           <div
-                            style={{ fontSize: 12.5, color: "var(--df-on-surface-soft, #c6c5c4)", lineHeight: 1.55 }}
+                            style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.55 }}
                           >
                             {problem.issue}
                           </div>
