@@ -8,7 +8,9 @@ version = "0.1.0"
 description = "MCP server for DocForge — lets AI agents read and write to shared live documents"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=1.0",
+    # This server uses the v1 FastMCP API (`mcp.server.fastmcp`). MCP v2
+    # removed that import path, so keep the upper bound explicit.
+    "mcp>=1.27,<2",
     "httpx>=0.27",
     "uvicorn[standard]>=0.30",
     "starlette>=0.40",

@@ -216,3 +216,20 @@ async def submit_step(document_id: str, payload: dict[str, Any]) -> dict[str, An
 
 def document_url(document_id: str) -> str:
     return f"{FRONTEND_BASE}/document/{document_id}"
+
+
+# ─── Artifacts ────────────────────────────────────────────────────
+
+
+async def list_artifacts(document_id: str) -> list[dict[str, Any]]:
+    data = await _get(f"/documents/{document_id}/artifacts")
+    return data.get("artifacts", [])
+
+
+async def create_artifact(
+    document_id: str, key: str, kind: str, title: str, content: str
+) -> dict[str, Any]:
+    return await _post(
+        f"/documents/{document_id}/artifacts",
+        {"key": key, "kind": kind, "title": title, "content": content},
+    )

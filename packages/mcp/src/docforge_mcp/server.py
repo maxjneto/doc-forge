@@ -702,6 +702,73 @@ async def submit_step(document_id: str, payload: dict[str, Any], *, ctx: Context
 
 # ─── Quality gate (agent-run — free; 'CI for documents') ─────
 
+# ─── Artifacts (the apparatus around the text) ───────────────
+
+
+@mcp.tool()
+async def list_artifacts(document_id: str, *, ctx: Context) -> str:
+    """List the diagrams, tables and decision notes attached to a document.
+    Shows whether each one is anchored in the text and who created it.
+
+    Args:
+        document_id: Document UUID.
+    """
+    _use_api_key(ctx)
+    artifacts = await api.list_artifacts(document_id)
+    if not artifacts:
+        return "No artifacts yet. Use create_artifact to attach a diagram, table or decision note."
+    lines = []
+    for a in artifacts:
+        where = "anchored" if a.get("anchored") else "NOT anchored in the text"
+        lines.append(
+            f"- [{a['kind']}] {a['title']} (key={a['key']}, {where}) "
+            f"by {a.get('author') or 'unknown'}"
+        )
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def create_artifact(
+    document_id: str,
+    key: str,
+    kind: str,
+    title: str,
+    content: str,
+    *,
+    ctx: Context,
+) -> str:
+    """Attach supporting material to a document: a diagram, a table, or a
+    decision note. This is where the reasoning around a change belongs — the
+    human reviews it next to the diff instead of losing it in your terminal.
+
+    Attach one when it changes the reviewer's decision, not to show your work.
+
+    After creating it, put the returned directive line into the document body
+    (write_section / patch_section) at the point where it should appear. An
+    artifact with no directive pointing at it shows as "no anchor".
+
+    Args:
+        document_id: Document UUID.
+        key: Short slug used to reference it, e.g. 'host-cycle'. Lowercase,
+            digits and hyphens only. Unique within the document.
+        kind: One of 'diagram', 'table', 'decision'.
+        title: Human-readable title shown in the panel.
+        content: Markdown. For a diagram use a ```mermaid fence — the browser
+            renders it.
+    """
+    _use_api_key(ctx)
+    if kind not in ("diagram", "table", "decision"):
+        raise DocForgeError(
+            f"kind must be 'diagram', 'table' or 'decision' (got {kind!r})."
+        )
+    artifact = await api.create_artifact(document_id, key, kind, title, content)
+    return (
+        f"Artifact '{artifact['title']}' created ({artifact['kind']}).\n"
+        f"Anchor it by inserting this line into the body where it belongs:\n\n"
+        f"    ::artefato[{artifact['key']}]\n"
+    )
+
+
 @mcp.tool()
 async def get_quality_gate(document_id: str, *, ctx: Context) -> str:
     """Quality gate status + everything you need to run the audit yourself.
@@ -750,6 +817,11 @@ async def submit_quality_findings(document_id: str, findings_json: str, *, ctx: 
         findings_json: JSON array like
             '[{"section_type": "risks", "description": "...", "severity": "high"}]'.
             Empty array '[]' means the document passed your audit.
+            Include "quote" with the exact offending phrase whenever the
+            finding is about specific words — the browser underlines it in
+            place, which is far more useful to the reviewer than naming a
+            section. Add "category" for a short label ("coherence", "scope",
+            "terminology").
     """
     _use_api_key(ctx)
     try:
