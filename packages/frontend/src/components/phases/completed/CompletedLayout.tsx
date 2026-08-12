@@ -23,11 +23,10 @@ const SECTION_HEADINGS: Record<SectionType, string> = {
 
 interface ExportMenuProps {
   documentId: string;
-  onExportMarkdown: () => void;
   onClose: () => void;
 }
 
-function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) {
+function ExportMenu({ documentId, onClose }: ExportMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -62,7 +61,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
       icon: "code",
       label: "Markdown",
       sub: ".MD FILE",
-      onClick: () => { onExportMarkdown(); onClose(); },
+      onClick: () => handleBackendExport("md"),
       primary: true,
       enabled: true,
     },
@@ -409,20 +408,6 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
     setEditedContent((prev) => ({ ...prev, [type]: content }));
   };
 
-  const handleExportMarkdown = () => {
-    const markdown = SECTION_ORDER
-      .map((type) => `## ${SECTION_HEADINGS[type]}\n\n${editedContent[type]}`)
-      .join("\n\n");
-    const blob = new Blob([markdown], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `document-${documentId}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-    posthog.capture("document_exported", { document_id: documentId, export_format: "markdown" });
-  };
-
   return (
     <div
       style={{
@@ -542,7 +527,6 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                 {showExportMenu && (
                   <ExportMenu
                     documentId={documentId}
-                    onExportMarkdown={handleExportMarkdown}
                     onClose={() => setShowExportMenu(false)}
                   />
                 )}

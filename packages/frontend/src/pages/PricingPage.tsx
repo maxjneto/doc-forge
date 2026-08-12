@@ -80,7 +80,7 @@ export function PricingPage() {
               color: "#e3e2e2",
             }}
           >
-            Workflow access, with credits only for hosted AI.
+            Capacity for durable document workflows.
           </h1>
           <p
             style={{
@@ -91,7 +91,7 @@ export function PricingPage() {
               margin: "0 auto",
             }}
           >
-            Credits pay only for hosted AI runs. Editor documents and workflows run by your own MCP agent do not consume credits.
+            Each plan includes weekly document creations and active-document capacity. Edit, review, and publish existing documents without metering.
           </p>
         </div>
 
@@ -220,7 +220,7 @@ export function PricingPage() {
             color: "var(--df-mute)",
           }}
         >
-          Pricing details are subject to change during beta. Weekly allowances renew every Monday at 00:00 UTC.
+          Pricing details are subject to change during beta. Weekly document creations renew every Monday at 00:00 UTC.
         </p>
       </main>
 

@@ -128,11 +128,10 @@ export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeN
 
 interface ExportMenuProps {
   documentId: string;
-  onExportMarkdown: () => void;
   onClose: () => void;
 }
 
-function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) {
+function ExportMenu({ documentId, onClose }: ExportMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
   const { t } = useI18n();
@@ -163,7 +162,7 @@ function ExportMenu({ documentId, onExportMarkdown, onClose }: ExportMenuProps) 
   }
 
   const items: { key: string; icon: string; label: string; sub: string; onClick: () => void; enabled: boolean }[] = [
-    { key: "md", icon: "code", label: "Markdown", sub: ".MD FILE", onClick: () => { onExportMarkdown(); onClose(); }, enabled: true },
+    { key: "md", icon: "code", label: "Markdown", sub: busy === "md" ? t("editor.exporting").toUpperCase() : ".MD · PRO", onClick: () => handleBackendExport("md"), enabled: busy === null },
     { key: "pdf", icon: "picture_as_pdf", label: "PDF", sub: busy === "pdf" ? t("editor.exporting").toUpperCase() : ".PDF · PRO", onClick: () => handleBackendExport("pdf"), enabled: busy === null },
     { key: "docx", icon: "description", label: "Word", sub: busy === "docx" ? t("editor.exporting").toUpperCase() : ".DOCX · PRO", onClick: () => handleBackendExport("docx"), enabled: busy === null },
   ];
@@ -237,7 +236,6 @@ interface EditorNavPanelProps {
   /** Pending items per section slug — rendered as a heat-coloured tally. */
   counts?: SectionCounts;
   onNavigate: (slug: string) => void;
-  onExport: () => void;
   activitySlot?: React.ReactNode;
 }
 
@@ -247,7 +245,6 @@ export function EditorNavPanel({
   activeSlug,
   counts = {},
   onNavigate,
-  onExport,
   activitySlot,
 }: EditorNavPanelProps) {
   const { t } = useI18n();
@@ -313,7 +310,6 @@ export function EditorNavPanel({
         {showExportMenu && (
           <ExportMenu
             documentId={documentId}
-            onExportMarkdown={onExport}
             onClose={() => setShowExportMenu(false)}
           />
         )}

@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import type { Document, Folder, SharedDocument } from "@/types";
 import {
-  API_BASE,
-  mapDocument,
+  apiListDocuments,
   apiFetchMe,
   apiUpdateDocumentTitle,
   apiFetchSharedDocuments,
   apiMoveDocument,
   apiCreateFolder,
   apiUpdateFolder,
+  apiSetDocumentArchived,
 } from "@/utils/api";
 import { TopBar, NewDocumentDialog } from "@/components/shared";
 import {
@@ -30,14 +30,14 @@ export function HomePage() {
   const { getToken } = useAuth();
   const { t } = useI18n();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [credits, setCredits] = useState<number | undefined>(undefined);
-  const [weeklyCredits, setWeeklyCredits] = useState<number>(5);
-  const [guidedCost, setGuidedCost] = useState<number>(3);
+  const [documentCreations, setDocumentCreations] = useState<number | undefined>(undefined);
+  const [weeklyDocumentCreations, setWeeklyDocumentCreations] = useState<number>(5);
   const [error, setError] = useState<string | null>(null);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
   const [search, setSearch] = useState("");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [showingShared, setShowingShared] = useState(false);
+  const [showingArchived, setShowingArchived] = useState(false);
   const [shared, setShared] = useState<SharedDocument[]>([]);
   const [folderTick, setFolderTick] = useState(0);
   const [sharing, setSharing] = useState<Document | null>(null);
@@ -58,6 +58,16 @@ export function HomePage() {
   const handleRename = async (docId: string, title: string) => {
     await apiUpdateDocumentTitle(docId, title, getToken);
     setDocuments((prev) => prev.map((d) => (d.id === docId ? { ...d, title } : d)));
+  };
+
+  const handleArchive = async (docId: string) => {
+    await apiSetDocumentArchived(docId, true, getToken);
+    setDocuments((prev) => prev.map((doc) => (doc.id === docId ? { ...doc, archivedAt: new Date().toISOString() } : doc)));
+  };
+
+  const handleRestore = async (docId: string) => {
+    await apiSetDocumentArchived(docId, false, getToken);
+    setDocuments((prev) => prev.map((doc) => (doc.id === docId ? { ...doc, archivedAt: null } : doc)));
   };
 
   const handleCreateFolder = async (name: string) => {
@@ -93,12 +103,7 @@ export function HomePage() {
   useEffect(() => {
     async function fetchDocs() {
       try {
-        const token = await getToken();
-        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(`${API_BASE}/documents`, { headers });
-        if (!res.ok) throw new Error("Failed to fetch documents");
-        const data = await res.json();
-        setDocuments((data.documents as Record<string, unknown>[]).map(mapDocument));
+        setDocuments(await apiListDocuments(getToken, true));
       } catch (err) {
         setError(err instanceof Error ? err.message : t("folder.loadError"));
       }
@@ -106,9 +111,8 @@ export function HomePage() {
     async function fetchUser() {
       try {
         const user = await apiFetchMe(getToken);
-        setCredits(user.credits);
-        setWeeklyCredits(user.weekly_credits);
-        setGuidedCost(user.credit_costs.guided_document);
+        setDocumentCreations(user.document_creations_remaining);
+        setWeeklyDocumentCreations(user.weekly_document_creations);
       } catch {
         // non-critical
       }
@@ -126,9 +130,9 @@ export function HomePage() {
   }, [getToken]);
 
   const libraryCounts = useMemo(() => ({
-    all: documents.length,
-    drafts: documents.filter((doc) => doc.documentMode !== "guided" && (!doc.publishedAt || doc.hasUnpublishedChanges)).length,
-    published: documents.filter((doc) => Boolean(doc.publishedAt)).length,
+    all: documents.filter((doc) => !doc.archivedAt).length,
+    drafts: documents.filter((doc) => !doc.archivedAt && doc.documentMode !== "guided" && (!doc.publishedAt || doc.hasUnpublishedChanges)).length,
+    published: documents.filter((doc) => !doc.archivedAt && Boolean(doc.publishedAt)).length,
   }), [documents]);
 
   const breadcrumb = useMemo(() => {
@@ -153,19 +157,20 @@ export function HomePage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return documents.filter((d) => {
+      if (showingArchived !== Boolean(d.archivedAt)) return false;
       if (libraryView === "all" && d.folderId !== folderId) return false;
       if (libraryView === "drafts" && (d.documentMode === "guided" || (d.publishedAt && !d.hasUnpublishedChanges))) return false;
       if (libraryView === "published" && !d.publishedAt) return false;
       if (q && !d.title.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [documents, search, folderId, libraryView]);
+  }, [documents, search, folderId, libraryView, showingArchived]);
 
   const visibleFolders = useMemo(() => {
-    if (showingShared || libraryView !== "all") return [];
+    if (showingShared || showingArchived || libraryView !== "all") return [];
     const q = search.trim().toLowerCase();
     return childFolders.filter((folder) => !q || folder.name.toLowerCase().includes(q));
-  }, [childFolders, libraryView, search, showingShared]);
+  }, [childFolders, libraryView, search, showingShared, showingArchived]);
 
   return (
     <div
@@ -179,7 +184,7 @@ export function HomePage() {
       }}
     >
       <TopBar
-        credits={credits}
+        credits={documentCreations}
         dashboardNav
       />
       <FolderDragOverlay />
@@ -203,7 +208,7 @@ export function HomePage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {credits !== undefined && (
+            {documentCreations !== undefined && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                 <span
                   className="df-mono"
@@ -214,14 +219,14 @@ export function HomePage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  {t("dashboard.creditsRemaining")}
+                  Document creations
                 </span>
                 <span
                   className="df-mono"
                   style={{ fontSize: 12, color: "var(--df-amber-300)", letterSpacing: "0.04em" }}
                 >
-                  <b>{credits}</b>
-                  <span style={{ color: "var(--df-dim)" }}> {t("dashboard.creditsThisWeek", { total: weeklyCredits })}</span>
+                  <b>{documentCreations}</b>
+                  <span style={{ color: "var(--df-dim)" }}> of {weeklyDocumentCreations} this week</span>
                 </span>
               </div>
             )}
@@ -257,6 +262,7 @@ export function HomePage() {
               setFolderId(id);
               setLibraryView("all");
               setShowingShared(false);
+              setShowingArchived(false);
             }}
             refreshTick={folderTick}
             sharedCount={shared.length}
@@ -264,6 +270,7 @@ export function HomePage() {
             onSelectShared={() => {
               setShowingShared(true);
               setFolderId(null);
+              setShowingArchived(false);
             }}
             onFoldersChange={setFolders}
             activeView={libraryView}
@@ -271,6 +278,7 @@ export function HomePage() {
               setLibraryView(view);
               setFolderId(null);
               setShowingShared(false);
+              setShowingArchived(false);
             }}
             viewCounts={libraryCounts}
           />
@@ -279,13 +287,14 @@ export function HomePage() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minHeight: 26, marginBottom: 10, color: "var(--df-faint)", fontSize: 11.5 }}>
               <button
-                onClick={() => { setFolderId(null); setLibraryView("all"); setShowingShared(false); }}
+                onClick={() => { setFolderId(null); setLibraryView("all"); setShowingShared(false); setShowingArchived(false); }}
                 style={{ padding: 0, border: 0, background: "transparent", color: breadcrumb.length ? "var(--df-faint)" : "var(--df-on-surface)", font: "inherit", cursor: "pointer" }}
               >
                 {t("dashboard.libraryShort")}
               </button>
               {!showingShared && libraryView !== "all" && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>{libraryView === "drafts" ? t("dashboard.drafts") : t("common.published")}</span></>}
               {showingShared && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>{t("dashboard.sharedWithMe")}</span></>}
+              {showingArchived && <><span>/</span><span style={{ color: "var(--df-on-surface)" }}>Archive</span></>}
               {!showingShared && breadcrumb.map((folder, index) => (
                 <span key={folder.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <span>/</span>
@@ -304,6 +313,8 @@ export function HomePage() {
                 <h2 style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--df-on-surface)" }}>
                   {showingShared
                     ? t("dashboard.sharedDocuments")
+                    : showingArchived
+                      ? "Archived documents"
                     : folderId
                       ? t("dashboard.folderContent")
                       : libraryView === "drafts"
@@ -319,10 +330,19 @@ export function HomePage() {
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {!showingShared && (
+                  <button
+                    onClick={() => { setShowingArchived((value) => !value); setFolderId(null); setLibraryView("all"); }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 9px", border: "1px solid var(--df-outline)", borderRadius: 6, background: showingArchived ? "var(--color-white-08)" : "var(--color-white-03)", color: "var(--df-dim)", font: "inherit", fontSize: 11, cursor: "pointer" }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>archive</span>
+                    {showingArchived ? "Active documents" : "Archive"}
+                  </button>
+                )}
                 <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
                   {showingShared ? shared.length : filtered.length + visibleFolders.length} {t((showingShared ? shared.length : filtered.length + visibleFolders.length) === 1 ? "common.item" : "common.items")}
                 </span>
-                {!showingShared && libraryView === "all" && (
+                {!showingShared && !showingArchived && libraryView === "all" && (
                   <button
                     onClick={() => setCreatingFolder(true)}
                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 9px", border: "1px solid var(--df-outline)", borderRadius: 6, background: "var(--color-white-03)", color: "var(--df-dim)", font: "inherit", fontSize: 11, cursor: "pointer" }}
@@ -397,7 +417,7 @@ export function HomePage() {
                 <span />
               </div>
 
-              {creatingFolder && !showingShared && libraryView === "all" && (
+              {creatingFolder && !showingShared && !showingArchived && libraryView === "all" && (
                 <div style={{ display: "grid", gridTemplateColumns: "22px minmax(0,1fr) 280px 130px 130px", alignItems: "center", gap: 16, minHeight: 67, padding: "12px 22px", borderTop: "1px solid var(--df-outline)", background: "var(--color-white-03)" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 21, color: "var(--df-amber-300)", fontVariationSettings: "'FILL' 1" }}>folder</span>
                   <input
@@ -456,7 +476,9 @@ export function HomePage() {
                     onRename={handleRename}
                     onShare={() => setSharing(doc)}
                     onMoveToFolder={(target) => void handleMove(doc.id, target)}
-                    onRequestMove={() => setMovingDocument(doc)}
+                  onRequestMove={showingArchived ? undefined : () => setMovingDocument(doc)}
+                  onArchive={showingArchived ? undefined : () => { void handleArchive(doc.id); }}
+                  onRestore={showingArchived ? () => { void handleRestore(doc.id); } : undefined}
                   />
                 ))}
 
@@ -508,7 +530,7 @@ export function HomePage() {
       )}
 
       {showNewDocDialog && (
-        <NewDocumentDialog credits={credits} guidedCost={guidedCost} onClose={() => setShowNewDocDialog(false)} />
+        <NewDocumentDialog remaining={documentCreations} weeklyLimit={weeklyDocumentCreations} onClose={() => setShowNewDocDialog(false)} />
       )}
     </div>
   );

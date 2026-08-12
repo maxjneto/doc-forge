@@ -33,7 +33,7 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     id: String(raw.id),
     title: raw.title as string,
     currentPhase: raw.current_phase as Document["currentPhase"],
-    documentMode: (raw.document_mode as Document["documentMode"]) ?? "guided",
+    documentMode: (raw.document_mode as Document["documentMode"]) ?? "editor",
     agentWritePolicy: (raw.agent_write_policy as Document["agentWritePolicy"]) ?? "suggest",
     globalContext: (raw.global_context as string) ?? null,
     userPreferences: (raw.user_preferences as string) ?? null,
@@ -45,6 +45,7 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     publishedVersionId: (raw.published_version_id as string | null) ?? null,
     publishedAt: (raw.published_at as string | null) ?? null,
     hasUnpublishedChanges: Boolean(raw.has_unpublished_changes),
+    archivedAt: (raw.archived_at as string | null) ?? null,
   };
 }
 
@@ -128,7 +129,8 @@ export interface Tier {
   limits: {
     maxActiveDocuments: number | null;
     maxApiKeys: number | null;
-    weeklyCredits: number | null;
+    weeklyDocumentCreations: number | null;
+    exportFormats: ExportFormat[];
   };
   cta: string;
   highlight: boolean;
@@ -151,7 +153,8 @@ export async function apiFetchTiers(): Promise<Tier[]> {
       limits: {
         maxActiveDocuments: (limits.max_active_documents as number) ?? null,
         maxApiKeys: (limits.max_api_keys as number) ?? null,
-        weeklyCredits: (limits.weekly_credits as number) ?? null,
+        weeklyDocumentCreations: (limits.weekly_document_creations as number) ?? null,
+        exportFormats: (limits.export_formats as ExportFormat[]) ?? [],
       },
       cta: raw.cta as string,
       highlight: Boolean(raw.highlight),
@@ -192,15 +195,11 @@ export interface CurrentUser {
   id: string;
   email: string;
   name: string | null;
-  credits: number;
-  weekly_credits: number;
+  document_creations_remaining: number;
+  weekly_document_creations: number;
   plan: string;
-  credits_reset_at: string | null;
-  next_credit_reset_at: string;
-  credit_costs: {
-    guided_document: number;
-    quality_gate: number;
-  };
+  document_creations_reset_at: string | null;
+  next_document_creations_reset_at: string;
 }
 
 export async function apiFetchMe(getToken: GetToken): Promise<CurrentUser> {
@@ -211,8 +210,9 @@ export async function apiFetchMe(getToken: GetToken): Promise<CurrentUser> {
   return res.json() as Promise<CurrentUser>;
 }
 
-export async function apiListDocuments(getToken: GetToken): Promise<Document[]> {
-  const res = await fetch(`${API_BASE}/documents`, {
+export async function apiListDocuments(getToken: GetToken, includeArchived = false): Promise<Document[]> {
+  const search = includeArchived ? "?include_archived=true" : "";
+  const res = await fetch(`${API_BASE}/documents${search}`, {
     headers: await authHeaders(getToken),
   });
   if (!res.ok) throw new Error("Failed to fetch documents");
@@ -224,8 +224,8 @@ export type ExportFormat = "md" | "pdf" | "docx";
 
 /**
  * Fetch a document export from the backend and trigger a browser download.
- * Markdown is free; PDF/DOCX return 403 for free-plan users (surfaced as an
- * Error the caller can show).
+ * All formats require an authenticated Pro account; the backend is the only
+ * download path so plan enforcement cannot be bypassed in the browser.
  */
 export async function apiExportDocument(
   documentId: string,
@@ -272,10 +272,10 @@ export async function apiCreateDocument(
       document_context: documentContext || null,
       user_preferences: userPreferences ?? null,
       document_type_slug: documentTypeSlug ?? null,
-      mode: mode ?? "guided",
+      mode: mode ?? "editor",
     }),
   });
-  if (res.status === 402) throw new Error("INSUFFICIENT_CREDITS");
+  if (res.status === 429) throw new Error("WEEKLY_DOCUMENT_LIMIT_REACHED");
   if (!res.ok) throw new Error("Failed to create document");
   return mapDocument(await res.json());
 }
@@ -1169,6 +1169,22 @@ export async function apiSetPublicLink(
   );
   if (!res.ok) throw new Error("Failed to update public link");
   return await res.json();
+}
+
+export async function apiSetDocumentArchived(
+  documentId: string,
+  archived: boolean,
+  getToken: GetToken,
+): Promise<Document> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/${archived ? "archive" : "restore"}`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to update document archive state");
+  }
+  return mapDocument(await res.json());
 }
 
 export async function apiGetPublicLink(

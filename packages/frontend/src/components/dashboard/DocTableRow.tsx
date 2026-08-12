@@ -55,6 +55,8 @@ export function DocTableRow({
   onShare,
   onMoveToFolder,
   onRequestMove,
+  onArchive,
+  onRestore,
 }: {
   doc: Document;
   onClick: () => void;
@@ -63,6 +65,8 @@ export function DocTableRow({
   /** Called when the row is dropped on a folder in the rail. */
   onMoveToFolder?: (folderId: string | null) => void;
   onRequestMove?: () => void;
+  onArchive?: () => void;
+  onRestore?: () => void;
 }) {
   const { t, dateLocale } = useI18n();
   const [renaming, setRenaming] = useState(false);
@@ -318,6 +322,28 @@ export function DocTableRow({
             <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
               person_add
             </span>
+          </button>
+        )}
+        {onArchive && (
+          <button
+            data-no-document-drag
+            onClick={(e) => { e.stopPropagation(); onArchive(); }}
+            title="Archive document"
+            aria-label="Archive document"
+            style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--df-outline-md)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>archive</span>
+          </button>
+        )}
+        {onRestore && (
+          <button
+            data-no-document-drag
+            onClick={(e) => { e.stopPropagation(); onRestore(); }}
+            title="Restore document"
+            aria-label="Restore document"
+            style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--df-outline-md)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>unarchive</span>
           </button>
         )}
         <span

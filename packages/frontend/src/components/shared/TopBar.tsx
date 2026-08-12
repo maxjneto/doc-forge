@@ -399,7 +399,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
               padding: "4px 10px",
             }}
           >
-            CREDITS ·{" "}
+            CREATIONS ·{" "}
             <b style={{ color: "var(--df-amber-300)" }}>{credits}</b>
           </span>
         ) : null}

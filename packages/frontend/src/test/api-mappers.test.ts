@@ -29,6 +29,7 @@ describe("API response mappers", () => {
       createdAt: "2025-01-01T00:00:00Z",
       updatedAt: "2025-01-02T00:00:00Z",
       hasApiKeyActivity: false,
+      archivedAt: null,
       folderId: null,
       lastApiKeyName: null,
       publishedVersionId: null,

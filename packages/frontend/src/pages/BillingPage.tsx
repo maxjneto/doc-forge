@@ -83,8 +83,8 @@ export function BillingPage() {
     }
   }
 
-  const nextReset = usage?.user.next_credit_reset_at
-    ? new Date(usage.user.next_credit_reset_at).toLocaleString(dateLocale, {
+  const nextReset = usage?.user.next_document_creations_reset_at
+    ? new Date(usage.user.next_document_creations_reset_at).toLocaleString(dateLocale, {
         weekday: "long",
         day: "2-digit",
         month: "short",
@@ -119,11 +119,11 @@ export function BillingPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
             <UsageCard
               icon="bolt"
-              label={t("billing.credits")}
-              value={usage ? t("billing.creditsRemaining", { current: usage.user.credits, total: usage.user.weekly_credits }) : t("common.loading")}
+              label="Document creations"
+              value={usage ? `${usage.user.document_creations_remaining} of ${usage.user.weekly_document_creations} remaining` : t("common.loading")}
               detail={nextReset ? t("billing.nextReset", { date: nextReset }) : undefined}
-              current={usage?.user.credits}
-              limit={usage?.user.weekly_credits}
+              current={usage?.user.document_creations_remaining}
+              limit={usage?.user.weekly_document_creations}
             />
             <UsageCard
               icon="description"

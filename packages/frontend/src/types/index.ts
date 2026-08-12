@@ -31,6 +31,7 @@ export interface Document {
   publishedVersionId?: string | null;
   publishedAt?: string | null;
   hasUnpublishedChanges?: boolean;
+  archivedAt?: string | null;
 }
 
 // ─── Sections ────────────────────────────────────────────────

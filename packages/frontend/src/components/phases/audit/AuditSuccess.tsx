@@ -1,4 +1,6 @@
+import { useAuth } from "@clerk/clerk-react";
 import type { Section } from "@/types";
+import { apiExportDocument } from "@/utils/api";
 
 interface AuditSuccessProps {
   documentId: string;
@@ -6,20 +8,8 @@ interface AuditSuccessProps {
 }
 
 export function AuditSuccess({ documentId, sections }: AuditSuccessProps) {
-  const handleExport = () => {
-    const content = sections
-      .map((s) => s.activeVersionContent ?? "")
-      .filter(Boolean)
-      .join("\n\n---\n\n");
-
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `rfc-${documentId}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const { getToken } = useAuth();
+  const handleExport = () => void apiExportDocument(documentId, "md", getToken);
 
   return (
     <div className="h-full pt-[64px] flex flex-col items-center px-6 overflow-y-auto">

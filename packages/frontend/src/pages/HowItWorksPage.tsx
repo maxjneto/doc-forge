@@ -1,115 +1,63 @@
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import {
-  MarketingNav,
-  TrackPickerCards,
-  ScrollNarratedPhases,
-  McpStepBlocks,
-} from "@/components/marketing";
+
+import { MarketingNav } from "@/components/marketing";
 import { AppFooter, TopBar } from "@/components/shared";
-import { useI18n } from "@/i18n";
+
+const STEPS = [
+  ["01", "Create or connect", "Start a Markdown document in DocForge, or let any MCP-compatible agent create one from your workflow."],
+  ["02", "Work with real context", "Your agent uses its own model and tools to read code, talk to you, and follow the document templates you choose."],
+  ["03", "Review every change", "Keep agent writes as suggestions when you need approval. Compare changes, leave feedback, and save named checkpoints."],
+  ["04", "Publish a stable version", "Publish intentionally. New edits become a draft, so your public link keeps serving the version you approved."],
+];
 
 export function HowItWorksPage() {
-  const { hash } = useLocation();
   const { isSignedIn } = useAuth();
-  const { t } = useI18n();
 
   useEffect(() => {
     document.body.style.overflow = "auto";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, []);
 
-  useEffect(() => {
-    if (!hash) return;
-    const id = hash.replace(/^#/, "");
-    requestAnimationFrame(() => {
-      const el = document.getElementById(id);
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }, [hash]);
-
   return (
-    <div
-      className="hide-scrollbar"
-      style={{
-        background: "#050608",
-        color: "#e3e2e2",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: "'Inter', sans-serif",
-        position: "relative",
-      }}
-    >
-      {isSignedIn && <TopBar dashboardNav />}
-      <Ambient />
-
-      <div style={{ position: "relative", zIndex: 1, paddingTop: isSignedIn ? 56 : 0 }}>
-        {!isSignedIn && <MarketingNav active="how-it-works" />}
-
-        {/* Hero */}
-        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 56px 60px", textAlign: "center" }}>
-          <span className="df-pill df-pill-ghost">{t("how.badge")}</span>
-          <h1
-            style={{
-              fontSize: "clamp(34px, 4.5vw, 54px)",
-              fontWeight: 600,
-              letterSpacing: "-0.035em",
-              lineHeight: 1.05,
-              margin: "18px auto 18px",
-              maxWidth: 820,
-            }}
-          >
-            {t("how.title")}
-            <br />
-            <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>{t("how.titleAccent")}</em>
+    <div className="hide-scrollbar" style={{ background: "#050608", color: "var(--df-on-surface)", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
+      {isSignedIn ? <TopBar dashboardNav /> : <MarketingNav active="how-it-works" />}
+      <main style={{ maxWidth: 1050, margin: "0 auto", padding: isSignedIn ? "130px 56px 90px" : "90px 56px" }}>
+        <header style={{ maxWidth: 760, marginBottom: 70 }}>
+          <span className="df-pill df-pill-ghost">HOW IT WORKS</span>
+          <h1 style={{ fontSize: "clamp(38px, 6vw, 64px)", lineHeight: 1, letterSpacing: "-.05em", margin: "20px 0" }}>
+            Your agents write.<br /><span style={{ color: "var(--df-amber-300)" }}>You stay in control.</span>
           </h1>
-          <p style={{ fontSize: 16, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 580, margin: "0 auto" }}>
-            {t("how.description")}
+          <p style={{ color: "var(--df-dim)", fontSize: 17, lineHeight: 1.65, margin: 0 }}>
+            DocForge is the durable workspace for documents made with people and agents: write, review, organize, and publish without giving up ownership of the workflow.
           </p>
+        </header>
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 76 }}>
+          {STEPS.map(([number, title, body]) => <article key={number} style={{ border: "1px solid var(--df-outline)", borderRadius: 8, padding: 24, background: "rgba(255,255,255,.018)" }}>
+            <span className="df-mono" style={{ color: "var(--df-amber-300)", fontSize: 11 }}>{number}</span>
+            <h2 style={{ fontSize: 17, margin: "22px 0 10px" }}>{title}</h2>
+            <p style={{ color: "var(--df-dim)", fontSize: 13, lineHeight: 1.65, margin: 0 }}>{body}</p>
+          </article>)}
         </section>
-
-        {/* Two-path picker */}
-        <section style={{ maxWidth: 1100, margin: "0 auto 80px", padding: "0 56px" }}>
-          <TrackPickerCards variant="picker" />
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
+          <article style={{ padding: 28, borderRadius: 8, background: "var(--color-white-03)", border: "1px solid var(--df-outline)" }}>
+            <span className="material-symbols-outlined" style={{ color: "var(--df-steel-100)" }}>smart_toy</span>
+            <h2 style={{ margin: "16px 0 8px", fontSize: 18 }}>Bring your own agent</h2>
+            <p style={{ color: "var(--df-dim)", lineHeight: 1.6, fontSize: 13, margin: 0 }}>Pipelines coordinate durable steps and human checkpoints. Your agent does the model work; DocForge keeps the state.</p>
+          </article>
+          <article style={{ padding: 28, borderRadius: 8, background: "var(--color-white-03)", border: "1px solid var(--df-outline)" }}>
+            <span className="material-symbols-outlined" style={{ color: "var(--df-steel-100)" }}>inventory_2</span>
+            <h2 style={{ margin: "16px 0 8px", fontSize: 18 }}>Capacity that stays simple</h2>
+            <p style={{ color: "var(--df-dim)", lineHeight: 1.6, fontSize: 13, margin: 0 }}>Plans limit new documents each week and active documents in your library. Editing existing work is never metered.</p>
+          </article>
+          <article style={{ padding: 28, borderRadius: 8, background: "var(--color-white-03)", border: "1px solid var(--df-outline)" }}>
+            <span className="material-symbols-outlined" style={{ color: "var(--df-steel-100)" }}>download</span>
+            <h2 style={{ margin: "16px 0 8px", fontSize: 18 }}>Export when you need it</h2>
+            <p style={{ color: "var(--df-dim)", lineHeight: 1.6, fontSize: 13, margin: 0 }}>Pro members can export authenticated documents as Markdown, PDF, or DOCX.</p>
+          </article>
         </section>
-
-        <McpStepBlocks />
-        <ScrollNarratedPhases />
-        <AppFooter />
-      </div>
+      </main>
+      <AppFooter />
     </div>
-  );
-}
-
-function Ambient() {
-  return (
-    <>
-      <div
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          pointerEvents: "none",
-          background:
-            "radial-gradient(ellipse 900px 600px at 20% 0%, rgba(255,77,0,0.10), transparent 60%), radial-gradient(ellipse 800px 600px at 80% 60%, rgba(138,160,184,0.05), transparent 70%)",
-          zIndex: 0,
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          pointerEvents: "none",
-          backgroundImage:
-            "repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 4px)",
-          zIndex: 0,
-        }}
-      />
-    </>
   );
 }

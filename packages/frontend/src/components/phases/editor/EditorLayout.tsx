@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import posthog from "posthog-js";
 import type { Artifact, AuditFinding, Section, Suggestion } from "@/types";
 import { apiFetchArtifacts, apiTriageSuggestion } from "@/utils/api";
 import { useAuth } from "@clerk/clerk-react";
@@ -208,17 +207,6 @@ export function EditorLayout({
     setActiveSlug(slug);
   }, []);
 
-  function handleExport() {
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "document.md";
-    a.click();
-    URL.revokeObjectURL(url);
-    posthog.capture("document_exported", { document_id: documentId, export_format: "markdown" });
-  }
-
   function handleVersionSwitch(switchedContent: string) {
     lastSectionContent.current = switchedContent;
     setContent(switchedContent);
@@ -242,7 +230,6 @@ export function EditorLayout({
         activeSlug={activeSlug}
         counts={sectionCounts}
         onNavigate={handleNavigate}
-        onExport={handleExport}
         activitySlot={
           <EditorActivityRail documentId={documentId} refreshTick={activityTick + sseTick} />
         }
