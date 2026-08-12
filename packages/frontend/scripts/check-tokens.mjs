@@ -22,7 +22,7 @@ const SRC = fileURLToPath(new URL("../src", import.meta.url));
 const COMPONENTS = join(SRC, "components");
 
 /** Raw colour literals may only ever go down. */
-const BASELINE = 279;
+const BASELINE = 278;
 
 /** Files where literal colour is the point, not a shortcut. */
 const ALLOW = [
