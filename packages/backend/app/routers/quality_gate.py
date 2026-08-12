@@ -69,6 +69,10 @@ async def _replace_open_findings(
             section_type=f["section_type"],
             description=f["description"],
             severity=f["severity"],
+            # Optional: lets the browser underline the exact phrase in the text
+            # instead of only naming the section.
+            quote=f.get("quote"),
+            category=f.get("category"),
         )
         db.add(row)
         rows.append(row)
@@ -98,7 +102,15 @@ def _validate_findings(findings: list, section_keys: set[str]) -> list[dict]:
             raise HTTPException(
                 status_code=422, detail=f"Severity must be one of {sorted(VALID_SEVERITIES)}."
             )
-        cleaned.append({"section_type": st, "description": desc[:2000], "severity": sev})
+        quote = (f.get("quote") or "").strip() or None
+        category = (f.get("category") or "").strip() or None
+        cleaned.append({
+            "section_type": st,
+            "description": desc[:2000],
+            "severity": sev,
+            "quote": quote[:1000] if quote else None,
+            "category": category[:40] if category else None,
+        })
     return cleaned
 
 

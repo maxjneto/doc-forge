@@ -1,3 +1,4 @@
+import uuid
 """Tests for document creation and credit system."""
 
 from unittest.mock import AsyncMock, patch
@@ -84,3 +85,63 @@ async def test_create_document_dispatches_inngest_event(client_factory):
             mock_inngest.send.assert_called_once()
             event = mock_inngest.send.call_args[0][0]
             assert event.name == "docforge/document.started"
+
+
+@pytest.mark.asyncio
+async def test_publish_marks_the_active_version_and_gate_can_block_it(client_factory):
+    """Publishing is a deliberate sign-off, and the gate is a gate.
+
+    The active version is the working draft; `is_published` marks the one
+    people are meant to read. A blocking finding stops the sign-off.
+    """
+    from sqlalchemy import select
+
+    from app.models import AuditFinding, SectionVersion
+
+    from .conftest import TestSession
+
+    user = User(id="u_pub1", email="p1@test.com", name="P", credits=5)
+    async with client_factory(user) as client:
+        res = await client.post("/api/documents", json={"title": "Doc", "mode": "editor"})
+        doc_id = res.json()["id"]
+        detail = await client.get(f"/api/documents/{doc_id}")
+        section_id = next(
+            s["id"] for s in detail.json()["sections"] if s["section_type"] == "body"
+        )
+        await client.patch(f"/api/sections/{section_id}/content", json={"content": "v1\n"})
+
+        published = await client.post(f"/api/documents/{doc_id}/publish")
+        assert published.status_code == 200, published.text
+        published_id = published.json()["published_version_id"]
+
+        detail = await client.get(f"/api/documents/{doc_id}")
+        assert detail.json()["document"]["published_version_id"] == published_id
+        assert detail.json()["document"]["has_unpublished_changes"] is False
+
+        async with TestSession() as session:
+            rows = await session.execute(
+                select(SectionVersion).where(SectionVersion.section_id == uuid.UUID(section_id))
+            )
+            versions = rows.scalars().all()
+            assert sum(1 for v in versions if v.is_published) == 1
+
+        await client.patch(f"/api/sections/{section_id}/content", json={"content": "v2\n"})
+        detail = await client.get(f"/api/documents/{doc_id}")
+        assert detail.json()["document"]["published_version_id"] == published_id
+        assert detail.json()["document"]["has_unpublished_changes"] is True
+
+        # A blocking finding stops the next sign-off.
+        async with TestSession() as session:
+            session.add(
+                AuditFinding(
+                    document_id=uuid.UUID(doc_id),
+                    section_type="body",
+                    severity="high",
+                    description="contradiz a seção 2",
+                )
+            )
+            await session.commit()
+
+        blocked = await client.post(f"/api/documents/{doc_id}/publish")
+        assert blocked.status_code == 409
+        assert "bloqueante" in blocked.json()["detail"]

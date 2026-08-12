@@ -9,9 +9,11 @@ from app.config import settings
 from app.inngest_client import inngest_client
 from app.logging_config import setup_logging
 from app.routers import (
+    artifacts,
     billing,
     document_types,
     documents,
+    organization,
     pipeline,
     pipeline_definitions,
     quality_gate,
@@ -63,6 +65,8 @@ app.include_router(quality_gate.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
 app.include_router(users_router.router, prefix="/api")
 app.include_router(document_types.router, prefix="/api")
+app.include_router(artifacts.router, prefix="/api")
+app.include_router(organization.router, prefix="/api")
 
 inngest.fast_api.serve(app, inngest_client, ALL_FUNCTIONS)
 

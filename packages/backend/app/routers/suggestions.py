@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Document, Section, SectionVersion, Suggestion
+from app.models.suggestion import Feedback
 from app.models.user import User
 from app.schemas.suggestion import (
     FeedbackCreateRequest,
@@ -18,8 +19,10 @@ from app.schemas.suggestion import (
     SuggestionListResponse,
     SuggestionRejectRequest,
     SuggestionResponse,
+    SuggestionTriageRequest,
 )
 from app.services import db as db_service
+from app.services.hunks import apply_hunks, diff_hunks
 from app.services.observability import capture_event
 
 router = APIRouter(tags=["suggestions"])
@@ -194,6 +197,122 @@ async def reject_suggestion(
     suggestion = await db_service.get_suggestion(db, suggestion_id)
     capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_rejected", {
         "has_comment": bool(comment),
+    })
+    return await _to_response(db, suggestion)
+
+
+@router.post("/suggestions/{suggestion_id}/triage", response_model=SuggestionResponse)
+async def triage_suggestion(
+    suggestion_id: uuid.UUID,
+    payload: SuggestionTriageRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Accept some of a proposal's changes and turn the rest down.
+
+    The result is `base + accepted hunks`, computed server-side: the browser
+    numbers the changes for the reviewer, but it does not get to decide what
+    the document becomes. Accepting every index is equivalent to /accept;
+    accepting none is equivalent to /reject.
+    """
+    logger.info(
+        "[router] triage_suggestion | suggestion_id={} | accepted={}",
+        suggestion_id,
+        payload.accepted_indexes,
+    )
+    suggestion = await _assert_suggestion_ownership(suggestion_id, current_user, db)
+    if suggestion.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Suggestion is already {suggestion.status}")
+
+    base_result = await db.execute(
+        select(SectionVersion).where(
+            SectionVersion.section_id == suggestion.section_id,
+            SectionVersion.is_active.is_(True),
+        )
+    )
+    base_version = base_result.scalar_one_or_none()
+    base_text = base_version.content if base_version else ""
+
+    proposed_result = await db.execute(
+        select(SectionVersion).where(SectionVersion.id == suggestion.proposed_version_id)
+    )
+    proposed_version = proposed_result.scalar_one_or_none()
+    if proposed_version is None:
+        raise HTTPException(status_code=404, detail="Proposed version not found")
+
+    hunks = diff_hunks(base_text, proposed_version.content)
+    valid = {h.index for h in hunks}
+    unknown = [i for i in payload.accepted_indexes if i not in valid]
+    if unknown:
+        # The document moved under the reviewer; re-read it rather than
+        # applying changes that no longer mean what they saw.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Change(s) {unknown} no longer exist in this proposal "
+                f"(it now has {len(hunks)}). Reload and review again."
+            ),
+        )
+
+    accepted = set(payload.accepted_indexes)
+    rejected = sorted(valid - accepted)
+
+    if not accepted:
+        await db_service.reject_suggestion(
+            db, suggestion, comment=payload.comment, author_user_id=current_user.id
+        )
+        suggestion = await db_service.get_suggestion(db, suggestion_id)
+        capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_rejected", {
+            "via": "triage",
+        })
+        return await _to_response(db, suggestion)
+
+    merged = apply_hunks(base_text, proposed_version.content, accepted)
+
+    if rejected:
+        # Partial acceptance: the merged text is a new thing, neither the base
+        # nor what the agent proposed, so it becomes its own version.
+        await db_service.create_section_version(
+            db,
+            suggestion.section_id,
+            f"Triagem — {len(accepted)}/{len(hunks)} aceitas",
+            merged,
+            doc_id=suggestion.document_id,
+        )
+        suggestion.status = "accepted"
+        suggestion.review_comment = payload.comment
+        from datetime import datetime, timezone
+
+        suggestion.resolved_at = datetime.now(timezone.utc)
+
+        # Closing the loop: the agent needs to know which changes were turned
+        # down and why, or it will propose them again.
+        detail = f"Recusadas as mudanças {rejected} de {len(hunks)}."
+        db.add(
+            Feedback(
+                document_id=suggestion.document_id,
+                section_id=suggestion.section_id,
+                suggestion_id=suggestion.id,
+                author_user_id=current_user.id,
+                content=f"{detail} {payload.comment}".strip() if payload.comment else detail,
+            )
+        )
+        await db.commit()
+    else:
+        await db_service.accept_suggestion(db, suggestion)
+
+    await db_service.log_activity(
+        db,
+        suggestion.document_id,
+        "suggestion_triaged",
+        description=f"{len(accepted)} de {len(hunks)} mudanças aceitas",
+    )
+    await db.commit()
+
+    suggestion = await db_service.get_suggestion(db, suggestion_id)
+    capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_triaged", {
+        "accepted": len(accepted),
+        "total": len(hunks),
     })
     return await _to_response(db, suggestion)
 

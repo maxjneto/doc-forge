@@ -7,6 +7,7 @@ import inngest
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response, StreamingResponse
 from loguru import logger
+from pydantic import BaseModel
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -42,6 +43,7 @@ from app.schemas.document import (
     SectionBriefResponse,
 )
 from app.schemas.events import AnswerQuestionRequest, EventRequest
+from app.services import access
 from app.services import db as db_service
 from app.services import export as export_service
 from app.services import sse as sse_service
@@ -51,6 +53,17 @@ router = APIRouter(tags=["documents"])
 
 _SAMPLE_FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "sample_document.json"
 _sample_document: dict | None = None
+
+
+def _publication_fields_from_versions(versions: list[SectionVersion]) -> dict:
+    """Derive the stable release pointer independently from the working draft."""
+    active = next((v for v in versions if v.is_active), None)
+    published = next((v for v in versions if v.is_published), None)
+    return {
+        "published_version_id": published.id if published else None,
+        "published_at": published.published_at if published else None,
+        "has_unpublished_changes": bool(active and (published is None or active.id != published.id)),
+    }
 
 
 def _load_sample_document() -> dict:
@@ -79,6 +92,7 @@ async def list_documents(
     # NULL key_name means no agent has ever touched the doc.
     doc_ids = [d.id for d in documents]
     latest_agent_key: dict[uuid.UUID, str] = {}
+    publication_by_doc: dict[uuid.UUID, dict] = {}
     if doc_ids:
         agent_rows = await db.execute(
             select(DocumentActivity.document_id, ApiKey.name, DocumentActivity.created_at)
@@ -91,11 +105,44 @@ async def list_documents(
             if doc_id not in latest_agent_key:
                 latest_agent_key[doc_id] = key_name
 
+        publication_rows = await db.execute(
+            select(
+                Section.document_id,
+                SectionVersion.id,
+                SectionVersion.is_active,
+                SectionVersion.is_published,
+                SectionVersion.published_at,
+            )
+            .join(SectionVersion, SectionVersion.section_id == Section.id)
+            .where(
+                Section.document_id.in_(doc_ids),
+                Section.section_type == "body",
+                (SectionVersion.is_active.is_(True) | SectionVersion.is_published.is_(True)),
+            )
+        )
+        for doc_id, version_id, is_active, is_published, published_at in publication_rows:
+            state = publication_by_doc.setdefault(doc_id, {
+                "active_version_id": None,
+                "published_version_id": None,
+                "published_at": None,
+            })
+            if is_active:
+                state["active_version_id"] = version_id
+            if is_published:
+                state["published_version_id"] = version_id
+                state["published_at"] = published_at
+
     items = []
     for d in documents:
+        publication = publication_by_doc.get(d.id, {})
+        active_id = publication.get("active_version_id")
+        published_id = publication.get("published_version_id")
         item = DocumentResponse.model_validate(d).model_copy(update={
             "has_api_key_activity": d.id in latest_agent_key,
             "last_api_key_name": latest_agent_key.get(d.id),
+            "published_version_id": published_id,
+            "published_at": publication.get("published_at"),
+            "has_unpublished_changes": bool(active_id and active_id != published_id),
         })
         items.append(item)
 
@@ -116,17 +163,18 @@ async def get_document(
     current_user: User = Depends(get_current_user),
 ):
     logger.debug("[router] get_document | doc_id={} user_id={}", document_id, current_user.id)
+    # Access goes through the resolver, not an inline owner check: this
+    # endpoint is reachable by anyone the document was shared with.
+    await access.require(db, document_id, current_user, "read")
     result = await db.execute(
         select(Document)
         .options(
             selectinload(Document.sections).selectinload(Section.versions),
             selectinload(Document.discovery_questions),
         )
-        .where(Document.id == document_id, Document.user_id == current_user.id)
+        .where(Document.id == document_id)
     )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = result.scalar_one()
 
     sections = []
     for s in doc.sections:
@@ -145,8 +193,11 @@ async def get_document(
         DiscoveryQuestionResponse.model_validate(q) for q in doc.discovery_questions
     ]
 
+    body = next((s for s in doc.sections if s.section_type == "body"), None)
+    publication_fields = _publication_fields_from_versions(body.versions if body else [])
+
     return DocumentDetailResponse(
-        document=DocumentResponse.model_validate(doc),
+        document=DocumentResponse.model_validate(doc).model_copy(update=publication_fields),
         sections=sections,
         discovery_questions=discovery_questions,
         audit_problems=doc.audit_problems,
@@ -173,14 +224,13 @@ async def export_document(
             detail=f"{fmt.upper()} export is a Pro feature.",
         )
 
+    await access.require(db, document_id, current_user, "read")
     result = await db.execute(
         select(Document)
         .options(selectinload(Document.sections).selectinload(Section.versions))
-        .where(Document.id == document_id, Document.user_id == current_user.id)
+        .where(Document.id == document_id)
     )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = result.scalar_one()
 
     if doc.document_mode == "editor":
         # Free-editor documents are one Markdown blob the user/agent writes
@@ -758,3 +808,81 @@ async def get_document_activity(
             "created_at": activity.created_at.isoformat() if activity.created_at else None,
         })
     return entries
+
+
+# ─── Publication ─────────────────────────────────────────────
+
+
+class PublishResponse(BaseModel):
+    published_version_id: str
+    published_at: datetime.datetime
+    label: str
+
+
+@router.post("/documents/{document_id}/publish", response_model=PublishResponse)
+async def publish_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Sign off on the current draft.
+
+    The active version is the working draft; publishing marks it as the one
+    people are meant to read. Blocking gate findings stop it — that is the
+    whole point of the gate being a gate rather than a report.
+    """
+    result = await db.execute(
+        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    from app.routers.quality_gate import open_high_findings
+
+    blocking = await open_high_findings(db, document_id)
+    if blocking > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"{blocking} bloqueante(s) em aberto no gate de qualidade. "
+                "Resolva ou descarte antes de publicar."
+            ),
+        )
+
+    body_result = await db.execute(
+        select(SectionVersion)
+        .join(Section, Section.id == SectionVersion.section_id)
+        .where(
+            Section.document_id == document_id,
+            Section.section_type == "body",
+            SectionVersion.is_active.is_(True),
+        )
+    )
+    active = body_result.scalar_one_or_none()
+    if active is None:
+        raise HTTPException(status_code=409, detail="Nothing to publish yet")
+
+    previous = await db.execute(
+        select(SectionVersion).where(
+            SectionVersion.section_id == active.section_id,
+            SectionVersion.is_published.is_(True),
+        )
+    )
+    for old in previous.scalars().all():
+        old.is_published = False
+
+    active.is_published = True
+    active.published_at = datetime.datetime.now(datetime.timezone.utc)
+
+    await db_service.log_activity(
+        db, document_id, "document_published", description=f"Publicado: {active.version_name}"
+    )
+    await db.commit()
+    await db.refresh(active)
+
+    return PublishResponse(
+        published_version_id=str(active.id),
+        published_at=active.published_at,
+        label=active.version_name,
+    )

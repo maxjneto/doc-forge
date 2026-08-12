@@ -59,7 +59,12 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     has_api_key_activity: bool = False
+    # Folder it is filed under, null at the root.
+    folder_id: UUID | None = None
     last_api_key_name: str | None = None
+    published_version_id: UUID | None = None
+    published_at: datetime | None = None
+    has_unpublished_changes: bool = False
 
     model_config = {"from_attributes": True}
 

@@ -39,6 +39,11 @@ class SectionVersion(Base):
     change_summary: Mapped[str | None] = mapped_column(String(500), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # The last snapshot someone deliberately signed off on. The active version
+    # is the working draft; this is what "v4" means when the editor title reads
+    # "v4 → v5 draft". Nothing is published by default.
+    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Python-side default (not just server_default): version retention pruning
     # and ordering rely on strict creation order, and DB clock resolution
     # (SQLite's CURRENT_TIMESTAMP is second-granular) isn't fine enough for
@@ -52,4 +57,11 @@ class SectionVersion(Base):
 
     __table_args__ = (
         Index("idx_one_active_version", "section_id", unique=True, postgresql_where=(is_active.is_(True))),
+        Index(
+            "idx_one_published_version",
+            "section_id",
+            unique=True,
+            postgresql_where=(is_published.is_(True)),
+            sqlite_where=(is_published.is_(True)),
+        ),
     )

@@ -14,6 +14,9 @@ class Document(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[str] = mapped_column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    folder_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
+    )
     document_type_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("document_types.id", ondelete="SET NULL"), nullable=True
     )
@@ -31,6 +34,10 @@ class Document(Base):
     # Quality gate: when True, accepting a suggestion is blocked while the
     # document has open high-severity audit findings (dismiss or resolve first).
     require_gate_on_accept: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Capability token for the read-only public link. Null = not public.
+    # Holding the token grants read, so it is unguessable and revoked by
+    # clearing the column.
+    public_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -40,6 +47,8 @@ class Document(Base):
     audit_findings = relationship("AuditFinding", back_populates="document", cascade="all, delete-orphan")
     contract = relationship("DocumentContract", back_populates="document", uselist=False, cascade="all, delete-orphan")
     suggestions = relationship("Suggestion", back_populates="document", cascade="all, delete-orphan")
+    artifacts = relationship("Artifact", back_populates="document", cascade="all, delete-orphan")
+    members = relationship("DocumentMember", back_populates="document", cascade="all, delete-orphan")
     feedback_items = relationship("Feedback", back_populates="document", cascade="all, delete-orphan")
     document_type = relationship("DocumentType")
     user = relationship("User", back_populates="documents")
