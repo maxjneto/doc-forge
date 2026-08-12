@@ -31,7 +31,7 @@ export function McpTeaserCard() {
             <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>You review every change.</em>
           </h2>
           <p style={{ fontSize: 14.5, color: "var(--df-dim)", lineHeight: 1.6, margin: "0 0 22px" }}>
-            DocForge speaks MCP — the Model Context Protocol that connects Claude Code, Cursor, Codex, Zed, Continue, and any other MCP-capable client to your documents. Your agent writes; each change lands as a reviewable diff you accept or reject; the system audits for contradictions and keeps every version attributed. No more pasting markdown between tools.
+            DocForge speaks MCP — the Model Context Protocol that connects Claude Code, Codex, Cursor, and other MCP-capable clients to your documents. Your agent reads and writes through a shared workspace; depending on the document policy, a write is applied directly or becomes a reviewable suggestion. Activity, feedback, versions and optional quality gates stay in DocForge.
           </p>
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button
@@ -111,7 +111,7 @@ function Vis() {
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "var(--df-steel-100)", marginBottom: 6 }}>
           <div style={{ display: "flex", gap: 3 }}>
             {[0, 1, 2].map((i) => (
-              <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.10)" }} />
+              <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--df-outline-md)" }} />
             ))}
           </div>
           <span>claude code · payments-rfc</span>
@@ -168,7 +168,7 @@ function Vis() {
               color: "var(--df-amber-200)",
               padding: "2px 8px",
               borderRadius: 999,
-              background: "rgba(255,77,0,0.10)",
+              background: "var(--color-heat-bg)",
               border: "1px solid rgba(255,77,0,0.30)",
             }}
           >
@@ -204,7 +204,7 @@ function Skel({ width, amber }: { width: string; amber?: boolean }) {
         display: "block",
         height: 6,
         borderRadius: 2,
-        background: amber ? "rgba(255,77,0,0.30)" : "rgba(255,255,255,0.06)",
+        background: amber ? "var(--color-heat-30)" : "var(--df-outline)",
         marginBottom: 5,
         width: amber ? undefined : width,
       }}

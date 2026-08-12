@@ -73,7 +73,7 @@ function Row({
   const isLive = state === "live";
   const isQueued = state === "queued";
   const arrColor = isComplete ? "var(--df-amber-trail)" : isQueued ? "var(--df-mute)" : "var(--df-amber-300)";
-  const labelColor = isQueued ? "var(--df-faint)" : isComplete ? "var(--df-on-soft, #c6c5c4)" : "#e3e2e2";
+  const labelColor = isQueued ? "var(--df-faint)" : isComplete ? "var(--df-dim)" : "var(--df-on-surface)";
   const clockColor = isComplete ? "var(--df-amber-trail)" : isQueued ? "var(--df-mute)" : "var(--df-amber-300)";
   const clockText = clock ?? (isComplete ? "forged" : isQueued ? "queued" : "");
 
@@ -100,7 +100,7 @@ function Row({
         style={{
           height: 6,
           borderRadius: 999,
-          background: "rgba(255,255,255,0.04)",
+          background: "var(--color-white-04)",
           border: "1px solid var(--df-outline)",
           position: "relative",
           overflow: "hidden",

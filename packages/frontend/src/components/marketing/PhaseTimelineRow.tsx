@@ -25,7 +25,7 @@ export function PhaseTimelineRow({ activeIndex = 2 }: { activeIndex?: number }) 
         const isDone = i < activeIndex;
         const isNow = i === activeIndex;
         const numColor = isNow ? "var(--df-amber-500)" : isDone ? "var(--df-amber-trail)" : "var(--df-mute)";
-        const nameColor = isNow ? "#e3e2e2" : isDone ? "var(--df-on-soft, #c6c5c4)" : "var(--df-dim)";
+        const nameColor = isNow ? "var(--df-on-surface)" : isDone ? "var(--df-dim)" : "var(--df-dim)";
         return (
           <div
             key={p.num}

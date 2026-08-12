@@ -51,7 +51,7 @@ export function AgentBadgesStrip() {
                 borderRadius: 4,
                 display: "grid",
                 placeItems: "center",
-                background: "rgba(255,255,255,0.04)",
+                background: "var(--color-white-04)",
                 border: "1px solid var(--df-outline)",
                 fontSize: 9,
                 fontWeight: 700,

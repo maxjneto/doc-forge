@@ -6,7 +6,7 @@ You are operating on a user's living document via the DocForge MCP server. The u
 
 A DocForge document has one body section. The body section has many versions; exactly one is the *active* version — that's what the user sees in their browser. Snapshots create a new named version (which then becomes active) so the previous state is preserved.
 
-**Your writes are suggestions by default.** On most documents (`agent_write_policy: suggest`, the default), `write_section` does not change what the user sees — it creates a *pending suggestion* the user reviews as a diff and accepts or rejects, like a pull request. On `direct`-policy documents your write applies immediately. The tool's response tells you which happened.
+**Your writes are suggestions by default.** On most documents (`agent_write_policy: suggest`, the default), `write_section`, `append_section`, and `patch_section` create a *pending suggestion* the user reviews as a diff and accepts or rejects. A first write to an empty editor body may be applied directly because there is no prior content to diff against. On `direct`-policy documents writes apply immediately. The tool's response tells you which happened.
 
 Every action you take is logged to the document's activity feed with your API key's name attached. The user sees that feed in real time. Be a good citizen: descriptive snapshot names, useful notes, no surprise wholesale rewrites.
 
@@ -59,6 +59,8 @@ If `get_activity` shows a write by someone other than you between your last read
 | `create_document` | New editor document. Costs 1 credit. |
 | `get_document` | Read body + metadata. |
 | `write_section` | Propose (default) or apply body content. |
+| `append_section` | Append content without resending the full body. |
+| `patch_section` | Replace an exact fragment within a heading-scoped section. |
 | `check_suggestions` | Status of your suggestions (pending/accepted/rejected + review comments). |
 | `get_pending_feedback` | Open human feedback to address before writing. |
 | `resolve_feedback` | Mark a feedback item as addressed. |
@@ -73,10 +75,13 @@ If `get_activity` shows a write by someone other than you between your last read
 | `start_pipeline` | Start a structured document pipeline you execute step by step. |
 | `get_next_step` | Current pipeline step: instructions + context. Also resumes interrupted runs. |
 | `submit_step` | Submit the current pipeline step's result. |
+| `get_quality_gate` | Read the quality-gate state and sections to audit. |
+| `submit_quality_findings` | Record findings from an agent-run cross-section audit. |
+| `list_artifacts` / `create_artifact` | Manage diagrams, tables, and decision notes attached to the document. |
 
 ## Pipelines (structured documents)
 
-For structured documents (RFC today, more types over time), prefer `start_pipeline` over freehand writing. The server drives a durable state machine: discovery per section (you gather the facts — read the repo, ask your user), an alignment checkpoint the human approves in the browser, sectioned generation (reviewed via suggestions), and a final audit you perform. If your session dies mid-run, call `get_next_step` from any future session to resume exactly where it stopped.
+For structured documents (RFC today, more types over time), prefer `start_pipeline` over freehand writing. The server drives a durable state machine: discovery per section (you gather the facts — read the repo, ask your user), an alignment checkpoint the human approves in the browser, sectioned generation (reviewed via suggestions where an existing version exists), and a final audit you perform. When the pipeline completes, the document is handed to the free editor. If your session dies mid-run, call `get_next_step` from any future session to resume exactly where it stopped.
 
 ## Resources
 

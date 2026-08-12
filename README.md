@@ -7,7 +7,7 @@
 ![Clerk](https://img.shields.io/badge/Auth-Clerk-black)
 ![MCP](https://img.shields.io/badge/MCP-Server-blueviolet)
 
-DocForge supports two document creation modes. The **AI-guided** mode drives users through a structured six-phase workflow (discovery → alignment → generation → refinement → audit → completed) that produces documents which are internally consistent and grounded in the user's actual intent. The **free editor** mode gives users a full-featured Markdown editor with version history and heading-based navigation — no AI workflow required.
+DocForge has two browser creation modes plus an agent-driven pipeline. **AI Guided** drives users through a structured six-phase workflow (discovery → alignment → generation → refinement → audit → completed). **Editor** opens a Markdown workspace immediately. An external agent can use MCP either to collaborate on an editor document or to execute a durable structured pipeline with browser checkpoints.
 
 A built-in **MCP server** lets AI agents (e.g. Claude Code) read and write to DocForge editor documents in real-time — the agent reads local files using its own tools, writes structured content into a shared document, and the user watches it fill in live via SSE.
 
@@ -27,7 +27,7 @@ A built-in **MCP server** lets AI agents (e.g. Claude Code) read and write to Do
 
 ## How It Works
 
-### AI-Guided Mode (3 credits)
+### AI-Guided Mode
 
 Documents flow through six sequential phases, each with defined inputs, outputs, and user checkpoints:
 
@@ -38,18 +38,18 @@ Documents flow through six sequential phases, each with defined inputs, outputs,
 | **3. Generation** | Sections are generated sequentially so each one can reference those already written. A coherence pass then checks cross-section consistency. |
 | **4. Refinement** | Per-section interactive editing: request AI edits, ask questions, or submit manual changes for AI review. Finalize when satisfied. |
 | **5. Audit** | AI audits all sections for contradictions, terminology drift, and scope violations. Failing sections reopen for revision. |
-| **6. Completed** | Final document is assembled and ready to export. |
+| **6. Completed** | The guided run ends with a document ready to review and export. Depending on the flow, the user may continue in the completed view or the free editor. |
 
-### Free Editor Mode (1 credit)
+### Editor Mode
 
-A single-pane Markdown editor for writing without AI assistance. Features a heading-derived navigation tree (h1–h5), source/preview toggle, auto-save with 1.5 s debounce, manual version snapshots, inline version diff viewer, and Markdown export.
+A Markdown editor for writing without the guided AI workflow. Headings become navigation, source and preview are available, edits auto-save, and users can create named snapshots, inspect diffs, restore versions, comment, share, publish, and export. MCP agents can collaborate in this mode.
 
-### MCP Agent Mode
+### MCP Agent and Pipeline Mode
 
-An external AI agent creates an editor document via the MCP server, writes content section by section, and the user watches it appear in real-time in the browser. Every write and snapshot is attributed in the Activity panel. The agent and user share the same live document — no copy-pasting required.
+An external AI agent connects through the hosted Streamable HTTP MCP server and uses a named API token. It can create or edit an editor document, propose suggestions for review, read feedback, manage versions, attach artifacts, and run a structured pipeline. Pipeline runs are durable: the agent calls `get_next_step`, does repository/user research with its own tools, submits the result, and pauses when the user must approve alignment. The user and agent share the same document; activity is attributed to the token/client.
 
 ```
-Claude Code → docforge MCP server → DocForge REST API → SSE → browser
+MCP client → DocForge MCP server → DocForge API → SSE → browser
 ```
 
 See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp/TOOLS.md](packages/mcp/TOOLS.md) for the full tool reference.
@@ -58,7 +58,7 @@ See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp
 
 ## Features
 
-- **Two creation modes** — AI-guided (structured 6-phase workflow, 3 credits) or free editor (immediate Markdown editing, 1 credit). Switchable from the New Document dialog.
+- **Two browser creation modes** — AI Guided (structured six-phase workflow) or Editor (immediate Markdown editing). The configured credit costs are environment variables, not fixed product constants.
 - **Context-aware discovery** — AI asks follow-up questions scoped to each individual section and synthesizes per-section context before alignment begins, grounding each section summary in directly relevant information.
 - **Alignment checkpoint** — Section summaries are shown for approval before any full content is generated, preventing wasted generation cycles.
 - **Document Contract** — After alignment, a structured contract (entities, decisions, terminology, constraints) is extracted and injected into every downstream AI call to enforce consistency across all sections.
@@ -66,7 +66,7 @@ See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp
 - **Interactive refinement** — Per-section AI editing loop with full version history and one-click rollback.
 - **Automated audit** — Cross-section consistency check that catches terminology drift, technology contradictions, and scope violations.
 - **Free editor with version history** — Full Markdown editor with heading-derived navigation (h1–h5), auto-save, manual snapshots, inline diff viewer, and Markdown export.
-- **MCP server** — AI agents connect via the Model Context Protocol to create and write editor documents in real-time. Supports both stdio (local) and Streamable HTTP (hosted) transports. Every agent action is attributed by API key name in the Activity panel.
+- **MCP server** — Agents connect over hosted Streamable HTTP, create or edit editor documents, propose suggestions, run structured pipelines, use quality gates, and attach artifacts. Every agent action is attributed by API token name in the Activity panel.
 - **API key management** — Users generate named API keys (one per agent/environment) from the DocForge UI. Keys appear in the activity log and version history, making multi-agent usage fully traceable.
 - **Input & output guardrails** — User inputs are validated before any AI call; malformed AI responses are retried automatically.
 - **Token-aware context management** — Char-based token estimation with per-phase budgets truncates context intelligently to avoid exceeding model limits.
@@ -83,7 +83,7 @@ See [packages/mcp/README.md](packages/mcp/README.md) for setup and [packages/mcp
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Zustand, React Router 7 |
 | Backend | FastAPI 0.115, SQLAlchemy 2 (async), Alembic, Pydantic v2 |
-| MCP Server | Python, `mcp` SDK, httpx, uvicorn — stdio + Streamable HTTP transports |
+| MCP Server | Python, `mcp` SDK, httpx, uvicorn — Streamable HTTP |
 | Orchestration | Inngest (event-driven durable workflows) |
 | AI | Azure OpenAI (gpt-4o-mini), structured JSON output + tool calling |
 | Auth | Clerk (RS256 JWT, JWKS validation) + API key (SHA-256, `X-API-Key` header) |
@@ -99,7 +99,7 @@ The system has four runtime services: a React SPA, a FastAPI backend, an Inngest
 graph TD
     FE["React SPA\n(polling + SSE)"]
     API["FastAPI :8000\n(routers + auth + guardrails)"]
-    MCP["MCP Server :8001\n(stdio or Streamable HTTP)"]
+    MCP["MCP Server :8001\n(Streamable HTTP)"]
     INN["Inngest :8288\n(durable workflow engine)"]
     PG[("PostgreSQL 16")]
     AI["Azure OpenAI\n(structured output + tools)"]
@@ -183,7 +183,7 @@ cd packages/mcp
 pip install -e .
 export DOCFORGE_API_KEY="your-key"          # generate one in the DocForge UI
 export DOCFORGE_API_BASE="http://localhost:8000/api"
-docforge-mcp                                # stdio — add to Claude Code config
+docforge-mcp                                # hosted/local Streamable HTTP server
 # or
 docforge-mcp-server                         # HTTP on :8001
 ```
@@ -196,7 +196,7 @@ See [packages/mcp/README.md](packages/mcp/README.md) for Claude Code integration
 |---|---|
 | `packages/backend/.env` | `DATABASE_URL`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `CLERK_JWKS_URL`, `WEEKLY_CREDITS` (default `5`), `GUIDED_DOCUMENT_COST` (default `3`), `EDITOR_DOCUMENT_COST` (default `1`) |
 | `packages/frontend/.env` | `VITE_API_BASE`, `VITE_CLERK_PUBLISHABLE_KEY` |
-| MCP server (env) | `DOCFORGE_API_KEY` (stdio mode), `DOCFORGE_API_BASE` (default `http://localhost:8000/api`), `DOCFORGE_FRONTEND_BASE` (default `http://localhost:5173`), `HOST`, `PORT` (HTTP mode, default `8001`) |
+| MCP server (env) | `DOCFORGE_API_BASE` (default `http://localhost:8000/api`), `DOCFORGE_FRONTEND_BASE` (default `http://localhost:5173`), `HOST`, `PORT` (default `8001`) |
 
 See [`packages/backend/.env.example`](packages/backend/.env.example) and [`packages/frontend/.env.example`](packages/frontend/.env.example) for full reference.
 

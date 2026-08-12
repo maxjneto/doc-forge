@@ -41,21 +41,21 @@ export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
     >
       <TrackCard
         primary
-        eyebrow="Path A · BYOA"
+        eyebrow="Path A · Agent-connected"
         chip={<span className="df-pill df-pill-heat">Recommended</span>}
         title="Bring your own agent"
-        body="Connect Claude Code, Cursor, Codex, Zed — any MCP client. Your IDE agent drives the whole document; you review each change as a diff, comment, and approve."
+        body="Connect Claude Code, Codex, Cursor, or another MCP client. Your agent can write a free-form editor document or run a structured pipeline while you keep the review checkpoints."
         illustration={<Terminal />}
-        meta="stdio · 30 sec install"
+        meta="MCP · Streamable HTTP"
         cta={variant === "hero" ? "Connect an agent" : "Connect your agent"}
         onClick={connectAgent}
       />
       <TrackCard
         primary={false}
-        eyebrow="Path B · Guided"
+        eyebrow="Path B · AI Guided"
         chip={<span className="df-pill df-pill-ghost">No agent needed</span>}
         title="Forge in the browser"
-        body='No agent yet? A hosted pipeline walks you from "I have an idea" to "ready to merge" — same review, audit and history apply.'
+        body='No agent yet? Choose a document type and let DocForge guide you from context to a reviewed, audited document — no setup required.'
         illustration={<MiniTrail />}
         meta="No setup · in-browser"
         cta={variant === "hero" ? "Start a forge" : "Walk the six phases"}
@@ -89,7 +89,7 @@ function TrackCard({
   cta: string;
   onClick: () => void;
 }) {
-  const baseBorder = primary ? "rgba(255,77,0,0.30)" : "rgba(138,160,184,0.25)";
+  const baseBorder = primary ? "var(--color-heat-30)" : "rgba(138,160,184,0.25)";
   const hoverBorder = primary ? "rgba(255,77,0,0.55)" : "rgba(138,160,184,0.50)";
   const hoverShadow = primary
     ? "0 12px 36px -8px rgba(255,77,0,0.20)"
@@ -202,7 +202,7 @@ function MiniTrail() {
                   ? "var(--df-amber-500)"
                   : state === "done"
                   ? "var(--df-amber-trail)"
-                  : "rgba(255,255,255,0.06)",
+                  : "var(--df-outline)",
               border: state === "future" ? "1px solid var(--df-mute)" : "none",
               boxShadow: state === "now" ? "0 0 0 3px rgba(255,77,0,0.16), 0 0 10px rgba(255,77,0,0.55)" : "none",
             }}

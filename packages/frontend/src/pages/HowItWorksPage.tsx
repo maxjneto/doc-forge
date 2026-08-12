@@ -61,14 +61,14 @@ export function HowItWorksPage() {
               maxWidth: 820,
             }}
           >
-            Point your agent at DocForge.
+            Choose how work enters DocForge.
             <br />
             <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>Review what it writes</em>.
           </h1>
           <p style={{ fontSize: 16, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 580, margin: "0 auto" }}>
-            DocForge is the review and trust layer for agent-written docs. Use the hosted pipeline to walk through a
-            guided flow, or connect your IDE's agent and let it drive — either way you get suggestion review, quality
-            audits, attribution and full version history on the same docs.
+            DocForge is the review and trust layer for technical documents. Start an AI-guided document in the browser,
+            write directly in the Markdown editor, or connect an MCP agent. The result is a shared document with
+            reviewable changes, feedback, quality gates, attribution and version history.
           </p>
         </section>
 

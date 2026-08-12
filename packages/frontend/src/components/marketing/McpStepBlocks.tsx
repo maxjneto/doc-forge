@@ -21,15 +21,15 @@ export function McpStepBlocks() {
             fontWeight: 600,
           }}
         >
-          Path A · DocForge MCP · start here
+          Path A · DocForge MCP · connect your agent
         </span>
         <h2 style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.030em", margin: "14px 0 14px" }}>
           Your agent&apos;s document workspace.{" "}
           <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>You stay in the loop.</em>
         </h2>
         <p style={{ fontSize: 15.5, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
-          DocForge is your IDE agent's document workspace — the shared, version-controlled surface where your agent can
-          write, you can edit, and you can both see what the other just did.
+          DocForge is your agent's shared document workspace: the agent reads your repository with its own tools,
+          sends changes through MCP, and you review or edit the same document in the browser.
         </p>
       </div>
 
@@ -38,11 +38,11 @@ export function McpStepBlocks() {
           <Recording />
         </StepBlock>
 
-        <StepBlock num="02" title="Connect in 30 seconds." body='One command for Claude Code or Claude Desktop. For others, paste your generated MCP config block. We&apos;ll guide you through the rest with a connection checklist.'>
+        <StepBlock num="02" title="Create a token and connect." body='Open DocForge MCP, generate a named API token, then use the client-specific setup below. The hosted endpoint uses Streamable HTTP.'>
           <InstallGrid />
         </StepBlock>
 
-        <StepBlock num="03" title="Connect multiple agents at once." body="DocForge keeps a separate token per client — connect Claude Code, Claude Desktop, Cursor, and Codex simultaneously. Each agent sees the current document state and any edits made since the last sync.">
+        <StepBlock num="03" title="Choose the collaboration loop." body="For a free-form document, the agent reads the current body and proposes or applies edits according to the document policy. For a structured document, it can run discovery, alignment, generation and audit step by step — with human approval at the alignment checkpoint.">
           <MultiAgentGrid />
         </StepBlock>
       </div>
@@ -105,7 +105,7 @@ function Recording() {
       >
         <div style={{ display: "flex", gap: 5 }}>
           {[0, 1, 2].map((i) => (
-            <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
+            <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--color-white-08)" }} />
           ))}
         </div>
         <span className="df-mono" style={{ margin: "0 auto", fontSize: 10.5, color: "var(--df-dim)", letterSpacing: "0.06em" }}>
@@ -116,7 +116,7 @@ function Recording() {
           style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             fontSize: 9, padding: "3px 8px", borderRadius: 999,
-            color: "var(--df-amber-200)", background: "rgba(255,77,0,0.10)",
+            color: "var(--df-amber-200)", background: "var(--color-heat-bg)",
             border: "1px solid rgba(255,77,0,0.30)", letterSpacing: "0.06em",
           }}
         >
@@ -137,7 +137,7 @@ function Recording() {
               fontSize: 10, color: "var(--df-steel-100)", letterSpacing: "0.04em",
             }}
           >
-            <span style={{ padding: "2px 8px", border: "1px solid var(--df-outline)", borderRadius: 3, background: "rgba(255,255,255,0.04)", fontSize: 9 }}>
+            <span style={{ padding: "2px 8px", border: "1px solid var(--df-outline)", borderRadius: 3, background: "var(--color-white-04)", fontSize: 9 }}>
               CLAUDE CODE
             </span>
             <span style={{ color: "var(--df-faint)" }}>~/payments-rfc</span>
@@ -175,7 +175,7 @@ function Recording() {
                 style={{
                   display: "block", fontSize: 10, padding: "4px 10px", cursor: "default",
                   color: i === 1 ? "var(--df-amber-200)" : "var(--df-faint)",
-                  background: i === 1 ? "rgba(255,77,0,0.06)" : "transparent",
+                  background: i === 1 ? "var(--color-heat-bg-soft)" : "transparent",
                   borderLeft: i === 1 ? "2px solid var(--df-amber-500)" : "2px solid transparent",
                   letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}
@@ -189,13 +189,13 @@ function Recording() {
           <div style={{ padding: "12px 14px", overflow: "hidden", display: "flex", flexDirection: "column", gap: 6 }}>
             <div className="df-mono" style={{ fontSize: 8.5, letterSpacing: "0.14em", color: "var(--df-faint)", textTransform: "uppercase", marginBottom: 4 }}>Source</div>
             <span className="df-mono" style={{ fontSize: 11, color: "var(--df-amber-200)" }}>## Implementation</span>
-            <span style={{ fontSize: 11, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.5 }}>
+            <span style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.5 }}>
               Roll the async buffer behind a feature flag scoped to a single merchant cohort.
             </span>
             <span className="df-mono" style={{ fontSize: 11, color: "var(--df-amber-200)", marginTop: 4 }}>## Rollback path</span>
-            <span style={{ fontSize: 11, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.5 }}>
+            <span style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.5 }}>
               A second flag{" "}
-              <span className="df-mono" style={{ fontSize: 10, color: "var(--df-amber-300)", background: "rgba(255,77,0,0.08)", padding: "0 3px", borderRadius: 2 }}>revert_async_buffer</span>{" "}
+              <span className="df-mono" style={{ fontSize: 10, color: "var(--df-amber-300)", background: "var(--color-heat-08)", padding: "0 3px", borderRadius: 2 }}>revert_async_buffer</span>{" "}
               restores sync confirmation in under 30s.
             </span>
             <span
@@ -217,7 +217,7 @@ function Recording() {
                 style={{
                   padding: "6px 8px",
                   borderTop: i === 0 ? "none" : "1px solid var(--df-outline)",
-                  background: i === 0 ? "rgba(255,77,0,0.05)" : "transparent",
+                  background: i === 0 ? "var(--color-heat-05)" : "transparent",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -236,10 +236,10 @@ function Recording() {
 
 function MultiAgentGrid() {
   const agents = [
-    { id: "CC", name: "Claude Code", desc: "stdio · one-command install" },
-    { id: "CD", name: "Claude Desktop", desc: "stdio · json config" },
-    { id: "Cu", name: "Cursor", desc: "stdio · json config" },
-    { id: "Cx", name: "Codex", desc: "stdio · env token" },
+    { id: "CC", name: "Claude Code", desc: "HTTP · CLI setup" },
+    { id: "CD", name: "Claude Desktop", desc: "HTTP · server URL" },
+    { id: "Cu", name: "Cursor", desc: "HTTP · JSON config" },
+    { id: "Cx", name: "Codex", desc: "HTTP · env token" },
   ];
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -249,7 +249,7 @@ function MultiAgentGrid() {
           style={{
             border: "1px solid var(--df-outline)",
             borderRadius: 10,
-            background: "rgba(0,0,0,0.20)",
+            background: "var(--color-shade-20)",
             padding: "16px 18px",
             display: "flex",
             alignItems: "center",
@@ -269,7 +269,7 @@ function MultiAgentGrid() {
             {a.id}
           </span>
           <div>
-            <div style={{ fontSize: 13.5, fontWeight: 500, color: "#e3e2e2" }}>{a.name}</div>
+            <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--df-on-surface)" }}>{a.name}</div>
             <div className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)", letterSpacing: "0.06em", marginTop: 3 }}>{a.desc}</div>
           </div>
         </div>
@@ -399,7 +399,7 @@ function JsonSnippet() {
 
 function Checklist() {
   return (
-    <div style={{ border: "1px solid var(--df-outline)", borderRadius: 10, background: "rgba(0,0,0,0.20)", overflow: "hidden" }}>
+    <div style={{ border: "1px solid var(--df-outline)", borderRadius: 10, background: "var(--color-shade-20)", overflow: "hidden" }}>
       <div
         style={{
           padding: "12px 16px",
@@ -417,7 +417,7 @@ function Checklist() {
         </span>
         <span className="df-mono" style={{ fontSize: 11, color: "var(--df-amber-300)" }}>3 / 6</span>
       </div>
-      <ChItem state="done" label="Generate your DocForge token" desc="Settings → MCP → New token · copied to clipboard." />
+      <ChItem state="done" label="Generate your DocForge API token" desc="DocForge MCP → API tokens → Generate · copy it once." />
       <ChItem state="done" label={<>Run <code className="df-mono" style={{ fontSize: 11 }}>claude mcp add docforge</code></>} desc="Or paste the config snippet into your client." />
       <ChItem state="done" label="Restart your agent" desc="Most clients pick up new MCP servers on launch." />
       <ChItem state="now" label="Authorize the workspace" desc="First call from your agent triggers a browser auth prompt." />
@@ -474,7 +474,7 @@ function ChItem({
         {state === "future" && num}
       </div>
       <div>
-        <div style={{ fontSize: 12.5, color: state === "future" ? "var(--df-faint)" : "#e3e2e2" }}>{label}</div>
+        <div style={{ fontSize: 12.5, color: state === "future" ? "var(--df-faint)" : "var(--df-on-surface)" }}>{label}</div>
         <div style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.45, marginTop: 2 }}>{desc}</div>
       </div>
     </div>

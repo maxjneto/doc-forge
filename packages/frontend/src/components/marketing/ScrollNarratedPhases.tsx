@@ -73,10 +73,9 @@ const PHASES = [
     title: "Audit.",
     body: (
       <>
-        Before forging, the entire document is scanned for{" "}
-        <strong>cross-section contradictions, terminology drift, and scope creep</strong>. Findings come in three
-        severities — BLOCKER, WARN, NIT — and clicking Fix opens the workspace with the issue pre-quoted into the
-        right section's chat.
+        Before the document is finalized, the entire document is scanned for{" "}
+        <strong>cross-section contradictions, terminology drift, and scope issues</strong>. Findings are reported with
+        high or low severity; high findings can block accepting agent suggestions when the quality gate is enabled.
       </>
     ),
     mockTitle: "› Audit · 4 findings · 1 blocker",
@@ -90,9 +89,9 @@ const PHASES = [
     title: "Completed.",
     body: (
       <>
-        Stamped, exportable, and version-locked. Export to <strong>Markdown, PDF, GitHub-flavored MD, Confluence, or
-        copy as Linear comment</strong>. Make edits after forging? The stamp shows drift — re-run audit to seal the
-        new version. Nothing ever ships invisibly broken.
+        The guided run ends in a document you can keep editing. Export to <strong>Markdown</strong>, or to PDF and Word
+        on supported plans. MCP-managed documents also keep activity, suggestions, artifacts and named versions so the
+        review remains traceable after the pipeline is over.
       </>
     ),
     mockTitle: "› Completed · RFC-0142 · v1.0",
@@ -301,9 +300,9 @@ export function ScrollNarratedPhases() {
                         fontWeight: state === "now" ? 600 : 500,
                         color:
                           state === "now"
-                            ? "#e3e2e2"
+                            ? "var(--df-on-surface)"
                             : state === "done"
-                            ? "var(--df-on-soft, #c6c5c4)"
+                            ? "var(--df-dim)"
                             : "var(--df-mute)",
                       }}
                     >
@@ -418,9 +417,9 @@ function PhaseMock({ title, pill, children }: { title: string; pill: string; chi
 function Skel({ width, kind = "default" }: { width: string; kind?: "default" | "amber" | "steel" | "dim" | "error" }) {
   const bg = {
     default: "rgba(255,255,255,0.05)",
-    amber: "rgba(255,77,0,0.25)",
+    amber: "var(--color-heat-25)",
     steel: "rgba(138,160,184,0.25)",
-    dim: "rgba(255,255,255,0.03)",
+    dim: "var(--color-white-03)",
     error: "rgba(232,100,100,0.20)",
   }[kind];
   return (
@@ -464,10 +463,10 @@ function QaCard({
   return (
     <div
       style={{
-        border: `1px solid ${active ? "rgba(255,77,0,0.35)" : "var(--df-outline)"}`,
+        border: `1px solid ${active ? "var(--color-heat-35)" : "var(--df-outline)"}`,
         borderRadius: 8,
         padding: "12px 14px",
-        background: active ? "rgba(255,77,0,0.05)" : "rgba(0,0,0,0.20)",
+        background: active ? "var(--color-heat-05)" : "var(--color-shade-20)",
         marginBottom: 8,
         opacity: dim ? 0.6 : 1,
       }}
@@ -483,7 +482,7 @@ function QaCard({
       >
         {qn}
       </div>
-      <div style={{ fontSize: 11.5, color: "#e3e2e2", lineHeight: 1.4, marginBottom: 6 }}>{q}</div>
+      <div style={{ fontSize: 11.5, color: "var(--df-on-surface)", lineHeight: 1.4, marginBottom: 6 }}>{q}</div>
       <div style={{ fontSize: 10.5, color: italic ? "var(--df-faint)" : "var(--df-dim)", lineHeight: 1.4, fontStyle: italic ? "italic" : "normal" }}>
         {a}
       </div>
@@ -503,9 +502,9 @@ function GhostZone({
   widths: string[];
 }) {
   const border =
-    state === "heating" ? "rgba(255,77,0,0.45)" : state === "heated" ? "rgba(255,77,0,0.30)" : "var(--df-outline)";
+    state === "heating" ? "var(--color-heat-border)" : state === "heated" ? "var(--color-heat-30)" : "var(--df-outline)";
   const bg =
-    state === "heating" ? "rgba(255,77,0,0.08)" : state === "heated" ? "rgba(255,77,0,0.05)" : "transparent";
+    state === "heating" ? "var(--color-heat-08)" : state === "heated" ? "var(--color-heat-05)" : "transparent";
   const labColor =
     state === "heating" ? "var(--df-amber-300)" : state === "heated" ? "var(--df-amber-trail)" : "var(--df-faint)";
   const skelKind = state === "cold" ? "dim" : "amber";
@@ -548,11 +547,11 @@ function SumCard({
   widths: string[];
 }) {
   const border =
-    state === "approved" ? "var(--df-steel-border)" : state === "revising" ? "rgba(255,77,0,0.30)" : "var(--df-outline)";
+    state === "approved" ? "var(--df-steel-border)" : state === "revising" ? "var(--color-heat-30)" : "var(--df-outline)";
   const bg =
     state === "approved"
       ? "linear-gradient(180deg, rgba(138,160,184,0.05), rgba(0,0,0,0.20))"
-      : "rgba(0,0,0,0.20)";
+      : "var(--color-shade-20)";
   const pillClass =
     state === "approved" ? "df-pill df-pill-steel" : state === "revising" ? "df-pill df-pill-heat" : "df-pill df-pill-ghost";
   const skelKind = state === "approved" ? "steel" : state === "revising" ? "amber" : "default";
@@ -580,7 +579,7 @@ function SumCard({
         />
       )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span className="df-mono" style={{ fontSize: 10, letterSpacing: "0.10em", color: "#e3e2e2" }}>
+        <span className="df-mono" style={{ fontSize: 10, letterSpacing: "0.10em", color: "var(--df-on-surface)" }}>
           {name}
         </span>
         <span className={pillClass} style={{ padding: "2px 6px" }}>{pill}</span>
@@ -634,7 +633,7 @@ function GenRow({
       >
         ›
       </span>
-      <span style={{ fontSize: 12, color: isQueued ? "var(--df-faint)" : isComplete ? "var(--df-on-soft, #c6c5c4)" : "#e3e2e2" }}>
+      <span style={{ fontSize: 12, color: isQueued ? "var(--df-faint)" : isComplete ? "var(--df-dim)" : "var(--df-on-surface)" }}>
         {label}
       </span>
       <span
@@ -652,7 +651,7 @@ function GenRow({
         style={{
           height: 5,
           borderRadius: 999,
-          background: "rgba(255,255,255,0.04)",
+          background: "var(--color-white-04)",
           border: "1px solid var(--df-outline)",
           overflow: "hidden",
           position: "relative",
@@ -699,7 +698,7 @@ function RefinementMock() {
           border: "1px solid var(--df-outline)",
           borderRadius: 6,
           padding: 12,
-          background: "rgba(0,0,0,0.20)",
+          background: "var(--color-shade-20)",
           display: "flex",
           flexDirection: "column",
           gap: 10,
@@ -715,7 +714,7 @@ function RefinementMock() {
           Updated step 2 with a{" "}
           <code
             className="df-mono"
-            style={{ fontSize: 9, color: "var(--df-amber-200)", background: "rgba(255,77,0,0.08)", padding: "1px 4px", borderRadius: 3 }}
+            style={{ fontSize: 9, color: "var(--df-amber-200)", background: "var(--color-heat-08)", padding: "1px 4px", borderRadius: 3 }}
           >
             revert_async_buffer
           </code>{" "}
@@ -730,11 +729,11 @@ function RefinementMock() {
         >
           SECTION 03 · V3 OF 5 · LAST EDITED 32S AGO
         </div>
-        <p style={{ fontSize: 11.5, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.55, margin: "0 0 8px" }}>
+        <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: "0 0 8px" }}>
           Roll the asynchronous confirmation buffer behind a feature flag (
           <Code>async_confirm_buffer</Code>) scoped to a single merchant cohort. Begin with shadow-write only.
         </p>
-        <p style={{ fontSize: 11.5, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: 0 }}>
           A second flag (<Code>revert_async_buffer</Code>) returns the cohort to synchronous confirmation in under 30
           seconds, with the <Code>no-data-loss</Code> invariant asserted by the reconciliation job.
         </p>
@@ -765,7 +764,7 @@ function ChatMsg({
           height: 18,
           borderRadius: 3,
           background: user ? "rgba(255,255,255,0.05)" : "rgba(255,77,0,0.12)",
-          color: user ? "var(--df-on-soft, #c6c5c4)" : "var(--df-amber-300)",
+          color: user ? "var(--df-dim)" : "var(--df-amber-300)",
           display: "grid",
           placeItems: "center",
           fontSize: 8,
@@ -778,7 +777,7 @@ function ChatMsg({
       <div
         style={{
           fontSize: 11,
-          color: "var(--df-on-soft, #c6c5c4)",
+          color: "var(--df-dim)",
           lineHeight: 1.4,
           border: "1px solid var(--df-outline)",
           padding: "7px 9px",
@@ -811,7 +810,7 @@ function Code({ children }: { children: React.ReactNode }) {
       style={{
         fontSize: 10,
         color: "var(--df-amber-200)",
-        background: "rgba(255,77,0,0.08)",
+        background: "var(--color-heat-08)",
         padding: "1px 4px",
         borderRadius: 3,
       }}
@@ -830,7 +829,7 @@ function AuditMock() {
           <SevBox label="› Warn" num="2" color="var(--df-amber-300)" />
           <SevBox label="› Nit" num="1" color="var(--df-steel-100)" />
         </div>
-        <div style={{ border: "1px solid var(--df-outline)", borderRadius: 8, background: "rgba(0,0,0,0.20)" }}>
+        <div style={{ border: "1px solid var(--df-outline)", borderRadius: 8, background: "var(--color-shade-20)" }}>
           <Finding sev="blocker">
             Proposal references Aurora but Risks rules out Aurora as a future dependency.
           </Finding>
@@ -839,7 +838,7 @@ function AuditMock() {
           </Finding>
         </div>
       </div>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 8, padding: 14, background: "rgba(0,0,0,0.20)" }}>
+      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 8, padding: 14, background: "var(--color-shade-20)" }}>
         <XraySec name="› CONTEXT" status="VERIFIED · 1 NIT" state="verified" widths={["88%", "70%"]} />
         <XraySec name="› PROPOSAL" status="1 BLOCKER · 1 WARN" state="problem" widths={["78%", "60%"]} />
         <XraySec name="› IMPLEMENTATION" status="SCANNING…" state="scanning" widths={["86%", "74%", "58%"]} />
@@ -864,7 +863,7 @@ function SevBox({ label, num, color }: { label: string; num: string; color: stri
       <div className="df-mono" style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color }}>
         {label}
       </div>
-      <div className="df-mono" style={{ fontSize: 18, color: "#e3e2e2", marginTop: 2, letterSpacing: "-0.02em" }}>
+      <div className="df-mono" style={{ fontSize: 18, color: "var(--df-on-surface)", marginTop: 2, letterSpacing: "-0.02em" }}>
         {num}
       </div>
     </div>
@@ -873,8 +872,8 @@ function SevBox({ label, num, color }: { label: string; num: string; color: stri
 
 function Finding({ sev, children }: { sev: "blocker" | "warn"; children: React.ReactNode }) {
   const color = sev === "blocker" ? "var(--df-error)" : "var(--df-amber-300)";
-  const border = sev === "blocker" ? "rgba(232,100,100,0.40)" : "rgba(255,77,0,0.30)";
-  const bg = sev === "blocker" ? "rgba(232,100,100,0.08)" : "rgba(255,77,0,0.06)";
+  const border = sev === "blocker" ? "rgba(232,100,100,0.40)" : "var(--color-heat-30)";
+  const bg = sev === "blocker" ? "rgba(232,100,100,0.08)" : "var(--color-heat-bg-soft)";
   return (
     <div
       style={{
@@ -901,7 +900,7 @@ function Finding({ sev, children }: { sev: "blocker" | "warn"; children: React.R
       >
         {sev}
       </span>
-      <div style={{ fontSize: 11, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.45 }}>{children}</div>
+      <div style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.45 }}>{children}</div>
     </div>
   );
 }
@@ -921,7 +920,7 @@ function XraySec({
     state === "verified"
       ? "var(--df-steel-border)"
       : state === "scanning"
-      ? "rgba(255,77,0,0.45)"
+      ? "var(--color-heat-border)"
       : state === "problem"
       ? "rgba(232,100,100,0.40)"
       : "var(--df-outline)";
@@ -929,7 +928,7 @@ function XraySec({
     state === "verified"
       ? "var(--df-steel-bg)"
       : state === "scanning"
-      ? "rgba(255,77,0,0.08)"
+      ? "var(--color-heat-08)"
       : state === "problem"
       ? "rgba(232,100,100,0.05)"
       : "transparent";
@@ -986,7 +985,7 @@ function XraySec({
 function CompletedMock() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 14, minHeight: 280 }}>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, padding: 12, background: "rgba(0,0,0,0.20)" }}>
+      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, padding: 12, background: "var(--color-shade-20)" }}>
         <div className="df-mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: "var(--df-faint)", marginBottom: 10 }}>
           › SECTIONS
         </div>
@@ -1002,7 +1001,7 @@ function CompletedMock() {
                 fontSize: 11.5,
                 color: active ? "var(--df-amber-200)" : "var(--df-dim)",
                 marginBottom: 2,
-                background: active ? "rgba(255,77,0,0.05)" : "transparent",
+                background: active ? "var(--color-heat-05)" : "transparent",
                 borderLeft: active ? "2px solid var(--df-amber-500)" : "none",
               }}
             >
@@ -1011,7 +1010,7 @@ function CompletedMock() {
           );
         })}
       </div>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, background: "rgba(0,0,0,0.20)", overflow: "hidden" }}>
+      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, background: "var(--color-shade-20)", overflow: "hidden" }}>
         <div
           style={{
             padding: "14px 16px",
@@ -1055,11 +1054,11 @@ function CompletedMock() {
         </div>
         <div style={{ padding: "14px 18px" }}>
           <h5 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 10px" }}>Reducing payment-path latency</h5>
-          <p style={{ fontSize: 11.5, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.55, margin: "0 0 8px" }}>
+          <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: "0 0 8px" }}>
             Payment confirmation latency spikes to 2–4 seconds during high-traffic windows because confirmations
             synchronously call the legacy ledger before responding to the merchant.
           </p>
-          <p style={{ fontSize: 11.5, color: "var(--df-on-soft, #c6c5c4)", lineHeight: 1.55, margin: 0 }}>
+          <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: 0 }}>
             The on-call team filed three incidents last quarter; merchant retries amplify the load and have caused
             two cascading Sev3s.
           </p>

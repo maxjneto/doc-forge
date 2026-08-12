@@ -63,13 +63,13 @@ function NavLinkItem({ to, active, children }: { to: string; active?: boolean; c
       to={to}
       style={{
         fontSize: 12.5,
-        color: active ? "var(--df-on, #e3e2e2)" : "var(--df-dim)",
+        color: active ? "var(--df-on-surface)" : "var(--df-dim)",
         textDecoration: "none",
         letterSpacing: "0.02em",
         transition: "color 0.15s",
       }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#e3e2e2"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = active ? "#e3e2e2" : "var(--df-dim)"; }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-on-surface)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = active ? "var(--df-on-surface)" : "var(--df-dim)"; }}
     >
       {children}
     </Link>

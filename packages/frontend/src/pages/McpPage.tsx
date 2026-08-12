@@ -91,7 +91,7 @@ export function McpPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--df-bg, #0a0b0c)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--df-bg)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
       <TopBar dashboardNav />
 
       <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56, maxWidth: 960, margin: "0 auto", width: "100%" }}>
@@ -203,7 +203,7 @@ export function McpPage() {
           )}
 
           {error && (
-            <div style={{ padding: "8px 20px", fontSize: 12, color: "var(--df-error, #f55)" }}>{error}</div>
+            <div style={{ padding: "8px 20px", fontSize: 12, color: "var(--df-error)" }}>{error}</div>
           )}
 
           {/* Key list */}
@@ -501,7 +501,7 @@ function CursorPanel({ copy, copied }: PanelProps) {
 function GenericPanel({ copy, copied }: PanelProps) {
   const url = `https://mcp.doc-forge.dev/mcp`;
   const auth = `Authorization: Bearer your_api_key_here`;
-  const transport = `# Streamable HTTP (recommended)\nurl = "https://mcp.doc-forge.dev/mcp"\n\n# SSE (legacy clients)\nurl = "https://mcp.doc-forge.dev/mcp/sse"`;
+  const transport = `# Streamable HTTP\nurl = "https://mcp.doc-forge.dev/mcp"`;
   return (
     <>
       <Step num={1} title="Server URL">
@@ -513,7 +513,7 @@ function GenericPanel({ copy, copied }: PanelProps) {
         <Note>Pass your DocForge API key as a Bearer token in the <Mono>Authorization</Mono> header on every request.</Note>
       </Step>
       <Step num={3} title="Transport">
-        <Note style={{ marginBottom: 8 }}>DocForge supports <strong>Streamable HTTP</strong> and <strong>SSE</strong>. Check your client's docs for which transport to configure.</Note>
+        <Note style={{ marginBottom: 8 }}>DocForge uses <strong>Streamable HTTP</strong>. Check your client's docs for the exact configuration format.</Note>
         <CodeBlock text={transport} id="gn3" copy={copy} copied={copied} comment />
       </Step>
       <hr style={{ border: "none", borderTop: "1px solid var(--df-outline)", margin: "20px 0" }} />
@@ -531,7 +531,13 @@ const TOOLS_INFO = [
   { name: "list_documents",        desc: "List all your editor documents." },
   { name: "create_document",       desc: "Create a new document (costs 1 credit)." },
   { name: "get_document",          desc: "Read a document's current body content and metadata." },
-  { name: "write_section",         desc: "Replace the full document body with new Markdown in real time." },
+  { name: "get_section",           desc: "Read one heading-scoped section of the document." },
+  { name: "write_section",         desc: "Replace the full document body; suggest or apply according to policy." },
+  { name: "append_section",        desc: "Append Markdown without resending the full body." },
+  { name: "patch_section",         desc: "Replace an exact fragment within a heading-scoped section." },
+  { name: "check_suggestions",     desc: "Check pending, accepted, or rejected agent suggestions." },
+  { name: "get_pending_feedback",  desc: "Read comments and rejection feedback before writing again." },
+  { name: "resolve_feedback",      desc: "Mark addressed feedback as resolved." },
   { name: "snapshot_section",      desc: "Save a named version checkpoint." },
   { name: "list_versions",         desc: "List all saved version checkpoints for a document." },
   { name: "get_version_content",   desc: "Read any version's content, including inactive ones." },
@@ -539,6 +545,14 @@ const TOOLS_INFO = [
   { name: "rename_version",        desc: "Update a version's label or change summary." },
   { name: "get_activity",          desc: "See recent writes, snapshots, and version switches by all actors." },
   { name: "get_document_url",      desc: "Get the browser URL to share with the user." },
+  { name: "list_document_types",   desc: "List structured document types and their sections." },
+  { name: "start_pipeline",        desc: "Start a durable structured pipeline." },
+  { name: "get_next_step",         desc: "Resume a pipeline or read its current checkpoint." },
+  { name: "submit_step",           desc: "Submit discovery, alignment, generation, or audit work." },
+  { name: "get_quality_gate",      desc: "Read gate state and sections for an agent-run audit." },
+  { name: "submit_quality_findings", desc: "Record cross-section consistency findings." },
+  { name: "list_artifacts",        desc: "List attached diagrams, tables, and decision notes." },
+  { name: "create_artifact",        desc: "Attach supporting material to a document." },
 ];
 
 const RESOURCES_INFO = [
@@ -553,17 +567,17 @@ const RESOURCES_INFO = [
 function CapabilitiesCard() {
   const labelStyle: React.CSSProperties = {
     fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase",
-    color: "var(--df-faint)", marginBottom: 12, fontFamily: "var(--df-mono-font, monospace)",
+    color: "var(--df-faint)", marginBottom: 12, fontFamily: "var(--df-font-mono)",
   };
   const descStyle: React.CSSProperties = { fontSize: 12, color: "var(--df-dim)", lineHeight: 1.45 };
   const amberPill: React.CSSProperties = {
     fontSize: 11.5, color: "var(--df-amber-200)", background: "rgba(255,77,0,0.08)",
-    padding: "1px 5px", borderRadius: 3, fontFamily: "var(--df-mono-font, monospace)",
+    padding: "1px 5px", borderRadius: 3, fontFamily: "var(--df-font-mono)",
     whiteSpace: "nowrap" as const,
   };
   const steelPill: React.CSSProperties = {
     fontSize: 11, color: "var(--df-steel-100)", background: "rgba(255,255,255,0.04)",
-    padding: "1px 5px", borderRadius: 3, fontFamily: "var(--df-mono-font, monospace)",
+    padding: "1px 5px", borderRadius: 3, fontFamily: "var(--df-font-mono)",
     whiteSpace: "nowrap" as const,
   };
 
@@ -748,7 +762,7 @@ const ghostBtnStyle: React.CSSProperties = {
   gap: 5,
   padding: "5px 10px",
   background: "transparent",
-  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.09))",
+  border: "1px solid var(--df-outline-md)",
   borderRadius: 6,
   color: "var(--df-dim)",
   cursor: "pointer",
