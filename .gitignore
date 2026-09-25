@@ -42,5 +42,9 @@ htmlcov/
 docs/
 docforge-kit-png/
 
-# Claude
-.claude/
+# Claude (skills are shared with the repo; everything else stays local)
+.claude/*
+!.claude/skills/
+
+# Local preview state (keys, logs, screenshots)
+scripts/preview/.preview-state/
