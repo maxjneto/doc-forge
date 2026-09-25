@@ -1,6 +1,7 @@
-import { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import { MarkdownRenderer } from "@/components/shared";
+import { useParams } from "react-router-dom";
+import { AppFooter, MarkdownRenderer } from "@/components/shared";
+import { MarketingNav } from "@/components/marketing";
+import { useBodyScroll } from "@/hooks/useBodyScroll";
 
 const TERMS_CONTENT = `# Terms of Use
 
@@ -125,41 +126,15 @@ const CONTENT: Record<string, { title: string; body: string }> = {
 export function LegalPage() {
   const { doc } = useParams<{ doc: string }>();
   const page = CONTENT[doc ?? ""] ?? CONTENT.terms;
-
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-  }, []);
+  useBodyScroll();
 
   return (
-    <div style={{ background: "#0d0e0f", color: "#e3e2e2", minHeight: "100vh", fontFamily: "Inter, sans-serif", overflowY: "auto" }}>
-      {/* Header */}
-      <header style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "16px 32px", display: "flex", alignItems: "center", gap: "16px", maxWidth: "800px", margin: "0 auto" }}>
-        <Link
-          to="/"
-          style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "rgba(255,77,0,0.8)", textDecoration: "none" }}
-        >
-          ← Back
-        </Link>
-        <span style={{ color: "rgba(255,255,255,0.2)" }}>|</span>
-        <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#c8c6c5" }}>
-          {page.title}
-        </span>
-      </header>
-
-      {/* Content */}
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "48px 32px 80px" }}>
-        <MarkdownRenderer content={page.body} variant="chat" />
+    <div style={{ background: "var(--df-bg)", color: "var(--df-text)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <MarketingNav />
+      <main style={{ flex: 1, width: "100%", maxWidth: 800, margin: "0 auto", padding: "48px var(--df-page-gutter) 80px" }}>
+        <MarkdownRenderer content={page.body} variant="editor" />
       </main>
-
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "24px 32px", maxWidth: "800px", margin: "0 auto" }}>
-        <p style={{ fontSize: "11px", color: "rgba(200,198,197,0.4)", margin: 0 }}>
-          © 2026 Max José de Aragão Neto · DocForge ·{" "}
-          <a href="mailto:maxjneto@gmail.com" style={{ color: "rgba(255,77,0,0.6)", textDecoration: "none" }}>
-            maxjneto@gmail.com
-          </a>
-        </p>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

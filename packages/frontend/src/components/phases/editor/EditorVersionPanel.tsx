@@ -11,6 +11,7 @@ import {
   apiUpdateSectionContent,
 } from "@/utils/api";
 import { ScrollFadeContainer } from "./ScrollFadeContainer";
+import { formatDateTime } from "@/utils/format";
 
 const dmp = new DiffMatchPatch();
 
@@ -170,7 +171,7 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
         {!editOpen && (
           <div style={{ marginTop: 3, paddingLeft: 11 }}>
             <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-mute, rgba(227,226,226,0.18))" }}>
-              {new Date(version.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
+              {formatDateTime(version.createdAt)}
             </span>
           </div>
         )}

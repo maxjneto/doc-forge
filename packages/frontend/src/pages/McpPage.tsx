@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { TopBar } from "@/components/shared";
+import { AppPage, PageHeader } from "@/components/shared";
 import { apiListApiKeys, apiCreateApiKey, apiRevokeApiKey, apiUpdateApiKeyHarness } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { ApiKey, ApiKeyCreateResponse } from "@/types";
+import { formatDate, timeAgo } from "@/utils/format";
 
 type Tab = "claude_code" | "codex" | "cursor" | "generic";
 
@@ -36,11 +37,6 @@ export function McpPage() {
       setKeys([]);
     }
   }
-
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
 
   useEffect(() => {
     refresh();
@@ -91,17 +87,11 @@ export function McpPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--df-bg, #0a0b0c)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
-      <TopBar dashboardNav />
-
-      <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56, maxWidth: 960, margin: "0 auto", width: "100%" }}>
-        {/* Header */}
-        <div style={{ marginBottom: 36 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 4px" }}>DocForge MCP</h1>
-          <p style={{ fontSize: 13, color: "var(--df-dim)", margin: 0 }}>
-            Connect Claude Code, Codex, Cursor, or any MCP-compatible agent to your DocForge workspace.
-          </p>
-        </div>
+    <AppPage>
+        <PageHeader
+          title="DocForge MCP"
+          description="Connect Claude Code, Codex, Cursor, or any MCP-compatible agent to your DocForge workspace."
+        />
 
         {/* API Keys section */}
         <section style={cardStyle}>
@@ -251,8 +241,8 @@ export function McpPage() {
                           </button>
                         </div>
                         <span className="df-mono" style={{ display: "block", fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.06em", marginTop: 2 }}>
-                          Created {new Date(k.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                          {k.lastUsedAt && ` · Last used ${new Date(k.lastUsedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                          Created {formatDate(k.createdAt, { year: true })}
+                          {k.lastUsedAt && ` · Last used ${timeAgo(k.lastUsedAt)}`}
                         </span>
                       </div>
                     </div>
@@ -415,8 +405,7 @@ export function McpPage() {
             </div>
           </div>
         </section>
-      </main>
-    </div>
+    </AppPage>
   );
 }
 

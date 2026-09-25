@@ -26,6 +26,8 @@ export interface Document {
   updatedAt: string;
   hasApiKeyActivity?: boolean;
   lastApiKeyName?: string | null;
+  errorMessage?: string | null;
+  documentTypeName?: string | null;
 }
 
 // ─── Sections ────────────────────────────────────────────────

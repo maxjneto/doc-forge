@@ -40,10 +40,10 @@ def _ago(**kw) -> datetime:
     return NOW - timedelta(**kw)
 
 
-def _doc(db, rfc, title, phase, *, mode="guided", age=None, error=None):
+def _doc(db, dtype, title, phase, *, mode="guided", age=None, error=None):
     doc = Document(
         user_id=PREVIEW_USER["sub"],
-        document_type_id=rfc.id if mode == "guided" else None,
+        document_type_id=dtype.id if mode != "editor" else None,
         title=title,
         current_phase=phase,
         document_context="We need a shared async job queue so product teams stop "
@@ -100,6 +100,7 @@ def main() -> None:
         db.flush()
 
         rfc = db.execute(select(DocumentType).where(DocumentType.slug == "rfc")).scalar_one()
+        adr = db.execute(select(DocumentType).where(DocumentType.slug == "adr")).scalar_one()
 
         key = ApiKey(
             user_id=uid,
@@ -201,6 +202,13 @@ def main() -> None:
         d = _doc(db, rfc, "RFC: Billing Event Sourcing", "generation", age={"days": 9},
                  error="Generation failed after 3 retries (model timeout).")
         _sections(db, d, ["finalized", "pending", "pending", "pending"])
+
+        # 10. BYOA pipeline driven by the agent, waiting on alignment approval
+        d = _doc(db, adr, "ADR: Adopt OpenTelemetry for tracing", "alignment", mode="pipeline",
+                 age={"minutes": 40})
+        _sections(db, d, ["pending"] * 4, with_content=False)
+        db.add(DocumentActivity(document_id=d.id, action_type="document_created",
+                                description="Pipeline started via MCP", api_key_id=key.id))
 
         db.commit()
         n = len(db.execute(select(Document.id).where(Document.user_id == uid)).all())

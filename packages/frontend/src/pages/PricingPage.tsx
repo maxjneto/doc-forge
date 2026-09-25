@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppFooter } from "@/components/shared";
+import { AppFooter, TierCard, TierCtaInert, TierGrid, tierCtaStyle } from "@/components/shared";
 import { MarketingNav } from "@/components/marketing";
 import { apiFetchTiers, type Tier } from "@/utils/api";
+import { useBodyScroll } from "@/hooks/useBodyScroll";
 
 // Rendered until the API answers — tiers are served by GET /api/tiers so the
 // backend limits and this page can never drift apart.
@@ -11,10 +12,7 @@ const FALLBACK_TIERS: Tier[] = [];
 export function PricingPage() {
   const [tiers, setTiers] = useState<Tier[]>(FALLBACK_TIERS);
 
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
+  useBodyScroll();
 
   useEffect(() => {
     let cancelled = false;
@@ -28,7 +26,7 @@ export function PricingPage() {
     <div
       className="hide-scrollbar"
       style={{
-        background: "#050608",
+        background: "var(--df-bg)",
         color: "var(--df-on-surface, #e3e2e2)",
         minHeight: "100vh",
         display: "flex",
@@ -95,120 +93,27 @@ export function PricingPage() {
           </p>
         </div>
 
-        {/* Tier cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 16,
-          }}
-        >
+        <TierGrid>
           {tiers.map((tier) => (
-            <div
+            <TierCard
               key={tier.name}
-              style={{
-                padding: "28px 24px",
-                background: tier.highlight ? "rgba(255,77,0,0.04)" : "rgba(13,14,15,0.6)",
-                border: `1px solid ${tier.highlight ? "rgba(255,77,0,0.25)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-                borderRadius: 10,
-                display: "flex",
-                flexDirection: "column",
-                gap: 20,
-                position: "relative",
-              }}
-            >
-              {tier.highlight && (
-                <span
-                  className="df-pill df-pill-heat"
-                  style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)" }}
-                >
-                  Best option
-                </span>
-              )}
-
-              <div>
-                <span
-                  className="df-mono"
-                  style={{
-                    display: "block",
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: tier.highlight ? "var(--df-amber-300, #ff8d4a)" : "var(--df-faint, rgba(227,226,226,0.38))",
-                    marginBottom: 6,
-                  }}
-                >
-                  {tier.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 600,
-                    color: "#e3e2e2",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {tier.credits}
-                </span>
-              </div>
-
-              <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.55, margin: 0 }}>
-                {tier.description}
-              </p>
-
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                {tier.features.map((f) => (
-                  <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 14, color: "var(--df-amber-300, #ff8d4a)", flexShrink: 0, fontVariationSettings: "'FILL' 1" }}
-                    >
-                      check_circle
-                    </span>
-                    <span style={{ color: "var(--df-dim, rgba(227,226,226,0.62))" }}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div style={{ marginTop: "auto" }}>
-                <Link
-                  to="/"
-                  className={tier.highlight ? "forge-btn" : ""}
-                  style={
-                    tier.highlight
-                      ? {
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "9px 18px",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          textDecoration: "none",
-                          letterSpacing: "0.02em",
-                        }
-                      : {
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "9px 18px",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          textDecoration: "none",
-                          letterSpacing: "0.02em",
-                          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-                          color: "var(--df-dim, rgba(227,226,226,0.62))",
-                          background: "transparent",
-                        }
-                  }
-                >
-                  {tier.cta}
-                </Link>
-              </div>
-            </div>
+              tier={tier}
+              cta={
+                tier.available ? (
+                  <Link
+                    to="/"
+                    className={tier.highlight ? "forge-btn" : ""}
+                    style={tier.highlight ? { ...tierCtaStyle, border: "none", color: undefined, background: undefined } : tierCtaStyle}
+                  >
+                    {tier.cta}
+                  </Link>
+                ) : (
+                  <TierCtaInert>{tier.cta}</TierCtaInert>
+                )
+              }
+            />
           ))}
-        </div>
+        </TierGrid>
 
         <p
           className="df-mono"

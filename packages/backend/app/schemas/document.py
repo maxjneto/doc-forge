@@ -60,6 +60,9 @@ class DocumentResponse(BaseModel):
     updated_at: datetime
     has_api_key_activity: bool = False
     last_api_key_name: str | None = None
+    error_message: str | None = None
+    # Only populated by the list endpoint (needs the document_type join).
+    document_type_name: str | None = None
 
     model_config = {"from_attributes": True}
 

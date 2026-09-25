@@ -26,7 +26,7 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
         position: "sticky",
         top: 0,
         zIndex: 100,
-        background: "rgba(5,6,8,0.92)",
+        background: "rgba(10,11,12,0.92)",
         backdropFilter: "blur(14px)",
       }}
     >

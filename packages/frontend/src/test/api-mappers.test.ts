@@ -30,6 +30,8 @@ describe("API response mappers", () => {
       updatedAt: "2025-01-02T00:00:00Z",
       hasApiKeyActivity: false,
       lastApiKeyName: null,
+      errorMessage: null,
+      documentTypeName: null,
     });
   });
 

@@ -70,6 +70,7 @@ async def list_documents(
 
     result = await db.execute(
         select(Document)
+        .options(selectinload(Document.document_type))
         .where(Document.user_id == current_user.id)
         .order_by(Document.updated_at.desc())
     )
@@ -96,6 +97,7 @@ async def list_documents(
         item = DocumentResponse.model_validate(d).model_copy(update={
             "has_api_key_activity": d.id in latest_agent_key,
             "last_api_key_name": latest_agent_key.get(d.id),
+            "document_type_name": d.document_type.name if d.document_type else None,
         })
         items.append(item)
 

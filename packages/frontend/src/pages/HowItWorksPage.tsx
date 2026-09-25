@@ -8,17 +8,13 @@ import {
   McpStepBlocks,
 } from "@/components/marketing";
 import { AppFooter, TopBar } from "@/components/shared";
+import { useBodyScroll } from "@/hooks/useBodyScroll";
 
 export function HowItWorksPage() {
   const { hash } = useLocation();
   const { isSignedIn } = useAuth();
 
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
+  useBodyScroll();
 
   useEffect(() => {
     if (!hash) return;
@@ -33,7 +29,7 @@ export function HowItWorksPage() {
     <div
       className="hide-scrollbar"
       style={{
-        background: "#050608",
+        background: "var(--df-bg)",
         color: "#e3e2e2",
         minHeight: "100vh",
         display: "flex",

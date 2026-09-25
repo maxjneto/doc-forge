@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetchMyActivity } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { MyActivityEvent } from "@/types";
+import { timeAgo } from "@/utils/format";
 
 const ICON_BY_ACTION: Record<string, string> = {
   write: "edit_note",
@@ -22,17 +23,6 @@ function humanizeAction(actionType: string): string {
   return map[actionType] ?? actionType.replace(/_/g, " ");
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
 
 export function RecentActivityCard() {
   const { getToken } = useAuth();

@@ -7,7 +7,8 @@
 // fine while half its requests 500.
 import { execFileSync, execSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -56,10 +57,39 @@ const screens = [
 ].filter((s) => !only || only.some((o) => s.name.startsWith(o)));
 
 mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch();
+
+// Google Fonts through the sandbox proxy flake (ERR_TOO_MANY_RETRIES), and
+// without the icon font every icon renders as its ligature name. Cache font
+// responses on disk after the first good fetch.
+const fontCache = join(HERE, ".preview-state", "font-cache");
+mkdirSync(fontCache, { recursive: true });
+async function serveFont(route) {
+  const url = route.request().url();
+  const key = join(fontCache, createHash("sha1").update(url).digest("hex"));
+  if (existsSync(key)) {
+    const meta = JSON.parse(readFileSync(`${key}.json`, "utf8"));
+    return route.fulfill({ status: 200, headers: meta, body: readFileSync(key) });
+  }
+  for (let i = 0; i < 4; i++) {
+    try {
+      const res = await route.fetch({ timeout: 15000 });
+      if (res.ok()) {
+        const body = await res.body();
+        const headers = { "content-type": res.headers()["content-type"] ?? "", "access-control-allow-origin": "*" };
+        writeFileSync(key, body);
+        writeFileSync(`${key}.json`, JSON.stringify(headers));
+        return route.fulfill({ status: 200, headers, body });
+      }
+    } catch { /* retry */ }
+  }
+  return route.abort();
+}
+
+let browser = await chromium.launch();
 const problems = [];
 
 for (const screen of screens) {
+  if (!browser.isConnected()) browser = await chromium.launch();
   const ctx = await browser.newContext({
     ...(mobile ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true }
                : { viewport: { width: 1440, height: 900 } }),
@@ -72,6 +102,7 @@ for (const screen of screens) {
     localStorage.setItem("df-dev-signed-out", signedOut ? "1" : "0");
     localStorage.setItem("docforge_cookie_consent", "declined");
   }, Boolean(screen.signedOut));
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, serveFont);
   const page = await ctx.newPage();
   page.on("console", (m) => m.type() === "error" && problems.push(`[${screen.name}] console: ${m.text()}`));
   page.on("pageerror", (e) => problems.push(`[${screen.name}] pageerror: ${e.message}`));
@@ -85,6 +116,7 @@ for (const screen of screens) {
     // them icons render as their ligature names. Reload once if missing.
     const iconsOk = () => page.evaluate(async () => {
       await document.fonts.ready;
+      if (!document.querySelector(".material-symbols-outlined")) return true;
       return document.fonts.check('18px "Material Symbols Outlined"');
     });
     if (!(await iconsOk())) {

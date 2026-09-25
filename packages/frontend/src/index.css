@@ -10,7 +10,7 @@
   --color-outline: #ad897e;
   --color-on-tertiary-fixed-variant: #474646;
   --color-on-surface-variant: #e6beb2;
-  --color-background: #0d0e0f;
+  --color-background: #0a0b0c;
   --color-on-primary-fixed-variant: #852400;
   --color-on-tertiary-container: #2a2a29;
   --color-surface-dim: #121414;
@@ -33,7 +33,7 @@
   --color-tertiary: #c9c6c5;
   --color-on-tertiary: #313030;
   --color-inverse-on-surface: #303031;
-  --color-surface-container-lowest: #0d0e0f;
+  --color-surface-container-lowest: #0a0b0c;
   --color-on-primary-container: #521300;
   --color-secondary-fixed-dim: #c8c6c5;
   --color-on-primary: #5e1700;
@@ -62,7 +62,7 @@
 
   /* Font family */
   --font-sans: "Inter", sans-serif;
-  --font-mono: "Inter", monospace;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 /* ─── DocForge design tokens ─────────────────────────────────── */
@@ -99,6 +99,17 @@
   --df-warn: #f0b27a;
 
   --df-font-mono: 'JetBrains Mono', monospace;
+
+  --df-text: #e3e2e2;
+
+  /* Page layout (AppPage / marketing sections) */
+  --df-page: 960px;
+  --df-page-wide: 1320px;
+  --df-page-gutter: 56px;
+}
+
+@media (max-width: 720px) {
+  :root { --df-page-gutter: 16px; }
 }
 
 /* Base styles */
@@ -106,6 +117,8 @@ body {
   letter-spacing: -0.02em;
   overflow: hidden;
   font-family: var(--font-sans);
+  background: var(--df-bg);
+  color: var(--df-text);
 }
 
 /* Material Symbols — self-sufficient so icons render even if Google's helper

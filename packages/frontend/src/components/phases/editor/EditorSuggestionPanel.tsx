@@ -9,6 +9,7 @@ import {
   apiRejectSuggestion,
 } from "@/utils/api";
 import { ScrollFadeContainer } from "./ScrollFadeContainer";
+import { formatDateTime } from "@/utils/format";
 
 const dmp = new DiffMatchPatch();
 
@@ -175,7 +176,7 @@ function SuggestionCard({ suggestion, onResolved }: SuggestionCardProps) {
             </p>
           )}
           <div className="df-mono" style={{ fontSize: 9.5, color: "rgba(227,226,226,0.3)", marginBottom: 6 }}>
-            {new Date(suggestion.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
+            {formatDateTime(suggestion.createdAt)}
           </div>
 
           {/* Diff — capped and independently scrollable so a long change

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { apiCreateApiKey, apiListApiKeys, apiRevokeApiKey } from "@/utils/api";
 import type { ApiKey } from "@/types";
+import { formatDate } from "@/utils/format";
 
 interface ApiKeyPanelProps {
   onClose: () => void;
@@ -60,9 +61,8 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
     });
   }
 
-  function formatDate(iso: string | null) {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  function formatKeyDate(iso: string | null) {
+    return iso ? formatDate(iso, { year: true }) : "—";
   }
 
   return (
@@ -231,8 +231,8 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ fontSize: "13px", fontWeight: 600, color: "#e3e2e2" }}>{key.name}</span>
                     <span style={{ fontSize: "11px", color: "rgba(200,198,197,0.4)" }}>
-                      Created {formatDate(key.createdAt)}
-                      {key.lastUsedAt ? ` · Last used ${formatDate(key.lastUsedAt)}` : " · Never used"}
+                      Created {formatKeyDate(key.createdAt)}
+                      {key.lastUsedAt ? ` · Last used ${formatKeyDate(key.lastUsedAt)}` : " · Never used"}
                     </span>
                   </div>
                   <button

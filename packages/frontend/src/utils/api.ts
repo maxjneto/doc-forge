@@ -36,6 +36,8 @@ export function mapDocument(raw: Record<string, unknown>): Document {
     updatedAt: raw.updated_at as string,
     hasApiKeyActivity: Boolean(raw.has_api_key_activity),
     lastApiKeyName: (raw.last_api_key_name as string) ?? null,
+    errorMessage: (raw.error_message as string) ?? null,
+    documentTypeName: (raw.document_type_name as string) ?? null,
   };
 }
 

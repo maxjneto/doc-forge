@@ -1,4 +1,4 @@
-export type TwinMode = "all" | "forger" | "mcp";
+export type TwinMode = "all" | "guided" | "pipeline" | "editor";
 
 export function TwinModeTabs({
   value,
@@ -7,13 +7,14 @@ export function TwinModeTabs({
 }: {
   value: TwinMode;
   onChange: (next: TwinMode) => void;
-  counts: { all: number; forger: number; mcp: number };
+  counts: Record<TwinMode, number>;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 18 }}>
+    <div role="tablist" style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
       <Tab active={value === "all"} onClick={() => onChange("all")} icon="apps" label="All" count={counts.all} />
-      <Tab active={value === "forger"} onClick={() => onChange("forger")} badge="forger" label="Forger" count={counts.forger} />
-      <Tab active={value === "mcp"} onClick={() => onChange("mcp")} badge="mcp" label="MCP-managed" count={counts.mcp} />
+      <Tab active={value === "guided"} onClick={() => onChange("guided")} badge="forger" label="Guided" count={counts.guided} />
+      <Tab active={value === "pipeline"} onClick={() => onChange("pipeline")} badge="mcp" label="Agent pipeline" count={counts.pipeline} />
+      <Tab active={value === "editor"} onClick={() => onChange("editor")} icon="edit_note" label="Editor" count={counts.editor} />
     </div>
   );
 }
@@ -35,16 +36,18 @@ function Tab({
 }) {
   return (
     <button
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: 8,
-        padding: "9px 14px",
+        padding: "7px 12px",
         borderRadius: 8,
         fontSize: 13,
         fontWeight: 500,
-        color: active ? "#e3e2e2" : "var(--df-dim)",
+        color: active ? "var(--df-text)" : "var(--df-dim)",
         background: active ? "rgba(255,77,0,0.06)" : "transparent",
         border: `1px solid ${active ? "rgba(255,77,0,0.25)" : "transparent"}`,
         cursor: "pointer",

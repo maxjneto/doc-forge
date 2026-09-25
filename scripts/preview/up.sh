@@ -25,7 +25,11 @@ stop() {
       rm -f "$STATE/$name.pid"
     fi
   done
-  pkill -f "uvicorn app.main:app --host 127.0.0.1 --port 8000" 2>/dev/null || true
+  # Wrappers (npx, shebangs) can leave the real process under another pid.
+  # The [x] trick keeps pkill from matching the shell running this script.
+  pkill -f "[u]vicorn app.main:app --host 127.0.0.1 --port 8000" 2>/dev/null || true
+  pkill -f "[v]ite --port 5173 --strictPort" 2>/dev/null || true
+  pkill -f "[d]ev_auth.py serve 8765" 2>/dev/null || true
   echo "stopped"
 }
 

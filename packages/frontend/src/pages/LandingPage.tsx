@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   MarketingNav,
@@ -8,20 +7,16 @@ import {
   AgentBadgesStrip,
 } from "@/components/marketing";
 import { AppFooter } from "@/components/shared";
+import { useBodyScroll } from "@/hooks/useBodyScroll";
 
 export function LandingPage() {
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
+  useBodyScroll();
 
   return (
     <div
       className="hide-scrollbar"
       style={{
-        background: "#050608",
+        background: "var(--df-bg)",
         color: "#e3e2e2",
         minHeight: "100vh",
         display: "flex",

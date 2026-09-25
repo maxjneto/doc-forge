@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { apiListApiKeys } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { ApiKey } from "@/types";
+import { formatDate } from "@/utils/format";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -12,10 +13,6 @@ function initials(name: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function formatCreated(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 export function ConnectedAgentsCard() {
   const { getToken } = useAuth();
@@ -92,7 +89,7 @@ export function ConnectedAgentsCard() {
                   textTransform: "uppercase",
                 }}
               >
-                Added {formatCreated(k.createdAt)}
+                Added {formatDate(k.createdAt)}
               </span>
             </div>
           ))}

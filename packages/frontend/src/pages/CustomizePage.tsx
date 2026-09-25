@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
-import { TopBar } from "@/components/shared";
+import { AppPage, PageHeader } from "@/components/shared";
 import {
   apiFetchMe,
   apiListDocumentTypes,
@@ -25,11 +25,6 @@ export function CustomizePage() {
   const [tab, setTab] = useState<CustomizeTab>("pipelines");
 
   useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     apiFetchMe(getToken).then((me) => { if (!cancelled) setPlan(me.plan); }).catch(() => {});
     return () => { cancelled = true; };
@@ -38,16 +33,11 @@ export function CustomizePage() {
   const locked = plan !== null && plan === "free";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--df-bg, #0a0b0c)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
-      <TopBar dashboardNav />
-
-      <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56, maxWidth: 960, margin: "0 auto", width: "100%" }}>
-        <div style={{ marginBottom: 36 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 4px" }}>Customize</h1>
-          <p style={{ fontSize: 13, color: "var(--df-dim)", margin: 0 }}>
-            Clone the BYOA pipeline, define your own document types, and edit the prompts your agent reads at each step.
-          </p>
-        </div>
+    <AppPage>
+        <PageHeader
+          title="Customize"
+          description="Clone the BYOA pipeline, define your own document types, and edit the prompts your agent reads at each step."
+        />
 
         {locked ? (
           <UpgradeNotice />
@@ -67,8 +57,7 @@ export function CustomizePage() {
             </div>
           </>
         )}
-      </main>
-    </div>
+    </AppPage>
   );
 }
 
