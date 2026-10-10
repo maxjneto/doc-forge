@@ -1,9 +1,12 @@
 import { useRef, useState } from "react";
 import type { Document, Phase } from "@/types";
 import { consumeDocumentDragClick, startDocumentPointerDrag } from "./documentPointerDrag";
+import { IconButton, Pill, type PillTone } from "@/components/ui";
 import { useI18n } from "@/i18n";
+import { fullDate, relativeTime } from "@/utils/time";
 
-const PHASE_ORDER: Phase[] = ["discovery", "alignment", "generation", "refinement", "audit", "completed"];
+/** Columns shared by every row of the library table, and its header. */
+export const LIBRARY_GRID = "minmax(0,1fr) 196px 176px 96px 128px";
 
 const PHASE_LABEL_KEY: Record<Phase, string> = {
   discovery: "phase.discovery",
@@ -15,41 +18,23 @@ const PHASE_LABEL_KEY: Record<Phase, string> = {
   editing: "phase.editor",
 };
 
-function PhaseTrail({ currentPhase }: { currentPhase: Phase }) {
-  const currentIdx = PHASE_ORDER.indexOf(currentPhase);
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-      {PHASE_ORDER.map((phase, i) => {
-        const isDone = i < currentIdx;
-        const isNow = i === currentIdx;
-        const isSteel = phase === "completed" && currentPhase === "completed";
-        let bg = "transparent";
-        let border = "1px solid var(--df-mute)";
-        let shadow = "none";
-        if (isSteel) {
-          bg = "var(--df-steel-200)";
-          border = "none";
-        } else if (isDone) {
-          bg = "var(--df-amber-trail)";
-          border = "none";
-        } else if (isNow) {
-          bg = "var(--df-amber-500)";
-          border = "none";
-          shadow = "0 0 0 2.5px rgba(255,77,0,0.15), 0 0 8px rgba(255,77,0,0.50)";
-        }
-        return (
-          <span
-            key={phase}
-            style={{ width: 7, height: 7, borderRadius: 999, background: bg, border, boxShadow: shadow }}
-          />
-        );
-      })}
-    </div>
-  );
+/**
+ * The document's state as one pill (colour grammar R2/R5): steel = published
+ * and frozen, heat = something in progress, ghost = a plain draft.
+ */
+function statusOf(doc: Document, t: (key: string, vars?: Record<string, string | number>) => string): { tone: PillTone; label: string; dot?: boolean } {
+  if (doc.archivedAt) return { tone: "ghost", label: t("dashboard.archived") };
+  if (doc.documentMode === "guided" && doc.currentPhase !== "completed" && doc.currentPhase !== "editing") {
+    return { tone: "heat", label: t("dashboard.pipelinePhase", { phase: t(PHASE_LABEL_KEY[doc.currentPhase]) }) };
+  }
+  if (doc.publishedAt && doc.hasUnpublishedChanges) return { tone: "heat", label: t("dashboard.unpublishedChanges") };
+  if (doc.publishedAt) return { tone: "steel", label: t("common.published") };
+  return { tone: "ghost", label: t("common.draft") };
 }
 
 export function DocTableRow({
   doc,
+  location,
   onClick,
   onRename,
   onShare,
@@ -59,6 +44,8 @@ export function DocTableRow({
   onRestore,
 }: {
   doc: Document;
+  /** Folder path shown under the title when the row is listed outside its folder. */
+  location?: string | null;
   onClick: () => void;
   onRename: (docId: string, title: string) => Promise<void>;
   onShare?: () => void;
@@ -72,17 +59,10 @@ export function DocTableRow({
   const [renaming, setRenaming] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.title);
   const inputRef = useRef<HTMLInputElement>(null);
-  const phase = doc.currentPhase;
-  const isCompleted = phase === "completed";
-  const isMcp = doc.documentMode === "editor" && Boolean(doc.hasApiKeyActivity);
-  const publicationState = doc.publishedAt
-    ? doc.hasUnpublishedChanges
-      ? t("dashboard.changesSincePublish")
-      : t("common.published")
-    : t("common.draft");
+  const status = statusOf(doc, t);
+  const agent = doc.hasApiKeyActivity ? doc.lastApiKeyName : null;
 
-  const startRename = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const startRename = () => {
     setTitleDraft(doc.title);
     setRenaming(true);
     setTimeout(() => inputRef.current?.select(), 0);
@@ -93,71 +73,45 @@ export function DocTableRow({
     if (!trimmed || trimmed === doc.title) return;
     await onRename(doc.id, trimmed);
   };
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") commitRename();
-    if (e.key === "Escape") setRenaming(false);
+
+  /** Row actions must neither open the document nor start a drag. */
+  const act = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn();
   };
-
-  const iconName = "draft";
-  const iconColor = isCompleted
-    ? "var(--df-steel-200)"
-    : isMcp
-    ? "var(--df-steel-200)"
-    : "var(--df-dim)";
-  const phaseColor = isCompleted ? "var(--df-steel-100)" : "var(--df-amber-300)";
-
-  const ctaLabel = isCompleted || isMcp ? t("common.open") : t("common.resume");
-  const ctaIcon = "arrow_forward";
-  const ctaStyle: React.CSSProperties = isCompleted
-    ? {
-        color: "var(--df-steel-100)",
-        borderColor: "var(--df-steel-border)",
-        background: "var(--df-steel-bg)",
-      }
-    : {
-        color: "var(--df-amber-200)",
-        borderColor: "var(--color-heat-30)",
-        background: "var(--color-heat-bg-soft)",
-      };
-
-  const formattedDate = new Date(doc.updatedAt).toLocaleDateString(dateLocale, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 
   return (
     <div
+      className="df-row"
+      role="link"
+      tabIndex={0}
       onClick={renaming ? undefined : () => { if (!consumeDocumentDragClick(doc.id)) onClick(); }}
+      onKeyDown={(e) => { if (e.key === "Enter" && !renaming && e.target === e.currentTarget) onClick(); }}
       onPointerDown={(event) => {
         if (!renaming && onMoveToFolder) startDocumentPointerDrag(event, doc, onMoveToFolder);
       }}
       style={{
         display: "grid",
-        gridTemplateColumns: "22px minmax(0,1fr) 280px 130px 130px",
+        gridTemplateColumns: LIBRARY_GRID,
         alignItems: "center",
         gap: 16,
-        padding: "14px 22px",
-        borderTop: "1px solid var(--df-outline)",
-        fontSize: 13.5,
-        background: "transparent",
-        cursor: renaming ? "default" : onMoveToFolder ? "grab" : "pointer",
+        minHeight: 56,
+        padding: "8px 16px 8px 18px",
+        borderTop: "1px solid var(--color-outline)",
+        cursor: renaming ? "default" : "pointer",
         touchAction: onMoveToFolder ? "none" : "auto",
-        transition: "background 0.12s",
-      }}
-      onMouseEnter={(e) => {
-        if (!renaming) (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.025)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = "transparent";
       }}
     >
-      <span className="material-symbols-outlined" style={{ fontSize: 21, color: iconColor }}>
-        {iconName}
-      </span>
-
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      {/* Name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <span
+          className="material-symbols-outlined"
+          aria-hidden
+          style={{ fontSize: 20, color: doc.archivedAt ? "var(--color-mute)" : "var(--color-faint)", flexShrink: 0 }}
+        >
+          {doc.documentMode === "guided" ? "account_tree" : "description"}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
           {renaming ? (
             <input
               data-no-document-drag
@@ -165,205 +119,89 @@ export function DocTableRow({
               value={titleDraft}
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={commitRename}
-              onKeyDown={onKey}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void commitRename();
+                if (e.key === "Escape") setRenaming(false);
+              }}
               onClick={(e) => e.stopPropagation()}
               maxLength={200}
+              aria-label={t("common.rename")}
               style={{
-                fontSize: 13.5,
-                fontWeight: 500,
-                color: "var(--df-on-surface)",
-                background: "transparent",
-                border: "none",
-                borderBottom: "1px solid rgba(255,77,0,0.40)",
-                outline: "none",
-                fontFamily: "inherit",
                 width: "100%",
                 padding: "1px 0",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text)",
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid var(--color-heat-line)",
+                outline: "none",
+                fontFamily: "inherit",
               }}
             />
           ) : (
-            <span
+            <div
+              title={doc.title}
               style={{
+                fontSize: 13,
                 fontWeight: 500,
-                color: "var(--df-on-surface)",
+                color: doc.archivedAt ? "var(--color-dim)" : "var(--color-text)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
               {doc.title}
-            </span>
+            </div>
           )}
-          {isMcp && doc.lastApiKeyName && (
-            <span
-              className="df-mono"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                flexShrink: 0,
-                fontSize: 10,
-                fontWeight: 600,
-                padding: "2px 7px",
-                borderRadius: 4,
-                background: "var(--df-steel-bg)",
-                border: "1px solid var(--df-steel-border)",
-                color: "var(--df-steel-100)",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                maxWidth: 200,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={t("dashboard.lastEditedBy", { name: doc.lastApiKeyName })}
-            >
-              {doc.lastApiKeyName}
-            </span>
+          {location && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, fontSize: 11.5, color: "var(--color-faint)" }}>
+              <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 13 }}>folder</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</span>
+            </div>
           )}
-          {doc.documentMode !== "guided" && (
-            <span
-              className="df-mono"
-              style={{
-                flexShrink: 0,
-                fontSize: 9,
-                letterSpacing: "0.08em",
-                color: doc.publishedAt
-                  ? doc.hasUnpublishedChanges
-                    ? "var(--df-amber-300)"
-                    : "var(--df-ok)"
-                  : "var(--df-faint)",
-              }}
-            >
-              {publicationState}
-            </span>
-          )}
-          <button
-            data-no-document-drag
-            onClick={startRename}
-            title={t("common.rename")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "2px 4px",
-              flexShrink: 0,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--df-mute)",
-              borderRadius: 3,
-              transition: "color 0.15s",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute)"; }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-          </button>
-        </div>
-        <div
-          className="df-mono"
-          style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.08em", marginTop: 3 }}
-        >
-          {doc.documentMode === "editor" ? (isMcp ? t("dashboard.editorMcp") : t("dashboard.editorMarkdown")) : t("dashboard.guidedRfc")}
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <PhaseTrail currentPhase={phase} />
-        <span
-          className="df-mono"
-          style={{ fontSize: 10.5, letterSpacing: "0.08em", color: phaseColor }}
-        >
-          {t(PHASE_LABEL_KEY[phase])}
-        </span>
+      {/* Status */}
+      <div style={{ minWidth: 0 }}>
+        <Pill tone={status.tone} compact style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {status.label}
+        </Pill>
       </div>
 
+      {/* Agent */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 12.5 }}>
+        {agent ? (
+          <>
+            <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 15, color: "var(--color-steel)" }}>terminal</span>
+            <span title={t("dashboard.lastEditedBy", { name: agent })} style={{ color: "var(--color-steel-hi)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {agent}
+            </span>
+          </>
+        ) : (
+          <span style={{ color: "var(--color-mute)" }}>—</span>
+        )}
+      </div>
+
+      {/* Modified */}
       <span
-        className="df-mono"
-        style={{ fontSize: 10.5, color: "var(--df-faint)", letterSpacing: "0.04em" }}
+        title={fullDate(doc.updatedAt, dateLocale)}
+        style={{ fontSize: 12.5, color: "var(--color-faint)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}
       >
-        {formattedDate}
+        {relativeTime(doc.updatedAt, dateLocale)}
       </span>
 
-      <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 6 }}>
-        {onRequestMove && (
-          <button
-            data-no-document-drag
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequestMove();
-            }}
-            title={t("dashboard.move")}
-            aria-label={t("dashboard.move")}
-            style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--df-outline-md)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>drive_file_move</span>
-          </button>
-        )}
-        {onShare && (
-          <button
-            data-no-document-drag
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare();
-            }}
-            title={t("common.share")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "6px 8px",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--df-outline-md)",
-              background: "transparent",
-              color: "var(--df-faint)",
-              cursor: "pointer",
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              person_add
-            </span>
-          </button>
-        )}
-        {onArchive && (
-          <button
-            data-no-document-drag
-            onClick={(e) => { e.stopPropagation(); onArchive(); }}
-            title="Archive document"
-            aria-label="Archive document"
-            style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--df-outline-md)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>archive</span>
-          </button>
-        )}
-        {onRestore && (
-          <button
-            data-no-document-drag
-            onClick={(e) => { e.stopPropagation(); onRestore(); }}
-            title="Restore document"
-            aria-label="Restore document"
-            style={{ display: "inline-flex", alignItems: "center", padding: "6px 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--df-outline-md)", background: "transparent", color: "var(--df-faint)", cursor: "pointer" }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>unarchive</span>
-          </button>
-        )}
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 11.5,
-            fontWeight: 600,
-            padding: "7px 12px",
-            borderRadius: 6,
-            border: "1px solid",
-            cursor: "pointer",
-            letterSpacing: "0.02em",
-            ...ctaStyle,
-          }}
-        >
-          {ctaLabel}
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{ctaIcon}</span>
-        </span>
+      {/* Actions */}
+      <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 4 }}>
+        <div className="df-row-actions">
+          {!doc.archivedAt && <IconButton data-no-document-drag icon="edit" label={t("common.rename")} onClick={act(startRename)} />}
+          {onRequestMove && <IconButton data-no-document-drag icon="drive_file_move" label={t("dashboard.move")} onClick={act(onRequestMove)} />}
+          {onShare && !doc.archivedAt && <IconButton data-no-document-drag icon="person_add" label={t("common.share")} onClick={act(onShare)} />}
+          {onArchive && <IconButton data-no-document-drag icon="archive" label={t("dashboard.archiveDocument")} onClick={act(onArchive)} />}
+          {onRestore && <IconButton data-no-document-drag icon="unarchive" label={t("dashboard.restoreDocument")} onClick={act(onRestore)} />}
+        </div>
+        <span className="material-symbols-outlined df-row-chevron" aria-hidden style={{ fontSize: 18 }}>chevron_right</span>
       </div>
     </div>
   );

@@ -2,112 +2,143 @@
 
 @theme {
   /* ─── DocForge ramp — the single source of truth ──────────────
-     Semantic names only. Nothing new enters without one.
-     Legacy `--df-*` names are aliased to these in :root below, so the
-     ~400 existing call sites keep working while they migrate. */
+     docs/product/design-system-consolidation.md (v2). Rules:
+     · Only the base colours below are typed as literals. Everything else is
+       derived from them (color-mix) or is a named role.
+     · Names say when to use a value, never how much of it there is —
+       no `heat-08`, no `white-04`.
+     · Nothing new enters without a semantic name. */
 
-  /* surfaces — 5 steps */
-  --color-bg: #0a0b0c;
-  --color-surface-mid: #1d1f21;
-  --color-surface-high: #262829;
+  /* surfaces — 4 steps + borders */
+  --color-bg: #0a0b0c;            /* window */
+  --color-surface: #121414;       /* panel, card */
+  --color-surface-mid: #1d1f21;   /* input, hunk */
+  --color-surface-high: #262829;  /* active tab, menu */
   --color-outline: rgb(255 255 255 / 6%);
   --color-outline-md: rgb(255 255 255 / 10%);
 
+  /* states over any surface */
+  --color-hover: rgb(255 255 255 / 4%);
+  --color-press: rgb(255 255 255 / 8%);
+  --color-sink: rgb(0 0 0 / 20%);      /* recessed area */
+  --color-scrim: rgb(0 0 0 / 60%);     /* behind a dialog */
+  --color-active-line: rgb(255 255 255 / 2%);
+  /* translucent layers derive from the surface they sit on */
+  --color-chrome: color-mix(in srgb, var(--color-bg) 85%, transparent);
+  --color-veil: color-mix(in srgb, var(--color-surface) 50%, transparent);
+  --color-card-footer: color-mix(in srgb, var(--color-surface-mid) 35%, transparent);
+  /* the leading edge of a pour / scan animation, and a glass sheen */
+  --color-spark: color-mix(in srgb, var(--color-heat-pale) 80%, transparent);
+  --color-spark-soft: color-mix(in srgb, var(--color-heat-pale) 50%, transparent);
+  --color-sheen: rgb(255 255 255 / 20%);
+
   /* text — 4 levels */
   --color-text: #e3e2e2;
-  --color-dim: rgb(227 226 226 / 62%);
-  --color-faint: rgb(227 226 226 / 38%);
-  --color-mute: rgb(227 226 226 / 18%);
+  --color-dim: color-mix(in srgb, var(--color-text) 62%, transparent);
+  --color-faint: color-mix(in srgb, var(--color-text) 38%, transparent);
+  --color-mute: color-mix(in srgb, var(--color-text) 18%, transparent);
+  --color-on-heat: #ffffff;       /* text on a heat fill */
 
   /* accents — each one means exactly one thing */
   --color-heat: #ff4d00;          /* action, active, now */
-  --color-heat-hi: #ff8d4a;       /* hover, emphasis */
-  --color-heat-soft: #ffb59e;     /* text on heat */
+  --color-heat-hi: #ff8d4a;       /* hover, small warm text */
+  --color-heat-soft: #ffb59e;     /* text on a heat wash */
   --color-heat-pale: #ffd9b8;     /* flagged prose (gate underline) */
   --color-heat-deep: #6e1d00;
-  --color-steel: #8aa0b8;         /* forged, immutable, MCP */
+  --color-steel: #8aa0b8;         /* MCP, frozen, artifact */
   --color-steel-hi: #b9c6d4;
   --color-ok: #5fb383;            /* accepted, resolved */
   --color-warn: #f0b27a;          /* gate warning */
   --color-error: #e86464;         /* blocking, failure */
 
-  /* tinted border + fill for each accent. Every status chip, active card and
-     inline callout in the v4 mock is one of these pairs, so they are tokens
-     rather than an rgba() re-typed at each call site. */
-  --color-heat-border: rgb(255 77 0 / 45%);
-  --color-heat-bg: rgb(255 77 0 / 10%);
-  --color-heat-bg-soft: rgb(255 77 0 / 6%);
-  --color-heat-selection: rgb(255 77 0 / 18%);
-  --color-active-line: rgb(255 255 255 / 2%);
+  /* tiers — derived, never typed. Same four for every accent:
+     tint (active row, warm hover) · wash (chip, active card, callout) ·
+     strong (selection, input ring, progress) · line (every tinted border) */
+  --color-heat-tint: color-mix(in srgb, var(--color-heat) 5%, transparent);
+  --color-heat-wash: color-mix(in srgb, var(--color-heat) 10%, transparent);
+  --color-heat-strong: color-mix(in srgb, var(--color-heat) 20%, transparent);
+  --color-heat-line: color-mix(in srgb, var(--color-heat) 40%, transparent);
+  --color-steel-tint: color-mix(in srgb, var(--color-steel) 5%, transparent);
+  --color-steel-wash: color-mix(in srgb, var(--color-steel) 10%, transparent);
+  --color-steel-strong: color-mix(in srgb, var(--color-steel) 20%, transparent);
+  --color-steel-line: color-mix(in srgb, var(--color-steel) 40%, transparent);
+  --color-ok-tint: color-mix(in srgb, var(--color-ok) 5%, transparent);
+  --color-ok-wash: color-mix(in srgb, var(--color-ok) 10%, transparent);
+  --color-ok-strong: color-mix(in srgb, var(--color-ok) 20%, transparent);
+  --color-ok-line: color-mix(in srgb, var(--color-ok) 40%, transparent);
+  --color-warn-tint: color-mix(in srgb, var(--color-warn) 5%, transparent);
+  --color-warn-wash: color-mix(in srgb, var(--color-warn) 10%, transparent);
+  --color-warn-strong: color-mix(in srgb, var(--color-warn) 20%, transparent);
+  --color-warn-line: color-mix(in srgb, var(--color-warn) 40%, transparent);
+  --color-error-tint: color-mix(in srgb, var(--color-error) 5%, transparent);
+  --color-error-wash: color-mix(in srgb, var(--color-error) 10%, transparent);
+  --color-error-strong: color-mix(in srgb, var(--color-error) 20%, transparent);
+  --color-error-line: color-mix(in srgb, var(--color-error) 40%, transparent);
 
-  /* heat tint scale — the repeated washes behind active/hover states */
-  --color-heat-04: rgb(255 77 0 / 4%);
-  --color-heat-05: rgb(255 77 0 / 5%);
-  --color-heat-08: rgb(255 77 0 / 8%);
-  --color-heat-15: rgb(255 77 0 / 15%);
-  --color-heat-20: rgb(255 77 0 / 20%);
-  --color-heat-25: rgb(255 77 0 / 25%);
-  --color-heat-30: rgb(255 77 0 / 30%);
-  --color-heat-35: rgb(255 77 0 / 35%);
-
-  /* neutral washes */
-  --color-white-03: rgb(255 255 255 / 3%);
-  --color-white-04: rgb(255 255 255 / 4%);
-  --color-white-08: rgb(255 255 255 / 8%);
-  --color-shade-20: rgb(0 0 0 / 20%);
-  --color-scrim: rgb(0 0 0 / 60%);
-  /* the chrome bar sits a touch above the page, below a panel */
-  --color-chrome: rgb(13 14 15 / 60%);
-  /* footer strip inside a card — a touch lighter than the card itself */
-  --color-card-footer: rgb(29 31 33 / 35%);
-  --color-steel-border: rgb(138 160 184 / 35%);
-  --color-steel-bg: rgb(138 160 184 / 10%);
-  --color-warn-border: rgb(240 178 122 / 40%);
-  --color-warn-bg: rgb(240 178 122 / 8%);
-  --color-error-border: rgb(232 100 100 / 45%);
-  --color-ok-border: rgb(95 179 131 / 45%);
-
-  /* diff — derived from ok/error */
-  --color-diff-add-bg: rgb(95 179 131 / 10%);
-  --color-diff-del-bg: rgb(232 100 100 / 10%);
+  /* diff — the ok/error pair */
+  --color-diff-add-bg: var(--color-ok-wash);
+  --color-diff-del-bg: var(--color-error-wash);
   --color-diff-add-fg: #a5d6bb;
-  --color-diff-add-gutter: rgb(95 179 131 / 55%);
-  --color-diff-del-gutter: rgb(232 100 100 / 55%);
   --color-diff-del-fg: #f0a9a9;
+  --color-diff-add-gutter: color-mix(in srgb, var(--color-ok) 55%, transparent);
+  --color-diff-del-gutter: color-mix(in srgb, var(--color-error) 55%, transparent);
 
-  /* radius — 4 steps. xs icon-button · sm button/tab/input ·
-     md card/panel · pill badge */
+  /* radius — xs icon-button, kbd · sm button, tab, input · md card, panel ·
+     lg dialog, marketing card · pill badge, dot. Inside an md card nothing
+     goes past sm. */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
+  --radius-lg: 14px;
   --radius-pill: 999px;
 
-  /* ─── Legacy Material roles — being retired (design-system plan §3) ─── */
-  --color-primary-fixed: #ffdbd0;
-  --color-surface-variant: #343535;
-  --color-on-surface-variant: #e6beb2;
-  --color-background: #0d0e0f;
-  --color-outline-variant: #5c4037;
-  --color-secondary: #c8c6c5;
-  --color-error-container: #93000a;
-  --color-primary-container: #ff4d00;
-  --color-on-error: #690005;
-  --color-primary: #ffb59e;
-  --color-on-surface: #e3e2e2;
-  --color-on-error-container: #ffdad6;
-  --color-tertiary: #c9c6c5;
-  --color-on-primary-container: #521300;
-  --color-on-primary: #5e1700;
-  --color-surface-container-high: #292a2a;
-  --color-surface: #121414;
-  --color-surface-container: #1f2020;
-  --color-primary-fixed-dim: #ffb59e;
-  --color-surface-container-low: #1b1c1c;
-
-
-  /* Font family */
+  /* type — two families, a closed size scale.
+     label 10 · caption 11.5 · body-sm/ui 12.5 · code 13 · body 14 ·
+     title 17 · heading 21 · display 28 · hero (marketing only) */
   --font-sans: "Inter", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --text-label: 10px;
+  --text-label--line-height: 1;
+  --text-label--letter-spacing: 0.1em;
+  --text-label--font-weight: 600;
+  --text-caption: 11.5px;
+  --text-caption--line-height: 1.45;
+  --text-body-sm: 12.5px;
+  --text-body-sm--line-height: 1.5;
+  --text-code: 13px;
+  --text-code--line-height: 1.7;
+  --text-body: 14px;
+  --text-body--line-height: 1.65;
+  --text-title: 17px;
+  --text-title--line-height: 1.3;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 600;
+  --text-heading: 21px;
+  --text-heading--line-height: 1.25;
+  --text-heading--letter-spacing: -0.025em;
+  --text-heading--font-weight: 600;
+  --text-display: 28px;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 700;
+  --text-hero: clamp(40px, 6vw, 64px);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.045em;
+  --text-hero--font-weight: 700;
+  /* mono tracking — data (counters, kbd) · label (pill, status) ·
+     eyebrow ("› STRUCTURE") */
+  --tracking-data: 0.04em;
+  --tracking-label: 0.1em;
+  --tracking-eyebrow: 0.16em;
+
+  /* shadow — only what floats, plus the glow of a primary action */
+  --shadow-pop: 0 12px 28px -10px rgb(0 0 0 / 70%), 0 0 0 1px var(--color-outline-md);
+  --shadow-modal: 0 24px 60px -12px rgb(0 0 0 / 80%);
+  --shadow-glow: 0 0 15px var(--color-heat-line);
+  --shadow-glow-hi: 0 0 24px color-mix(in srgb, var(--color-heat) 65%, transparent);
+  --shadow-ember: 0 0 6px var(--color-heat), 0 0 12px var(--color-heat-line);
+
+  --ease-forge: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* Folder reordering uses pointer events so the browser never draws its native
@@ -128,46 +159,24 @@ body[data-document-dragging="true"] * {
   }
 }
 
-/* ─── Legacy `--df-*` aliases ────────────────────────────────────
-   Every name here points at the ramp above — no literal values, so
-   redefining a token in @theme actually changes the screen. These stay
-   for one cycle while call sites migrate to the semantic names; `grep`
-   for `--df-` shows what's left. */
+/* ─── Tokens Tailwind v4 has no namespace for ───────────────── */
 :root {
-  --df-bg: var(--color-bg);
-  --df-surface: var(--color-surface);
-  --df-surface-mid: var(--color-surface-mid);
-  --df-surface-high: var(--color-surface-high);
-  --df-outline: var(--color-outline);
-  --df-outline-md: var(--color-outline-md);
-  --df-mute: var(--color-mute);
-  --df-faint: var(--color-faint);
-  --df-dim: var(--color-dim);
-  --df-on-surface: var(--color-text);
+  --duration-fast: 150ms;   /* colour, border, hover */
+  --duration-base: 220ms;   /* tab, panel, popover */
+  --duration-slow: 400ms;   /* forge, pour, progress */
 
-  --df-amber-100: var(--color-heat-pale);
-  --df-amber-200: var(--color-heat-soft);
-  --df-amber-300: var(--color-heat-hi);
-  --df-amber-400: #ff6a14;
-  --df-amber-500: var(--color-heat);
-  --df-amber-600: #c93800;
-  --df-amber-700: var(--color-heat-deep);
-  --df-amber-trail: rgb(255 77 0 / 42%);
-  --df-amber-glow: rgb(255 77 0 / 40%);
+  /* stacking layers — nothing else is allowed a z-index above 2 */
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-popover: 50;
+  --z-drawer: 60;
+  --z-modal: 100;
+  --z-toast: 200;
 
-  --df-steel-100: var(--color-steel-hi);
-  --df-steel-200: var(--color-steel);
-  --df-steel-300: #5d7591;
-  --df-steel-bg: var(--color-steel-bg);
-  --df-steel-bg-strong: rgb(138 160 184 / 22%);
-  --df-steel-border: var(--color-steel-border);
-
-  --df-error: var(--color-error);
-  --df-error-bg: var(--color-diff-del-bg);
-  --df-warn: var(--color-warn);
-  --df-ok: var(--color-ok);
-
-  --df-font-mono: var(--font-mono);
+  /* marketing art with a name, so the colour guard holds in pages/ too */
+  --gradient-warm: linear-gradient(145deg, var(--color-heat-wash), var(--color-veil));
+  --gradient-steel: linear-gradient(145deg, var(--color-steel-wash), var(--color-veil));
+  --gradient-band: linear-gradient(100deg, var(--color-heat-wash), var(--color-hover));
 }
 
 /* Base styles */
@@ -227,116 +236,240 @@ textarea.font-mono,
   background: transparent;
 }
 .df-scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--df-outline-md);
+  background: var(--color-outline-md);
   border-radius: 99px;
 }
 .df-scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,77,0,0.45);
+  background: var(--color-heat-line);
 }
 .df-scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--df-outline-md) transparent;
+  scrollbar-color: var(--color-outline-md) transparent;
 }
 
 .linear-gradient-bg {
-  background: linear-gradient(180deg, #0d0e0f 0%, #18110f 100%);
+  background: linear-gradient(180deg, var(--color-bg) 0%, color-mix(in srgb, var(--color-heat-deep) 12%, var(--color-bg)) 100%);
 }
 
 .panel-depth {
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-outline);
+  box-shadow: inset 0 1px 0 var(--color-outline-md);
 }
 
-.atmospheric-shadow {
-  box-shadow:
-    0 20px 40px -10px rgba(10, 12, 16, 0.8),
-    0 10px 20px -5px rgba(20, 24, 32, 0.5);
-}
-
-.glass-node {
-  backdrop-filter: blur(4px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.active-glow-primary {
-  box-shadow: 0 0 15px rgba(255, 77, 0, 0.28);
-}
-
-/* Primary action. Hover brightens the heat instead of inverting to white —
-   the inversion was the only one in the product and it dropped the brand
-   colour at the exact moment of the click (design-system plan §4). */
+/* Primary action outside the Button primitive. Hover brightens the heat
+   instead of inverting to white (design-system plan §4). */
 .forge-btn {
   background: var(--color-heat);
-  color: #fff;
-  box-shadow: 0 0 15px rgb(255 77 0 / 40%);
-  transition: background 0.2s, box-shadow 0.2s;
+  color: var(--color-on-heat);
+  box-shadow: var(--shadow-glow);
+  transition: background var(--duration-fast) var(--ease-forge), box-shadow var(--duration-fast) var(--ease-forge);
 }
 .forge-btn:hover {
   background: var(--color-heat-hi);
-  color: #fff;
-  box-shadow: 0 0 24px rgb(255 77 0 / 65%);
-}
-
-.stage-card {
-  border: 1px solid #262626;
-  transition: border-color 0.3s;
-}
-.stage-card:hover {
-  border-color: rgba(255, 77, 0, 0.4);
+  color: var(--color-on-heat);
+  box-shadow: var(--shadow-glow-hi);
 }
 
 /* DocForge utility classes */
-.df-mono { font-family: var(--df-font-mono); }
-
 .df-ember {
   display: inline-block;
   width: 6px; height: 6px;
-  border-radius: 999px;
-  background: var(--df-amber-500);
-  box-shadow: 0 0 6px var(--df-amber-500), 0 0 12px var(--df-amber-glow);
+  border-radius: var(--radius-pill);
+  background: var(--color-heat);
+  box-shadow: var(--shadow-ember);
 }
 
-.df-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--df-font-mono);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.10em; text-transform: uppercase;
-  padding: 4px 9px; border-radius: 999px; border: 1px solid; line-height: 1;
+/* ─── Primitive states (components/ui) ──────────────────────────
+   In CSS rather than inline so hover, focus and disabled work from the
+   keyboard and never need onMouseEnter bookkeeping. */
+.df-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-forge),
+    border-color var(--duration-fast) var(--ease-forge),
+    color var(--duration-fast) var(--ease-forge),
+    box-shadow var(--duration-fast) var(--ease-forge);
 }
-.df-pill-heat {
-  color: var(--df-amber-200);
-  border-color: rgba(255,77,0,0.45);
-  background: rgba(255,77,0,0.10);
+.df-btn--primary { background: var(--color-heat); color: var(--color-on-heat); font-weight: 600; }
+.df-btn--primary:hover:not(:disabled) { background: var(--color-heat-hi); box-shadow: var(--shadow-glow); }
+.df-btn--secondary { background: var(--color-hover); color: var(--color-text); border-color: var(--color-outline-md); }
+.df-btn--secondary:hover:not(:disabled) { background: var(--color-press); border-color: var(--color-heat-line); }
+.df-btn--ghost { background: transparent; color: var(--color-faint); }
+.df-btn--ghost:hover:not(:disabled) { color: var(--color-text); background: var(--color-hover); }
+.df-btn--lg { padding: 11px 17px; font-size: var(--text-code); font-weight: 600; }
+.df-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.df-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-faint);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-forge), color var(--duration-fast) var(--ease-forge);
 }
-.df-pill-heat::before {
-  content: ""; width: 6px; height: 6px; border-radius: 999px;
-  background: var(--df-amber-500);
-  box-shadow: 0 0 6px var(--df-amber-500), 0 0 12px var(--df-amber-glow);
+.df-icon-btn:hover:not(:disabled) { background: var(--color-hover); color: var(--color-text); }
+.df-icon-btn--active { background: var(--color-heat-wash); color: var(--color-heat-hi); }
+.df-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.df-input {
+  width: 100%;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-mid);
+  border: 1px solid var(--color-outline-md);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-forge), box-shadow var(--duration-fast) var(--ease-forge);
 }
-.df-pill-steel {
-  color: var(--df-steel-100);
-  border-color: var(--df-steel-border);
-  background: var(--df-steel-bg);
+.df-input::placeholder { color: var(--color-faint); }
+.df-input:focus-visible { border-color: var(--color-heat-line); box-shadow: 0 0 0 3px var(--color-heat-strong); }
+
+.df-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-faint);
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-forge);
 }
-.df-pill-steel::before {
-  content: ""; width: 6px; height: 6px; border-radius: 999px;
-  background: var(--df-steel-200);
+.df-switch:hover:not(:disabled), .df-switch[aria-checked="true"] { color: var(--color-text); }
+.df-switch:disabled { opacity: 0.5; cursor: wait; }
+.df-switch-track {
+  position: relative;
+  width: 26px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-outline-md);
+  transition: background var(--duration-fast) var(--ease-forge);
 }
-.df-pill-ghost {
-  color: var(--df-faint);
-  border-color: var(--df-outline);
-  background: rgba(255,255,255,0.02);
+.df-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-pill);
+  background: var(--color-faint);
+  transition: transform var(--duration-fast) var(--ease-forge), background var(--duration-fast) var(--ease-forge);
 }
-.df-pill-warn {
-  color: var(--df-warn);
-  border-color: rgba(240,178,122,0.40);
-  background: rgba(240,178,122,0.08);
+.df-switch[aria-checked="true"] .df-switch-track { background: var(--color-heat-strong); }
+.df-switch[aria-checked="true"] .df-switch-knob { transform: translateX(11px); background: var(--color-heat); }
+
+.df-kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-outline-md);
+  border-bottom-width: 2px;
+  background: var(--color-surface-mid);
+  color: var(--color-dim);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-data);
+  line-height: 1.2;
+  text-align: center;
 }
-.df-pill-error {
-  color: var(--df-error);
-  border-color: rgba(232,100,100,0.45);
-  background: var(--df-error-bg);
+
+/* ─── Lists and navigation ──────────────────────────────────────
+   One row language for every list (library, versions, keys): hover lifts
+   the row, secondary actions appear on hover/focus, the chevron says
+   "this opens". A drop target gets the steel bar. */
+.df-row {
+  transition: background var(--duration-fast) var(--ease-forge), box-shadow var(--duration-fast) var(--ease-forge);
+}
+.df-row:hover { background: var(--color-hover); }
+.df-row--drop { background: var(--color-steel-wash); box-shadow: inset 3px 0 0 var(--color-steel); }
+.df-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-forge);
+}
+.df-row:hover .df-row-actions,
+.df-row:focus-within .df-row-actions { opacity: 1; }
+.df-row-chevron { color: var(--color-mute); transition: color var(--duration-fast) var(--ease-forge), transform var(--duration-fast) var(--ease-forge); }
+.df-row:hover .df-row-chevron { color: var(--color-dim); transform: translateX(2px); }
+
+.df-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-dim);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-forge), color var(--duration-fast) var(--ease-forge);
+}
+.df-nav-item:hover { background: var(--color-hover); color: var(--color-text); }
+.df-nav-item--active { background: var(--color-heat-tint); color: var(--color-text); box-shadow: inset 2px 0 0 var(--color-heat); }
+.df-nav-item--active .material-symbols-outlined { color: var(--color-heat-hi); }
+.df-nav-item .material-symbols-outlined { color: var(--color-faint); font-size: 17px; }
+.df-nav-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-data);
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Focus — keyboard users see where they are ─────────────────
+   Scoped to controls and single-line fields. Writing surfaces (textareas,
+   the CodeMirror editor) stay unringed: the caret is the focus there. */
+:where(button, a[href], summary, select, [role="button"], [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"]):not(.cm-content)):focus-visible {
+  outline: 2px solid var(--color-heat-hi);
+  outline-offset: 2px;
+}
+:where(input:not([type="checkbox"]):not([type="radio"])):focus-visible {
+  box-shadow: 0 0 0 3px var(--color-heat-strong);
+}
+
+/* ─── Reduced motion — the forge loops stop, state changes stay ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Animations */
@@ -407,8 +540,8 @@ textarea.font-mono,
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes df-forge-flash {
-  0%   { box-shadow: 0 0 0 2px rgba(255,77,0,0.55), 0 0 18px rgba(255,77,0,0.25); }
-  60%  { box-shadow: 0 0 0 2px rgba(138,160,184,0.25), 0 0 8px rgba(138,160,184,0.10); }
+  0%   { box-shadow: 0 0 0 2px var(--color-heat-line), 0 0 18px var(--color-heat-strong); }
+  60%  { box-shadow: 0 0 0 2px var(--color-steel-strong), 0 0 8px var(--color-steel-wash); }
   100% { box-shadow: none; }
 }
 @keyframes df-zone-shimmer {
@@ -416,7 +549,7 @@ textarea.font-mono,
   to   { transform: translateX(250%); }
 }
 @keyframes df-counter-pulse {
-  0%, 100% { color: var(--df-faint); }
+  0%, 100% { color: var(--color-faint); }
   35%       { color: var(--color-heat-hi); }
 }
 @keyframes df-ember-float {
@@ -425,8 +558,8 @@ textarea.font-mono,
   100% { opacity: 0; transform: translateY(-56px) scale(0.25); }
 }
 @keyframes df-section-forged-pulse {
-  0%, 100% { box-shadow: none; border-color: var(--df-steel-border); }
-  50%       { box-shadow: 0 0 0 2px rgba(138,160,184,0.10), 0 0 12px rgba(138,160,184,0.08); border-color: rgba(138,160,184,0.55); }
+  0%, 100% { box-shadow: none; border-color: var(--color-steel-line); }
+  50%       { box-shadow: 0 0 0 2px var(--color-steel-wash), 0 0 12px var(--color-steel-wash); border-color: var(--color-steel-line); }
 }
 @keyframes df-shimmer-loop {
   0%   { transform: translateX(-100%); }

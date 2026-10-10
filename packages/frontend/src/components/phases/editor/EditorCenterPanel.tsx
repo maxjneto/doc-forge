@@ -146,7 +146,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          background: "rgba(255,255,255,0.01)",
+          background: "var(--color-hover)",
         }}
       >
         {/* Toolbar */}
@@ -156,8 +156,8 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
             alignItems: "center",
             justifyContent: "center",
             padding: "12px 24px",
-            borderBottom: "1px solid var(--df-outline)",
-            background: "rgba(18,20,20,0.6)",
+            borderBottom: "1px solid var(--color-outline)",
+            background: "var(--color-veil)",
             backdropFilter: "blur(8px)",
             flexShrink: 0,
           }}
@@ -166,10 +166,10 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
             style={{
               display: "flex",
               alignItems: "center",
-              background: "var(--color-white-04)",
+              background: "var(--color-hover)",
               borderRadius: "var(--radius-sm)",
               padding: 3,
-              border: "1px solid var(--df-outline)",
+              border: "1px solid var(--color-outline)",
             }}
           >
             {(hunks.length > 0
@@ -182,12 +182,12 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
                 style={{
                   padding: "5px 14px",
                   borderRadius: "var(--radius-sm)",
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: 500,
                   border: "none",
                   cursor: "pointer",
-                  background: mode === m ? "var(--df-surface-high)" : "transparent",
-                  color: mode === m ? "var(--df-on-surface)" : "var(--df-faint)",
+                  background: mode === m ? "var(--color-surface-high)" : "transparent",
+                  color: mode === m ? "var(--color-text)" : "var(--color-faint)",
                   transition: "all 0.15s",
                 }}
               >
@@ -223,8 +223,8 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
                   className="df-mono"
                   style={{
                     fontSize: 10,
-                    letterSpacing: "0.12em",
-                    color: "var(--df-faint)",
+                    letterSpacing: "var(--tracking-label)",
+                    color: "var(--color-faint)",
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",

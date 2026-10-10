@@ -55,10 +55,10 @@ function KilnToggle() {
         alignItems: "center",
         gap: 5,
         padding: "4px 10px",
-        borderRadius: 6,
-        border: `1px solid ${active ? "var(--color-heat-border)" : "var(--df-outline)"}`,
-        background: active ? "var(--color-heat-08)" : "transparent",
-        color: active ? "var(--df-amber-300)" : "var(--df-faint)",
+        borderRadius: "var(--radius-sm)",
+        border: `1px solid ${active ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+        background: active ? "var(--color-heat-wash)" : "transparent",
+        color: active ? "var(--color-heat-hi)" : "var(--color-faint)",
         cursor: "pointer",
         transition: "all 0.2s",
       }}
@@ -71,7 +71,7 @@ function KilnToggle() {
       </span>
       <span
         className="df-mono"
-        style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}
+        style={{ fontSize: 10, letterSpacing: "var(--tracking-label)", textTransform: "uppercase" }}
       >
         Kiln
       </span>
@@ -81,8 +81,8 @@ function KilnToggle() {
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: "var(--df-amber-500)",
-            boxShadow: "0 0 6px var(--df-amber-500)",
+            background: "var(--color-heat)",
+            boxShadow: "0 0 6px var(--color-heat)",
             animation: "df-pulse 1.6s ease-in-out infinite",
           }}
         />
@@ -141,14 +141,14 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
         left: 0,
         right: 0,
         height: 56,
-        background: "rgba(13,14,15,0.92)",
+        background: "var(--color-chrome)",
         backdropFilter: "blur(8px)",
-        borderBottom: "1px solid var(--df-outline)",
+        borderBottom: "1px solid var(--color-outline)",
         display: "flex",
         alignItems: "center",
         padding: "0 22px",
         gap: 18,
-        zIndex: 50,
+        zIndex: "var(--z-popover)",
         flexShrink: 0,
       }}
     >
@@ -173,8 +173,8 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
           style={{
             fontSize: 13,
             fontWeight: 600,
-            letterSpacing: "0.08em",
-            color: "var(--df-on-surface)",
+            letterSpacing: "var(--tracking-label)",
+            color: "var(--color-text)",
           }}
         >
           DOCFORGE
@@ -197,10 +197,10 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
               end
               style={({ isActive }) => ({
                 padding: "6px 12px",
-                borderRadius: 6,
+                borderRadius: "var(--radius-sm)",
                 fontSize: 12.5,
-                color: isActive ? "var(--df-on-surface)" : "var(--df-dim)",
-                background: isActive ? "var(--color-white-04)" : "transparent",
+                color: isActive ? "var(--color-text)" : "var(--color-dim)",
+                background: isActive ? "var(--color-hover)" : "transparent",
                 textDecoration: "none",
                 letterSpacing: "0.02em",
                 transition: "color 0.15s, background 0.15s",
@@ -232,12 +232,12 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
             const isNowSteel = state === "now-steel";
 
             const color = isDone
-              ? "var(--df-amber-trail)"
+              ? "var(--color-heat-line)"
               : isNow
-              ? "var(--df-amber-500)"
+              ? "var(--color-heat)"
               : isNowSteel
-              ? "var(--df-steel-100)"
-              : "var(--df-mute)";
+              ? "var(--color-steel-hi)"
+              : "var(--color-mute)";
 
             return (
               <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -247,8 +247,8 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                       width: 18,
                       height: 1,
                       background: isDone || isNowSteel
-                        ? "var(--df-amber-trail)"
-                        : "var(--df-mute)",
+                        ? "var(--color-heat-line)"
+                        : "var(--color-mute)",
                     }}
                   />
                 )}
@@ -258,13 +258,13 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                     style={{
                       width: 6,
                       height: 6,
-                      borderRadius: 999,
+                      borderRadius: "var(--radius-pill)",
                       background: color,
                       opacity: isDone || isNow || isNowSteel ? 1 : 0.55,
                       boxShadow: isNow
-                        ? "0 0 0 3px rgba(255,77,0,0.18), 0 0 12px rgba(255,77,0,0.6)"
+                        ? "0 0 0 3px var(--color-heat-strong), 0 0 12px var(--color-heat-line)"
                         : isNowSteel
-                        ? "0 0 0 3px var(--df-steel-bg-strong)"
+                        ? "0 0 0 3px var(--color-steel-strong)"
                         : "none",
                     }}
                   />
@@ -272,7 +272,7 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                     className="df-mono"
                     style={{
                       fontSize: 10,
-                      letterSpacing: "0.10em",
+                      letterSpacing: "var(--tracking-label)",
                       textTransform: "uppercase",
                       color,
                     }}
@@ -297,17 +297,17 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
           title={t("nav.manageApiKeys")}
           style={{
             display: "flex", alignItems: "center", gap: 5,
-            padding: "4px 10px", borderRadius: 6,
-            border: "1px solid var(--df-outline)",
+            padding: "4px 10px", borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--color-outline)",
             background: "transparent",
-            color: "var(--df-faint)",
+            color: "var(--color-faint)",
             cursor: "pointer", transition: "all 0.15s",
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-dim)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-dim)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-faint)"; }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>key</span>
-          <span className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase" }}>{t("nav.apiKeys")}</span>
+          <span className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-label)", textTransform: "uppercase", whiteSpace: "nowrap" }}>{t("nav.apiKeys")}</span>
         </button>
 
         <LanguageSwitcher compact />
@@ -319,8 +319,8 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
               display: "flex",
               alignItems: "center",
               gap: 4,
-              border: "1px solid var(--df-outline)",
-              borderRadius: 4,
+              border: "1px solid var(--color-outline)",
+              borderRadius: "var(--radius-xs)",
               padding: "2px 4px 2px 10px",
               maxWidth: 260,
             }}
@@ -336,12 +336,12 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                 className="df-mono"
                 style={{
                   fontSize: 10,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "var(--tracking-label)",
                   textTransform: "uppercase",
                   background: "transparent",
                   border: "none",
                   outline: "none",
-                  color: "var(--df-dim)",
+                  color: "var(--color-dim)",
                   width: 180,
                   fontFamily: "inherit",
                 }}
@@ -351,9 +351,9 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                 className="df-mono"
                 style={{
                   fontSize: 10,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "var(--tracking-label)",
                   textTransform: "uppercase",
-                  color: "var(--df-dim)",
+                  color: "var(--color-dim)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -374,13 +374,13 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
                   background: "transparent",
                   border: "none",
                   cursor: "pointer",
-                  color: "var(--df-mute)",
-                  borderRadius: 3,
+                  color: "var(--color-mute)",
+                  borderRadius: "var(--radius-xs)",
                   transition: "color 0.15s",
                   flexShrink: 0,
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute)"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-faint)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-mute)"; }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>edit</span>
               </button>
@@ -391,16 +391,16 @@ export function TopBar({ phase, credits, docTitle, onRenameTitle, dashboardNav }
             className="df-mono"
             style={{
               fontSize: 10,
-              letterSpacing: "0.08em",
+              letterSpacing: "var(--tracking-label)",
               textTransform: "uppercase",
-              color: "var(--df-dim)",
-              border: "1px solid var(--df-outline)",
-              borderRadius: 4,
+              color: "var(--color-dim)",
+              border: "1px solid var(--color-outline)",
+              borderRadius: "var(--radius-xs)",
               padding: "4px 10px",
             }}
           >
             CREATIONS ·{" "}
-            <b style={{ color: "var(--df-amber-300)" }}>{credits}</b>
+            <b style={{ color: "var(--color-heat-hi)" }}>{credits}</b>
           </span>
         ) : null}
 

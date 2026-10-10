@@ -3,6 +3,7 @@ import { Icon, MarkdownRenderer } from "../shared";
 import { useWorkspaceStore } from "@/store";
 import type { SectionActionType } from "@/types";
 
+import { useI18n } from "@/i18n";
 // ─── Message cards ───────────────────────────────────────────
 
 interface ChatMessageBubbleProps {
@@ -11,30 +12,31 @@ interface ChatMessageBubbleProps {
 }
 
 function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
+  const { t } = useI18n();
   if (role === "agent") {
     return (
       <div
         style={{
-          background: "rgba(18,20,20,0.9)",
-          border: "1px solid var(--df-outline)",
-          borderLeft: "2px solid var(--df-amber-500)",
-          borderRadius: 8,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-outline)",
+          borderLeft: "2px solid var(--color-steel)",
+          borderRadius: "var(--radius-md)",
           padding: "12px 14px",
         }}
       >
         <div
           className="df-mono"
           style={{
-            fontSize: 9.5,
-            letterSpacing: "0.14em",
+            fontSize: 10,
+            letterSpacing: "var(--tracking-eyebrow)",
             textTransform: "uppercase",
-            color: "var(--df-amber-300)",
+            color: "var(--color-steel-hi)",
             marginBottom: 8,
           }}
         >
-          Analysis
+          {t("g.ws.analysis")}
         </div>
-        <div style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.6 }}>
           <MarkdownRenderer content={content} variant="chat" />
         </div>
       </div>
@@ -44,25 +46,25 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
   return (
     <div
       style={{
-        background: "rgba(38,40,41,0.5)",
-        border: "1px solid var(--df-outline-md)",
-        borderRadius: 8,
+        background: "var(--color-surface-mid)",
+        border: "1px solid var(--color-outline-md)",
+        borderRadius: "var(--radius-md)",
         padding: "12px 14px",
       }}
     >
       <div
         className="df-mono"
         style={{
-          fontSize: 9.5,
-          letterSpacing: "0.14em",
+          fontSize: 10,
+          letterSpacing: "var(--tracking-eyebrow)",
           textTransform: "uppercase",
-          color: "var(--df-steel-200)",
+          color: "var(--color-faint)",
           marginBottom: 8,
         }}
       >
-        You
+        {t("g.ws.you")}
       </div>
-      <div style={{ fontSize: 12.5, color: "var(--df-on-surface)", lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12.5, color: "var(--color-text)", lineHeight: 1.6 }}>
         <MarkdownRenderer content={content} variant="chat" />
       </div>
     </div>
@@ -70,35 +72,36 @@ function ChatMessageBubble({ role, content }: ChatMessageBubbleProps) {
 }
 
 function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
-        background: "rgba(18,20,20,0.9)",
-        border: "1px solid var(--df-outline)",
-        borderLeft: "2px solid var(--df-amber-500)",
-        borderRadius: 8,
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-outline)",
+        borderLeft: "2px solid var(--color-heat)",
+        borderRadius: "var(--radius-md)",
         padding: "12px 14px",
       }}
     >
       <div
         className="df-mono"
         style={{
-          fontSize: 9.5,
-          letterSpacing: "0.14em",
+          fontSize: 10,
+          letterSpacing: "var(--tracking-eyebrow)",
           textTransform: "uppercase",
-          color: "var(--df-amber-300)",
+          color: "var(--color-heat-hi)",
           marginBottom: 8,
         }}
       >
-        {isSending ? "Sending" : "Analysis"}
+        {isSending ? t("g.ws.sending") : t("g.ws.analysis")}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <Icon
           name={isSending ? "upload" : "autorenew"}
-          className={`text-primary scale-90 ${isSending ? "" : "animate-spin"}`}
+          className={`text-heat-hi scale-90 ${isSending ? "" : "animate-spin"}`}
         />
-        <span style={{ fontSize: 12, color: "var(--df-faint)" }}>
-          {isSending ? "Sending to forge…" : "Drafting response…"}
+        <span style={{ fontSize: 12.5, color: "var(--color-faint)" }}>
+          {isSending ? t("g.ws.sendingLong") : t("g.ws.drafting")}
         </span>
         {!isSending && (
           <span style={{ display: "inline-flex", gap: 3 }}>
@@ -109,7 +112,7 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
                   width: 4,
                   height: 4,
                   borderRadius: "50%",
-                  background: "var(--df-amber-400)",
+                  background: "var(--color-heat-hi)",
                   opacity: 0.7,
                   animation: `df-pulse 1.6s ease-in-out ${delay}ms infinite`,
                 }}
@@ -125,13 +128,14 @@ function AgentProcessingBubble({ isSending }: { isSending: boolean }) {
 // ─── Quick action chips ──────────────────────────────────────
 
 const quickActions: { icon: string; label: string; action: SectionActionType }[] = [
-  { icon: "help", label: "Ask Question", action: "ask_question" },
-  { icon: "edit_note", label: "Request Edit", action: "request_edit" },
+  { icon: "help", label: "g.ws.ask", action: "ask_question" },
+  { icon: "edit_note", label: "g.ws.requestEdit", action: "request_edit" },
 ];
 
 // ─── Chat Panel ──────────────────────────────────────────────
 
 export function ChatPanel() {
+  const { t } = useI18n();
   const [input, setInput] = useState("");
   const [activeAction, setActiveAction] = useState<SectionActionType>("ask_question");
   const historyRef = useRef<HTMLDivElement>(null);
@@ -177,30 +181,30 @@ export function ChatPanel() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid var(--df-outline)",
-        background: "rgba(10,11,12,0.7)",
+        borderRight: "1px solid var(--color-outline)",
+        background: "var(--color-chrome)",
         backdropFilter: "blur(4px)",
-        zIndex: 10,
+        zIndex: "var(--z-raised)",
       }}
     >
       {/* Panel header */}
       <div
         style={{
           padding: "14px 16px 12px",
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
           flexShrink: 0,
         }}
       >
         <span
           className="df-mono"
           style={{
-            fontSize: 9.5,
-            letterSpacing: "0.18em",
+            fontSize: 10,
+            letterSpacing: "var(--tracking-eyebrow)",
             textTransform: "uppercase",
-            color: "var(--df-faint)",
+            color: "var(--color-faint)",
           }}
         >
-          › Chat
+          › {t("g.ws.chat")}
         </span>
       </div>
 
@@ -223,15 +227,15 @@ export function ChatPanel() {
               className="df-mono"
               style={{
                 fontSize: 10,
-                letterSpacing: "0.08em",
-                color: "var(--df-mute)",
+                letterSpacing: "var(--tracking-label)",
+                color: "var(--color-mute)",
                 textAlign: "center",
                 padding: "0 12px",
               }}
             >
               {viewMode === "locked"
-                ? "Finalize the current section to interact."
-                : "Edit history for this section."}
+                ? t("g.ws.finalizeFirst")
+                : t("g.ws.history")}
             </p>
           </div>
         )}
@@ -248,8 +252,8 @@ export function ChatPanel() {
         <div
           style={{
             padding: "12px 14px",
-            borderTop: "1px solid var(--df-outline)",
-            background: "rgba(13,14,15,0.6)",
+            borderTop: "1px solid var(--color-outline)",
+            background: "var(--color-chrome)",
             flexShrink: 0,
           }}
         >
@@ -264,21 +268,21 @@ export function ChatPanel() {
           >
             <span
               className="df-mono"
-              style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--df-mute)" }}
+              style={{ fontSize: 10, letterSpacing: "var(--tracking-label)", textTransform: "uppercase", color: "var(--color-mute)" }}
             >
-              Messages
+              {t("g.ws.messages")}
             </span>
             <span
               className="df-mono"
               style={{
-                fontSize: 9.5,
+                fontSize: 10,
                 fontWeight: 600,
                 color:
                   userMessageCount >= 10
-                    ? "var(--df-error)"
+                    ? "var(--color-error)"
                     : userMessageCount >= 8
-                    ? "var(--df-amber-300)"
-                    : "var(--df-mute)",
+                    ? "var(--color-heat-hi)"
+                    : "var(--color-mute)",
               }}
             >
               {userMessageCount}/10
@@ -299,19 +303,19 @@ export function ChatPanel() {
                     alignItems: "center",
                     gap: 4,
                     padding: "4px 9px",
-                    borderRadius: 6,
-                    fontSize: 11,
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: 11.5,
                     fontWeight: 500,
-                    border: `1px solid ${isActive ? "var(--color-heat-border)" : "var(--df-outline)"}`,
-                    color: isActive ? "var(--df-amber-200)" : "var(--df-faint)",
-                    background: isActive ? "var(--color-heat-08)" : "transparent",
+                    border: `1px solid ${isActive ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+                    color: isActive ? "var(--color-heat-soft)" : "var(--color-faint)",
+                    background: isActive ? "var(--color-heat-wash)" : "transparent",
                     cursor: isProcessing || isAtLimit ? "not-allowed" : "pointer",
                     opacity: isProcessing || isAtLimit ? 0.5 : 1,
                     transition: "all 0.15s",
                   }}
                 >
                   <Icon name={qa.icon} className="!text-[13px]" />
-                  {qa.label}
+                  {t(qa.label)}
                 </button>
               );
             })}
@@ -326,26 +330,26 @@ export function ChatPanel() {
               onKeyDown={handleKeyDown}
               maxLength={1000}
               placeholder={
-                isAtLimit ? "Message limit reached." : isProcessing ? "Forging…" : "Type a message…"
+                isAtLimit ? t("g.ws.limit") : isProcessing ? t("g.ws.forging") : t("g.ws.typeMessage")
               }
               disabled={isProcessing || isAtLimit}
               style={{
                 width: "100%",
-                background: "rgba(18,20,20,0.8)",
-                border: "1px solid var(--df-outline-md)",
-                color: "var(--df-on-surface)",
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-outline-md)",
+                color: "var(--color-text)",
                 fontSize: 12.5,
-                borderRadius: 8,
+                borderRadius: "var(--radius-md)",
                 padding: "8px 36px 8px 12px",
                 outline: "none",
                 fontFamily: "inherit",
                 transition: "border-color 0.15s",
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,77,0,0.40)";
+                e.currentTarget.style.borderColor = "var(--color-heat-line)";
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--df-outline-md)";
+                e.currentTarget.style.borderColor = "var(--color-outline-md)";
               }}
             />
             <button
@@ -360,25 +364,25 @@ export function ChatPanel() {
                 padding: 4,
                 background: "transparent",
                 border: "none",
-                color: "var(--df-faint)",
+                color: "var(--color-faint)",
                 cursor: isProcessing || isAtLimit ? "not-allowed" : "pointer",
                 opacity: isProcessing || isAtLimit ? 0.4 : 1,
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => { if (!isProcessing && !isAtLimit) e.currentTarget.style.color = "var(--df-amber-300)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--df-faint)"; }}
+              onMouseEnter={(e) => { if (!isProcessing && !isAtLimit) e.currentTarget.style.color = "var(--color-heat-hi)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-faint)"; }}
             >
-              <Icon name="arrow_upward" className="!text-sm" />
+              <Icon name="arrow_upward" className="!text-body" />
             </button>
           </div>
           {input.length > 700 && (
             <p
               className="df-mono"
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 marginTop: 4,
                 textAlign: "right",
-                color: input.length >= 1000 ? "var(--df-error)" : "var(--df-mute)",
+                color: input.length >= 1000 ? "var(--color-error)" : "var(--color-mute)",
               }}
             >
               {input.length}/1000

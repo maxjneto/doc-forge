@@ -4,20 +4,20 @@ export function McpStepBlocks() {
     <section
       id="mcp"
       style={{
-        borderTop: "1px solid var(--df-outline)",
+        borderTop: "1px solid var(--color-outline)",
         padding: "100px 0",
         position: "relative",
-        background: "radial-gradient(ellipse 900px 700px at 80% 0%, rgba(138,160,184,0.05), transparent 70%)",
+        background: "radial-gradient(ellipse 900px 700px at 80% 0%, var(--color-steel-tint), transparent 70%)",
       }}
     >
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 56px 60px", textAlign: "center" }}>
         <span
           className="df-mono"
           style={{
-            fontSize: 11,
-            letterSpacing: "0.18em",
+            fontSize: 11.5,
+            letterSpacing: "var(--tracking-eyebrow)",
             textTransform: "uppercase",
-            color: "var(--df-amber-300)",
+            color: "var(--color-heat-hi)",
             fontWeight: 600,
           }}
         >
@@ -25,9 +25,9 @@ export function McpStepBlocks() {
         </span>
         <h2 style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.030em", margin: "14px 0 14px" }}>
           Your agent&apos;s document workspace.{" "}
-          <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>You stay in the loop.</em>
+          <em style={{ fontStyle: "normal", color: "var(--color-heat-hi)" }}>You stay in the loop.</em>
         </h2>
-        <p style={{ fontSize: 15.5, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
+        <p style={{ fontSize: 14, color: "var(--color-dim)", lineHeight: 1.6, maxWidth: 620, margin: "0 auto" }}>
           DocForge is your agent's shared document workspace: the agent reads your repository with its own tools,
           sends changes through MCP, and you review or edit the same document in the browser.
         </p>
@@ -64,9 +64,9 @@ function StepBlock({
   return (
     <div
       style={{
-        border: "1px solid var(--df-outline)",
-        borderRadius: 16,
-        background: "rgba(14,16,17,0.55)",
+        border: "1px solid var(--color-outline)",
+        borderRadius: "var(--radius-lg)",
+        background: "var(--color-veil)",
         backdropFilter: "blur(6px)",
         padding: "28px 32px",
       }}
@@ -74,13 +74,13 @@ function StepBlock({
       <div style={{ display: "grid", gridTemplateColumns: "48px 1fr", gap: 18, alignItems: "flex-start", marginBottom: 20 }}>
         <span
           className="df-mono"
-          style={{ fontSize: 32, fontWeight: 600, color: "var(--df-steel-200)", letterSpacing: "-0.03em", lineHeight: 1 }}
+          style={{ fontSize: 32, fontWeight: 600, color: "var(--color-steel)", letterSpacing: "-0.03em", lineHeight: 1 }}
         >
           {num}
         </span>
         <div>
-          <h3 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 4px" }}>{title}</h3>
-          <p style={{ fontSize: 14, color: "var(--df-dim)", lineHeight: 1.55, margin: 0, maxWidth: 600 }}>{body}</p>
+          <h3 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 4px" }}>{title}</h3>
+          <p style={{ fontSize: 14, color: "var(--color-dim)", lineHeight: 1.55, margin: 0, maxWidth: 600 }}>{body}</p>
         </div>
       </div>
       {children}
@@ -90,7 +90,7 @@ function StepBlock({
 
 function Recording() {
   return (
-    <div style={{ border: "1px solid var(--df-outline)", borderRadius: 10, overflow: "hidden", background: "rgba(0,0,0,0.3)" }}>
+    <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", overflow: "hidden", background: "var(--color-sink)" }}>
       {/* Title bar */}
       <div
         style={{
@@ -99,28 +99,28 @@ function Recording() {
           alignItems: "center",
           padding: "0 14px",
           gap: 8,
-          borderBottom: "1px solid var(--df-outline)",
-          background: "rgba(0,0,0,0.30)",
+          borderBottom: "1px solid var(--color-outline)",
+          background: "var(--color-sink)",
         }}
       >
         <div style={{ display: "flex", gap: 5 }}>
           {[0, 1, 2].map((i) => (
-            <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--color-white-08)" }} />
+            <span key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--color-press)" }} />
           ))}
         </div>
-        <span className="df-mono" style={{ margin: "0 auto", fontSize: 10.5, color: "var(--df-dim)", letterSpacing: "0.06em" }}>
+        <span className="df-mono" style={{ margin: "0 auto", fontSize: 11.5, color: "var(--color-dim)", letterSpacing: "var(--tracking-data)" }}>
           payments-rfc.md · DocForge editor
         </span>
         <span
           className="df-mono"
           style={{
             display: "inline-flex", alignItems: "center", gap: 5,
-            fontSize: 9, padding: "3px 8px", borderRadius: 999,
-            color: "var(--df-amber-200)", background: "var(--color-heat-bg)",
-            border: "1px solid rgba(255,77,0,0.30)", letterSpacing: "0.06em",
+            fontSize: 10, padding: "3px 8px", borderRadius: "var(--radius-pill)",
+            color: "var(--color-heat-soft)", background: "var(--color-heat-wash)",
+            border: "1px solid var(--color-heat-line)", letterSpacing: "var(--tracking-data)",
           }}
         >
-          <span className="animate-df-pulse" style={{ width: 4, height: 4, borderRadius: 999, background: "var(--df-amber-500)" }} />
+          <span className="animate-df-pulse" style={{ width: 4, height: 4, borderRadius: "var(--radius-pill)", background: "var(--color-heat)" }} />
           Agent editing
         </span>
       </div>
@@ -128,55 +128,55 @@ function Recording() {
       {/* Body: Claude Code terminal (left) + DocForge editor panels (right) */}
       <div style={{ display: "grid", gridTemplateColumns: "38% 62%", minHeight: 320 }}>
         {/* Claude Code terminal */}
-        <div style={{ background: "#0a0b0c", borderRight: "1px solid var(--df-outline)", display: "flex", flexDirection: "column" }}>
+        <div style={{ background: "var(--color-bg)", borderRight: "1px solid var(--color-outline)", display: "flex", flexDirection: "column" }}>
           <div
             className="df-mono"
             style={{
-              padding: "7px 12px", borderBottom: "1px solid var(--df-outline)",
+              padding: "7px 12px", borderBottom: "1px solid var(--color-outline)",
               display: "flex", alignItems: "center", gap: 8,
-              fontSize: 10, color: "var(--df-steel-100)", letterSpacing: "0.04em",
+              fontSize: 10, color: "var(--color-steel-hi)", letterSpacing: "var(--tracking-data)",
             }}
           >
-            <span style={{ padding: "2px 8px", border: "1px solid var(--df-outline)", borderRadius: 3, background: "var(--color-white-04)", fontSize: 9 }}>
+            <span style={{ padding: "2px 8px", border: "1px solid var(--color-outline)", borderRadius: "var(--radius-xs)", background: "var(--color-hover)", fontSize: 10 }}>
               CLAUDE CODE
             </span>
-            <span style={{ color: "var(--df-faint)" }}>~/payments-rfc</span>
+            <span style={{ color: "var(--color-faint)" }}>~/payments-rfc</span>
           </div>
-          <div className="df-mono" style={{ padding: 12, flex: 1, fontSize: 10.5, lineHeight: 1.55, color: "var(--df-steel-100)", overflow: "hidden" }}>
-            <Ln color="var(--df-faint)">› user: tighten rollback section</Ln>
+          <div className="df-mono" style={{ padding: 12, flex: 1, fontSize: 11.5, lineHeight: 1.55, color: "var(--color-steel-hi)", overflow: "hidden" }}>
+            <Ln color="var(--color-faint)">› user: tighten rollback section</Ln>
             <br />
-            <Ln color="var(--df-amber-300)">› docforge.read_section({"{"}</Ln>
-            <Ln color="var(--df-steel-100)" pad>section: "Implementation"</Ln>
-            <Ln color="var(--df-amber-300)">{"})"}</Ln>
-            <Ln color="var(--df-steel-200)">✓ 482 tokens read</Ln>
+            <Ln color="var(--color-heat-hi)">› docforge.read_section({"{"}</Ln>
+            <Ln color="var(--color-steel-hi)" pad>section: "Implementation"</Ln>
+            <Ln color="var(--color-heat-hi)">{"})"}</Ln>
+            <Ln color="var(--color-steel)">✓ 482 tokens read</Ln>
             <br />
-            <Ln color="var(--df-amber-300)">› docforge.append_section({"{"}</Ln>
-            <Ln color="var(--df-steel-100)" pad>content: "## Rollback…"</Ln>
-            <Ln color="var(--df-amber-300)">{"})"}</Ln>
-            <Ln color="var(--df-steel-200)">
+            <Ln color="var(--color-heat-hi)">› docforge.append_section({"{"}</Ln>
+            <Ln color="var(--color-steel-hi)" pad>content: "## Rollback…"</Ln>
+            <Ln color="var(--color-heat-hi)">{"})"}</Ln>
+            <Ln color="var(--color-steel)">
               ✓ wrote 320 tokens
               <span
                 className="animate-df-blink"
-                style={{ display: "inline-block", width: 7, height: 12, background: "var(--df-steel-200)", verticalAlign: -2, marginLeft: 2 }}
+                style={{ display: "inline-block", width: 7, height: 12, background: "var(--color-steel)", verticalAlign: -2, marginLeft: 2 }}
               />
             </Ln>
           </div>
         </div>
 
         {/* DocForge editor: nav panel + center + version sidebar */}
-        <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 88px", background: "#0d0e10" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 88px", background: "var(--color-bg)" }}>
           {/* Nav panel (document outline) */}
-          <div style={{ borderRight: "1px solid var(--df-outline)", padding: "10px 0", display: "flex", flexDirection: "column", gap: 2 }}>
-            <span className="df-mono" style={{ fontSize: 8.5, letterSpacing: "0.14em", color: "var(--df-faint)", textTransform: "uppercase", padding: "0 10px 6px" }}>Outline</span>
+          <div style={{ borderRight: "1px solid var(--color-outline)", padding: "10px 0", display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)", textTransform: "uppercase", padding: "0 10px 6px" }}>Outline</span>
             {["Overview", "Implementation", "Rollback path", "Appendix"].map((h, i) => (
               <span
                 key={h}
                 className="df-mono"
                 style={{
                   display: "block", fontSize: 10, padding: "4px 10px", cursor: "default",
-                  color: i === 1 ? "var(--df-amber-200)" : "var(--df-faint)",
-                  background: i === 1 ? "var(--color-heat-bg-soft)" : "transparent",
-                  borderLeft: i === 1 ? "2px solid var(--df-amber-500)" : "2px solid transparent",
+                  color: i === 1 ? "var(--color-heat-soft)" : "var(--color-faint)",
+                  background: i === 1 ? "var(--color-heat-tint)" : "transparent",
+                  borderLeft: i === 1 ? "2px solid var(--color-heat)" : "2px solid transparent",
                   letterSpacing: "0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}
               >
@@ -187,26 +187,26 @@ function Recording() {
 
           {/* Center editor (markdown source) */}
           <div style={{ padding: "12px 14px", overflow: "hidden", display: "flex", flexDirection: "column", gap: 6 }}>
-            <div className="df-mono" style={{ fontSize: 8.5, letterSpacing: "0.14em", color: "var(--df-faint)", textTransform: "uppercase", marginBottom: 4 }}>Source</div>
-            <span className="df-mono" style={{ fontSize: 11, color: "var(--df-amber-200)" }}>## Implementation</span>
-            <span style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.5 }}>
+            <div className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)", textTransform: "uppercase", marginBottom: 4 }}>Source</div>
+            <span className="df-mono" style={{ fontSize: 11.5, color: "var(--color-heat-soft)" }}>## Implementation</span>
+            <span style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.5 }}>
               Roll the async buffer behind a feature flag scoped to a single merchant cohort.
             </span>
-            <span className="df-mono" style={{ fontSize: 11, color: "var(--df-amber-200)", marginTop: 4 }}>## Rollback path</span>
-            <span style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.5 }}>
+            <span className="df-mono" style={{ fontSize: 11.5, color: "var(--color-heat-soft)", marginTop: 4 }}>## Rollback path</span>
+            <span style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.5 }}>
               A second flag{" "}
-              <span className="df-mono" style={{ fontSize: 10, color: "var(--df-amber-300)", background: "var(--color-heat-08)", padding: "0 3px", borderRadius: 2 }}>revert_async_buffer</span>{" "}
+              <span className="df-mono" style={{ fontSize: 10, color: "var(--color-heat-hi)", background: "var(--color-heat-wash)", padding: "0 3px", borderRadius: "var(--radius-xs)" }}>revert_async_buffer</span>{" "}
               restores sync confirmation in under 30s.
             </span>
             <span
               className="animate-df-typing"
-              style={{ display: "inline-block", height: 10, background: "linear-gradient(90deg, rgba(255,77,0,0.25), rgba(255,77,0,0.04))", borderRadius: 2, marginTop: 2 }}
+              style={{ display: "inline-block", height: 10, background: "linear-gradient(90deg, var(--color-heat-strong), var(--color-heat-tint))", borderRadius: "var(--radius-xs)", marginTop: 2 }}
             />
           </div>
 
           {/* Version sidebar */}
-          <div style={{ borderLeft: "1px solid var(--df-outline)", padding: "10px 0", display: "flex", flexDirection: "column", gap: 0 }}>
-            <span className="df-mono" style={{ fontSize: 8.5, letterSpacing: "0.14em", color: "var(--df-faint)", textTransform: "uppercase", padding: "0 8px 6px" }}>Versions</span>
+          <div style={{ borderLeft: "1px solid var(--color-outline)", padding: "10px 0", display: "flex", flexDirection: "column", gap: 0 }}>
+            <span className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)", textTransform: "uppercase", padding: "0 8px 6px" }}>Versions</span>
             {[
               { label: "Agent write", time: "just now", agent: true },
               { label: "Auto-save", time: "2m ago", agent: false },
@@ -216,15 +216,15 @@ function Recording() {
                 key={i}
                 style={{
                   padding: "6px 8px",
-                  borderTop: i === 0 ? "none" : "1px solid var(--df-outline)",
-                  background: i === 0 ? "var(--color-heat-05)" : "transparent",
+                  borderTop: i === 0 ? "none" : "1px solid var(--color-outline)",
+                  background: i === 0 ? "var(--color-heat-tint)" : "transparent",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  {v.agent && <span className="animate-df-pulse" style={{ width: 5, height: 5, borderRadius: 999, background: "var(--df-amber-500)", flexShrink: 0 }} />}
-                  <span className="df-mono" style={{ fontSize: 9, color: v.agent ? "var(--df-amber-200)" : "var(--df-dim)", letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.label}</span>
+                  {v.agent && <span className="animate-df-pulse" style={{ width: 5, height: 5, borderRadius: "var(--radius-pill)", background: "var(--color-heat)", flexShrink: 0 }} />}
+                  <span className="df-mono" style={{ fontSize: 10, color: v.agent ? "var(--color-heat-soft)" : "var(--color-dim)", letterSpacing: "var(--tracking-data)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.label}</span>
                 </div>
-                <span className="df-mono" style={{ fontSize: 8.5, color: "var(--df-faint)", letterSpacing: "0.04em", display: "block", marginTop: 2 }}>{v.time}</span>
+                <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-data)", display: "block", marginTop: 2 }}>{v.time}</span>
               </div>
             ))}
           </div>
@@ -247,9 +247,9 @@ function MultiAgentGrid() {
         <div
           key={a.id}
           style={{
-            border: "1px solid var(--df-outline)",
-            borderRadius: 10,
-            background: "var(--color-shade-20)",
+            border: "1px solid var(--color-outline)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-sink)",
             padding: "16px 18px",
             display: "flex",
             alignItems: "center",
@@ -259,18 +259,18 @@ function MultiAgentGrid() {
           <span
             className="df-mono"
             style={{
-              width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-              background: "rgba(138,160,184,0.10)",
-              border: "1px solid var(--df-steel-border)",
+              width: 36, height: 36, borderRadius: "var(--radius-md)", flexShrink: 0,
+              background: "var(--color-steel-wash)",
+              border: "1px solid var(--color-steel-line)",
               display: "grid", placeItems: "center",
-              color: "var(--df-steel-100)", fontSize: 12, fontWeight: 700,
+              color: "var(--color-steel-hi)", fontSize: 12.5, fontWeight: 700,
             }}
           >
             {a.id}
           </span>
           <div>
-            <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--df-on-surface)" }}>{a.name}</div>
-            <div className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)", letterSpacing: "0.06em", marginTop: 3 }}>{a.desc}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>{a.name}</div>
+            <div className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-data)", marginTop: 3 }}>{a.desc}</div>
           </div>
         </div>
       ))}
@@ -299,7 +299,7 @@ function InstallGrid() {
 
 function Snippet({ file, body }: { file: string; body: React.ReactNode }) {
   return (
-    <div style={{ border: "1px solid var(--df-outline)", borderRadius: 10, overflow: "hidden", background: "#0a0b0c" }}>
+    <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", overflow: "hidden", background: "var(--color-bg)" }}>
       <div
         style={{
           height: 34,
@@ -307,11 +307,11 @@ function Snippet({ file, body }: { file: string; body: React.ReactNode }) {
           alignItems: "center",
           padding: "0 14px",
           gap: 8,
-          borderBottom: "1px solid var(--df-outline)",
-          background: "rgba(255,255,255,0.02)",
+          borderBottom: "1px solid var(--color-outline)",
+          background: "var(--color-hover)",
         }}
       >
-        <span className="df-mono" style={{ fontSize: 10, color: "var(--df-steel-100)", letterSpacing: "0.04em" }}>{file}</span>
+        <span className="df-mono" style={{ fontSize: 10, color: "var(--color-steel-hi)", letterSpacing: "var(--tracking-data)" }}>{file}</span>
         <span
           className="df-mono"
           style={{
@@ -320,11 +320,11 @@ function Snippet({ file, body }: { file: string; body: React.ReactNode }) {
             alignItems: "center",
             gap: 5,
             fontSize: 10,
-            color: "var(--df-steel-100)",
+            color: "var(--color-steel-hi)",
             padding: "4px 10px",
-            border: "1px solid var(--df-outline)",
-            borderRadius: 5,
-            background: "rgba(255,255,255,0.02)",
+            border: "1px solid var(--color-outline)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-hover)",
           }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 12 }}>content_copy</span>
@@ -333,7 +333,7 @@ function Snippet({ file, body }: { file: string; body: React.ReactNode }) {
       </div>
       <div
         className="df-mono"
-        style={{ padding: "16px 18px", fontSize: 12.5, lineHeight: 1.65, color: "var(--df-steel-100)" }}
+        style={{ padding: "16px 18px", fontSize: 12.5, lineHeight: 1.65, color: "var(--color-steel-hi)" }}
       >
         {body}
       </div>
@@ -344,21 +344,21 @@ function Snippet({ file, body }: { file: string; body: React.ReactNode }) {
 function TerminalSnippet() {
   return (
     <>
-      <span style={{ color: "var(--df-faint)" }}># Add DocForge to Claude Code in one shot</span>
+      <span style={{ color: "var(--color-faint)" }}># Add DocForge to Claude Code in one shot</span>
       <br />
-      <span style={{ color: "var(--df-amber-300)" }}>$</span> claude mcp add{" "}
-      <span style={{ color: "var(--df-amber-200)" }}>docforge</span> \
+      <span style={{ color: "var(--color-heat-hi)" }}>$</span> claude mcp add{" "}
+      <span style={{ color: "var(--color-heat-soft)" }}>docforge</span> \
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;--server-url <span style={{ color: "var(--df-steel-200)" }}>https://mcp.doc-forge.dev/mcp</span> \
+      &nbsp;&nbsp;&nbsp;&nbsp;--server-url <span style={{ color: "var(--color-steel)" }}>https://mcp.doc-forge.dev/mcp</span> \
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;--auth-token <span style={{ color: "var(--df-steel-200)" }}>$DOCFORGE_TOKEN</span>
+      &nbsp;&nbsp;&nbsp;&nbsp;--auth-token <span style={{ color: "var(--color-steel)" }}>$DOCFORGE_TOKEN</span>
       <br />
       <br />
-      <span style={{ color: "var(--df-steel-200)" }}>✓</span> authenticated as you
+      <span style={{ color: "var(--color-steel)" }}>✓</span> authenticated as you
       <br />
-      <span style={{ color: "var(--df-steel-200)" }}>✓</span> 5 documents in your workspace
+      <span style={{ color: "var(--color-steel)" }}>✓</span> 5 documents in your workspace
       <br />
-      <span style={{ color: "var(--df-steel-200)" }}>✓</span> docforge ready · 4 tools registered
+      <span style={{ color: "var(--color-steel)" }}>✓</span> docforge ready · 4 tools registered
     </>
   );
 }
@@ -366,25 +366,25 @@ function TerminalSnippet() {
 function JsonSnippet() {
   return (
     <>
-      <span style={{ color: "var(--df-faint)" }}>// Paste into your MCP-capable client's config</span>
+      <span style={{ color: "var(--color-faint)" }}>// Paste into your MCP-capable client's config</span>
       <br />
       {"{"}
       <br />
-      &nbsp;&nbsp;<span style={{ color: "var(--df-amber-200)" }}>"mcpServers"</span>: {"{"}
+      &nbsp;&nbsp;<span style={{ color: "var(--color-heat-soft)" }}>"mcpServers"</span>: {"{"}
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--df-amber-200)" }}>"docforge"</span>: {"{"}
+      &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--color-heat-soft)" }}>"docforge"</span>: {"{"}
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--df-amber-200)" }}>"command"</span>:{" "}
-      <span style={{ color: "var(--df-steel-200)" }}>"npx"</span>,
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--color-heat-soft)" }}>"command"</span>:{" "}
+      <span style={{ color: "var(--color-steel)" }}>"npx"</span>,
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--df-amber-200)" }}>"args"</span>: [
-      <span style={{ color: "var(--df-steel-200)" }}>"-y"</span>,{" "}
-      <span style={{ color: "var(--df-steel-200)" }}>"@docforge/mcp"</span>],
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--color-heat-soft)" }}>"args"</span>: [
+      <span style={{ color: "var(--color-steel)" }}>"-y"</span>,{" "}
+      <span style={{ color: "var(--color-steel)" }}>"@docforge/mcp"</span>],
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--df-amber-200)" }}>"env"</span>: {"{"}
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--color-heat-soft)" }}>"env"</span>: {"{"}
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--df-amber-200)" }}>"DOCFORGE_TOKEN"</span>:{" "}
-      <span style={{ color: "var(--df-steel-200)" }}>"df_…"</span>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "var(--color-heat-soft)" }}>"DOCFORGE_TOKEN"</span>:{" "}
+      <span style={{ color: "var(--color-steel)" }}>"df_…"</span>
       <br />
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{"}"}
       <br />
@@ -399,11 +399,11 @@ function JsonSnippet() {
 
 function Checklist() {
   return (
-    <div style={{ border: "1px solid var(--df-outline)", borderRadius: 10, background: "var(--color-shade-20)", overflow: "hidden" }}>
+    <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", background: "var(--color-sink)", overflow: "hidden" }}>
       <div
         style={{
           padding: "12px 16px",
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -411,14 +411,14 @@ function Checklist() {
       >
         <span
           className="df-mono"
-          style={{ fontSize: 10, letterSpacing: "0.16em", color: "var(--df-faint)", textTransform: "uppercase" }}
+          style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)", textTransform: "uppercase" }}
         >
           › Connection checklist
         </span>
-        <span className="df-mono" style={{ fontSize: 11, color: "var(--df-amber-300)" }}>3 / 6</span>
+        <span className="df-mono" style={{ fontSize: 11.5, color: "var(--color-heat-hi)" }}>3 / 6</span>
       </div>
       <ChItem state="done" label="Generate your DocForge API token" desc="DocForge MCP → API tokens → Generate · copy it once." />
-      <ChItem state="done" label={<>Run <code className="df-mono" style={{ fontSize: 11 }}>claude mcp add docforge</code></>} desc="Or paste the config snippet into your client." />
+      <ChItem state="done" label={<>Run <code className="df-mono" style={{ fontSize: 11.5 }}>claude mcp add docforge</code></>} desc="Or paste the config snippet into your client." />
       <ChItem state="done" label="Restart your agent" desc="Most clients pick up new MCP servers on launch." />
       <ChItem state="now" label="Authorize the workspace" desc="First call from your agent triggers a browser auth prompt." />
       <ChItem state="future" num="4" label="Try a tool call" desc={<>Ask the agent: <em>"List my DocForge documents."</em></>} />
@@ -438,9 +438,9 @@ function ChItem({
   label: React.ReactNode;
   desc: React.ReactNode;
 }) {
-  const icoBg = state === "done" ? "var(--df-amber-trail)" : state === "now" ? "var(--df-amber-500)" : "transparent";
-  const icoBorder = state === "future" ? "1px solid var(--df-mute)" : "none";
-  const icoColor = state === "future" ? "var(--df-mute)" : state === "done" ? "#050608" : "#fff";
+  const icoBg = state === "done" ? "var(--color-heat-line)" : state === "now" ? "var(--color-heat)" : "transparent";
+  const icoBorder = state === "future" ? "1px solid var(--color-mute)" : "none";
+  const icoColor = state === "future" ? "var(--color-mute)" : state === "done" ? "var(--color-bg)" : "var(--color-on-heat)";
 
   return (
     <div
@@ -449,7 +449,7 @@ function ChItem({
         gridTemplateColumns: "22px 1fr",
         gap: 10,
         padding: "11px 16px",
-        borderTop: "1px solid var(--df-outline)",
+        borderTop: "1px solid var(--color-outline)",
         alignItems: "flex-start",
       }}
     >
@@ -463,8 +463,8 @@ function ChItem({
           border: icoBorder,
           background: icoBg,
           color: icoColor,
-          fontSize: 11,
-          boxShadow: state === "now" ? "0 0 0 3px rgba(255,77,0,0.15)" : "none",
+          fontSize: 11.5,
+          boxShadow: state === "now" ? "0 0 0 3px var(--color-heat-strong)" : "none",
         }}
       >
         {state === "done" && <span className="material-symbols-outlined" style={{ fontSize: 12 }}>check</span>}
@@ -474,8 +474,8 @@ function ChItem({
         {state === "future" && num}
       </div>
       <div>
-        <div style={{ fontSize: 12.5, color: state === "future" ? "var(--df-faint)" : "var(--df-on-surface)" }}>{label}</div>
-        <div style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.45, marginTop: 2 }}>{desc}</div>
+        <div style={{ fontSize: 12.5, color: state === "future" ? "var(--color-faint)" : "var(--color-text)" }}>{label}</div>
+        <div style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.45, marginTop: 2 }}>{desc}</div>
       </div>
     </div>
   );

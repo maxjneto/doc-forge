@@ -41,15 +41,15 @@ export function EditorStatusBar({ saveState, agentLabel }: EditorStatusBarProps)
   const save = (() => {
     switch (saveState.status) {
       case "saving":
-        return { text: t("editor.saveState.saving"), color: "var(--df-faint)" };
+        return { text: t("editor.saveState.saving"), color: "var(--color-faint)" };
       case "dirty":
-        return { text: t("editor.saveState.unsaved"), color: "var(--df-warn)" };
+        return { text: t("editor.saveState.unsaved"), color: "var(--color-warn)" };
       case "error":
-        return { text: t("editor.saveFailure", { message: saveState.message }), color: "var(--df-error)" };
+        return { text: t("editor.saveFailure", { message: saveState.message }), color: "var(--color-error)" };
       case "idle":
         return saveState.savedAt
-          ? { text: t("editor.savedAt", { time: ago(saveState.savedAt, dateLocale) }), color: "var(--df-faint)" }
-          : { text: "", color: "var(--df-faint)" };
+          ? { text: t("editor.savedAt", { time: ago(saveState.savedAt, dateLocale) }), color: "var(--color-faint)" }
+          : { text: "", color: "var(--color-faint)" };
     }
   })();
 
@@ -58,12 +58,12 @@ export function EditorStatusBar({ saveState, agentLabel }: EditorStatusBarProps)
       style={{
         height: 34,
         flexShrink: 0,
-        borderTop: "1px solid var(--df-outline)",
+        borderTop: "1px solid var(--color-outline)",
         display: "flex",
         alignItems: "center",
         gap: 14,
         padding: "0 20px",
-        background: "rgba(29,31,33,0.35)",
+        background: "var(--color-card-footer)",
       }}
     >
       {agentLabel && (
@@ -73,16 +73,16 @@ export function EditorStatusBar({ saveState, agentLabel }: EditorStatusBarProps)
               width: 5,
               height: 5,
               borderRadius: "var(--radius-pill)",
-              background: "var(--df-amber-500)",
+              background: "var(--color-heat)",
             }}
           />
-          <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+          <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
             {t("editor.connectedViaMcp", { name: agentLabel })}
           </span>
         </div>
       )}
       {save.text && (
-        <span className="df-mono" style={{ fontSize: 9.5, color: save.color }}>
+        <span className="df-mono" style={{ fontSize: 10, color: save.color }}>
           {save.text}
         </span>
       )}

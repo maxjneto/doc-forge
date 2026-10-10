@@ -52,7 +52,7 @@ export function ScrollFadeContainer({ children, fadeColor, className }: ScrollFa
             right: 0,
             bottom: 0,
             height: 28,
-            background: `linear-gradient(rgba(0,0,0,0), ${fadeColor})`,
+            background: `linear-gradient(transparent, ${fadeColor})`,
             pointerEvents: "none",
           }}
         />

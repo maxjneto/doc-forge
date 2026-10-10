@@ -5,6 +5,8 @@ import type { Section, GuidedSectionType as SectionType, AuditFinding } from "@/
 import { apiFetchAuditFindings, apiDismissAuditFinding, apiExportDocument, type ExportFormat } from "@/utils/api";
 import { MarkdownRenderer } from "@/components/shared";
 
+import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 const SECTION_ORDER: SectionType[] = [
   "context",
   "proposal",
@@ -12,12 +14,6 @@ const SECTION_ORDER: SectionType[] = [
   "risks",
 ];
 
-const SECTION_HEADINGS: Record<SectionType, string> = {
-  context:        "Context",
-  proposal:       "Proposal",
-  implementation: "Implementation",
-  risks:          "Risks & Alternatives",
-};
 
 // ─── Export menu ────────────────────────────────────────────
 
@@ -27,6 +23,7 @@ interface ExportMenuProps {
 }
 
 function ExportMenu({ documentId, onClose }: ExportMenuProps) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -50,7 +47,7 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
       posthog.capture("document_exported", { document_id: documentId, export_format: format });
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Export failed");
+      setError(e instanceof Error ? e.message : t("g.done.exportFailed"));
     } finally {
       setBusy(null);
     }
@@ -60,15 +57,13 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
     {
       icon: "code",
       label: "Markdown",
-      sub: ".MD FILE",
+      sub: t("g.done.mdFile"),
       onClick: () => handleBackendExport("md"),
       primary: true,
       enabled: true,
     },
-    { icon: "picture_as_pdf", label: "PDF",   sub: busy === "pdf"  ? "EXPORTING…" : ".PDF FILE · PRO",  onClick: () => handleBackendExport("pdf"),  enabled: busy === null, primary: false },
-    { icon: "description",    label: "Word",  sub: busy === "docx" ? "EXPORTING…" : ".DOCX FILE · PRO", onClick: () => handleBackendExport("docx"), enabled: busy === null, primary: false },
-    { icon: "forum",          label: "Copy as Linear comment",  sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false, primary: false },
-    { icon: "description",    label: "Confluence wiki",         sub: "NOT AVAILABLE",  onClick: () => {}, enabled: false, primary: false },
+    { icon: "picture_as_pdf", label: "PDF",   sub: busy === "pdf"  ? t("g.done.exporting") : t("g.done.pdfFile"),  onClick: () => handleBackendExport("pdf"),  enabled: busy === null, primary: false },
+    { icon: "description",    label: "Word",  sub: busy === "docx" ? t("g.done.exporting") : t("g.done.docxFile"), onClick: () => handleBackendExport("docx"), enabled: busy === null, primary: false },
   ];
 
   return (
@@ -78,14 +73,14 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
         position: "absolute",
         top: 42,
         right: 0,
-        border: "1px solid var(--df-outline)",
-        background: "rgba(18,20,20,0.98)",
+        border: "1px solid var(--color-outline)",
+        background: "var(--color-surface)",
         backdropFilter: "blur(8px)",
-        borderRadius: 8,
+        borderRadius: "var(--radius-md)",
         padding: 6,
-        boxShadow: "0 12px 28px rgba(0,0,0,0.4)",
+        boxShadow: "var(--shadow-pop)",
         width: 230,
-        zIndex: 20,
+        zIndex: "var(--z-sticky)",
       }}
     >
       {items.map((item) => (
@@ -97,13 +92,13 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
             alignItems: "center",
             gap: 10,
             padding: "8px 10px",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs)",
             fontSize: 12.5,
             color: item.primary
-              ? "var(--df-amber-200)"
-              : "var(--df-dim)",
+              ? "var(--color-heat-soft)"
+              : "var(--color-dim)",
             background: item.primary
-              ? "var(--color-heat-04)"
+              ? "var(--color-heat-tint)"
               : "transparent",
             border: "none",
             cursor: item.enabled ? "pointer" : "not-allowed",
@@ -117,8 +112,8 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
             style={{
               fontSize: 16,
               color: item.primary
-                ? "var(--df-amber-300)"
-                : "var(--df-faint)",
+                ? "var(--color-heat-hi)"
+                : "var(--color-faint)",
             }}
           >
             {item.icon}
@@ -127,7 +122,7 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
             {item.label}
             <div
               className="df-mono"
-              style={{ fontSize: 10, color: "var(--df-faint)" }}
+              style={{ fontSize: 10, color: "var(--color-faint)" }}
             >
               {item.sub}
             </div>
@@ -135,7 +130,7 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
         </button>
       ))}
       {error && (
-        <div style={{ padding: "8px 10px", fontSize: 11, color: "#ff8a8a", lineHeight: 1.4 }}>
+        <div style={{ padding: "8px 10px", fontSize: 11.5, color: "var(--color-error)", lineHeight: 1.4 }}>
           {error}
         </div>
       )}
@@ -152,13 +147,14 @@ interface SectionNavProps {
 }
 
 function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
+  const { t } = useI18n();
   return (
     <nav
       style={{
         padding: "32px 22px",
-        borderRight: "1px solid var(--df-outline)",
+        borderRight: "1px solid var(--color-outline)",
         overflow: "hidden",
-        background: "var(--color-shade-20)",
+        background: "var(--color-sink)",
         width: 220,
         flexShrink: 0,
       }}
@@ -167,13 +163,13 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
         className="df-mono"
         style={{
           fontSize: 10,
-          letterSpacing: "0.16em",
-          color: "var(--df-faint)",
+          letterSpacing: "var(--tracking-eyebrow)",
+          color: "var(--color-faint)",
           marginBottom: 14,
           textTransform: "uppercase",
         }}
       >
-        › Sections
+        › {t("g.done.sections")}
       </div>
 
       {SECTION_ORDER.map((type, i) => {
@@ -188,15 +184,15 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
               textAlign: "left",
               padding: "8px 12px",
               margin: "2px 0",
-              borderRadius: 6,
+              borderRadius: "var(--radius-sm)",
               fontSize: 13,
               fontWeight: isActive ? 500 : 400,
               color: isActive
-                ? "var(--df-amber-200)"
-                : "var(--df-dim)",
-              background: isActive ? "var(--color-heat-05)" : "transparent",
+                ? "var(--color-heat-soft)"
+                : "var(--color-dim)",
+              background: isActive ? "var(--color-heat-tint)" : "transparent",
               border: "none",
-              borderLeft: `2px solid ${isActive ? "var(--df-amber-500)" : "transparent"}`,
+              borderLeft: `2px solid ${isActive ? "var(--color-heat)" : "transparent"}`,
               cursor: "pointer",
             }}
           >
@@ -204,13 +200,13 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
               className="df-mono"
               style={{
                 fontSize: 10,
-                color: "var(--df-faint)",
+                color: "var(--color-faint)",
                 marginRight: 8,
               }}
             >
               {String(i + 1).padStart(2, "0")}
             </span>
-            {SECTION_HEADINGS[type]}
+            {t(`section.${type}`)}
           </button>
         );
       })}
@@ -220,24 +216,24 @@ function SectionNav({ activeAnchor, onNavigate, findings }: SectionNavProps) {
         className="df-mono"
         style={{
           fontSize: 10,
-          letterSpacing: "0.16em",
-          color: "var(--df-faint)",
+          letterSpacing: "var(--tracking-eyebrow)",
+          color: "var(--color-faint)",
           marginBottom: 10,
           marginTop: 28,
           textTransform: "uppercase",
         }}
       >
-        › Audit
+        › {t("g.done.audit")}
       </div>
       <div style={{ padding: "4px 12px" }}>
         {findings.length === 0 ? (
-          <span className="df-pill df-pill-steel" style={{ fontSize: 10, padding: "2px 7px" }}>
-            All passed
-          </span>
+          <Pill tone="steel" compact>
+            {t("g.done.allPassed")}
+          </Pill>
         ) : (
-          <span className="df-pill df-pill-warn" style={{ fontSize: 10, padding: "2px 7px" }}>
-            {findings.length} finding{findings.length > 1 ? "s" : ""}
-          </span>
+          <Pill tone="warn" compact>
+            {findings.length === 1 ? t("g.au.finding") : t("g.au.findings", { count: findings.length })}
+          </Pill>
         )}
       </div>
     </nav>
@@ -253,6 +249,7 @@ interface SectionBlockProps {
 }
 
 function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
+  const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
 
   return (
@@ -264,40 +261,40 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
           justifyContent: "space-between",
           marginBottom: 16,
           paddingBottom: 8,
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
         }}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", margin: 0, color: "var(--df-on-surface)" }}>
-          {SECTION_HEADINGS[sectionType]}
+        <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.015em", margin: 0, color: "var(--color-text)" }}>
+          {t(`section.${sectionType}`)}
         </h2>
         {isEditing ? (
           <button
             onClick={() => setIsEditing(false)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
-              fontSize: 11, fontWeight: 600,
-              color: "var(--df-amber-200)",
-              background: "var(--color-heat-bg)",
-              border: "1px solid rgba(255,77,0,0.20)",
-              padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+              fontSize: 11.5, fontWeight: 600,
+              color: "var(--color-heat-soft)",
+              background: "var(--color-heat-wash)",
+              border: "1px solid var(--color-heat-strong)",
+              padding: "4px 10px", borderRadius: "var(--radius-xs)", cursor: "pointer",
             }}
           >
-            Done
+            {t("g.done.done")}
           </button>
         ) : (
           <button
             onClick={() => setIsEditing(true)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
-              fontSize: 11, fontWeight: 600,
-              color: "var(--df-faint)",
+              fontSize: 11.5, fontWeight: 600,
+              color: "var(--color-faint)",
               background: "transparent",
               border: "1px solid transparent",
-              padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+              padding: "4px 10px", borderRadius: "var(--radius-xs)", cursor: "pointer",
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-            Edit
+            {t("g.done.edit")}
           </button>
         )}
       </div>
@@ -310,14 +307,14 @@ function SectionBlock({ sectionType, content, onEdit }: SectionBlockProps) {
           style={{
             width: "100%",
             minHeight: 320,
-            background: "rgba(18,20,20,0.5)",
-            border: "1px solid var(--df-outline-md)",
-            color: "var(--df-on-surface)",
-            fontFamily: "var(--df-font-mono)",
+            background: "var(--color-veil)",
+            border: "1px solid var(--color-outline-md)",
+            color: "var(--color-text)",
+            fontFamily: "var(--font-mono)",
             fontSize: 13,
             lineHeight: 1.65,
             resize: "vertical",
-            borderRadius: 8,
+            borderRadius: "var(--radius-md)",
             padding: 16,
             outline: "none",
           }}
@@ -338,6 +335,7 @@ interface CompletedLayoutProps {
 }
 
 export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) {
+  const { t } = useI18n();
   const { getToken } = useAuth();
   const [findings, setFindings] = useState<AuditFinding[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -415,7 +413,7 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
         paddingTop: 56,
         display: "flex",
         flexDirection: "column",
-        background: "var(--df-bg)",
+        background: "var(--color-bg)",
         overflow: "hidden",
       }}
     >
@@ -433,9 +431,9 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
           <div
             style={{
               margin: "32px 56px 0",
-              border: "1px solid rgba(138,160,184,0.30)",
-              background: "linear-gradient(90deg, rgba(138,160,184,0.10), rgba(255,77,0,0.04) 60%, rgba(138,160,184,0.10))",
-              borderRadius: 12,
+              border: "1px solid var(--color-steel-line)",
+              background: "linear-gradient(90deg, var(--color-steel-wash), var(--color-heat-tint) 60%, var(--color-steel-wash))",
+              borderRadius: "var(--radius-md)",
               padding: "22px 28px",
               display: "flex",
               alignItems: "center",
@@ -448,13 +446,13 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
               style={{
                 width: 64,
                 height: 64,
-                border: "2px solid var(--df-steel-200)",
+                border: "2px solid var(--color-steel)",
                 borderRadius: "50%",
                 display: "grid",
                 placeItems: "center",
                 flexShrink: 0,
                 position: "relative",
-                color: "var(--df-steel-100)",
+                color: "var(--color-steel-hi)",
               }}
             >
               <div
@@ -479,24 +477,24 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
               <div
                 className="df-mono"
                 style={{
-                  fontSize: 18,
-                  letterSpacing: "0.20em",
+                  fontSize: 17,
+                  letterSpacing: "var(--tracking-eyebrow)",
                   fontWeight: 600,
-                  color: "var(--df-steel-100)",
+                  color: "var(--color-steel-hi)",
                 }}
               >
-                DOCUMENT FORGED · v1.0
+                {t("g.done.stamp").toUpperCase()}
               </div>
               <div
                 className="df-mono"
                 style={{
-                  fontSize: 11,
-                  color: "var(--df-dim)",
-                  letterSpacing: "0.08em",
+                  fontSize: 11.5,
+                  color: "var(--color-dim)",
+                  letterSpacing: "var(--tracking-label)",
                   marginTop: 4,
                 }}
               >
-                Audit passed · document ready
+                {findings.length === 0 ? t("g.done.passed") : findings.length === 1 ? t("g.done.withFinding") : t("g.done.withFindings", { count: findings.length })}
               </div>
             </div>
 
@@ -507,18 +505,18 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                   onClick={() => setShowExportMenu((v) => !v)}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                    border: "1px solid var(--df-amber-500)",
-                    background: "var(--df-amber-500)",
-                    color: "#fff",
+                    padding: "6px 14px", borderRadius: "var(--radius-sm)", fontSize: 12.5, fontWeight: 600,
+                    border: "1px solid var(--color-heat)",
+                    background: "var(--color-heat)",
+                    color: "var(--color-on-heat)",
                     cursor: "pointer",
-                    boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
+                    boxShadow: "0 0 0 1px var(--color-heat-strong), 0 4px 14px var(--color-heat-strong)",
                   }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                     file_download
                   </span>
-                  Export
+                  {t("g.done.export")}
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                     expand_more
                   </span>
@@ -548,24 +546,24 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                     className="df-mono"
                     style={{
                       fontSize: 10,
-                      letterSpacing: "0.16em",
+                      letterSpacing: "var(--tracking-eyebrow)",
                       textTransform: "uppercase",
-                      color: "var(--df-faint)",
+                      color: "var(--color-faint)",
                       marginBottom: 10,
                     }}
                   >
-                    › Audit findings
+                    › {t("g.done.findingsTitle")}
                   </div>
                   {findings.map((finding) => (
                     <div
                       key={finding.id}
                       style={{
-                        border: "1px solid var(--df-outline)",
-                        borderLeft: `2px solid ${finding.severity === "high" ? "var(--df-error)" : "var(--df-amber-300)"}`,
-                        borderRadius: 8,
+                        border: "1px solid var(--color-outline)",
+                        borderLeft: `2px solid ${finding.severity === "high" ? "var(--color-error)" : "var(--color-warn)"}`,
+                        borderRadius: "var(--radius-md)",
                         padding: "10px 14px",
                         marginBottom: 8,
-                        background: "rgba(18,20,20,0.5)",
+                        background: "var(--color-veil)",
                         display: "flex",
                         alignItems: "flex-start",
                         gap: 12,
@@ -574,19 +572,19 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                       <span
                         className="df-mono"
                         style={{
-                          fontSize: 9.5,
-                          letterSpacing: "0.14em",
+                          fontSize: 10,
+                          letterSpacing: "var(--tracking-eyebrow)",
                           padding: "3px 7px",
-                          borderRadius: 4,
-                          border: `1px solid ${finding.severity === "high" ? "rgba(232,100,100,0.40)" : "var(--color-heat-30)"}`,
-                          color: finding.severity === "high" ? "var(--df-error)" : "var(--df-amber-300)",
-                          background: finding.severity === "high" ? "rgba(232,100,100,0.08)" : "var(--color-heat-bg-soft)",
+                          borderRadius: "var(--radius-xs)",
+                          border: `1px solid ${finding.severity === "high" ? "var(--color-error-line)" : "var(--color-warn-line)"}`,
+                          color: finding.severity === "high" ? "var(--color-error)" : "var(--color-warn)",
+                          background: finding.severity === "high" ? "var(--color-error-wash)" : "var(--color-warn-wash)",
                           flexShrink: 0,
                         }}
                       >
-                        {finding.severity === "high" ? "BLOCKER" : "WARN"}
+                        {t(finding.severity === "high" ? "g.sev.blocker" : "g.sev.warn").toUpperCase()}
                       </span>
-                      <span data-ph-mask style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.55, flex: 1 }}>
+                      <span data-ph-mask style={{ fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.55, flex: 1 }}>
                         {finding.description}
                       </span>
                       <button
@@ -597,11 +595,11 @@ export function CompletedLayout({ documentId, sections }: CompletedLayoutProps) 
                           } catch {}
                         }}
                         style={{
-                          fontSize: 11, color: "var(--df-faint)",
+                          fontSize: 11.5, color: "var(--color-faint)",
                           background: "transparent", border: "none", cursor: "pointer", flexShrink: 0,
                         }}
                       >
-                        Dismiss
+                        {t("g.done.dismiss")}
                       </button>
                     </div>
                   ))}

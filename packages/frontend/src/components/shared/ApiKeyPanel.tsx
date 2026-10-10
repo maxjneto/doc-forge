@@ -69,8 +69,8 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)",
+        position: "fixed", inset: 0, zIndex: "var(--z-toast)",
+        background: "var(--color-scrim)", backdropFilter: "blur(4px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "24px",
       }}
@@ -78,12 +78,12 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#121414",
-          border: "1px solid rgba(255,255,255,0.07)",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-outline)",
           borderRadius: "0.5rem",
           padding: "32px",
           width: "min(640px, 100%)",
-          boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
+          boxShadow: "var(--shadow-modal)",
           display: "flex",
           flexDirection: "column",
           gap: "24px",
@@ -92,16 +92,16 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "var(--df-on-surface)" }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, letterSpacing: "-0.03em", color: "var(--color-text)" }}>
               API Keys
             </h2>
-            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "rgba(200,198,197,0.5)" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--color-dim)" }}>
               Each key is an agent identity. Use one key per tool or environment.
             </p>
           </div>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(200,198,197,0.4)", padding: "4px", lineHeight: 1 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-faint)", padding: "4px", lineHeight: 1 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>close</span>
           </button>
@@ -110,18 +110,18 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
         {/* Revealed key (one-time display) */}
         {revealedKey && (
           <div style={{
-            background: "rgba(26,27,27,0.8)",
-            border: "1px solid rgba(255,77,0,0.3)",
-            borderRadius: "8px",
+            background: "var(--color-surface-mid)",
+            border: "1px solid var(--color-heat-line)",
+            borderRadius: "var(--radius-md)",
             padding: "16px",
           }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--df-amber-500)", marginBottom: "8px" }}>
+            <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "var(--tracking-label)", textTransform: "uppercase", color: "var(--color-heat)", marginBottom: "8px" }}>
               Copy your key — it won't be shown again
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <code style={{
-                flex: 1, fontSize: "12px", color: "var(--df-on-surface)",
-                background: "var(--color-white-04)", borderRadius: "4px",
+                flex: 1, fontSize: 12.5, color: "var(--color-text)",
+                background: "var(--color-hover)", borderRadius: "var(--radius-xs)",
                 padding: "8px 10px", fontFamily: "monospace",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
@@ -131,10 +131,10 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
                 onClick={handleCopy}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "6px",
-                  padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 600,
-                  border: "1px solid rgba(255,77,0,0.4)",
-                  background: copied ? "var(--color-heat-15)" : "var(--color-heat-08)",
-                  color: "var(--df-amber-500)", cursor: "pointer", whiteSpace: "nowrap",
+                  padding: "8px 14px", borderRadius: "var(--radius-sm)", fontSize: 12.5, fontWeight: 600,
+                  border: "1px solid var(--color-heat-line)",
+                  background: copied ? "var(--color-heat-strong)" : "var(--color-heat-wash)",
+                  color: "var(--color-heat)", cursor: "pointer", whiteSpace: "nowrap",
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
@@ -145,9 +145,9 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
               <button
                 onClick={() => setRevealedKey(null)}
                 style={{
-                  padding: "8px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 600,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "transparent", color: "rgba(200,198,197,0.5)", cursor: "pointer",
+                  padding: "8px 14px", borderRadius: "var(--radius-sm)", fontSize: 12.5, fontWeight: 600,
+                  border: "1px solid var(--color-outline-md)",
+                  background: "transparent", color: "var(--color-dim)", cursor: "pointer",
                 }}
               >
                 Done
@@ -158,7 +158,7 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
 
         {/* Create new key */}
         <div>
-          <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(200,198,197,0.45)", marginBottom: "8px" }}>
+          <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, letterSpacing: "var(--tracking-label)", textTransform: "uppercase", color: "var(--color-dim)", marginBottom: "8px" }}>
             New API Key
           </label>
           <div style={{ display: "flex", gap: "8px" }}>
@@ -171,27 +171,27 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
               maxLength={100}
               style={{
                 flex: 1,
-                background: "var(--color-white-03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "6px",
+                background: "var(--color-hover)",
+                border: "1px solid var(--color-outline-md)",
+                borderRadius: "var(--radius-sm)",
                 padding: "9px 12px",
-                fontSize: "13px",
-                color: "var(--df-on-surface)",
+                fontSize: 13,
+                color: "var(--color-text)",
                 fontFamily: "inherit",
                 outline: "none",
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-heat-border)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-white-08)"; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-heat-line)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-press)"; }}
             />
             <button
               onClick={handleCreate}
               disabled={!newKeyName.trim() || creating}
               style={{
                 display: "inline-flex", alignItems: "center", gap: "6px",
-                padding: "9px 18px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
-                border: "1px solid rgba(255,77,0,0.5)",
-                background: (!newKeyName.trim() || creating) ? "var(--color-heat-bg-soft)" : "var(--color-heat-bg)",
-                color: (!newKeyName.trim() || creating) ? "rgba(255,77,0,0.5)" : "var(--df-amber-500)",
+                padding: "9px 18px", borderRadius: "var(--radius-sm)", fontSize: 13, fontWeight: 600,
+                border: "1px solid var(--color-heat-line)",
+                background: (!newKeyName.trim() || creating) ? "var(--color-heat-tint)" : "var(--color-heat-wash)",
+                color: (!newKeyName.trim() || creating) ? "var(--color-heat-line)" : "var(--color-heat)",
                 cursor: (!newKeyName.trim() || creating) ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
               }}
@@ -203,7 +203,7 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
 
         {/* Error */}
         {error && (
-          <div style={{ fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ fontSize: 12.5, color: "var(--color-error)", display: "flex", alignItems: "center", gap: "6px" }}>
             <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>error</span>
             {error}
           </div>
@@ -211,26 +211,26 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
 
         {/* Keys list */}
         <div>
-          <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(200,198,197,0.45)", marginBottom: "10px" }}>
+          <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, letterSpacing: "var(--tracking-label)", textTransform: "uppercase", color: "var(--color-dim)", marginBottom: "10px" }}>
             Active Keys
           </label>
           {loading ? (
-            <div style={{ fontSize: "13px", color: "rgba(200,198,197,0.4)", padding: "16px 0" }}>Loading…</div>
+            <div style={{ fontSize: 13, color: "var(--color-faint)", padding: "16px 0" }}>Loading…</div>
           ) : keys.filter((k) => !k.revokedAt).length === 0 ? (
-            <div style={{ fontSize: "13px", color: "rgba(200,198,197,0.35)", padding: "16px 0" }}>No active keys. Generate one above.</div>
+            <div style={{ fontSize: 13, color: "var(--color-faint)", padding: "16px 0" }}>No active keys. Generate one above.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {keys.filter((k) => !k.revokedAt).map((key) => (
                 <div key={key.id} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "12px 14px",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: "8px",
+                  background: "var(--color-hover)",
+                  border: "1px solid var(--color-outline)",
+                  borderRadius: "var(--radius-md)",
                 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--df-on-surface)" }}>{key.name}</span>
-                    <span style={{ fontSize: "11px", color: "rgba(200,198,197,0.4)" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{key.name}</span>
+                    <span style={{ fontSize: 11.5, color: "var(--color-faint)" }}>
                       Created {formatDate(key.createdAt)}
                       {key.lastUsedAt ? ` · Last used ${formatDate(key.lastUsedAt)}` : " · Never used"}
                     </span>
@@ -238,10 +238,10 @@ export function ApiKeyPanel({ onClose }: ApiKeyPanelProps) {
                   <button
                     onClick={() => handleRevoke(key.id)}
                     style={{
-                      padding: "5px 12px", borderRadius: "5px", fontSize: "12px",
-                      border: "1px solid rgba(232,100,100,0.25)",
-                      background: "rgba(232,100,100,0.05)",
-                      color: "rgba(232,100,100,0.7)",
+                      padding: "5px 12px", borderRadius: "var(--radius-sm)", fontSize: 12.5,
+                      border: "1px solid var(--color-error-strong)",
+                      background: "var(--color-error-tint)",
+                      color: "var(--color-error)",
                       cursor: "pointer",
                     }}
                   >

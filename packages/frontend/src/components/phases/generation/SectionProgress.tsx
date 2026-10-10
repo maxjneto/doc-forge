@@ -11,36 +11,36 @@ export function SectionProgress({ label, status }: SectionProgressProps) {
       {/* Status icon */}
       <div className="w-5 h-5 flex items-center justify-center">
         {status === "done" && (
-          <span className="text-green-400 text-sm">✓</span>
+          <span className="text-ok text-body">✓</span>
         )}
         {status === "generating" && (
-          <span className="text-primary text-sm animate-spin">⟳</span>
+          <span className="text-heat-hi text-body animate-spin">⟳</span>
         )}
         {status === "waiting" && (
-          <span className="text-on-surface-variant/40 text-sm">…</span>
+          <span className="text-faint text-body">…</span>
         )}
       </div>
 
       {/* Label */}
       <span
-        className={`text-sm flex-1 ${
+        className={`text-body flex-1 ${
           status === "done"
-            ? "text-on-surface/80"
+            ? "text-text"
             : status === "generating"
-            ? "text-on-surface font-medium"
-            : "text-on-surface-variant/50"
+            ? "text-text font-medium"
+            : "text-faint"
         }`}
       >
         {label}
       </span>
 
       {/* Progress bar */}
-      <div className="w-32 h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+      <div className="w-32 h-1.5 bg-surface-high rounded-full overflow-hidden">
         {status === "done" && (
-          <div className="h-full bg-green-400 rounded-full w-full transition-all duration-300" />
+          <div className="h-full bg-ok rounded-full w-full transition-all duration-300" />
         )}
         {status === "generating" && (
-          <div className="h-full bg-primary rounded-full animate-progress-pulse" />
+          <div className="h-full bg-heat rounded-full animate-progress-pulse" />
         )}
       </div>
     </div>

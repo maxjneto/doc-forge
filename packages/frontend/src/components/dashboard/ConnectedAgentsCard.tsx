@@ -59,7 +59,7 @@ export function ConnectedAgentsCard() {
                 alignItems: "center",
                 gap: 10,
                 padding: "8px 0",
-                borderTop: i === 0 ? "none" : "1px solid var(--df-outline)",
+                borderTop: i === 0 ? "none" : "1px solid var(--color-outline)",
               }}
             >
               <span
@@ -67,10 +67,10 @@ export function ConnectedAgentsCard() {
                 style={{
                   width: 24,
                   height: 24,
-                  borderRadius: 5,
-                  background: "var(--df-steel-bg)",
-                  border: "1px solid var(--df-steel-border)",
-                  color: "var(--df-steel-100)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-steel-wash)",
+                  border: "1px solid var(--color-steel-line)",
+                  color: "var(--color-steel-hi)",
                   display: "grid",
                   placeItems: "center",
                   fontSize: 10,
@@ -81,16 +81,16 @@ export function ConnectedAgentsCard() {
                   ? <img src={HARNESS_META[k.harness].logo} width={14} height={14} alt={HARNESS_META[k.harness].label} />
                   : initials(k.name)}
               </span>
-              <span style={{ fontSize: 12.5, color: k.harness && isHarness(k.harness) ? HARNESS_META[k.harness].fg : "var(--df-on-surface)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12.5, color: k.harness && isHarness(k.harness) ? HARNESS_META[k.harness].fg : "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {k.name}
               </span>
               <span
                 className="df-mono"
                 style={{
                   marginLeft: "auto",
-                  fontSize: 9.5,
-                  letterSpacing: "0.10em",
-                  color: "var(--df-faint)",
+                  fontSize: 10,
+                  letterSpacing: "var(--tracking-label)",
+                  color: "var(--color-faint)",
                   textTransform: "uppercase",
                 }}
               >
@@ -103,8 +103,8 @@ export function ConnectedAgentsCard() {
           style={{
             margin: "0 18px 18px",
             padding: 14,
-            border: "1px dashed var(--df-outline-md)",
-            borderRadius: 8,
+            border: "1px dashed var(--color-outline-md)",
+            borderRadius: "var(--radius-md)",
             textAlign: "center",
           }}
         >
@@ -114,13 +114,13 @@ export function ConnectedAgentsCard() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              color: "var(--df-steel-100)",
+              color: "var(--color-steel-hi)",
               padding: "7px 12px",
-              borderRadius: 6,
+              borderRadius: "var(--radius-sm)",
               fontSize: 11.5,
               fontWeight: 600,
-              border: "1px solid var(--df-steel-border)",
-              background: "var(--df-steel-bg)",
+              border: "1px solid var(--color-steel-line)",
+              background: "var(--color-steel-wash)",
               cursor: "pointer",
               width: "100%",
               justifyContent: "center",
@@ -137,15 +137,15 @@ export function ConnectedAgentsCard() {
 }
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid var(--df-outline)",
-  borderRadius: 12,
-  background: "rgba(18,20,20,0.5)",
+  border: "1px solid var(--color-outline)",
+  borderRadius: "var(--radius-md)",
+  background: "var(--color-veil)",
   overflow: "hidden",
 };
 
 const headStyle: React.CSSProperties = {
   padding: "14px 18px",
-  borderBottom: "1px solid var(--df-outline)",
+  borderBottom: "1px solid var(--color-outline)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -154,6 +154,6 @@ const headStyle: React.CSSProperties = {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 12, color: "var(--df-faint)", lineHeight: 1.5, padding: "4px 0" }}>{children}</div>
+    <div style={{ fontSize: 12.5, color: "var(--color-faint)", lineHeight: 1.5, padding: "4px 0" }}>{children}</div>
   );
 }

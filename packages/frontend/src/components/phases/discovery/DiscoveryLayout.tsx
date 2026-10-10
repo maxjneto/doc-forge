@@ -5,6 +5,8 @@ import { apiCreateDocument, apiGetDocumentType } from "@/utils/api";
 import { InitialInput } from "./InitialInput";
 import { SectionStepper } from "./SectionStepper";
 
+import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 // ProcessingState kept for potential reuse but no longer shown fullscreen
 
 type DiscoverySubState = "input" | "forging";
@@ -18,13 +20,14 @@ interface DiscoveryLayoutProps {
 }
 
 const GHOST_ZONES_DEFAULT = [
-  { name: "Context",        key: "context" },
-  { name: "Proposal",       key: "proposal" },
-  { name: "Implementation", key: "implementation" },
-  { name: "Risks",          key: "risks" },
+  { key: "context" },
+  { key: "proposal" },
+  { key: "implementation" },
+  { key: "risks" },
 ];
 
 function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
+  const { t } = useI18n();
   const activeQuestion = questions.find((q) => q.answer === null && !q.skipped);
   const activeSectionKey = activeQuestion?.sectionKey ?? null;
   const [shimmeringZones, setShimmeringZones] = useState<Set<string>>(new Set());
@@ -68,7 +71,7 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
         overflow: "hidden",
         position: "relative",
         flex: 1,
-        background: "radial-gradient(ellipse 600px 400px at 50% 30%, rgba(255,77,0,0.025), transparent 65%)",
+        background: "radial-gradient(ellipse 600px 400px at 50% 30%, var(--color-heat-tint), transparent 65%)",
       }}
     >
       {/* Header */}
@@ -76,28 +79,28 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
         <div>
           <div
             className="df-mono"
-            style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300)", marginBottom: 6 }}
+            style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-heat-hi)", marginBottom: 6 }}
           >
-            Ghost Document · live preview
+            {t("g.disc.ghostEyebrow")}
           </div>
-          <div style={{ fontSize: 13, color: "var(--df-dim)" }}>
-            Sections heat as your answers land.
+          <div style={{ fontSize: 13, color: "var(--color-dim)" }}>
+            {t("g.disc.ghostLead")}
           </div>
         </div>
         {activeSectionKey && (
-          <span className="df-pill df-pill-heat">
-            Heating · {activeSectionKey}
-          </span>
+          <Pill tone="heat">
+            {t("g.disc.heating", { section: t(`section.${activeSectionKey}`) })}
+          </Pill>
         )}
       </div>
 
       {/* Ghost doc */}
       <div
         style={{
-          border: "1px solid var(--df-outline)",
-          borderRadius: 10,
+          border: "1px solid var(--color-outline)",
+          borderRadius: "var(--radius-md)",
           padding: "26px 28px",
-          background: "rgba(13,14,15,0.6)",
+          background: "var(--color-chrome)",
           height: "calc(100% - 80px)",
           overflow: "hidden",
         }}
@@ -114,28 +117,28 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
               style={{
                 marginBottom: 22,
                 padding: "14px 16px 16px",
-                borderRadius: 8,
+                borderRadius: "var(--radius-md)",
                 border: "1px solid",
                 position: "relative",
                 overflow: "hidden",
                 borderColor: isHeated
-                  ? "var(--color-heat-30)"
+                  ? "var(--color-heat-line)"
                   : isHeating
-                  ? "var(--color-heat-border)"
-                  : "var(--df-outline)",
+                  ? "var(--color-heat-line)"
+                  : "var(--color-outline)",
                 background: isHeated
-                  ? "var(--color-heat-05)"
+                  ? "var(--color-heat-tint)"
                   : isHeating
-                  ? "var(--color-heat-08)"
+                  ? "var(--color-heat-wash)"
                   : "transparent",
-                boxShadow: isHeating ? "0 0 0 4px rgba(255,77,0,0.04)" : "none",
+                boxShadow: isHeating ? "0 0 0 4px var(--color-heat-tint)" : "none",
               }}
             >
               {isShimmering && (
                 <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", borderRadius: "inherit" }}>
                   <div style={{
                     position: "absolute", top: 0, bottom: 0, left: 0, width: "40%",
-                    background: "linear-gradient(90deg, transparent 0%, rgba(255,77,0,0.13) 50%, transparent 100%)",
+                    background: "linear-gradient(90deg, transparent 0%, var(--color-heat-wash) 50%, transparent 100%)",
                     animation: "df-zone-shimmer 0.65s ease-out forwards",
                   }} />
                 </div>
@@ -149,8 +152,8 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                     top: -1,
                     bottom: -1,
                     width: 3,
-                    background: "var(--df-amber-500)",
-                    boxShadow: "0 0 12px var(--df-amber-500)",
+                    background: "var(--color-heat)",
+                    boxShadow: "0 0 12px var(--color-heat)",
                     borderRadius: "8px 0 0 8px",
                   }}
                 />
@@ -161,15 +164,15 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                   className="df-mono"
                   style={{
                     fontSize: 10,
-                    letterSpacing: "0.14em",
+                    letterSpacing: "var(--tracking-eyebrow)",
                     color: isHeated
-                      ? "var(--df-amber-trail)"
+                      ? "var(--color-heat-line)"
                       : isHeating
-                      ? "var(--df-amber-300)"
-                      : "var(--df-faint)",
+                      ? "var(--color-heat-hi)"
+                      : "var(--color-faint)",
                   }}
                 >
-                  › {zone.name}
+                  › {t(`section.${zone.key}`)}
                   {isHeating && (
                     <span className="df-ember animate-df-pulse" style={{ marginLeft: 6 }} />
                   )}
@@ -179,13 +182,13 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                   style={{
                     fontSize: 10,
                     color: isHeated
-                      ? "var(--df-amber-trail)"
+                      ? "var(--color-heat-line)"
                       : isHeating
-                      ? "var(--df-amber-300)"
-                      : "var(--df-mute)",
+                      ? "var(--color-heat-hi)"
+                      : "var(--color-mute)",
                   }}
                 >
-                  {isHeated ? "FORGED" : isHeating ? "HEATING" : "PRE-HEAT"}
+                  {(isHeated ? t("g.state.forged") : isHeating ? t("g.state.heating") : t("g.state.preheat")).toUpperCase()}
                 </span>
               </div>
 
@@ -195,14 +198,14 @@ function GhostDocument({ questions }: { questions: DiscoveryQuestion[] }) {
                   style={{
                     display: "block",
                     height: 6,
-                    borderRadius: 2,
+                    borderRadius: "var(--radius-xs)",
                     marginBottom: 7,
                     width: `${w}%`,
                     background: isHeated
-                      ? "rgba(255,77,0,0.22)"
+                      ? "var(--color-heat-strong)"
                       : isHeating
-                      ? "var(--color-heat-30)"
-                      : "var(--color-white-04)",
+                      ? "var(--color-heat-line)"
+                      : "var(--color-hover)",
                   }}
                 />
               ))}
@@ -222,6 +225,7 @@ export function DiscoveryLayout({
   documentTitle = null,
 }: DiscoveryLayoutProps) {
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [subState, setSubState] = useState<DiscoverySubState>(
     documentId ? "forging" : "input"
   );
@@ -266,10 +270,12 @@ export function DiscoveryLayout({
       onDocumentCreated?.(doc.id);
     } catch (err) {
       setSubState("input");
-      if (err instanceof Error && err.message === "INSUFFICIENT_CREDITS") {
-        setSubmitError("Not enough credits to create this document. Your weekly credits may have been used up.");
+      // apiCreateDocument reports an exhausted weekly quota as this code
+      // (the old INSUFFICIENT_CREDITS check never matched).
+      if (err instanceof Error && err.message === "WEEKLY_DOCUMENT_LIMIT_REACHED") {
+        setSubmitError(t("g.disc.errLimit"));
       } else {
-        setSubmitError("Something went wrong. Please try again.");
+        setSubmitError(t("g.disc.errGeneric"));
       }
     }
   };
@@ -291,7 +297,7 @@ export function DiscoveryLayout({
       >
         <div className="animate-fade-in" style={{ width: "100%", maxWidth: "56rem" }}>
           {submitError && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", padding: "10px 14px", borderRadius: "6px", background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.2)", fontSize: "13px", color: "#e86464" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", padding: "10px 14px", borderRadius: "var(--radius-sm)", background: "var(--color-error-wash)", border: "1px solid var(--color-error-strong)", fontSize: 13, color: "var(--color-error)" }}>
               <span className="material-symbols-outlined" style={{ fontSize: "16px", flexShrink: 0 }}>error</span>
               {submitError}
             </div>
@@ -311,14 +317,14 @@ export function DiscoveryLayout({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        background: "var(--df-bg)",
+        background: "var(--color-bg)",
       }}
     >
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 2fr", overflow: "hidden" }}>
         {/* Left: section stepper */}
         <div
           style={{
-            borderRight: "1px solid var(--df-outline)",
+            borderRight: "1px solid var(--color-outline)",
             padding: "32px",
             display: "flex",
             flexDirection: "column",
@@ -329,18 +335,18 @@ export function DiscoveryLayout({
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Context gathering</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{t("g.disc.title")}</div>
               <span
                 className="df-mono"
                 style={{
                   fontSize: 10,
-                  letterSpacing: "0.18em",
+                  letterSpacing: "var(--tracking-eyebrow)",
                   textTransform: "uppercase",
                   animation: countPulsing ? "df-counter-pulse 0.5s ease-out" : undefined,
-                  color: "var(--df-faint)",
+                  color: "var(--color-faint)",
                 }}
               >
-                {answeredCount} / {questions.length} questions forged
+                {t("g.disc.progress", { done: answeredCount, total: questions.length })}
               </span>
             </div>
           </div>
@@ -357,9 +363,9 @@ export function DiscoveryLayout({
             )}
             {(!documentId || sections.length === 0) && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 0" }}>
-                <div className="animate-df-pulse" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--df-amber-500)", flexShrink: 0 }} />
-                <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.12em" }}>
-                  Analyzing your context…
+                <div className="animate-df-pulse" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-heat)", flexShrink: 0 }} />
+                <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-label)" }}>
+                  {t("g.disc.analyzing")}
                 </span>
               </div>
             )}

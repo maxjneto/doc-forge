@@ -9,7 +9,8 @@ import {
   apiSetRequireGateOnAccept,
 } from "@/utils/api";
 import { ScrollFadeContainer } from "./ScrollFadeContainer";
-import { Button, Card, Pill } from "@/components/ui";
+import { Button, Card, Pill, Switch, textStyle } from "@/components/ui";
+import { useI18n } from "@/i18n";
 
 interface EditorGatePanelProps {
   documentId: string;
@@ -32,6 +33,7 @@ export function EditorGatePanel({
   onFindingsChange,
 }: EditorGatePanelProps) {
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [gate, setGate] = useState<GateStatus | null>(null);
   const [togglePending, setTogglePending] = useState(false);
 
@@ -94,107 +96,89 @@ export function EditorGatePanel({
         style={{
           flexShrink: 0,
           padding: 16,
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
           display: "flex",
           flexDirection: "column",
-          gap: 9,
+          gap: 6,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--df-on-surface)" }}>
-            Gate de qualidade
-          </div>
-          <span style={{ flex: 1 }} />
-          <button
-            onClick={handleToggleRequireGate}
+          <div style={{ ...textStyle.ui, fontWeight: 600, color: "var(--color-text)", flex: 1 }}>{t("gate.title")}</div>
+          <Switch
+            checked={gate.requireGateOnAccept}
+            onChange={() => void handleToggleRequireGate()}
             disabled={togglePending}
-            title="Quando ligado, sugestões não podem ser aceitas com bloqueantes em aberto."
-            className="df-mono"
-            style={{
-              fontSize: 9,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              padding: "3px 8px",
-              borderRadius: "var(--radius-xs)",
-              border: `1px solid ${gate.requireGateOnAccept ? "var(--color-warn-border)" : "var(--df-outline-md)"}`,
-              background: gate.requireGateOnAccept ? "var(--color-warn-bg)" : "transparent",
-              color: gate.requireGateOnAccept ? "var(--df-warn)" : "var(--df-faint)",
-              cursor: togglePending ? "wait" : "pointer",
-            }}
-          >
-            bloquear aceite
-          </button>
+            title={t("gate.requireHint")}
+            label={t("gate.requireOnAccept")}
+          />
         </div>
-        <div style={{ fontSize: 12, color: "var(--df-dim)" }}>
-          {open.length} {open.length === 1 ? "problema" : "problemas"}
+        <div style={{ fontSize: 12.5, color: "var(--color-dim)" }}>
+          {open.length === 1 ? t("gate.problem") : t("gate.problems", { count: open.length })}
           {gate.openHighFindings > 0 && (
             <>
               {" · "}
-              <b style={{ color: "var(--df-amber-300)", fontWeight: 600 }}>
-                {gate.openHighFindings} {gate.openHighFindings === 1 ? "bloqueante" : "bloqueantes"}
+              <b style={{ color: "var(--color-error)", fontWeight: 600 }}>
+                {gate.openHighFindings} {t(gate.openHighFindings === 1 ? "editor.blocker" : "editor.blockers")}
               </b>
             </>
           )}
         </div>
       </div>
 
-      <ScrollFadeContainer fadeColor="rgba(9,10,12,0.97)">
-        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 9 }}>
+      <ScrollFadeContainer fadeColor="var(--color-bg)">
+        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           {open.length === 0 && (
-            <p style={{ fontSize: 12, lineHeight: 1.6, color: "var(--df-faint)", margin: 0 }}>
-              Nenhum problema em aberto. O gate roda a partir do agente ou do servidor.
-            </p>
+            <p style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--color-faint)", margin: 0 }}>{t("gate.empty")}</p>
           )}
 
           {open.map((f, i) => {
             const blocking = f.severity === "high";
+            // One filled action per view (R1): the first open finding is the
+            // one to act on; the rest offer the same action, quieter.
+            const lead = i === 0;
             return (
-              <Card key={f.id} tone={i === 0 ? "heat" : "sunken"} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+              <Card key={f.id} tone={lead ? "heat" : "sunken"} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+                  <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-data)" }}>
                     G-{i + 1}
                   </span>
-                  <Pill tone={blocking ? "heat" : "ghost"} dot={false}>
-                    {blocking ? "BLOQUEANTE" : "AVISO"}
+                  <Pill tone={blocking ? "error" : "warn"} compact>
+                    {t(blocking ? "editor.blocking" : "editor.warning")}
                   </Pill>
-                  <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
-                    {f.sectionType}
-                    {f.category ? ` · ${f.category}` : ""}
-                  </span>
+                  {f.category && <span style={{ fontSize: 11.5, color: "var(--color-faint)" }}>{f.category}</span>}
                 </div>
 
-                <div style={{ fontSize: 13.5, lineHeight: 1.45, fontWeight: 600, color: "var(--df-on-surface)" }}>
+                <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 600, color: "var(--color-text)" }}>
                   {f.description}
                 </div>
 
                 {f.quote && (
-                  <div
-                    className="df-mono"
+                  <blockquote
                     style={{
-                      padding: "10px 12px",
-                      borderRadius: "var(--radius-sm)",
-                      background: "var(--df-surface-mid)",
-                      border: "1px solid var(--df-outline)",
-                      fontSize: 11.5,
-                      lineHeight: 1.65,
-                      color: "var(--df-faint)",
+                      margin: 0,
+                      padding: "2px 0 2px 10px",
+                      borderLeft: `2px solid ${blocking ? "var(--color-error-line)" : "var(--color-warn-line)"}`,
+                      fontSize: 12.5,
+                      lineHeight: 1.55,
+                      fontStyle: "italic",
+                      color: "var(--color-dim)",
                     }}
                   >
                     “{f.quote}”
-                  </div>
+                  </blockquote>
                 )}
 
-                <div style={{ display: "flex", gap: 7 }}>
-                  <Button variant="primary" grow onClick={() => void requestFix(f)}>
-                    Pedir correção
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Button variant={lead ? "primary" : "secondary"} grow onClick={() => void requestFix(f)}>
+                    {t("editor.requestFix")}
                   </Button>
                   {onGoToFinding && (
                     <Button variant="secondary" onClick={() => onGoToFinding(f)}>
-                      Ir para
+                      {t("gate.goTo")}
                     </Button>
                   )}
                   <Button variant="ghost" onClick={() => void handleDismiss(f.id)}>
-                    Descartar
+                    {t("gate.dismiss")}
                   </Button>
                 </div>
               </Card>

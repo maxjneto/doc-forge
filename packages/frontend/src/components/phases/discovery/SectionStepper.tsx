@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import type { DiscoveryQuestion, SectionDefinition } from "@/types";
 import { FollowUpQuestions } from "./FollowUpQuestions";
 
+import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 type SectionState = "pending" | "forging" | "forged";
 
 function getSectionState(sectionKey: string, questions: DiscoveryQuestion[]): SectionState {
@@ -35,6 +37,7 @@ interface SectionStepperProps {
 }
 
 export function SectionStepper({ sections, questions, documentId, onComplete }: SectionStepperProps) {
+  const { t } = useI18n();
   const activeKey = getActiveSection(sections, questions);
   const [forgedFlash, setForgedFlash] = useState<Set<string>>(new Set());
   const [showEmbers, setShowEmbers] = useState(false);
@@ -75,7 +78,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
   return (
     <div style={{ position: "relative" }}>
       {showEmbers && (
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: 20 }}>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 0, pointerEvents: "none", zIndex: "var(--z-sticky)" }}>
           {EMBER_POSITIONS.map((left, i) => (
             <div
               key={i}
@@ -86,8 +89,8 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 width: i % 3 === 0 ? 5 : 3,
                 height: i % 3 === 0 ? 5 : 3,
                 borderRadius: "50%",
-                background: i % 2 === 0 ? "var(--df-amber-500)" : "var(--df-amber-300)",
-                boxShadow: "0 0 6px var(--df-amber-500)",
+                background: i % 2 === 0 ? "var(--color-heat)" : "var(--color-heat-hi)",
+                boxShadow: "0 0 6px var(--color-heat)",
                 animation: `df-ember-float ${1.0 + (i % 3) * 0.15}s ease-out ${i * 70}ms forwards`,
               }}
             />
@@ -111,17 +114,17 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 alignItems: "center",
                 gap: 10,
                 padding: "10px 14px",
-                borderRadius: 8,
+                borderRadius: "var(--radius-md)",
                 border: "1px solid",
                 borderColor: state === "forged"
-                  ? "var(--df-steel-border)"
+                  ? "var(--color-steel-line)"
                   : isActive
-                  ? "var(--color-heat-35)"
-                  : "var(--df-outline)",
+                  ? "var(--color-heat-line)"
+                  : "var(--color-outline)",
                 background: state === "forged"
-                  ? "rgba(138,160,184,0.05)"
+                  ? "var(--color-steel-tint)"
                   : isActive
-                  ? "var(--color-heat-05)"
+                  ? "var(--color-heat-tint)"
                   : "transparent",
                 transition: "border-color 0.3s, background 0.3s",
                 animation: isFlashing
@@ -136,7 +139,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 {state === "forged" ? (
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: 14, color: "var(--df-steel-100)" }}
+                    style={{ fontSize: 14, color: "var(--color-steel-hi)" }}
                   >
                     check_circle
                   </span>
@@ -147,8 +150,8 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      background: "var(--df-amber-500)",
-                      boxShadow: "0 0 8px var(--df-amber-500)",
+                      background: "var(--color-heat)",
+                      boxShadow: "0 0 8px var(--color-heat)",
                     }}
                   />
                 ) : (
@@ -157,7 +160,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      border: "1px solid var(--df-outline-md)",
+                      border: "1px solid var(--color-outline-md)",
                       background: "transparent",
                     }}
                   />
@@ -167,15 +170,15 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
               {/* Section number + name */}
               <span
                 className="df-mono"
-                style={{ fontSize: 10, letterSpacing: "0.12em" }}
+                style={{ fontSize: 10, letterSpacing: "var(--tracking-label)" }}
               >
                 <span
                   style={{
                     color: state === "forged"
-                      ? "var(--df-steel-100)"
+                      ? "var(--color-steel-hi)"
                       : isActive
-                      ? "var(--df-amber-300)"
-                      : "var(--df-mute)",
+                      ? "var(--color-heat-hi)"
+                      : "var(--color-mute)",
                     marginRight: 8,
                   }}
                 >
@@ -184,10 +187,10 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                 <span
                   style={{
                     color: state === "forged"
-                      ? "var(--df-steel-100)"
+                      ? "var(--color-steel-hi)"
                       : isActive
-                      ? "var(--df-on-surface)"
-                      : "var(--df-faint)",
+                      ? "var(--color-text)"
+                      : "var(--color-faint)",
                   }}
                 >
                   {section.displayName}
@@ -197,24 +200,24 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
               {/* Status pill */}
               <span style={{ marginLeft: "auto" }}>
                 {state === "forged" && (
-                  <span className="df-pill df-pill-steel" style={{ fontSize: 9, padding: "2px 6px" }}>
-                    Forged
-                  </span>
+                  <Pill tone="steel" compact>
+                    {t("g.state.forged")}
+                  </Pill>
                 )}
                 {isActive && !isWaiting && (
-                  <span className="df-pill df-pill-heat" style={{ fontSize: 9, padding: "2px 6px" }}>
-                    Forging
-                  </span>
+                  <Pill tone="heat" compact>
+                    {t("g.state.forging")}
+                  </Pill>
                 )}
                 {isWaiting && (
-                  <span className="df-pill df-pill-heat" style={{ fontSize: 9, padding: "2px 6px", opacity: 0.7 }}>
-                    Analyzing
-                  </span>
+                  <Pill tone="heat" compact style={{ opacity: 0.7 }}>
+                    {t("g.state.analyzing")}
+                  </Pill>
                 )}
                 {state === "pending" && !isActive && (
-                  <span className="df-pill df-pill-ghost" style={{ fontSize: 9, padding: "2px 6px" }}>
-                    Pending
-                  </span>
+                  <Pill tone="ghost" compact>
+                    {t("g.state.pending")}
+                  </Pill>
                 )}
               </span>
             </div>
@@ -227,7 +230,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                   marginTop: 8,
                   marginLeft: 18,
                   paddingLeft: 14,
-                  borderLeft: "1px solid rgba(255,77,0,0.25)",
+                  borderLeft: "1px solid var(--color-heat-strong)",
                 }}
               >
                 <FollowUpQuestions
@@ -249,7 +252,7 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                   marginTop: 8,
                   marginLeft: 18,
                   paddingLeft: 14,
-                  borderLeft: "1px solid rgba(255,77,0,0.25)",
+                  borderLeft: "1px solid var(--color-heat-strong)",
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
@@ -262,15 +265,15 @@ export function SectionStepper({ sections, questions, documentId, onComplete }: 
                     width: 5,
                     height: 5,
                     borderRadius: "50%",
-                    background: "var(--df-amber-500)",
+                    background: "var(--color-heat)",
                     flexShrink: 0,
                   }}
                 />
                 <span
                   className="df-mono"
-                  style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.12em" }}
+                  style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-label)" }}
                 >
-                  Analyzing section…
+                  {t("g.step.analyzing")}
                 </span>
               </div>
             )}

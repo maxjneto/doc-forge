@@ -36,15 +36,15 @@ interface MarkdownEditorProps {
 const theme = EditorView.theme(
   {
     "&": {
-      color: "var(--df-on-surface)",
+      color: "var(--color-text)",
       backgroundColor: "transparent",
-      fontSize: "13px",
+      fontSize: "var(--text-code)",
     },
     ".cm-content": {
-      fontFamily: "var(--df-font-mono)",
+      fontFamily: "var(--font-mono)",
       lineHeight: "1.7",
       padding: "0",
-      caretColor: "var(--df-amber-500)",
+      caretColor: "var(--color-heat)",
     },
     "&.cm-focused": { outline: "none" },
     ".cm-line": { padding: "0" },
@@ -52,18 +52,18 @@ const theme = EditorView.theme(
     ".cm-gutters": {
       backgroundColor: "transparent",
       border: "none",
-      color: "var(--df-mute)",
+      color: "var(--color-mute)",
     },
     ".cm-foldPlaceholder": {
-      backgroundColor: "var(--df-surface-high)",
-      border: "1px solid var(--df-outline-md)",
-      color: "var(--df-faint)",
+      backgroundColor: "var(--color-surface-high)",
+      border: "1px solid var(--color-outline-md)",
+      color: "var(--color-faint)",
       borderRadius: "var(--radius-xs)",
       padding: "0 6px",
       margin: "0 4px",
     },
     ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-      backgroundColor: "var(--color-heat-selection)",
+      backgroundColor: "var(--color-heat-strong)",
     },
   },
   { dark: true },
@@ -71,18 +71,18 @@ const theme = EditorView.theme(
 
 /** Markdown syntax colours, drawn from the ramp so they stay in the system. */
 const highlight = HighlightStyle.define([
-  { tag: tags.heading1, color: "var(--df-on-surface)", fontWeight: "700", fontSize: "1.25em" },
-  { tag: tags.heading2, color: "var(--df-on-surface)", fontWeight: "600", fontSize: "1.12em" },
-  { tag: [tags.heading3, tags.heading4, tags.heading5], color: "var(--df-on-surface)", fontWeight: "600" },
-  { tag: tags.strong, color: "var(--df-on-surface)", fontWeight: "700" },
-  { tag: tags.emphasis, color: "var(--df-dim)", fontStyle: "italic" },
-  { tag: tags.link, color: "var(--df-amber-300)" },
-  { tag: tags.url, color: "var(--df-faint)" },
-  { tag: tags.monospace, color: "var(--df-steel-100)" },
-  { tag: tags.quote, color: "var(--df-faint)", fontStyle: "italic" },
-  { tag: tags.list, color: "var(--df-amber-300)" },
-  { tag: tags.processingInstruction, color: "var(--df-mute)" },
-  { tag: tags.contentSeparator, color: "var(--df-outline-md)" },
+  { tag: tags.heading1, color: "var(--color-text)", fontWeight: "700", fontSize: "1.25em" },
+  { tag: tags.heading2, color: "var(--color-text)", fontWeight: "600", fontSize: "1.12em" },
+  { tag: [tags.heading3, tags.heading4, tags.heading5], color: "var(--color-text)", fontWeight: "600" },
+  { tag: tags.strong, color: "var(--color-text)", fontWeight: "700" },
+  { tag: tags.emphasis, color: "var(--color-dim)", fontStyle: "italic" },
+  { tag: tags.link, color: "var(--color-heat-hi)" },
+  { tag: tags.url, color: "var(--color-faint)" },
+  { tag: tags.monospace, color: "var(--color-steel-hi)" },
+  { tag: tags.quote, color: "var(--color-faint)", fontStyle: "italic" },
+  { tag: tags.list, color: "var(--color-heat-hi)" },
+  { tag: tags.processingInstruction, color: "var(--color-mute)" },
+  { tag: tags.contentSeparator, color: "var(--color-outline-md)" },
 ]);
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(

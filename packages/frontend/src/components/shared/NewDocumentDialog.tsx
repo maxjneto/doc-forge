@@ -5,6 +5,7 @@ import posthog from "posthog-js";
 
 import { apiCreateDocument } from "@/utils/api";
 import { useI18n } from "@/i18n";
+import { Button, Dialog, Input, textStyle } from "@/components/ui";
 
 interface NewDocumentDialogProps {
   onClose: () => void;
@@ -42,27 +43,39 @@ export function NewDocumentDialog({ onClose, remaining, weeklyLimit }: NewDocume
   }
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,.75)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", padding: 24 }}>
-      <div onClick={(event) => event.stopPropagation()} style={{ width: "min(480px, 100%)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, padding: 32, background: "#121414", boxShadow: "0 24px 48px rgba(0,0,0,.6)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-          <div>
-            <h2 style={{ margin: 0, color: "var(--df-on-surface)", fontSize: 18 }}>{t("newDocument.title")}</h2>
-            <p style={{ margin: "8px 0 0", color: "var(--df-faint)", fontSize: 13, lineHeight: 1.55 }}>
-              Start in Markdown, then invite an agent through MCP whenever you need one.
-            </p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: 0, color: "var(--df-faint)", cursor: "pointer" }}><span className="material-symbols-outlined">close</span></button>
-        </div>
-        {remaining !== undefined && <p className="df-mono" style={{ margin: "24px 0 12px", fontSize: 11, color: blocked ? "#e86464" : "var(--df-amber-300)" }}>
+    <Dialog
+      onClose={onClose}
+      title={t("newDocument.title")}
+      subtitle="Start in Markdown, then invite an agent through MCP whenever you need one."
+      width={480}
+      closable
+    >
+      {remaining !== undefined && (
+        <p className="df-mono" style={{ margin: "0 0 14px", fontSize: 11.5, color: blocked ? "var(--color-error)" : "var(--color-heat-hi)" }}>
           {remaining} of {weeklyLimit ?? 0} document creations remaining this week
-        </p>}
-        <label style={{ display: "block", fontSize: 11, color: "var(--df-faint)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>{t("newDocument.documentTitle")}</label>
-        <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") create(); }} placeholder={t("newDocument.untitled")} maxLength={200} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.03)", color: "var(--df-on-surface)", font: "inherit" }} />
-        {error && <p style={{ color: "#e86464", fontSize: 12, margin: "14px 0 0" }}>{error}</p>}
-        <button onClick={create} disabled={creating || blocked} style={{ marginTop: 24, padding: "10px 16px", border: 0, borderRadius: 6, fontWeight: 600, background: creating || blocked ? "var(--color-heat-bg-soft)" : "var(--df-amber-500)", color: "white", cursor: creating || blocked ? "not-allowed" : "pointer" }}>
+        </p>
+      )}
+      <label htmlFor="new-document-title" style={{ ...textStyle.label, display: "block", color: "var(--color-faint)", marginBottom: 8 }}>
+        {t("newDocument.documentTitle")}
+      </label>
+      <Input
+        id="new-document-title"
+        autoFocus
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") create();
+        }}
+        placeholder={t("newDocument.untitled")}
+        maxLength={200}
+      />
+      {error && <p style={{ color: "var(--color-error)", fontSize: 12.5, margin: "14px 0 0" }}>{error}</p>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22 }}>
+        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" onClick={create} disabled={creating || blocked}>
           {creating ? t("common.creating") : t("newDocument.createEditor")}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -87,8 +87,8 @@ export function LoadingPage() {
         position: "fixed",
         inset: 0,
         overflow: "hidden",
-        background: "radial-gradient(circle at center, #1a1512 0%, #050608 100%)",
-        color: "#e3e2e2",
+        background: "radial-gradient(circle at center, color-mix(in srgb, var(--color-heat-deep) 14%, var(--color-bg)) 0%, var(--color-bg) 100%)",
+        color: "var(--color-text)",
       }}
     >
       {/* Ambient radial */}
@@ -99,7 +99,7 @@ export function LoadingPage() {
           inset: 0,
           pointerEvents: "none",
           background:
-            "radial-gradient(ellipse 600px 400px at 50% 40%, rgba(255,77,0,0.06), transparent 65%)",
+            "radial-gradient(ellipse 600px 400px at 50% 40%, var(--color-heat-tint), transparent 65%)",
           zIndex: 0,
         }}
       />
@@ -107,7 +107,7 @@ export function LoadingPage() {
       <main
         style={{
           position: "relative",
-          zIndex: 10,
+          zIndex: "var(--z-raised)",
           display: "flex",
           height: "100%",
           width: "100%",
@@ -138,8 +138,8 @@ export function LoadingPage() {
               height: 256,
               width: 256,
               borderRadius: "50%",
-              border: "1px solid rgba(255,77,0,0.10)",
-              background: "rgba(255,77,0,0.05)",
+              border: "1px solid var(--color-heat-wash)",
+              background: "var(--color-heat-tint)",
             }}
           />
           {/* Hit wave */}
@@ -150,7 +150,7 @@ export function LoadingPage() {
               height: 256,
               width: 256,
               borderRadius: "50%",
-              border: "1px solid rgba(255,77,0,0.35)",
+              border: "1px solid var(--color-heat-line)",
             }}
           />
           {/* Hit glow */}
@@ -162,7 +162,7 @@ export function LoadingPage() {
               height: 64,
               width: 64,
               borderRadius: "50%",
-              background: "rgba(255,77,0,0.10)",
+              background: "var(--color-heat-wash)",
             }}
           />
           {/* Core */}
@@ -170,12 +170,12 @@ export function LoadingPage() {
             className="forge-hit-core"
             style={{
               position: "relative",
-              zIndex: 10,
+              zIndex: "var(--z-raised)",
               height: 32,
               width: 32,
               borderRadius: "50%",
-              background: "#ff4d00",
-              boxShadow: "0 0 32px rgba(255,77,0,0.85), 0 0 0 4px rgba(255,77,0,0.15)",
+              background: "var(--color-heat)",
+              boxShadow: "0 0 32px var(--color-heat), 0 0 0 4px var(--color-heat-strong)",
             }}
           />
 
@@ -196,10 +196,10 @@ export function LoadingPage() {
           <span
             className="df-mono"
             style={{
-              fontSize: 11,
+              fontSize: 11.5,
               textTransform: "uppercase",
-              letterSpacing: "0.22em",
-              color: "rgba(227,226,226,0.80)",
+              letterSpacing: "var(--tracking-eyebrow)",
+              color: "var(--color-text)",
             }}
           >
             Initializing The Forge...
@@ -213,8 +213,8 @@ export function LoadingPage() {
               height: 1,
               width: 64,
               overflow: "hidden",
-              background: "var(--df-outline)",
-              borderRadius: 1,
+              background: "var(--color-outline)",
+              borderRadius: "var(--radius-xs)",
             }}
           >
             <div
@@ -223,7 +223,7 @@ export function LoadingPage() {
                 position: "absolute",
                 inset: 0,
                 width: "50%",
-                background: "#ff4d00",
+                background: "var(--color-heat)",
               }}
             />
           </div>
@@ -236,8 +236,8 @@ export function LoadingPage() {
             position: "absolute",
             bottom: 40,
             fontSize: 10,
-            letterSpacing: "0.14em",
-            color: "var(--df-mute)",
+            letterSpacing: "var(--tracking-eyebrow)",
+            color: "var(--color-mute)",
           }}
         >
           Workspace v4.0.12

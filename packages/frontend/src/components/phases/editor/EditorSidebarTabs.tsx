@@ -91,7 +91,7 @@ export function EditorSidebarTabs({
       <div
         style={{
           display: "flex",
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
           flexShrink: 0,
         }}
       >

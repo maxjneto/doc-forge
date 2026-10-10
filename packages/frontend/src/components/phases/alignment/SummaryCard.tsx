@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button, Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 
 type CardStatus = "pending" | "approved" | "editing" | "regenerating";
 
@@ -13,6 +15,10 @@ interface SummaryCardProps {
   onReopen: () => void;
 }
 
+/**
+ * One section summary in the alignment step. Actions stay quiet (secondary /
+ * ghost): the screen's single primary is "Confirm and pour" in the header.
+ */
 export function SummaryCard({
   label,
   summary,
@@ -23,6 +29,7 @@ export function SummaryCard({
   onReject,
   onReopen,
 }: SummaryCardProps) {
+  const { t } = useI18n();
   const [reason, setReason] = useState("");
 
   const isApproved = status === "approved";
@@ -34,241 +41,105 @@ export function SummaryCard({
     <div
       style={{
         border: "1px solid",
-        borderColor: isApproved
-          ? "var(--df-steel-border)"
-          : isRevising
-          ? "var(--color-heat-30)"
-          : "var(--df-outline)",
-        borderRadius: 10,
-        padding: "20px 22px",
-        background: isApproved
-          ? "linear-gradient(180deg, rgba(138,160,184,0.05), rgba(18,20,20,0.5))"
-          : "rgba(18,20,20,0.5)",
+        borderColor: isApproved ? "var(--color-steel-line)" : isRevising || isEditing ? "var(--color-heat-line)" : "var(--color-outline)",
+        borderRadius: "var(--radius-md)",
+        padding: "18px 20px",
+        background: isApproved ? "linear-gradient(180deg, var(--color-steel-tint), var(--color-surface))" : "var(--color-surface)",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 12,
         position: "relative",
         overflow: "hidden",
       }}
     >
-      {/* Shimmer overlay while revising */}
       {isRevising && (
         <div
           className="animate-df-shimmer"
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "linear-gradient(120deg, transparent 0%, rgba(255,77,0,0.07) 35%, transparent 65%)",
+            background: "linear-gradient(120deg, transparent 0%, var(--color-heat-tint) 35%, transparent 65%)",
             pointerEvents: "none",
           }}
         />
       )}
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <span
           className="df-mono"
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--df-on-surface)",
-          }}
+          style={{ fontSize: 10, fontWeight: 600, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-text)" }}
         >
           › {label}
         </span>
-
-        {isApproved && (
-          <span className="df-pill df-pill-steel">Forged · approved</span>
-        )}
-        {isRevising && (
-          <span className="df-pill df-pill-heat">Re-pouring</span>
-        )}
-        {isPending && (
-          <span className="df-pill df-pill-ghost">Pending review</span>
-        )}
-        {isEditing && (
-          <span className="df-pill df-pill-warn">Editing</span>
-        )}
+        {isApproved && <Pill tone="steel" compact>{t("g.sc.approved")}</Pill>}
+        {isRevising && <Pill tone="heat" compact>{t("g.sc.repouring")}</Pill>}
+        {isPending && <Pill tone="ghost" compact>{t("g.sc.pending")}</Pill>}
+        {isEditing && <Pill tone="warn" compact>{t("g.sc.editing")}</Pill>}
       </div>
 
-      {/* Summary content */}
       {isRevising ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div
-            style={{
-              height: 6,
-              borderRadius: 2,
-              background: "var(--color-heat-20)",
-              animation: "pulse 1.6s ease-in-out infinite",
-              width: "90%",
-            }}
-          />
-          <div
-            style={{
-              height: 6,
-              borderRadius: 2,
-              background: "var(--color-heat-20)",
-              animation: "pulse 1.6s ease-in-out infinite",
-              width: "75%",
-            }}
-          />
-          <div
-            style={{
-              height: 6,
-              borderRadius: 2,
-              background: "var(--color-heat-20)",
-              animation: "pulse 1.6s ease-in-out infinite",
-              width: "60%",
-            }}
-          />
+          {[90, 75, 60].map((w) => (
+            <div key={w} className="animate-df-pulse" style={{ height: 6, borderRadius: "var(--radius-xs)", background: "var(--color-heat-strong)", width: `${w}%` }} />
+          ))}
           {reason && (
-            <span
-              className="df-mono"
-              style={{
-                fontSize: 10,
-                letterSpacing: "0.10em",
-                color: "var(--df-faint)",
-                marginTop: 6,
-              }}
-            >
-              Recasting from your note: "{reason}"
+            <span style={{ fontSize: 11.5, color: "var(--color-faint)", marginTop: 6 }}>
+              {t("g.sc.recasting", { note: reason })}
             </span>
           )}
         </div>
       ) : (
-        <p
-          data-ph-mask
-          style={{
-            fontSize: 13,
-            color: isApproved
-              ? "var(--df-dim)"
-              : "var(--df-dim)",
-            lineHeight: 1.55,
-            margin: 0,
-            flex: 1,
-          }}
-        >
+        <p data-ph-mask style={{ fontSize: 13, color: "var(--color-dim)", lineHeight: 1.6, margin: 0 }}>
           {summary}
         </p>
       )}
 
-      {/* Editing input */}
       {isEditing && (
-        <div style={{ marginTop: 4 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <textarea
+            className="df-input"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Describe what to change…"
-            style={{
-              width: "100%",
-              height: 72,
-              background: "var(--color-shade-20)",
-              border: "1px solid var(--df-outline-md)",
-              borderRadius: 6,
-              padding: "8px 10px",
-              fontSize: 12,
-              color: "var(--df-on-surface)",
-              fontFamily: "inherit",
-              resize: "none",
-              outline: "none",
-              marginBottom: 10,
-            }}
+            placeholder={t("g.sc.ph")}
+            aria-label={t("g.sc.ph")}
+            rows={3}
+            style={{ resize: "vertical", lineHeight: 1.5 }}
           />
-          <button
-            onClick={() => {
-              onReject(reason);
-              setReason("");
-            }}
-            disabled={!reason.trim()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 12px",
-              borderRadius: 6,
-              fontSize: 11,
-              fontWeight: 600,
-              border: "1px solid rgba(255,77,0,0.30)",
-              background: "var(--color-heat-bg-soft)",
-              color: "var(--df-amber-200)",
-              cursor: !reason.trim() ? "not-allowed" : "pointer",
-              opacity: !reason.trim() ? 0.4 : 1,
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span>
-            Resend with notes
-          </button>
+          <div>
+            <Button
+              icon="refresh"
+              iconPosition="start"
+              disabled={!reason.trim()}
+              onClick={() => {
+                onReject(reason);
+                setReason("");
+              }}
+            >
+              {t("g.sc.resend")}
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Actions */}
       {(isApproved || isPending) && (
-        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
           {isApproved ? (
             <>
-              <button
-                onClick={locked ? undefined : onStartEdit}
-                disabled={locked}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid var(--df-outline-md)",
-                  color: "var(--df-dim)", background: "transparent",
-                  cursor: locked ? "not-allowed" : "pointer",
-                  opacity: locked ? 0.35 : 1,
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
-                Edit
-              </button>
-              <button
-                onClick={locked ? undefined : onReopen}
-                disabled={locked}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid var(--df-outline-md)",
-                  color: "var(--df-dim)", background: "transparent",
-                  cursor: locked ? "not-allowed" : "pointer",
-                  opacity: locked ? 0.35 : 1,
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>undo</span>
-                Reopen
-              </button>
+              <Button variant="ghost" icon="edit" iconPosition="start" onClick={onStartEdit} disabled={locked}>
+                {t("g.sc.edit")}
+              </Button>
+              <Button variant="ghost" icon="undo" iconPosition="start" onClick={onReopen} disabled={locked}>
+                {t("g.sc.reopen")}
+              </Button>
             </>
           ) : (
             <>
-              <button
-                onClick={onApprove}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid var(--df-steel-border)",
-                  color: "var(--df-steel-100)",
-                  background: "var(--df-steel-bg)",
-                  cursor: "pointer",
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
-                Approve
-              </button>
-              <button
-                onClick={onStartEdit}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  border: "1px solid rgba(255,77,0,0.30)",
-                  color: "var(--df-amber-200)",
-                  background: "var(--color-heat-bg-soft)",
-                  cursor: "pointer",
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span>
-                Resend with notes
-              </button>
+              <Button icon="check" iconPosition="start" onClick={onApprove}>
+                {t("g.sc.approve")}
+              </Button>
+              <Button variant="ghost" icon="refresh" iconPosition="start" onClick={onStartEdit}>
+                {t("g.sc.requestChanges")}
+              </Button>
             </>
           )}
         </div>

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { TopBar, AppFooter } from "@/components/shared";
+import { TopBar } from "@/components/shared";
 import {
   apiCreatePortalSession,
   apiFetchMe,
@@ -12,6 +12,7 @@ import {
   type Tier,
 } from "@/utils/api";
 import { useI18n } from "@/i18n";
+import { Button, Card, Eyebrow, Meter, Page, PageHeader, textStyle } from "@/components/ui";
 
 interface UsageState {
   user: CurrentUser;
@@ -22,6 +23,7 @@ interface UsageState {
 export function BillingPage() {
   const { getToken } = useAuth();
   const { t, dateLocale } = useI18n();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [usage, setUsage] = useState<UsageState | null>(null);
@@ -95,34 +97,29 @@ export function BillingPage() {
     : null;
 
   return (
-    <div className="hide-scrollbar" style={pageStyle}>
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
       <TopBar dashboardNav />
-      <div aria-hidden="true" style={ambientStyle} />
 
-      <main style={mainStyle}>
+      <Page>
         {checkoutStatus === "success" && <Banner tone="ok">{t("billing.checkoutSuccess")}</Banner>}
         {checkoutStatus === "cancel" && <Banner tone="warn">{t("billing.checkoutCancel")}</Banner>}
         {error && <Banner tone="error">{error}</Banner>}
 
-        <header style={{ marginBottom: 36 }}>
-          <span className="df-pill df-pill-ghost">{t("billing.account")}</span>
-          <h1 style={{ margin: "16px 0 10px", fontSize: "clamp(28px, 3.5vw, 42px)", letterSpacing: "-0.035em", fontWeight: 650 }}>
-            {usage ? t("billing.currentPlan", { plan: currentTier?.name ?? usage.user.plan }) : t("common.loading")}
-          </h1>
-          <p style={{ margin: 0, maxWidth: 680, color: "var(--df-dim)", lineHeight: 1.6, fontSize: 14 }}>
-            {t("billing.description")}
-          </p>
-        </header>
+        <PageHeader
+          eyebrow={t("billing.account")}
+          title={usage ? t("billing.currentPlan", { plan: currentTier?.name ?? usage.user.plan }) : t("common.loading")}
+          lead={t("billing.description")}
+        />
 
-        <section style={{ marginBottom: 34 }}>
-          <div className="df-mono" style={sectionLabelStyle}>{t("billing.usage")}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+        <section style={{ marginBottom: 32 }}>
+          <Eyebrow style={{ marginBottom: 12 }}>{t("billing.usage")}</Eyebrow>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             <UsageCard
               icon="bolt"
-              label="Document creations"
-              value={usage ? `${usage.user.document_creations_remaining} of ${usage.user.weekly_document_creations} remaining` : t("common.loading")}
+              label={t("dashboard.creationsLabel")}
+              value={usage ? t("dashboard.creationsValue", { left: usage.user.document_creations_remaining, total: usage.user.weekly_document_creations }) : t("common.loading")}
               detail={nextReset ? t("billing.nextReset", { date: nextReset }) : undefined}
-              current={usage?.user.document_creations_remaining}
+              current={usage ? usage.user.weekly_document_creations - usage.user.document_creations_remaining : undefined}
               limit={usage?.user.weekly_document_creations}
             />
             <UsageCard
@@ -142,27 +139,23 @@ export function BillingPage() {
           </div>
         </section>
 
-        <section style={upgradeStyle}>
-          <div>
-            <h2 style={{ margin: "0 0 6px", fontSize: 17 }}>{t("billing.upgradeTitle")}</h2>
-            <p style={{ margin: 0, color: "var(--df-dim)", fontSize: 13, lineHeight: 1.55 }}>
-              {t("billing.upgradeBody")}
-            </p>
+        <Card tone="heat" padded={false} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, padding: 22, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ ...textStyle.title, margin: "0 0 4px" }}>{t("billing.upgradeTitle")}</h2>
+            <p style={{ margin: 0, color: "var(--color-dim)", fontSize: 13, lineHeight: 1.55 }}>{t("billing.upgradeBody")}</p>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {usage?.user.plan !== "free" && (
-              <button onClick={handleManageBilling} disabled={busy} style={secondaryButtonStyle}>
+              <Button onClick={handleManageBilling} disabled={busy}>
                 {busy ? t("common.loading") : t("billing.manage")}
-              </button>
+              </Button>
             )}
-            <Link to="/pricing" className="forge-btn" style={primaryLinkStyle}>
+            <Button variant="primary" icon="arrow_forward" onClick={() => navigate("/pricing")}>
               {t("billing.compare")}
-            </Link>
+            </Button>
           </div>
-        </section>
-      </main>
-
-      <AppFooter />
+        </Card>
+      </Page>
     </div>
   );
 }
@@ -186,112 +179,24 @@ function UsageCard({
   current?: number;
   limit?: number | null;
 }) {
-  const ratio = limit && current !== undefined ? Math.min(1, current / limit) : null;
   return (
-    <article style={usageCardStyle}>
-      <div style={{ display: "flex", alignItems: "center", gap: 9, color: "var(--df-faint)", fontSize: 11.5 }}>
-        <span className="material-symbols-outlined" style={{ fontSize: 17, color: "var(--df-steel-100)" }}>{icon}</span>
+    <Card style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, minHeight: 140 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-faint)", fontSize: 12.5 }}>
+        <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 17, color: "var(--color-faint)" }}>{icon}</span>
         {label}
       </div>
-      <strong style={{ fontSize: 19, letterSpacing: "-0.02em" }}>{value}</strong>
-      {ratio !== null && (
-        <div style={{ height: 4, borderRadius: 999, background: "var(--df-outline-md)", overflow: "hidden" }}>
-          <div style={{ width: `${ratio * 100}%`, height: "100%", background: "var(--df-steel-200)", borderRadius: 999 }} />
-        </div>
-      )}
-      {detail && <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)", lineHeight: 1.45 }}>{detail}</span>}
-    </article>
+      <strong style={{ ...textStyle.title, fontVariantNumeric: "tabular-nums" }}>{value}</strong>
+      {limit != null && current !== undefined && <Meter value={current} max={limit} />}
+      {detail && <span style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.45 }}>{detail}</span>}
+    </Card>
   );
 }
 
 function Banner({ children, tone }: { children: ReactNode; tone: "ok" | "warn" | "error" }) {
   const colors = {
-    ok: ["var(--color-ok)", "rgba(95,179,131,0.08)", "var(--color-ok-border)"],
-    warn: ["var(--df-warn)", "var(--color-warn-bg)", "var(--color-warn-border)"],
-    error: ["var(--df-error)", "var(--df-error-bg)", "var(--color-error-border)"],
+    ok: ["var(--color-ok)", "var(--color-ok-wash)", "var(--color-ok-line)"],
+    warn: ["var(--color-warn)", "var(--color-warn-wash)", "var(--color-warn-line)"],
+    error: ["var(--color-error)", "var(--color-error-wash)", "var(--color-error-line)"],
   }[tone];
-  return <div style={{ marginBottom: 24, padding: "12px 18px", borderRadius: 8, color: colors[0], background: colors[1], border: `1px solid ${colors[2]}`, fontSize: 13 }}>{children}</div>;
+  return <div role="status" style={{ marginBottom: 24, padding: "12px 18px", borderRadius: "var(--radius-md)", color: colors[0], background: colors[1], border: `1px solid ${colors[2]}`, fontSize: 13 }}>{children}</div>;
 }
-
-const pageStyle: CSSProperties = {
-  background: "#050608",
-  color: "var(--df-on-surface)",
-  minHeight: "100vh",
-  display: "flex",
-  flexDirection: "column",
-  fontFamily: "'Inter', sans-serif",
-  position: "relative",
-};
-
-const ambientStyle: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  pointerEvents: "none",
-  background: "radial-gradient(ellipse 800px 600px at 50% 20%, rgba(255,77,0,0.08), transparent 60%)",
-  zIndex: 0,
-};
-
-const mainStyle: CSSProperties = {
-  flex: 1,
-  position: "relative",
-  zIndex: 10,
-  padding: "136px 56px 96px",
-  maxWidth: 1020,
-  margin: "0 auto",
-  width: "100%",
-};
-
-const sectionLabelStyle: CSSProperties = {
-  fontSize: 10,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  color: "var(--df-faint)",
-  marginBottom: 12,
-};
-
-const usageCardStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 14,
-  padding: 20,
-  minHeight: 150,
-  border: "1px solid var(--df-outline)",
-  borderRadius: 10,
-  background: "rgba(18,20,20,0.72)",
-};
-
-const upgradeStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 24,
-  padding: 24,
-  border: "1px solid var(--color-heat-20)",
-  borderRadius: 10,
-  background: "linear-gradient(110deg, var(--color-heat-05), rgba(18,20,20,0.7))",
-  flexWrap: "wrap",
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  padding: "9px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--df-outline-md)",
-  background: "transparent",
-  color: "var(--df-dim)",
-  cursor: "pointer",
-  font: "inherit",
-  fontSize: 12,
-  fontWeight: 600,
-};
-
-const primaryLinkStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "9px 16px",
-  borderRadius: 6,
-  color: "white",
-  textDecoration: "none",
-  fontSize: 12,
-  fontWeight: 600,
-};

@@ -65,7 +65,7 @@ export function EditorArtifactPanel({
   if (artifacts.length === 0) {
     return (
       <div style={{ padding: 16 }}>
-        <p style={{ fontSize: 12, lineHeight: 1.6, color: "var(--df-faint)", margin: 0 }}>
+        <p style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--color-faint)", margin: 0 }}>
           Nenhum artefato ainda. Diagramas, tabelas e notas de decisão que os agentes criam para
           sustentar o texto aparecem aqui.
         </p>
@@ -79,21 +79,21 @@ export function EditorArtifactPanel({
         style={{
           flexShrink: 0,
           padding: 16,
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
           display: "flex",
           flexDirection: "column",
           gap: 8,
         }}
       >
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--df-on-surface)" }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-text)" }}>
           {artifacts.length} {artifacts.length === 1 ? "artefato" : "artefatos"} neste documento
         </div>
-        <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--df-dim)" }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--color-dim)" }}>
           Diagramas, tabelas e notas de decisão que os agentes criam para sustentar o texto.
         </div>
       </div>
 
-      <ScrollFadeContainer fadeColor="var(--df-surface)">
+      <ScrollFadeContainer fadeColor="var(--color-surface)">
         <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           {artifacts.map((a) => (
             <Card
@@ -121,13 +121,13 @@ export function EditorArtifactPanel({
                   height: 26,
                   flexShrink: 0,
                   borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--df-outline-md)",
-                  background: "var(--df-surface-high)",
+                  border: "1px solid var(--color-outline-md)",
+                  background: "var(--color-surface-high)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 11,
-                  color: "var(--df-faint)",
+                  fontSize: 11.5,
+                  color: "var(--color-faint)",
                 }}
               >
                 {GLYPH[a.kind]}
@@ -135,9 +135,9 @@ export function EditorArtifactPanel({
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: 500,
-                    color: "var(--df-on-surface)",
+                    color: "var(--color-text)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -147,7 +147,7 @@ export function EditorArtifactPanel({
                 </span>
                 <span
                   className="df-mono"
-                  style={{ fontSize: 9.5, letterSpacing: "0.06em", color: "var(--df-faint)" }}
+                  style={{ fontSize: 10, letterSpacing: "var(--tracking-data)", color: "var(--color-faint)" }}
                 >
                   {KIND_LABEL[a.kind]} · {a.anchored ? `::${a.key}` : "SEM ÂNCORA"} ·{" "}
                   {(a.author ?? "VOCÊ").toUpperCase()}
@@ -159,7 +159,7 @@ export function EditorArtifactPanel({
       </ScrollFadeContainer>
 
       {onRequestArtifact && (
-        <div style={{ flexShrink: 0, borderTop: "1px solid var(--df-outline)", padding: "14px 16px" }}>
+        <div style={{ flexShrink: 0, borderTop: "1px solid var(--color-outline)", padding: "14px 16px" }}>
           <Button onClick={onRequestArtifact} style={{ width: "100%" }}>
             Pedir artefato ao agente
           </Button>
@@ -187,9 +187,9 @@ export function ArtifactInlineCard({
       style={{
         maxWidth: 520,
         margin: "14px 0",
-        border: "1px solid var(--df-outline-md)",
+        border: "1px solid var(--color-outline-md)",
         borderRadius: "var(--radius-md)",
-        background: "linear-gradient(180deg, var(--df-surface-mid), var(--df-surface))",
+        background: "linear-gradient(180deg, var(--color-surface-mid), var(--color-surface))",
         padding: "12px 14px",
         display: "flex",
         alignItems: "center",
@@ -203,29 +203,29 @@ export function ArtifactInlineCard({
           height: 34,
           flexShrink: 0,
           borderRadius: "var(--radius-sm)",
-          border: "1px solid var(--df-outline-md)",
-          background: "var(--df-surface-high)",
+          border: "1px solid var(--color-outline-md)",
+          background: "var(--color-surface-high)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "var(--df-faint)",
+          color: "var(--color-faint)",
         }}
       >
         {GLYPH[artifact.kind]}
       </div>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--df-on-surface)" }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-text)" }}>
           {artifact.title}
         </span>
         <span
           className="df-mono"
-          style={{ fontSize: 9.5, letterSpacing: "0.06em", color: "var(--df-faint)" }}
+          style={{ fontSize: 10, letterSpacing: "var(--tracking-data)", color: "var(--color-faint)" }}
         >
           {KIND_LABEL[artifact.kind]} · {(artifact.author ?? "VOCÊ").toUpperCase()}
         </span>
       </div>
       {onOpen && (
-        <Button variant="primary" onClick={onOpen} style={{ padding: "6px 12px", fontSize: 11 }}>
+        <Button variant="primary" onClick={onOpen} style={{ padding: "6px 12px", fontSize: 11.5 }}>
           Abrir →
         </Button>
       )}
@@ -269,30 +269,30 @@ export function ArtifactDetail({
     <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
       <div style={{ padding: "30px 40px", display: "flex", flexDirection: "column", gap: 24 }}>
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-          <div className="df-mono" style={{ fontSize: 44, lineHeight: 1, color: "var(--df-mute)" }}>
+          <div className="df-mono" style={{ fontSize: 44, lineHeight: 1, color: "var(--color-mute)" }}>
             {GLYPH[artifact.kind]}
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
             <div
               className="df-mono"
-              style={{ fontSize: 9.5, letterSpacing: "0.16em", color: "var(--df-amber-300)" }}
+              style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-heat-hi)" }}
             >
               › ARTEFATO · {KIND_LABEL[artifact.kind]}
             </div>
             <div
               style={{
-                fontSize: 26,
+                fontSize: 28,
                 lineHeight: 1.25,
                 fontWeight: 600,
                 letterSpacing: "-0.02em",
-                color: "var(--df-on-surface)",
+                color: "var(--color-text)",
               }}
             >
               {artifact.title}
             </div>
-            <div style={{ fontSize: 12.5, color: "var(--df-faint)" }}>
+            <div style={{ fontSize: 12.5, color: "var(--color-faint)" }}>
               criado por{" "}
-              <b style={{ color: "var(--df-amber-300)", fontWeight: 600 }}>
+              <b style={{ color: "var(--color-heat-hi)", fontWeight: 600 }}>
                 {artifact.author ?? "você"}
               </b>{" "}
               · v{artifact.revision}
@@ -305,9 +305,9 @@ export function ArtifactDetail({
 
         <div
           style={{
-            border: "1px solid var(--df-outline)",
+            border: "1px solid var(--color-outline)",
             borderRadius: "var(--radius-md)",
-            background: "var(--df-surface-mid)",
+            background: "var(--color-surface-mid)",
             padding: 20,
           }}
         >
@@ -317,16 +317,16 @@ export function ArtifactDetail({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div
             className="df-mono"
-            style={{ fontSize: 9.5, letterSpacing: "0.16em", color: "var(--df-faint)" }}
+            style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)" }}
           >
             › ONDE APARECE NO DOCUMENTO
           </div>
           <div
             style={{
-              border: "1px solid var(--df-outline)",
+              border: "1px solid var(--color-outline)",
               borderRadius: "var(--radius-md)",
               overflow: "hidden",
-              background: "var(--df-surface-mid)",
+              background: "var(--color-surface-mid)",
             }}
           >
             {artifact.anchored ? (
@@ -335,10 +335,10 @@ export function ArtifactDetail({
                   className="df-mono"
                   style={{
                     padding: "10px 16px",
-                    borderBottom: "1px solid var(--df-outline)",
+                    borderBottom: "1px solid var(--color-outline)",
                     fontSize: 10,
-                    letterSpacing: "0.1em",
-                    color: "var(--df-faint)",
+                    letterSpacing: "var(--tracking-label)",
+                    color: "var(--color-faint)",
                     textTransform: "uppercase",
                   }}
                 >
@@ -346,7 +346,7 @@ export function ArtifactDetail({
                 </div>
                 <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
                   {preceding && (
-                    <div style={{ fontSize: 13.5, lineHeight: 1.75, color: "var(--df-faint)" }}>
+                    <div style={{ fontSize: 13, lineHeight: 1.75, color: "var(--color-faint)" }}>
                       …{preceding.slice(-220)}
                     </div>
                   )}
@@ -354,9 +354,9 @@ export function ArtifactDetail({
                 </div>
               </>
             ) : (
-              <div style={{ padding: "18px 20px", fontSize: 12.5, lineHeight: 1.6, color: "var(--df-faint)" }}>
+              <div style={{ padding: "18px 20px", fontSize: 12.5, lineHeight: 1.6, color: "var(--color-faint)" }}>
                 Nada no texto aponta para este artefato ainda. Insira{" "}
-                <code className="df-mono" style={{ color: "var(--df-amber-300)" }}>
+                <code className="df-mono" style={{ color: "var(--color-heat-hi)" }}>
                   {directive}
                 </code>{" "}
                 onde ele deve aparecer.
@@ -370,7 +370,7 @@ export function ArtifactDetail({
         style={{
           height: 60,
           flexShrink: 0,
-          borderTop: "1px solid var(--df-outline)",
+          borderTop: "1px solid var(--color-outline)",
           display: "flex",
           alignItems: "center",
           gap: 10,

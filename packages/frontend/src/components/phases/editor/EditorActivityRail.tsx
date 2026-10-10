@@ -3,6 +3,9 @@ import { useAuth } from "@clerk/clerk-react";
 import { apiFetchActivity } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { DocumentActivity } from "@/types";
+import { Eyebrow } from "@/components/ui";
+import { useI18n } from "@/i18n";
+import { fullDate, relativeTime } from "@/utils/time";
 
 interface EditorActivityRailProps {
   documentId: string;
@@ -14,34 +17,19 @@ const ICON_BY_ACTION: Record<string, string> = {
   snapshot: "bookmark",
   version_selected: "history",
   document_created: "add_circle",
+  suggestion_created: "difference",
+  suggestion_accepted: "check",
+  suggestion_rejected: "close",
+  feedback_created: "rate_review",
+  feedback_resolved: "task_alt",
 };
-
-function humanizeAction(actionType: string): string {
-  const map: Record<string, string> = {
-    write: "edited",
-    snapshot: "snapshotted",
-    version_selected: "restored a version",
-    document_created: "created the document",
-  };
-  return map[actionType] ?? actionType.replace(/_/g, " ");
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
 
 const ENTRY_LIMIT = 8;
 
+/** Who did what, newest first. Agents read steel (R2), people read as text. */
 export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRailProps) {
   const { getToken } = useAuth();
+  const { t, dateLocale } = useI18n();
   const [entries, setEntries] = useState<DocumentActivity[] | null>(null);
 
   const load = useCallback(async () => {
@@ -55,92 +43,64 @@ export function EditorActivityRail({ documentId, refreshTick }: EditorActivityRa
 
   useEffect(() => { load(); }, [load, refreshTick]);
 
+  const describe = (actionType: string) => {
+    const key = `activity.${actionType}`;
+    const text = t(key);
+    return text === key ? actionType.replace(/_/g, " ") : text;
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div
-        className="df-mono"
-        style={{
-          fontSize: 10,
-          letterSpacing: "0.16em",
-          color: "var(--df-faint)",
-          textTransform: "uppercase",
-        }}
-      >
-        › Activity
-      </div>
+      <Eyebrow chevron>{t("editor.activity")}</Eyebrow>
 
       {entries === null ? (
-        <div style={{ fontSize: 11, color: "rgba(200,198,197,0.3)", lineHeight: 1.5 }}>Loading…</div>
+        <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.5 }}>{t("editor.loading")}</div>
       ) : entries.length === 0 ? (
-        <div style={{ fontSize: 11, color: "rgba(200,198,197,0.3)", lineHeight: 1.5 }}>No activity yet.</div>
+        <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.5 }}>{t("editor.noActivity")}</div>
       ) : (
         <div className="df-scroll-thin" style={{ display: "flex", flexDirection: "column", maxHeight: 220, overflowY: "auto" }}>
           {entries.map((e, i) => {
-            const icon = ICON_BY_ACTION[e.actionType] ?? "circle";
             const harness = e.isAgent && isHarness(e.harness) ? HARNESS_META[e.harness] : null;
-            const actorColor = harness
-              ? harness.fg
-              : e.isAgent
-              ? "var(--df-steel-100)"
-              : "var(--df-on-surface)";
-            const badgeBg = harness ? harness.bg : e.isAgent ? "var(--df-steel-bg)" : "var(--color-heat-08)";
-            const badgeFg = harness ? harness.fg : e.isAgent ? "var(--df-steel-200)" : "var(--df-amber-300)";
             return (
               <div
                 key={e.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "16px 1fr",
+                  gridTemplateColumns: "18px 1fr",
                   gap: 8,
                   padding: "8px 0",
-                  borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.04)",
-                  alignItems: "flex-start",
+                  borderTop: i === 0 ? "none" : "1px solid var(--color-outline)",
+                  alignItems: "start",
                 }}
               >
                 <span
+                  aria-hidden
                   style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 3,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "var(--radius-xs)",
                     display: "grid",
                     placeItems: "center",
-                    background: badgeBg,
-                    color: badgeFg,
-                    alignSelf: "flex-start",
+                    background: e.isAgent ? "var(--color-steel-wash)" : "var(--color-hover)",
+                    color: e.isAgent ? "var(--color-steel)" : "var(--color-faint)",
                   }}
                 >
                   {harness ? (
-                    <img src={harness.logo} width={10} height={10} alt="" />
+                    <img src={harness.logo} width={11} height={11} alt="" />
                   ) : (
-                    <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{icon}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: 12 }}>{ICON_BY_ACTION[e.actionType] ?? "circle"}</span>
                   )}
                 </span>
-                <div style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.4, minWidth: 0 }}>
-                  <span
-                    className={e.isAgent ? "df-mono" : undefined}
-                    style={{
-                      fontWeight: 600,
-                      color: actorColor,
-                      fontSize: e.isAgent ? 10.5 : 11,
-                      letterSpacing: e.isAgent ? "0.04em" : undefined,
-                    }}
-                  >
+                <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.45, minWidth: 0 }}>
+                  <span style={{ fontWeight: 600, color: e.isAgent ? "var(--color-steel-hi)" : "var(--color-text)" }}>
                     {e.actorName}
                   </span>{" "}
-                  <span style={{ color: "var(--df-faint)" }}>
-                    {humanizeAction(e.actionType)}
-                  </span>
+                  {describe(e.actionType)}
                   <span
-                    className="df-mono"
-                    style={{
-                      display: "block",
-                      fontSize: 9.5,
-                      color: "var(--df-faint)",
-                      letterSpacing: "0.04em",
-                      marginTop: 2,
-                    }}
+                    title={fullDate(e.createdAt, dateLocale)}
+                    style={{ display: "block", marginTop: 1, color: "var(--color-mute)", fontVariantNumeric: "tabular-nums" }}
                   >
-                    {timeAgo(e.createdAt)}
+                    {relativeTime(e.createdAt, dateLocale)}
                   </span>
                 </div>
               </div>

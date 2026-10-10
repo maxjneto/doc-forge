@@ -124,8 +124,8 @@ export function DocumentDragOverlay() {
   const drag = useDocumentDragState();
   if (!drag.active) return null;
   return (
-    <div aria-hidden style={{ position: "fixed", zIndex: 100, left: drag.x + 12, top: drag.y + 12, display: "flex", alignItems: "center", gap: 7, maxWidth: 240, padding: "5px 8px", borderRadius: 5, background: "var(--df-surface-high)", color: "var(--df-on-surface)", boxShadow: "0 5px 18px var(--color-shade-20)", fontSize: 11.5, pointerEvents: "none" }}>
-      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--df-dim)" }}>draft</span>
+    <div aria-hidden style={{ position: "fixed", zIndex: "var(--z-modal)", left: drag.x + 12, top: drag.y + 12, display: "flex", alignItems: "center", gap: 7, maxWidth: 240, padding: "5px 8px", borderRadius: "var(--radius-sm)", background: "var(--color-surface-high)", color: "var(--color-text)", boxShadow: "0 5px 18px var(--color-sink)", fontSize: 11.5, pointerEvents: "none" }}>
+      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-dim)" }}>draft</span>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drag.title}</span>
     </div>
   );

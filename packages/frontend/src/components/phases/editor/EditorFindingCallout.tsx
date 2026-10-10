@@ -46,11 +46,11 @@ export function EditorFindingCallout({
       style={{
         margin: "16px 0",
         padding: "16px 18px",
-        border: `1px solid ${blocking ? "var(--color-heat-border)" : "var(--color-warn-border)"}`,
+        border: `1px solid ${blocking ? "var(--color-heat-line)" : "var(--color-warn-line)"}`,
         borderRadius: "var(--radius-md)",
         background: blocking
-          ? "linear-gradient(180deg, var(--color-heat-bg-soft), var(--df-surface))"
-          : "var(--color-warn-bg)",
+          ? "linear-gradient(180deg, var(--color-heat-tint), var(--color-surface))"
+          : "var(--color-warn-wash)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
@@ -60,7 +60,7 @@ export function EditorFindingCallout({
         {finding.category && (
           <span
             className="df-mono"
-            style={{ fontSize: 9.5, letterSpacing: "0.1em", color: "var(--df-faint)" }}
+            style={{ fontSize: 10, letterSpacing: "var(--tracking-label)", color: "var(--color-faint)" }}
           >
             {finding.category.toUpperCase()}
           </span>
@@ -69,7 +69,7 @@ export function EditorFindingCallout({
           <span
             className="df-mono"
             title={t("editor.anchorChanged")}
-            style={{ fontSize: 9.5, color: "var(--df-mute)" }}
+            style={{ fontSize: 10, color: "var(--color-mute)" }}
           >
             {t("editor.approximateAnchor").toUpperCase()}
           </span>
@@ -77,13 +77,13 @@ export function EditorFindingCallout({
       </div>
 
       {hit ? (
-        <div style={{ fontSize: 13, lineHeight: 1.85, color: "var(--df-dim)" }}>
+        <div style={{ fontSize: 13, lineHeight: 1.85, color: "var(--color-dim)" }}>
           {before}
           <span
             style={{
-              color: "var(--df-amber-100)",
+              color: "var(--color-heat-pale)",
               textDecoration: "underline",
-              textDecorationColor: "var(--df-amber-500)",
+              textDecorationColor: "var(--color-heat)",
               textUnderlineOffset: 5,
             }}
           >
@@ -92,13 +92,13 @@ export function EditorFindingCallout({
           {after}
         </div>
       ) : (
-        <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--df-dim)" }}>
+        <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--color-dim)" }}>
           {finding.description}
         </div>
       )}
 
       {hit && (
-        <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--df-faint)", marginTop: 10 }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "var(--color-faint)", marginTop: 10 }}>
           {finding.description}
         </div>
       )}

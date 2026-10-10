@@ -1,10 +1,13 @@
 import { useState } from "react";
 
+import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 interface InitialInputProps {
   onSubmit: (context: string, preferences: string) => void;
 }
 
 export function InitialInput({ onSubmit }: InitialInputProps) {
+  const { t } = useI18n();
   const [context, setContext] = useState("");
   const [preferences, setPreferences] = useState("");
   const [activeField, setActiveField] = useState<"context" | "preferences" | null>(null);
@@ -15,22 +18,22 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
     <div style={{ width: "100%" }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <span className="df-pill df-pill-heat" style={{ marginBottom: 16, display: "inline-block" }}>
-          Discovery · Phase 01
-        </span>
+        <Pill tone="heat" style={{ marginBottom: 16 }}>
+          {t("g.in.pill")}
+        </Pill>
         <h2
           style={{
-            fontSize: 22,
+            fontSize: 21,
             fontWeight: 600,
             letterSpacing: "-0.025em",
-            color: "var(--df-on-surface)",
+            color: "var(--color-text)",
             margin: "0 0 8px",
           }}
         >
-          Describe your document
+          {t("g.in.title")}
         </h2>
-        <p style={{ fontSize: 13, color: "var(--df-dim)", margin: 0 }}>
-          Provide the problem context and your preferences. The forge will do the rest.
+        <p style={{ fontSize: 13, color: "var(--color-dim)", margin: 0 }}>
+          {t("g.in.lead")}
         </p>
       </div>
 
@@ -39,9 +42,9 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
         {/* Context Card */}
         <div
           style={{
-            background: "rgba(13,14,15,0.6)",
-            border: `1px solid ${activeField === "context" ? "var(--color-heat-35)" : "var(--df-outline)"}`,
-            borderRadius: 10,
+            background: "var(--color-chrome)",
+            border: `1px solid ${activeField === "context" ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+            borderRadius: "var(--radius-md)",
             padding: "20px 22px",
             transition: "border-color 0.15s",
           }}
@@ -49,7 +52,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 15, color: "var(--df-amber-300)" }}
+              style={{ fontSize: 15, color: "var(--color-heat-hi)" }}
             >
               description
             </span>
@@ -57,24 +60,24 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
               className="df-mono"
               style={{
                 fontSize: 10,
-                letterSpacing: "0.16em",
+                letterSpacing: "var(--tracking-eyebrow)",
                 textTransform: "uppercase",
-                color: "var(--df-amber-300)",
+                color: "var(--color-heat-hi)",
               }}
             >
-              Context
+              {t("section.context")}
             </span>
           </div>
           <p
             style={{
-              fontSize: 12,
-              color: "var(--df-faint)",
+              fontSize: 12.5,
+              color: "var(--color-faint)",
               marginBottom: 12,
               lineHeight: 1.55,
               marginTop: 0,
             }}
           >
-            Describe the problem your document solves. The more detail, the better.
+            {t("g.in.contextHelp")}
           </p>
           <textarea
             data-ph-mask
@@ -82,16 +85,16 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             onChange={(e) => setContext(e.target.value)}
             onFocus={() => setActiveField("context")}
             onBlur={() => setActiveField(null)}
-            placeholder="E.g.: Our payment system is suffering from latency above 500ms during peak hours. PostgreSQL 14 is not scaling adequately..."
+            placeholder={t("g.in.contextPh")}
             style={{
               width: "100%",
               height: 160,
-              background: "rgba(0,0,0,0.25)",
-              border: `1px solid ${activeField === "context" ? "rgba(255,77,0,0.40)" : "var(--df-outline)"}`,
-              borderRadius: 6,
+              background: "var(--color-sink)",
+              border: `1px solid ${activeField === "context" ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+              borderRadius: "var(--radius-sm)",
               padding: "10px 12px",
               fontSize: 13,
-              color: "var(--df-on-surface)",
+              color: "var(--color-text)",
               fontFamily: "inherit",
               lineHeight: 1.5,
               resize: "none",
@@ -105,9 +108,9 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
         {/* Preferences Card */}
         <div
           style={{
-            background: "rgba(13,14,15,0.6)",
-            border: `1px solid ${activeField === "preferences" ? "var(--color-heat-35)" : "var(--df-outline)"}`,
-            borderRadius: 10,
+            background: "var(--color-chrome)",
+            border: `1px solid ${activeField === "preferences" ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+            borderRadius: "var(--radius-md)",
             padding: "20px 22px",
             transition: "border-color 0.15s",
           }}
@@ -115,7 +118,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 15, color: "var(--df-amber-300)" }}
+              style={{ fontSize: 15, color: "var(--color-heat-hi)" }}
             >
               tune
             </span>
@@ -123,24 +126,24 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
               className="df-mono"
               style={{
                 fontSize: 10,
-                letterSpacing: "0.16em",
+                letterSpacing: "var(--tracking-eyebrow)",
                 textTransform: "uppercase",
-                color: "var(--df-amber-300)",
+                color: "var(--color-heat-hi)",
               }}
             >
-              Preferences
+              {t("g.in.prefs")}
             </span>
           </div>
           <p
             style={{
-              fontSize: 12,
-              color: "var(--df-faint)",
+              fontSize: 12.5,
+              color: "var(--color-faint)",
               marginBottom: 12,
               lineHeight: 1.55,
               marginTop: 0,
             }}
           >
-            Tone, format, target audience, and any specific instructions.
+            {t("g.in.prefsHelp")}
           </p>
           <textarea
             data-ph-mask
@@ -148,16 +151,16 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             onChange={(e) => setPreferences(e.target.value)}
             onFocus={() => setActiveField("preferences")}
             onBlur={() => setActiveField(null)}
-            placeholder="E.g.: Technical tone, target audience is senior engineers. Include Mermaid diagrams. Focus on trade-offs..."
+            placeholder={t("g.in.prefsPh")}
             style={{
               width: "100%",
               height: 160,
-              background: "rgba(0,0,0,0.25)",
-              border: `1px solid ${activeField === "preferences" ? "rgba(255,77,0,0.40)" : "var(--df-outline)"}`,
-              borderRadius: 6,
+              background: "var(--color-sink)",
+              border: `1px solid ${activeField === "preferences" ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+              borderRadius: "var(--radius-sm)",
               padding: "10px 12px",
               fontSize: 13,
-              color: "var(--df-on-surface)",
+              color: "var(--color-text)",
               fontFamily: "inherit",
               lineHeight: 1.5,
               resize: "none",
@@ -180,7 +183,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             alignItems: "center",
             gap: 8,
             padding: "10px 24px",
-            borderRadius: 6,
+            borderRadius: "var(--radius-sm)",
             fontSize: 13,
             fontWeight: 600,
             border: "none",
@@ -189,7 +192,7 @@ export function InitialInput({ onSubmit }: InitialInputProps) {
             letterSpacing: "0.02em",
           }}
         >
-          <span>Submit for analysis</span>
+          <span>{t("g.in.submit")}</span>
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
         </button>
       </div>

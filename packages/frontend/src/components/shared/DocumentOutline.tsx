@@ -34,7 +34,7 @@ function OutlineNode({
   const active = activeSlug === node.heading.slug;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const count = counts[node.heading.slug] ?? 0;
-  const restColor = node.heading.level === 1 ? "var(--df-dim)" : "var(--df-faint)";
+  const restColor = node.heading.level === 1 ? "var(--color-dim)" : "var(--color-faint)";
 
   useEffect(() => {
     if (active) buttonRef.current?.scrollIntoView({ block: "nearest" });
@@ -46,13 +46,13 @@ function OutlineNode({
         ref={buttonRef}
         onClick={() => onNavigate(node.heading.slug)}
         title={node.heading.text}
-        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "1px 0", padding: "5px 8px", textAlign: "left", border: 0, borderLeft: `2px solid ${active ? "var(--df-amber-500)" : "transparent"}`, borderRadius: "var(--radius-sm)", background: active ? "var(--color-heat-05)" : "transparent", color: active ? "var(--df-amber-200)" : restColor, font: "inherit", fontSize: node.heading.level === 1 ? 12.5 : 11.5, fontWeight: active ? 600 : node.heading.level === 1 ? 500 : 400, cursor: "pointer", transition: "color 120ms ease, background 120ms ease" }}
+        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "1px 0", padding: "5px 8px", textAlign: "left", border: 0, borderLeft: `2px solid ${active ? "var(--color-heat)" : "transparent"}`, borderRadius: "var(--radius-sm)", background: active ? "var(--color-heat-tint)" : "transparent", color: active ? "var(--color-heat-soft)" : restColor, font: "inherit", fontSize: node.heading.level === 1 ? 12.5 : 11.5, fontWeight: active ? 600 : node.heading.level === 1 ? 500 : 400, cursor: "pointer", transition: "color 120ms ease, background 120ms ease" }}
       >
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.heading.text}</span>
-        {count > 0 && <span className="df-mono" style={{ flexShrink: 0, fontSize: 9, color: "var(--df-amber-300)" }}>{count}</span>}
+        {count > 0 && <span className="df-mono" style={{ flexShrink: 0, fontSize: 10, color: "var(--color-heat-hi)" }}>{count}</span>}
       </button>
       {node.children.length > 0 && (
-        <div style={{ marginLeft: 10, paddingLeft: 8, borderLeft: "1px solid var(--df-outline)" }}>
+        <div style={{ marginLeft: 10, paddingLeft: 8, borderLeft: "1px solid var(--color-outline)" }}>
           {node.children.map((child) => (
             <OutlineNode key={child.heading.slug} node={child} activeSlug={activeSlug} counts={counts} onNavigate={onNavigate} />
           ))}
@@ -77,6 +77,6 @@ export function DocumentOutline({
 }) {
   const { t } = useI18n();
   const tree = useMemo(() => buildTree(headings), [headings]);
-  if (tree.length === 0) return <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: "var(--df-faint)" }}>{emptyText ?? t("outline.empty")}</p>;
+  if (tree.length === 0) return <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: "var(--color-faint)" }}>{emptyText ?? t("outline.empty")}</p>;
   return <>{tree.map((node) => <OutlineNode key={node.heading.slug} node={node} activeSlug={activeSlug} counts={counts} onNavigate={onNavigate} />)}</>;
 }

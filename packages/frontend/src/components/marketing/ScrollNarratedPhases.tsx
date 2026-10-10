@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { Pill } from "@/components/ui";
 const PHASES = [
   {
     num: "01",
@@ -130,7 +131,7 @@ export function ScrollNarratedPhases() {
     <section
       id="forger"
       style={{
-        borderTop: "1px solid var(--df-outline)",
+        borderTop: "1px solid var(--color-outline)",
         padding: "80px 0 100px",
         position: "relative",
       }}
@@ -139,19 +140,19 @@ export function ScrollNarratedPhases() {
         <span
           className="df-mono"
           style={{
-            fontSize: 11,
-            letterSpacing: "0.18em",
+            fontSize: 11.5,
+            letterSpacing: "var(--tracking-eyebrow)",
             textTransform: "uppercase",
-            color: "var(--df-steel-100)",
+            color: "var(--color-steel-hi)",
             fontWeight: 600,
           }}
         >
           Path B · The Forger · no agent needed
         </span>
         <h2 style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.03em", margin: "14px 0 14px" }}>
-          No agent yet? <em style={{ fontStyle: "normal", color: "var(--df-steel-100)" }}>The hosted pipeline drives</em>.
+          No agent yet? <em style={{ fontStyle: "normal", color: "var(--color-steel-hi)" }}>The hosted pipeline drives</em>.
         </h2>
-        <p style={{ fontSize: 15, color: "var(--df-dim)", lineHeight: 1.6, maxWidth: 600, margin: "0 auto" }}>
+        <p style={{ fontSize: 14, color: "var(--color-dim)", lineHeight: 1.6, maxWidth: 600, margin: "0 auto" }}>
           Six phases from idea to merge-ready — the same review, audit and history apply to what it writes. Scroll through; the timeline on the left lights up as each phase comes into view.
         </p>
       </div>
@@ -176,9 +177,9 @@ export function ScrollNarratedPhases() {
             className="df-mono"
             style={{
               fontSize: 10,
-              letterSpacing: "0.18em",
+              letterSpacing: "var(--tracking-eyebrow)",
               textTransform: "uppercase",
-              color: "var(--df-faint)",
+              color: "var(--color-faint)",
               marginBottom: 20,
             }}
           >
@@ -187,9 +188,9 @@ export function ScrollNarratedPhases() {
           <div
             style={{
               height: 5,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid var(--df-outline)",
+              borderRadius: "var(--radius-pill)",
+              background: "var(--color-hover)",
+              border: "1px solid var(--color-outline)",
               overflow: "hidden",
               marginBottom: 22,
               position: "relative",
@@ -198,8 +199,8 @@ export function ScrollNarratedPhases() {
             <div
               style={{
                 height: "100%",
-                borderRadius: 999,
-                background: "linear-gradient(90deg, var(--df-amber-700), var(--df-amber-500) 60%, var(--df-amber-300))",
+                borderRadius: "var(--radius-pill)",
+                background: "linear-gradient(90deg, var(--color-heat-deep), var(--color-heat) 60%, var(--color-heat-hi))",
                 width: `${heatPct}%`,
                 transition: "width 0.4s ease-out",
                 position: "relative",
@@ -212,7 +213,7 @@ export function ScrollNarratedPhases() {
                   top: -3,
                   bottom: -3,
                   width: 14,
-                  background: "linear-gradient(90deg, transparent, rgba(255,217,184,0.85))",
+                  background: "linear-gradient(90deg, transparent, var(--color-spark))",
                   filter: "blur(4px)",
                 }}
               />
@@ -226,7 +227,7 @@ export function ScrollNarratedPhases() {
                 top: 14,
                 bottom: 14,
                 width: 1,
-                background: "var(--df-outline)",
+                background: "var(--color-outline)",
               }}
             />
             {PHASES.map((p, i) => {
@@ -253,22 +254,22 @@ export function ScrollNarratedPhases() {
                       width: 22,
                       height: 22,
                       borderRadius: "50%",
-                      border: state === "future" ? "1px solid var(--df-mute)" : "none",
+                      border: state === "future" ? "1px solid var(--color-mute)" : "none",
                       background:
                         state === "now"
-                          ? "var(--df-amber-500)"
+                          ? "var(--color-heat)"
                           : state === "done"
-                          ? "var(--df-amber-trail)"
-                          : "#050608",
+                          ? "var(--color-heat-line)"
+                          : "var(--color-bg)",
                       display: "grid",
                       placeItems: "center",
                       zIndex: 2,
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: 600,
-                      color: state === "future" ? "var(--df-mute)" : state === "done" ? "#050608" : "#fff",
+                      color: state === "future" ? "var(--color-mute)" : state === "done" ? "var(--color-bg)" : "var(--color-on-heat)",
                       boxShadow:
                         state === "now"
-                          ? "0 0 0 4px rgba(255,77,0,0.15), 0 0 18px rgba(255,77,0,0.50)"
+                          ? "0 0 0 4px var(--color-heat-strong), 0 0 18px var(--color-heat-line)"
                           : "none",
                       transform: state === "now" ? "scale(1.10)" : "scale(1)",
                       transition: "all 0.4s ease",
@@ -280,14 +281,14 @@ export function ScrollNarratedPhases() {
                     <div
                       className="df-mono"
                       style={{
-                        fontSize: 9.5,
-                        letterSpacing: "0.16em",
+                        fontSize: 10,
+                        letterSpacing: "var(--tracking-eyebrow)",
                         color:
                           state === "now"
-                            ? "var(--df-amber-500)"
+                            ? "var(--color-heat)"
                             : state === "done"
-                            ? "var(--df-amber-trail)"
-                            : "var(--df-mute)",
+                            ? "var(--color-heat-line)"
+                            : "var(--color-mute)",
                         marginBottom: 2,
                         fontWeight: state === "now" ? 700 : 400,
                       }}
@@ -300,10 +301,10 @@ export function ScrollNarratedPhases() {
                         fontWeight: state === "now" ? 600 : 500,
                         color:
                           state === "now"
-                            ? "var(--df-on-surface)"
+                            ? "var(--color-text)"
                             : state === "done"
-                            ? "var(--df-dim)"
-                            : "var(--df-mute)",
+                            ? "var(--color-dim)"
+                            : "var(--color-mute)",
                       }}
                     >
                       {p.name}
@@ -337,7 +338,7 @@ export function ScrollNarratedPhases() {
                   style={{
                     fontSize: 64,
                     fontWeight: 600,
-                    color: "var(--df-amber-trail)",
+                    color: "var(--color-heat-line)",
                     letterSpacing: "-0.04em",
                     lineHeight: 1,
                   }}
@@ -348,10 +349,10 @@ export function ScrollNarratedPhases() {
                   <span
                     className="df-mono"
                     style={{
-                      fontSize: 10.5,
-                      letterSpacing: "0.18em",
+                      fontSize: 11.5,
+                      letterSpacing: "var(--tracking-eyebrow)",
                       textTransform: "uppercase",
-                      color: p.num === "06" ? "var(--df-steel-100)" : "var(--df-amber-300)",
+                      color: p.num === "06" ? "var(--color-steel-hi)" : "var(--color-heat-hi)",
                       fontWeight: 600,
                     }}
                   >
@@ -362,7 +363,7 @@ export function ScrollNarratedPhases() {
                   </h3>
                 </div>
               </div>
-              <p style={{ fontSize: 15, color: "var(--df-dim)", lineHeight: 1.65, maxWidth: 580, margin: "14px 0 26px" }}>
+              <p style={{ fontSize: 14, color: "var(--color-dim)", lineHeight: 1.65, maxWidth: 580, margin: "14px 0 26px" }}>
                 {p.body}
               </p>
               <PhaseMock title={p.mockTitle} pill={p.mockPill}>
@@ -380,13 +381,13 @@ function PhaseMock({ title, pill, children }: { title: string; pill: string; chi
   return (
     <div
       style={{
-        border: "1px solid var(--df-outline)",
-        borderRadius: 14,
-        background: "rgba(14,16,17,0.55)",
+        border: "1px solid var(--color-outline)",
+        borderRadius: "var(--radius-lg)",
+        background: "var(--color-veil)",
         backdropFilter: "blur(6px)",
         padding: "24px 26px",
         overflow: "hidden",
-        boxShadow: "0 24px 60px -16px rgba(0,0,0,0.5)",
+        boxShadow: "var(--shadow-modal)",
       }}
     >
       <div
@@ -396,16 +397,16 @@ function PhaseMock({ title, pill, children }: { title: string; pill: string; chi
           justifyContent: "space-between",
           paddingBottom: 14,
           marginBottom: 16,
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
         }}
       >
         <span
           className="df-mono"
-          style={{ fontSize: 11, color: "var(--df-amber-300)", letterSpacing: "0.10em", textTransform: "uppercase" }}
+          style={{ fontSize: 11.5, color: "var(--color-heat-hi)", letterSpacing: "var(--tracking-label)", textTransform: "uppercase" }}
         >
           {title}
         </span>
-        <span className="df-pill df-pill-heat">{pill}</span>
+        <Pill tone="heat">{pill}</Pill>
       </div>
       {children}
     </div>
@@ -416,14 +417,14 @@ function PhaseMock({ title, pill, children }: { title: string; pill: string; chi
 
 function Skel({ width, kind = "default" }: { width: string; kind?: "default" | "amber" | "steel" | "dim" | "error" }) {
   const bg = {
-    default: "rgba(255,255,255,0.05)",
-    amber: "var(--color-heat-25)",
-    steel: "rgba(138,160,184,0.25)",
-    dim: "var(--color-white-03)",
-    error: "rgba(232,100,100,0.20)",
+    default: "var(--color-hover)",
+    amber: "var(--color-heat-strong)",
+    steel: "var(--color-steel-strong)",
+    dim: "var(--color-hover)",
+    error: "var(--color-error-strong)",
   }[kind];
   return (
-    <span style={{ display: "block", height: 6, borderRadius: 2, background: bg, marginBottom: 6, width }} />
+    <span style={{ display: "block", height: 6, borderRadius: "var(--radius-xs)", background: bg, marginBottom: 6, width }} />
   );
 }
 
@@ -463,10 +464,10 @@ function QaCard({
   return (
     <div
       style={{
-        border: `1px solid ${active ? "var(--color-heat-35)" : "var(--df-outline)"}`,
-        borderRadius: 8,
+        border: `1px solid ${active ? "var(--color-heat-line)" : "var(--color-outline)"}`,
+        borderRadius: "var(--radius-md)",
         padding: "12px 14px",
-        background: active ? "var(--color-heat-05)" : "var(--color-shade-20)",
+        background: active ? "var(--color-heat-tint)" : "var(--color-sink)",
         marginBottom: 8,
         opacity: dim ? 0.6 : 1,
       }}
@@ -474,16 +475,16 @@ function QaCard({
       <div
         className="df-mono"
         style={{
-          fontSize: 9.5,
-          color: active ? "var(--df-amber-300)" : "var(--df-faint)",
-          letterSpacing: "0.10em",
+          fontSize: 10,
+          color: active ? "var(--color-heat-hi)" : "var(--color-faint)",
+          letterSpacing: "var(--tracking-label)",
           marginBottom: 6,
         }}
       >
         {qn}
       </div>
-      <div style={{ fontSize: 11.5, color: "var(--df-on-surface)", lineHeight: 1.4, marginBottom: 6 }}>{q}</div>
-      <div style={{ fontSize: 10.5, color: italic ? "var(--df-faint)" : "var(--df-dim)", lineHeight: 1.4, fontStyle: italic ? "italic" : "normal" }}>
+      <div style={{ fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.4, marginBottom: 6 }}>{q}</div>
+      <div style={{ fontSize: 11.5, color: italic ? "var(--color-faint)" : "var(--color-dim)", lineHeight: 1.4, fontStyle: italic ? "italic" : "normal" }}>
         {a}
       </div>
     </div>
@@ -502,17 +503,17 @@ function GhostZone({
   widths: string[];
 }) {
   const border =
-    state === "heating" ? "var(--color-heat-border)" : state === "heated" ? "var(--color-heat-30)" : "var(--df-outline)";
+    state === "heating" ? "var(--color-heat-line)" : state === "heated" ? "var(--color-heat-line)" : "var(--color-outline)";
   const bg =
-    state === "heating" ? "var(--color-heat-08)" : state === "heated" ? "var(--color-heat-05)" : "transparent";
+    state === "heating" ? "var(--color-heat-wash)" : state === "heated" ? "var(--color-heat-tint)" : "transparent";
   const labColor =
-    state === "heating" ? "var(--df-amber-300)" : state === "heated" ? "var(--df-amber-trail)" : "var(--df-faint)";
+    state === "heating" ? "var(--color-heat-hi)" : state === "heated" ? "var(--color-heat-line)" : "var(--color-faint)";
   const skelKind = state === "cold" ? "dim" : "amber";
   return (
-    <div style={{ padding: "10px 12px", border: `1px solid ${border}`, borderRadius: 6, background: bg }}>
+    <div style={{ padding: "10px 12px", border: `1px solid ${border}`, borderRadius: "var(--radius-sm)", background: bg }}>
       <div
         className="df-mono"
-        style={{ fontSize: 9, letterSpacing: "0.14em", color: labColor, marginBottom: 6, display: "flex", justifyContent: "space-between" }}
+        style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: labColor, marginBottom: 6, display: "flex", justifyContent: "space-between" }}
       >
         <span>{label}</span>
         <span>{status}</span>
@@ -547,19 +548,18 @@ function SumCard({
   widths: string[];
 }) {
   const border =
-    state === "approved" ? "var(--df-steel-border)" : state === "revising" ? "var(--color-heat-30)" : "var(--df-outline)";
+    state === "approved" ? "var(--color-steel-line)" : state === "revising" ? "var(--color-heat-line)" : "var(--color-outline)";
   const bg =
     state === "approved"
-      ? "linear-gradient(180deg, rgba(138,160,184,0.05), rgba(0,0,0,0.20))"
-      : "var(--color-shade-20)";
-  const pillClass =
-    state === "approved" ? "df-pill df-pill-steel" : state === "revising" ? "df-pill df-pill-heat" : "df-pill df-pill-ghost";
+      ? "linear-gradient(180deg, var(--color-steel-tint), var(--color-sink))"
+      : "var(--color-sink)";
+  const pillTone = state === "approved" ? "steel" : state === "revising" ? "heat" : "ghost";
   const skelKind = state === "approved" ? "steel" : state === "revising" ? "amber" : "default";
   return (
     <div
       style={{
         border: `1px solid ${border}`,
-        borderRadius: 8,
+        borderRadius: "var(--radius-md)",
         padding: 14,
         background: bg,
         position: "relative",
@@ -573,16 +573,16 @@ function SumCard({
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(120deg, transparent, rgba(255,77,0,0.07), transparent)",
+            background: "linear-gradient(120deg, transparent, var(--color-heat-tint), transparent)",
             pointerEvents: "none",
           }}
         />
       )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span className="df-mono" style={{ fontSize: 10, letterSpacing: "0.10em", color: "var(--df-on-surface)" }}>
+        <span className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-label)", color: "var(--color-text)" }}>
           {name}
         </span>
-        <span className={pillClass} style={{ padding: "2px 6px" }}>{pill}</span>
+        <Pill tone={pillTone} compact>{pill}</Pill>
       </div>
       {widths.map((w, i) => (
         <Skel key={i} width={w} kind={skelKind} />
@@ -624,25 +624,25 @@ function GenRow({
         gap: 14,
         alignItems: "center",
         padding: "10px 0",
-        borderTop: "1px solid var(--df-outline)",
+        borderTop: "1px solid var(--color-outline)",
       }}
     >
       <span
         className="df-mono"
-        style={{ color: isComplete ? "var(--df-amber-trail)" : isQueued ? "var(--df-mute)" : "var(--df-amber-300)" }}
+        style={{ color: isComplete ? "var(--color-heat-line)" : isQueued ? "var(--color-mute)" : "var(--color-heat-hi)" }}
       >
         ›
       </span>
-      <span style={{ fontSize: 12, color: isQueued ? "var(--df-faint)" : isComplete ? "var(--df-dim)" : "var(--df-on-surface)" }}>
+      <span style={{ fontSize: 12.5, color: isQueued ? "var(--color-faint)" : isComplete ? "var(--color-dim)" : "var(--color-text)" }}>
         {label}
       </span>
       <span
         className="df-mono"
         style={{
           fontSize: 10,
-          color: isComplete ? "var(--df-amber-trail)" : isQueued ? "var(--df-mute)" : "var(--df-amber-300)",
+          color: isComplete ? "var(--color-heat-line)" : isQueued ? "var(--color-mute)" : "var(--color-heat-hi)",
           textAlign: "right",
-          letterSpacing: "0.04em",
+          letterSpacing: "var(--tracking-data)",
         }}
       >
         {clock}
@@ -650,9 +650,9 @@ function GenRow({
       <div
         style={{
           height: 5,
-          borderRadius: 999,
-          background: "var(--color-white-04)",
-          border: "1px solid var(--df-outline)",
+          borderRadius: "var(--radius-pill)",
+          background: "var(--color-hover)",
+          border: "1px solid var(--color-outline)",
           overflow: "hidden",
           position: "relative",
         }}
@@ -662,11 +662,11 @@ function GenRow({
             className={isLive ? "animate-df-pour-fill" : undefined}
             style={{
               height: "100%",
-              borderRadius: 999,
+              borderRadius: "var(--radius-pill)",
               width: isComplete ? "100%" : width ?? "0%",
               background: isComplete
-                ? "var(--df-amber-trail)"
-                : "linear-gradient(90deg, var(--df-amber-700), var(--df-amber-500) 60%, var(--df-amber-300))",
+                ? "var(--color-heat-line)"
+                : "linear-gradient(90deg, var(--color-heat-deep), var(--color-heat) 60%, var(--color-heat-hi))",
               position: "relative",
             }}
           >
@@ -678,7 +678,7 @@ function GenRow({
                   top: -2,
                   bottom: -2,
                   width: 14,
-                  background: "linear-gradient(90deg, transparent, rgba(255,217,184,0.85))",
+                  background: "linear-gradient(90deg, transparent, var(--color-spark))",
                   filter: "blur(3px)",
                 }}
               />
@@ -695,16 +695,16 @@ function RefinementMock() {
     <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 14, minHeight: 240 }}>
       <div
         style={{
-          border: "1px solid var(--df-outline)",
-          borderRadius: 6,
+          border: "1px solid var(--color-outline)",
+          borderRadius: "var(--radius-sm)",
           padding: 12,
-          background: "var(--color-shade-20)",
+          background: "var(--color-sink)",
           display: "flex",
           flexDirection: "column",
           gap: 10,
         }}
       >
-        <ChatMsg who="AI" tag="› ANALYSIS" tagColor="var(--df-steel-100)">
+        <ChatMsg who="AI" tag="› ANALYSIS" tagColor="var(--color-steel-hi)">
           Drafted three implementation steps. Want me to expand the rollout, or tighten the rollback path first?
         </ChatMsg>
         <ChatMsg who="SC" user tag="› YOU">
@@ -714,26 +714,26 @@ function RefinementMock() {
           Updated step 2 with a{" "}
           <code
             className="df-mono"
-            style={{ fontSize: 9, color: "var(--df-amber-200)", background: "var(--color-heat-08)", padding: "1px 4px", borderRadius: 3 }}
+            style={{ fontSize: 10, color: "var(--color-heat-soft)", background: "var(--color-heat-wash)", padding: "1px 4px", borderRadius: "var(--radius-xs)" }}
           >
             revert_async_buffer
           </code>{" "}
           flag.
         </ChatMsg>
       </div>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, padding: 16, background: "rgba(0,0,0,0.30)" }}>
+      <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-sm)", padding: 16, background: "var(--color-sink)" }}>
         <h4 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>Implementation</h4>
         <div
           className="df-mono"
-          style={{ fontSize: 9.5, color: "var(--df-faint)", letterSpacing: "0.10em", marginBottom: 14 }}
+          style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-label)", marginBottom: 14 }}
         >
           SECTION 03 · V3 OF 5 · LAST EDITED 32S AGO
         </div>
-        <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: "0 0 8px" }}>
+        <p style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.55, margin: "0 0 8px" }}>
           Roll the asynchronous confirmation buffer behind a feature flag (
           <Code>async_confirm_buffer</Code>) scoped to a single merchant cohort. Begin with shadow-write only.
         </p>
-        <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.55, margin: 0 }}>
           A second flag (<Code>revert_async_buffer</Code>) returns the cohort to synchronous confirmation in under 30
           seconds, with the <Code>no-data-loss</Code> invariant asserted by the reconciliation job.
         </p>
@@ -762,12 +762,12 @@ function ChatMsg({
         style={{
           width: 18,
           height: 18,
-          borderRadius: 3,
-          background: user ? "rgba(255,255,255,0.05)" : "rgba(255,77,0,0.12)",
-          color: user ? "var(--df-dim)" : "var(--df-amber-300)",
+          borderRadius: "var(--radius-xs)",
+          background: user ? "var(--color-hover)" : "var(--color-heat-wash)",
+          color: user ? "var(--color-dim)" : "var(--color-heat-hi)",
           display: "grid",
           placeItems: "center",
-          fontSize: 8,
+          fontSize: 10,
           fontWeight: 600,
           flexShrink: 0,
         }}
@@ -776,22 +776,22 @@ function ChatMsg({
       </div>
       <div
         style={{
-          fontSize: 11,
-          color: "var(--df-dim)",
+          fontSize: 11.5,
+          color: "var(--color-dim)",
           lineHeight: 1.4,
-          border: "1px solid var(--df-outline)",
+          border: "1px solid var(--color-outline)",
           padding: "7px 9px",
-          borderRadius: 5,
-          background: "rgba(0,0,0,0.15)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--color-sink)",
           flex: 1,
         }}
       >
         <div
           className="df-mono"
           style={{
-            fontSize: 8,
-            letterSpacing: "0.10em",
-            color: tagColor ?? (user ? "var(--df-faint)" : "var(--df-amber-300)"),
+            fontSize: 10,
+            letterSpacing: "var(--tracking-label)",
+            color: tagColor ?? (user ? "var(--color-faint)" : "var(--color-heat-hi)"),
             marginBottom: 3,
           }}
         >
@@ -809,10 +809,10 @@ function Code({ children }: { children: React.ReactNode }) {
       className="df-mono"
       style={{
         fontSize: 10,
-        color: "var(--df-amber-200)",
-        background: "var(--color-heat-08)",
+        color: "var(--color-heat-soft)",
+        background: "var(--color-heat-wash)",
         padding: "1px 4px",
-        borderRadius: 3,
+        borderRadius: "var(--radius-xs)",
       }}
     >
       {children}
@@ -825,11 +825,11 @@ function AuditMock() {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
       <div>
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <SevBox label="› Blocker" num="1" color="var(--df-error)" />
-          <SevBox label="› Warn" num="2" color="var(--df-amber-300)" />
-          <SevBox label="› Nit" num="1" color="var(--df-steel-100)" />
+          <SevBox label="› Blocker" num="1" color="var(--color-error)" />
+          <SevBox label="› Warn" num="2" color="var(--color-heat-hi)" />
+          <SevBox label="› Nit" num="1" color="var(--color-steel-hi)" />
         </div>
-        <div style={{ border: "1px solid var(--df-outline)", borderRadius: 8, background: "var(--color-shade-20)" }}>
+        <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", background: "var(--color-sink)" }}>
           <Finding sev="blocker">
             Proposal references Aurora but Risks rules out Aurora as a future dependency.
           </Finding>
@@ -838,7 +838,7 @@ function AuditMock() {
           </Finding>
         </div>
       </div>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 8, padding: 14, background: "var(--color-shade-20)" }}>
+      <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", padding: 14, background: "var(--color-sink)" }}>
         <XraySec name="› CONTEXT" status="VERIFIED · 1 NIT" state="verified" widths={["88%", "70%"]} />
         <XraySec name="› PROPOSAL" status="1 BLOCKER · 1 WARN" state="problem" widths={["78%", "60%"]} />
         <XraySec name="› IMPLEMENTATION" status="SCANNING…" state="scanning" widths={["86%", "74%", "58%"]} />
@@ -854,16 +854,16 @@ function SevBox({ label, num, color }: { label: string; num: string; color: stri
       style={{
         flex: 1,
         padding: "10px 12px",
-        borderRadius: 6,
-        border: "1px solid var(--df-outline)",
+        borderRadius: "var(--radius-sm)",
+        border: "1px solid var(--color-outline)",
         borderLeft: `2px solid ${color}`,
-        background: "rgba(0,0,0,0.15)",
+        background: "var(--color-sink)",
       }}
     >
-      <div className="df-mono" style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color }}>
+      <div className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color }}>
         {label}
       </div>
-      <div className="df-mono" style={{ fontSize: 18, color: "var(--df-on-surface)", marginTop: 2, letterSpacing: "-0.02em" }}>
+      <div className="df-mono" style={{ fontSize: 17, color: "var(--color-text)", marginTop: 2, letterSpacing: "-0.02em" }}>
         {num}
       </div>
     </div>
@@ -871,14 +871,14 @@ function SevBox({ label, num, color }: { label: string; num: string; color: stri
 }
 
 function Finding({ sev, children }: { sev: "blocker" | "warn"; children: React.ReactNode }) {
-  const color = sev === "blocker" ? "var(--df-error)" : "var(--df-amber-300)";
-  const border = sev === "blocker" ? "rgba(232,100,100,0.40)" : "var(--color-heat-30)";
-  const bg = sev === "blocker" ? "rgba(232,100,100,0.08)" : "var(--color-heat-bg-soft)";
+  const color = sev === "blocker" ? "var(--color-error)" : "var(--color-heat-hi)";
+  const border = sev === "blocker" ? "var(--color-error-line)" : "var(--color-heat-line)";
+  const bg = sev === "blocker" ? "var(--color-error-wash)" : "var(--color-heat-tint)";
   return (
     <div
       style={{
         padding: "10px 12px",
-        borderBottom: "1px solid var(--df-outline)",
+        borderBottom: "1px solid var(--color-outline)",
         display: "grid",
         gridTemplateColumns: "64px 1fr",
         gap: 10,
@@ -888,9 +888,9 @@ function Finding({ sev, children }: { sev: "blocker" | "warn"; children: React.R
       <span
         className="df-mono"
         style={{
-          fontSize: 8.5,
+          fontSize: 10,
           padding: "2px 5px",
-          borderRadius: 3,
+          borderRadius: "var(--radius-xs)",
           textAlign: "center",
           border: `1px solid ${border}`,
           background: bg,
@@ -900,7 +900,7 @@ function Finding({ sev, children }: { sev: "blocker" | "warn"; children: React.R
       >
         {sev}
       </span>
-      <div style={{ fontSize: 11, color: "var(--df-dim)", lineHeight: 1.45 }}>{children}</div>
+      <div style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.45 }}>{children}</div>
     </div>
   );
 }
@@ -918,35 +918,35 @@ function XraySec({
 }) {
   const border =
     state === "verified"
-      ? "var(--df-steel-border)"
+      ? "var(--color-steel-line)"
       : state === "scanning"
-      ? "var(--color-heat-border)"
+      ? "var(--color-heat-line)"
       : state === "problem"
-      ? "rgba(232,100,100,0.40)"
-      : "var(--df-outline)";
+      ? "var(--color-error-line)"
+      : "var(--color-outline)";
   const bg =
     state === "verified"
-      ? "var(--df-steel-bg)"
+      ? "var(--color-steel-wash)"
       : state === "scanning"
-      ? "var(--color-heat-08)"
+      ? "var(--color-heat-wash)"
       : state === "problem"
-      ? "rgba(232,100,100,0.05)"
+      ? "var(--color-error-tint)"
       : "transparent";
   const labColor =
     state === "verified"
-      ? "var(--df-steel-100)"
+      ? "var(--color-steel-hi)"
       : state === "scanning"
-      ? "var(--df-amber-300)"
+      ? "var(--color-heat-hi)"
       : state === "problem"
-      ? "var(--df-error)"
-      : "var(--df-mute)";
+      ? "var(--color-error)"
+      : "var(--color-mute)";
   const skelKind = state === "verified" ? "steel" : state === "scanning" ? "amber" : state === "problem" ? "error" : "default";
 
   return (
     <div
       style={{
         padding: "10px 12px",
-        borderRadius: 6,
+        borderRadius: "var(--radius-sm)",
         border: `1px solid ${border}`,
         background: bg,
         marginBottom: 8,
@@ -963,14 +963,14 @@ function XraySec({
             left: 0,
             right: 0,
             height: 10,
-            background: "linear-gradient(180deg, transparent, rgba(255,217,184,0.50), transparent)",
+            background: "linear-gradient(180deg, transparent, var(--color-spark-soft), transparent)",
             pointerEvents: "none",
           }}
         />
       )}
       <div
         className="df-mono"
-        style={{ fontSize: 9, letterSpacing: "0.14em", display: "flex", justifyContent: "space-between", marginBottom: 6, color: labColor }}
+        style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", display: "flex", justifyContent: "space-between", marginBottom: 6, color: labColor }}
       >
         <span>{name}</span>
         <span>{status}</span>
@@ -985,8 +985,8 @@ function XraySec({
 function CompletedMock() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 14, minHeight: 280 }}>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, padding: 12, background: "var(--color-shade-20)" }}>
-        <div className="df-mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: "var(--df-faint)", marginBottom: 10 }}>
+      <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-sm)", padding: 12, background: "var(--color-sink)" }}>
+        <div className="df-mono" style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)", marginBottom: 10 }}>
           › SECTIONS
         </div>
         {["01 · Context", "02 · Proposal", "03 · Implementation", "04 · Risks"].map((s, i) => {
@@ -997,12 +997,12 @@ function CompletedMock() {
               style={{
                 display: "block",
                 padding: active ? "5px 8px 5px 6px" : "5px 8px",
-                borderRadius: 4,
+                borderRadius: "var(--radius-xs)",
                 fontSize: 11.5,
-                color: active ? "var(--df-amber-200)" : "var(--df-dim)",
+                color: active ? "var(--color-heat-soft)" : "var(--color-dim)",
                 marginBottom: 2,
-                background: active ? "var(--color-heat-05)" : "transparent",
-                borderLeft: active ? "2px solid var(--df-amber-500)" : "none",
+                background: active ? "var(--color-heat-tint)" : "transparent",
+                borderLeft: active ? "2px solid var(--color-heat)" : "none",
               }}
             >
               {s}
@@ -1010,12 +1010,12 @@ function CompletedMock() {
           );
         })}
       </div>
-      <div style={{ border: "1px solid var(--df-outline)", borderRadius: 6, background: "var(--color-shade-20)", overflow: "hidden" }}>
+      <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-sm)", background: "var(--color-sink)", overflow: "hidden" }}>
         <div
           style={{
             padding: "14px 16px",
-            borderBottom: "1px solid var(--df-outline)",
-            background: "linear-gradient(90deg, rgba(138,160,184,0.10), rgba(138,160,184,0.04))",
+            borderBottom: "1px solid var(--color-outline)",
+            background: "linear-gradient(90deg, var(--color-steel-wash), var(--color-steel-tint))",
             display: "flex",
             alignItems: "center",
             gap: 12,
@@ -1027,11 +1027,11 @@ function CompletedMock() {
               width: 38,
               height: 38,
               borderRadius: "50%",
-              border: "1.5px solid var(--df-steel-200)",
+              border: "1.5px solid var(--color-steel)",
               display: "grid",
               placeItems: "center",
-              color: "var(--df-steel-100)",
-              fontSize: 11,
+              color: "var(--color-steel-hi)",
+              fontSize: 11.5,
               fontWeight: 700,
             }}
           >
@@ -1040,13 +1040,13 @@ function CompletedMock() {
           <div>
             <div
               className="df-mono"
-              style={{ fontSize: 12, letterSpacing: "0.18em", color: "var(--df-steel-100)", fontWeight: 600 }}
+              style={{ fontSize: 12.5, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-steel-hi)", fontWeight: 600 }}
             >
               FORGED · v1.0
             </div>
             <div
               className="df-mono"
-              style={{ fontSize: 9, color: "var(--df-faint)", letterSpacing: "0.06em", marginTop: 2 }}
+              style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-data)", marginTop: 2 }}
             >
               AUDIT PASSED · MAY 21, 2026 · 14:22 UTC
             </div>
@@ -1054,11 +1054,11 @@ function CompletedMock() {
         </div>
         <div style={{ padding: "14px 18px" }}>
           <h5 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 10px" }}>Reducing payment-path latency</h5>
-          <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: "0 0 8px" }}>
+          <p style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.55, margin: "0 0 8px" }}>
             Payment confirmation latency spikes to 2–4 seconds during high-traffic windows because confirmations
             synchronously call the legacy ledger before responding to the merchant.
           </p>
-          <p style={{ fontSize: 11.5, color: "var(--df-dim)", lineHeight: 1.55, margin: 0 }}>
+          <p style={{ fontSize: 11.5, color: "var(--color-dim)", lineHeight: 1.55, margin: 0 }}>
             The on-call team filed three incidents last quarter; merchant retries amplify the load and have caused
             two cascading Sev3s.
           </p>

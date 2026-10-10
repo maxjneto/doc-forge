@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { apiPublishDocument } from "@/utils/api";
-import { Button, Pill } from "@/components/ui";
+import { Button, IconButton, Pill } from "@/components/ui";
 import { useI18n } from "@/i18n";
 
 interface EditorDocumentBarProps {
@@ -17,6 +17,8 @@ interface EditorDocumentBarProps {
   hasUnpublishedChanges?: boolean;
   savePending?: boolean;
   onPublished?: () => void;
+  /** When given, the title in the breadcrumb is renamable in place. */
+  onRenameTitle?: (title: string) => Promise<void>;
 }
 
 /**
@@ -37,6 +39,7 @@ export function EditorDocumentBar({
   hasUnpublishedChanges = false,
   savePending = false,
   onPublished,
+  onRenameTitle,
 }: EditorDocumentBarProps) {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -44,6 +47,15 @@ export function EditorDocumentBar({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title);
+
+  async function commitRename() {
+    setRenaming(false);
+    const next = titleDraft.trim();
+    if (!next || next === title || !onRenameTitle) return;
+    await onRenameTitle(next);
+  }
 
   const blocked = blockingFindings > 0;
 
@@ -71,7 +83,7 @@ export function EditorDocumentBar({
         alignItems: "center",
         gap: 12,
         padding: "0 20px",
-        borderBottom: "1px solid var(--df-outline)",
+        borderBottom: "1px solid var(--color-outline)",
         background: "var(--color-chrome)",
       }}
     >
@@ -79,7 +91,7 @@ export function EditorDocumentBar({
         onClick={() => navigate("/")}
         style={{
           fontSize: 12.5,
-          color: "var(--df-faint)",
+          color: "var(--color-faint)",
           background: "transparent",
           border: "none",
           cursor: "pointer",
@@ -89,23 +101,66 @@ export function EditorDocumentBar({
       >
         {t("editor.documents")}
       </button>
-      <span style={{ fontSize: 12.5, color: "var(--df-mute)" }}>/</span>
-      <span
-        style={{
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: "var(--df-on-surface)",
-          maxWidth: 320,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {title}
-      </span>
+      <span style={{ fontSize: 12.5, color: "var(--color-mute)" }}>/</span>
+      {renaming ? (
+        <input
+          autoFocus
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={() => void commitRename()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void commitRename();
+            if (e.key === "Escape") setRenaming(false);
+          }}
+          maxLength={200}
+          aria-label={t("common.rename")}
+          style={{
+            width: 320,
+            padding: "2px 0",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "var(--color-text)",
+            background: "transparent",
+            border: 0,
+            borderBottom: "1px solid var(--color-heat-line)",
+            outline: "none",
+            fontFamily: "inherit",
+          }}
+        />
+      ) : (
+        <span
+          className={onRenameTitle ? "df-row" : undefined}
+          style={{ display: "inline-flex", alignItems: "center", gap: 2, minWidth: 0, borderRadius: "var(--radius-xs)" }}
+        >
+          <span
+            title={title}
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--color-text)",
+              maxWidth: 320,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {title}
+          </span>
+          {onRenameTitle && (
+            <span className="df-row-actions">
+              <IconButton
+                icon="edit"
+                label={t("common.rename")}
+                onClick={() => { setTitleDraft(title); setRenaming(true); }}
+                style={{ width: 24, height: 24 }}
+              />
+            </span>
+          )}
+        </span>
+      )}
 
       {blocked ? (
-        <Pill tone="heat">
+        <Pill tone="error" dot>
           {blockingFindings} {t(blockingFindings === 1 ? "editor.blocker" : "editor.blockers")}
         </Pill>
       ) : savePending ? (
@@ -118,20 +173,24 @@ export function EditorDocumentBar({
         <Pill tone="heat" dot>
           {t("editor.unpublishedChanges")}
         </Pill>
-      ) : published || publishedAt ? (
+      ) : published ? (
+        // Just published in this session — a loop that closed (R3).
         <Pill tone="ok" dot>
-          {t("editor.published")}{published ? ` · ${published}` : ""}
+          {t("editor.published")} · {published}
         </Pill>
+      ) : publishedAt ? (
+        // Published as a standing state — frozen, so steel (R2).
+        <Pill tone="steel">{t("editor.published")}</Pill>
       ) : (
         <Pill tone="ghost">{t("common.draft")}</Pill>
       )}
 
-      {isMcpManaged && <Pill tone="ghost">mcp-managed</Pill>}
+      {isMcpManaged && <Pill tone="steel">{t("editor.mcpManaged")}</Pill>}
 
       <span style={{ flex: 1 }} />
 
       {error && (
-        <span style={{ fontSize: 11.5, color: "var(--df-error)", maxWidth: 380, lineHeight: 1.4 }}>
+        <span style={{ fontSize: 11.5, color: "var(--color-error)", maxWidth: 380, lineHeight: 1.4 }}>
           {error}
         </span>
       )}

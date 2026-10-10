@@ -8,7 +8,7 @@ import {
   apiShareDocument,
   apiUnshareDocument,
 } from "@/utils/api";
-import { Button, Card, Input, Pill } from "@/components/ui";
+import { Button, Dialog, Input, Pill } from "@/components/ui";
 import { useI18n } from "@/i18n";
 
 const ROLE_LABEL_KEY: Record<MemberRole, string> = {
@@ -75,14 +75,6 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
       .catch(() => {});
   }, [documentId, getToken]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   async function invite() {
     if (!email.trim() || busy) return;
     setBusy(true);
@@ -104,31 +96,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "var(--color-scrim)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 60,
-      }}
-    >
-      <Card
-        onClick={() => {}}
-        padded={false}
-        style={{ width: 460, maxWidth: "92vw", padding: 22 }}
-      >
-        <div onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.02em", marginBottom: 4 }}>
-            {t("common.share")}
-          </div>
-          <div style={{ fontSize: 12.5, color: "var(--df-faint)", marginBottom: 18 }}>
-            {documentTitle}
-          </div>
-
+    <Dialog onClose={onClose} title={t("common.share")} subtitle={documentTitle}>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <Input
               value={email}
@@ -155,21 +123,21 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                   fontSize: 11.5,
                   fontFamily: "inherit",
                   cursor: "pointer",
-                  border: `1px solid ${r === role ? "var(--color-heat-border)" : "var(--df-outline-md)"}`,
-                  background: r === role ? "var(--color-heat-bg)" : "transparent",
-                  color: r === role ? "var(--df-amber-300)" : "var(--df-faint)",
+                  border: `1px solid ${r === role ? "var(--color-heat-line)" : "var(--color-outline-md)"}`,
+                  background: r === role ? "var(--color-heat-wash)" : "transparent",
+                  color: r === role ? "var(--color-heat-hi)" : "var(--color-faint)",
                 }}
               >
                 {t(ROLE_LABEL_KEY[r])}
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 11.5, color: "var(--df-faint)", marginBottom: 18, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11.5, color: "var(--color-faint)", marginBottom: 18, lineHeight: 1.5 }}>
             {t(ROLE_HINT_KEY[role])}
           </div>
 
           {error && (
-            <div style={{ fontSize: 11.5, color: "var(--df-error)", marginBottom: 12 }}>{error}</div>
+            <div style={{ fontSize: 11.5, color: "var(--color-error)", marginBottom: 12 }}>{error}</div>
           )}
 
           {members.length > 0 && (
@@ -186,13 +154,13 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
-                      color: "var(--df-on-surface)",
+                      color: "var(--color-text)",
                     }}
                   >
                     {m.email}
                   </span>
                   {!m.accepted && <Pill tone="ghost">{t("share.pendingInvite")}</Pill>}
-                  <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+                  <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
                     {t(ROLE_LABEL_KEY[m.role]).toUpperCase()}
                   </span>
                   <Button variant="ghost" onClick={() => void remove(m.id)} style={{ padding: "4px 8px" }}>
@@ -205,7 +173,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
 
           <div
             style={{
-              borderTop: "1px solid var(--df-outline)",
+              borderTop: "1px solid var(--color-outline)",
               paddingTop: 16,
               marginBottom: 18,
               display: "flex",
@@ -214,7 +182,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, fontSize: 12.5, color: "var(--df-on-surface)" }}>
+              <div style={{ flex: 1, fontSize: 12.5, color: "var(--color-text)" }}>
                 {t("share.publicLink")}
               </div>
               <Button
@@ -233,12 +201,12 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    fontSize: 11,
+                    fontSize: 11.5,
                     padding: "7px 9px",
                     borderRadius: "var(--radius-sm)",
-                    background: "var(--df-surface-mid)",
-                    border: "1px solid var(--df-outline)",
-                    color: "var(--df-dim)",
+                    background: "var(--color-surface-mid)",
+                    border: "1px solid var(--color-outline)",
+                    color: "var(--color-dim)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -256,7 +224,7 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
                 </Button>
               </div>
             ) : (
-              <div style={{ fontSize: 11.5, color: "var(--df-faint)", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.5 }}>
                 {publishedAt
                   ? t("share.publicEnabled")
                   : t("share.publicDisabled")}
@@ -267,8 +235,6 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Button onClick={onClose}>{t("common.close")}</Button>
           </div>
-        </div>
-      </Card>
-    </div>
+    </Dialog>
   );
 }

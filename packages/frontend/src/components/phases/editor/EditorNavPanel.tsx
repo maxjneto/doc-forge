@@ -30,7 +30,7 @@ export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeN
   // look at, so the nav doubles as the document's control panel.
   const count = counts[heading.slug] ?? 0;
 
-  const restColor = heading.level === 1 ? "var(--df-dim)" : "var(--df-faint)";
+  const restColor = heading.level === 1 ? "var(--color-dim)" : "var(--color-faint)";
 
   return (
     <div style={{ position: "relative" }}>
@@ -48,15 +48,15 @@ export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeN
           borderRadius: "var(--radius-sm)",
           fontSize: heading.level === 1 ? 12.5 : 11.5,
           fontWeight: isActive ? 600 : heading.level === 1 ? 500 : 400,
-          color: isActive ? "var(--df-amber-200)" : restColor,
-          background: isActive ? "var(--color-heat-05)" : "transparent",
+          color: isActive ? "var(--color-heat-soft)" : restColor,
+          background: isActive ? "var(--color-heat-tint)" : "transparent",
           border: "none",
-          borderLeft: `2px solid ${isActive ? "var(--df-amber-500)" : "transparent"}`,
+          borderLeft: `2px solid ${isActive ? "var(--color-heat)" : "transparent"}`,
           cursor: "pointer",
           transition: "color 0.12s, background 0.12s",
         }}
         onMouseEnter={(e) => {
-          if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = "var(--df-dim)";
+          if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = "var(--color-dim)";
         }}
         onMouseLeave={(e) => {
           if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = restColor;
@@ -76,7 +76,7 @@ export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeN
         {count > 0 && (
           <span
             className="df-mono"
-            style={{ fontSize: 9, fontWeight: 500, color: "var(--df-amber-300)", flexShrink: 0 }}
+            style={{ fontSize: 10, fontWeight: 500, color: "var(--color-heat-hi)", flexShrink: 0 }}
           >
             {count}
           </span>
@@ -93,7 +93,7 @@ export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeN
               top: 0,
               bottom: isLast ? 12 : 0,
               width: 1,
-              background: "var(--df-outline)",
+              background: "var(--color-outline)",
             }}
           />
           {children.map((child, i) => (
@@ -106,7 +106,7 @@ export function TreeNode({ node, activeSlug, counts, onNavigate, isLast }: TreeN
                   top: 12,
                   width: 10,
                   height: 1,
-                  background: "var(--df-outline)",
+                  background: "var(--color-outline)",
                 }}
               />
               <TreeNode
@@ -175,13 +175,13 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
         bottom: "calc(100% + 6px)",
         left: 12,
         right: 12,
-        border: "1px solid var(--df-outline)",
-        background: "rgba(18,20,20,0.98)",
+        border: "1px solid var(--color-outline)",
+        background: "var(--color-surface)",
         backdropFilter: "blur(8px)",
-        borderRadius: 8,
+        borderRadius: "var(--radius-md)",
         padding: 6,
-        boxShadow: "0 -12px 28px rgba(0,0,0,0.4)",
-        zIndex: 20,
+        boxShadow: "var(--shadow-pop)",
+        zIndex: "var(--z-sticky)",
       }}
     >
       {items.map((item) => (
@@ -193,9 +193,9 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
             alignItems: "center",
             gap: 10,
             padding: "8px 10px",
-            borderRadius: 4,
+            borderRadius: "var(--radius-xs)",
             fontSize: 12.5,
-            color: "var(--df-dim)",
+            color: "var(--color-dim)",
             background: "transparent",
             border: "none",
             cursor: item.enabled ? "pointer" : "not-allowed",
@@ -206,20 +206,20 @@ function ExportMenu({ documentId, onClose }: ExportMenuProps) {
         >
           <span
             className="material-symbols-outlined"
-            style={{ fontSize: 16, color: "var(--df-faint)" }}
+            style={{ fontSize: 16, color: "var(--color-faint)" }}
           >
             {item.icon}
           </span>
           <div style={{ flex: 1 }}>
             {item.label}
-            <div className="df-mono" style={{ fontSize: 9, color: "var(--df-faint)" }}>
+            <div className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
               {item.sub}
             </div>
           </div>
         </button>
       ))}
       {error && (
-        <div style={{ padding: "8px 10px", fontSize: 11, color: "#ff8a8a", lineHeight: 1.4 }}>
+        <div style={{ padding: "8px 10px", fontSize: 11.5, color: "var(--color-error)", lineHeight: 1.4 }}>
           {error}
         </div>
       )}
@@ -257,8 +257,8 @@ export function EditorNavPanel({
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid var(--df-outline)",
-        background: "var(--color-shade-20)",
+        borderRight: "1px solid var(--color-outline)",
+        background: "var(--color-sink)",
         overflow: "hidden",
       }}
     >
@@ -267,8 +267,8 @@ export function EditorNavPanel({
           className="df-mono"
           style={{
             fontSize: 10,
-            letterSpacing: "0.16em",
-            color: "var(--df-faint)",
+            letterSpacing: "var(--tracking-eyebrow)",
+            color: "var(--color-faint)",
             marginBottom: 14,
             textTransform: "uppercase",
           }}
@@ -287,19 +287,19 @@ export function EditorNavPanel({
 
       {/* Activity */}
       {activitySlot && (
-        <div style={{ padding: "14px 16px", borderTop: "1px solid var(--df-outline)", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px", borderTop: "1px solid var(--color-outline)", flexShrink: 0 }}>
           {activitySlot}
         </div>
       )}
 
       {/* Export */}
-      <div style={{ position: "relative", padding: "12px 22px 24px", borderTop: "1px solid var(--df-outline)", flexShrink: 0 }}>
+      <div style={{ position: "relative", padding: "12px 22px 24px", borderTop: "1px solid var(--color-outline)", flexShrink: 0 }}>
         <button
           onClick={() => setShowExportMenu((v) => !v)}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 11, fontWeight: 600,
-            color: "var(--df-faint)",
+            fontSize: 11.5, fontWeight: 600,
+            color: "var(--color-faint)",
             background: "transparent", border: "none", cursor: "pointer", padding: 0,
           }}
         >

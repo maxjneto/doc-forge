@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { CHANGE_LABEL, wordDiff, type DiffRow, type Hunk } from "@/utils/diff";
+import { IconButton, Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 
 const KIND_WORD: Record<string, string> = {
   rewrite: "reescrita",
@@ -19,7 +21,7 @@ function Row({ row, counterpart }: { row: DiffRow; counterpart?: DiffRow }) {
   const tone = isAdd
     ? {
         background: "var(--color-diff-add-bg)",
-        bar: "var(--df-ok)",
+        bar: "var(--color-ok)",
         gutter: "var(--color-diff-add-gutter)",
         text: "var(--color-diff-add-fg)",
         sign: "+",
@@ -27,7 +29,7 @@ function Row({ row, counterpart }: { row: DiffRow; counterpart?: DiffRow }) {
     : isDel
       ? {
           background: "var(--color-diff-del-bg)",
-          bar: "var(--df-error)",
+          bar: "var(--color-error)",
           gutter: "var(--color-diff-del-gutter)",
           text: "var(--color-diff-del-fg)",
           sign: "−",
@@ -35,8 +37,8 @@ function Row({ row, counterpart }: { row: DiffRow; counterpart?: DiffRow }) {
       : {
           background: "transparent",
           bar: "transparent",
-          gutter: "var(--df-mute)",
-          text: "var(--df-faint)",
+          gutter: "var(--color-mute)",
+          text: "var(--color-faint)",
           sign: "",
         };
 
@@ -100,7 +102,7 @@ function Row({ row, counterpart }: { row: DiffRow; counterpart?: DiffRow }) {
                       ? "var(--color-diff-add-bg)"
                       : "var(--color-diff-del-bg)"
                     : undefined,
-                  color: p.changed ? undefined : "var(--df-faint)",
+                  color: p.changed ? undefined : "var(--color-faint)",
                 }}
               >
                 {p.text}
@@ -149,10 +151,10 @@ function HunkBlock({ hunk, active, decision, onSelect }: HunkBlockProps) {
           padding: "5px 20px",
           fontSize: 10,
           lineHeight: 1.6,
-          color: active ? "var(--df-amber-300)" : "var(--df-faint)",
-          background: "var(--df-surface-mid)",
-          borderTop: "1px solid var(--df-outline)",
-          borderBottom: "1px solid var(--df-outline)",
+          color: active ? "var(--color-heat-hi)" : "var(--color-faint)",
+          background: "var(--color-surface-mid)",
+          borderTop: "1px solid var(--color-outline)",
+          borderBottom: "1px solid var(--color-outline)",
         }}
       >
         @@ {range} · {KIND_WORD[hunk.kind]}
@@ -161,7 +163,7 @@ function HunkBlock({ hunk, active, decision, onSelect }: HunkBlockProps) {
           <span
             style={{
               marginLeft: 10,
-              color: decision === "accept" ? "var(--df-ok)" : "var(--df-error)",
+              color: decision === "accept" ? "var(--color-ok)" : "var(--color-error)",
             }}
           >
             {decision === "accept" ? "✓ ACEITA" : "✕ RECUSADA"}
@@ -196,7 +198,7 @@ export function EditorDiffView({ hunks, activeIndex, decisions = {}, onSelect }:
   if (hunks.length === 0) {
     return (
       <div style={{ padding: "48px 20px", textAlign: "center" }}>
-        <p style={{ fontSize: 12.5, color: "var(--df-faint)", margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 12.5, color: "var(--color-faint)", margin: 0, lineHeight: 1.6 }}>
           Nada pendente de revisão. Mudanças propostas por agentes aparecem aqui como diff.
         </p>
       </div>
@@ -230,6 +232,7 @@ export function EditorChangeBar({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const { t } = useI18n();
   const active = hunks.find((h) => h.index === activeIndex);
   if (!active) return null;
 
@@ -241,40 +244,15 @@ export function EditorChangeBar({
         display: "flex",
         alignItems: "center",
         gap: 12,
-        borderBottom: "1px solid var(--df-outline)",
+        borderBottom: "1px solid var(--color-outline)",
       }}
     >
-      <span
-        className="df-mono"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 9,
-          letterSpacing: "0.12em",
-          padding: "4px 10px",
-          borderRadius: "var(--radius-pill)",
-          border: "1px solid var(--color-heat-border)",
-          background: "var(--color-heat-bg)",
-          color: "var(--df-amber-300)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        <span
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: "var(--radius-pill)",
-            background: "var(--df-amber-500)",
-          }}
-        />
-        CHANGE {activeIndex} OF {hunks.length}
-      </span>
+      <Pill tone="heat">{t("editor.changeOf", { n: activeIndex, total: hunks.length })}</Pill>
 
       <span
         style={{
           fontSize: 11.5,
-          color: "var(--df-faint)",
+          color: "var(--color-faint)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -288,30 +266,9 @@ export function EditorChangeBar({
 
       <span style={{ flex: 1 }} />
 
-      <div style={{ display: "flex", gap: 6 }}>
-        {[
-          { label: "↑", onClick: onPrev, title: "Mudança anterior" },
-          { label: "↓", onClick: onNext, title: "Próxima mudança" },
-        ].map((b) => (
-          <button
-            key={b.label}
-            onClick={b.onClick}
-            title={b.title}
-            className="df-mono"
-            style={{
-              width: 26,
-              height: 24,
-              border: "1px solid var(--df-outline-md)",
-              borderRadius: "var(--radius-sm)",
-              background: "transparent",
-              color: "var(--df-faint)",
-              fontSize: 11,
-              cursor: "pointer",
-            }}
-          >
-            {b.label}
-          </button>
-        ))}
+      <div style={{ display: "flex", gap: 2 }}>
+        <IconButton icon="keyboard_arrow_up" label="Mudança anterior" onClick={onPrev} />
+        <IconButton icon="keyboard_arrow_down" label="Próxima mudança" onClick={onNext} />
       </div>
     </div>
   );

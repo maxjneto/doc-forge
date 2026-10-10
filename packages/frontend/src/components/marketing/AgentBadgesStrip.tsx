@@ -12,8 +12,8 @@ export function AgentBadgesStrip() {
         maxWidth: 1100,
         margin: "0 auto 80px",
         padding: "32px 56px",
-        borderTop: "1px solid var(--df-outline)",
-        borderBottom: "1px solid var(--df-outline)",
+        borderTop: "1px solid var(--color-outline)",
+        borderBottom: "1px solid var(--color-outline)",
         textAlign: "center",
       }}
     >
@@ -21,9 +21,9 @@ export function AgentBadgesStrip() {
         className="df-mono"
         style={{
           fontSize: 10,
-          letterSpacing: "0.18em",
+          letterSpacing: "var(--tracking-eyebrow)",
           textTransform: "uppercase",
-          color: "var(--df-faint)",
+          color: "var(--color-faint)",
           marginBottom: 20,
         }}
       >
@@ -39,8 +39,8 @@ export function AgentBadgesStrip() {
               alignItems: "center",
               gap: 8,
               fontSize: 11.5,
-              color: "var(--df-dim)",
-              letterSpacing: "0.04em",
+              color: "var(--color-dim)",
+              letterSpacing: "var(--tracking-data)",
             }}
           >
             <span
@@ -48,14 +48,14 @@ export function AgentBadgesStrip() {
               style={{
                 width: 18,
                 height: 18,
-                borderRadius: 4,
+                borderRadius: "var(--radius-xs)",
                 display: "grid",
                 placeItems: "center",
-                background: "var(--color-white-04)",
-                border: "1px solid var(--df-outline)",
-                fontSize: 9,
+                background: "var(--color-hover)",
+                border: "1px solid var(--color-outline)",
+                fontSize: 10,
                 fontWeight: 700,
-                color: "var(--df-steel-100)",
+                color: "var(--color-steel-hi)",
               }}
             >
               {a.id}

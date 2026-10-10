@@ -130,7 +130,7 @@ export function FolderDragOverlay() {
       aria-hidden
       style={{
         position: "fixed",
-        zIndex: 100,
+        zIndex: "var(--z-modal)",
         left: drag.x + 12,
         top: drag.y + 12,
         display: "flex",
@@ -138,15 +138,15 @@ export function FolderDragOverlay() {
         gap: 7,
         maxWidth: 240,
         padding: "5px 8px",
-        borderRadius: 5,
-        background: "var(--df-surface-high)",
-        color: "var(--df-on-surface)",
-        boxShadow: "0 5px 18px var(--color-shade-20)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--color-surface-high)",
+        color: "var(--color-text)",
+        boxShadow: "0 5px 18px var(--color-sink)",
         fontSize: 11.5,
         pointerEvents: "none",
       }}
     >
-      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--df-amber-300)", fontVariationSettings: "'FILL' 1" }}>folder</span>
+      <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--color-heat-hi)", fontVariationSettings: "'FILL' 1" }}>folder</span>
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drag.name}</span>
     </div>
   );

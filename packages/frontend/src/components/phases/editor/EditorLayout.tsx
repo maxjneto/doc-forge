@@ -27,6 +27,7 @@ interface EditorLayoutProps {
   publishedAt?: string | null;
   hasUnpublishedChanges?: boolean;
   onPublished?: () => void;
+  onRenameTitle?: (title: string) => Promise<void>;
 }
 
 export function EditorLayout({
@@ -40,6 +41,7 @@ export function EditorLayout({
   publishedAt = null,
   hasUnpublishedChanges = false,
   onPublished,
+  onRenameTitle,
 }: EditorLayoutProps) {
   const bodySection = sections.find((s) => s.sectionType === "body");
   const initialContent = (bodySection?.activeVersionContent ?? "").trim();
@@ -221,7 +223,7 @@ export function EditorLayout({
         paddingTop: 56,
         display: "flex",
         overflow: "hidden",
-        background: "var(--df-bg)",
+        background: "var(--color-bg)",
       }}
     >
       <EditorNavPanel
@@ -239,6 +241,7 @@ export function EditorLayout({
         <EditorDocumentBar
           documentId={documentId}
           title={documentTitle}
+          onRenameTitle={onRenameTitle}
           pendingChanges={hunks.length}
           blockingFindings={blockingFindings}
           isMcpManaged={isMcpManaged}
@@ -303,7 +306,7 @@ export function EditorLayout({
             display: "flex",
             flexDirection: "column",
             flexShrink: 0,
-            borderLeft: "1px solid var(--df-outline)",
+            borderLeft: "1px solid var(--color-outline)",
             width: 340,
             overflow: "hidden",
           }}

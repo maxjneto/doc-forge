@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { TopBar } from "@/components/shared";
+import { Button, Eyebrow, IconButton, InlineCode, Input, Page, PageHeader, Pill, RichText } from "@/components/ui";
 import { apiListApiKeys, apiCreateApiKey, apiRevokeApiKey, apiUpdateApiKeyHarness } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { ApiKey, ApiKeyCreateResponse } from "@/types";
+import { useI18n } from "@/i18n";
+import { relativeTime, shortDate } from "@/utils/time";
 
 type Tab = "claude_code" | "codex" | "cursor" | "generic";
+type T = (key: string, vars?: Record<string, string | number>) => string;
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "claude_code", label: "Claude Code" },
-  { id: "codex",       label: "Codex" },
-  { id: "cursor",      label: "Cursor" },
-  { id: "generic",     label: "Generic agent" },
-];
-
+const TABS: Tab[] = ["claude_code", "codex", "cursor", "generic"];
 const HARNESS_OPTIONS: Tab[] = ["claude_code", "codex", "cursor", "generic"];
+
+const tabLabel = (tab: Tab, t: T) => (tab === "generic" ? t("mcp.genericAgent") : HARNESS_META[tab].label);
 
 export function McpPage() {
   const { getToken } = useAuth();
+  const { t, dateLocale } = useI18n();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
   const [newKeyName, setNewKeyName] = useState("");
   const [harness, setHarness] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function McpPage() {
       setHarness(null);
       await refresh();
     } catch {
-      setError("Failed to generate token.");
+      setError(t("mcp.errGenerate"));
     } finally {
       setCreating(false);
     }
@@ -69,7 +70,7 @@ export function McpPage() {
       await apiRevokeApiKey(id, getToken);
       await refresh();
     } catch {
-      setError("Failed to revoke token.");
+      setError(t("mcp.errRevoke"));
     }
   }
 
@@ -78,7 +79,7 @@ export function McpPage() {
       await apiUpdateApiKeyHarness(keyId, newHarness, getToken);
       await refresh();
     } catch {
-      setError("Failed to update token.");
+      setError(t("mcp.errUpdate"));
     }
     setEditingHarness(null);
   }
@@ -91,232 +92,103 @@ export function McpPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--df-bg)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
       <TopBar dashboardNav />
 
-      <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56, maxWidth: 960, margin: "0 auto", width: "100%" }}>
-        {/* Header */}
-        <div style={{ marginBottom: 36 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 4px" }}>DocForge MCP</h1>
-          <p style={{ fontSize: 13, color: "var(--df-dim)", margin: 0 }}>
-            Connect Claude Code, Codex, Cursor, or any MCP-compatible agent to your DocForge workspace.
-          </p>
-        </div>
+      <Page>
+        <PageHeader title="DocForge MCP" lead={t("mcp.lead")} />
 
-        {/* API Keys section */}
+        {/* API tokens */}
         <section style={cardStyle}>
           <header style={headStyle}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>API tokens</span>
-            <span className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.10em" }}>
-              {keys ? `${keys.length} active` : "…"}
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t("mcp.tokens")}</span>
+            <span style={{ fontSize: 11.5, color: "var(--color-faint)" }}>
+              {keys ? t("mcp.activeCount", { count: keys.length }) : "…"}
             </span>
           </header>
 
-          {/* New key form */}
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--df-outline)" }}>
+          {/* New token */}
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-outline)" }}>
             <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-              <input
+              <Input
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                placeholder="Token name (e.g. Claude Code – laptop)"
-                style={{
-                  flex: 1, background: "rgba(255,255,255,0.03)", border: "1px solid var(--df-outline)",
-                  borderRadius: 6, padding: "7px 12px", color: "#e3e2e2", fontSize: 13,
-                  outline: "none", fontFamily: "inherit",
-                }}
+                placeholder={t("mcp.tokenPlaceholder")}
+                aria-label={t("mcp.tokenName")}
+                style={{ flex: 1 }}
               />
-              <button
-                onClick={handleCreate}
-                disabled={creating || !newKeyName.trim()}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "7px 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 600,
-                  background: "var(--df-amber-500)", color: "#fff",
-                  border: "1px solid var(--df-amber-500)", cursor: creating ? "wait" : "pointer",
-                  opacity: !newKeyName.trim() ? 0.5 : 1,
-                  boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
-                  fontFamily: "inherit",
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>add</span>
-                Generate
-              </button>
+              <Button variant="primary" icon="add" iconPosition="start" onClick={handleCreate} disabled={creating || !newKeyName.trim()}>
+                {t("mcp.generate")}
+              </Button>
             </div>
 
-            {/* Harness picker */}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {HARNESS_OPTIONS.map((h) => {
-                const meta = HARNESS_META[h];
-                const active = harness === h;
-                return (
-                  <button
-                    key={h}
-                    onClick={() => setHarness(active ? null : h)}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 5,
-                      padding: "4px 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 500,
-                      border: active ? "1px solid var(--df-steel-border)" : "1px solid var(--df-outline)",
-                      background: active ? "var(--df-steel-bg)" : "transparent",
-                      color: active ? "var(--df-steel-100)" : "var(--df-faint)",
-                      cursor: "pointer", fontFamily: "inherit",
-                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
-                    }}
-                  >
-                    <img src={meta.logo} width={13} height={13} alt="" style={{ opacity: active ? 1 : 0.5 }} />
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
+            <HarnessPicker selected={harness} onPick={(h) => setHarness(harness === h ? null : h)} />
           </div>
 
-          {/* Newly created key banner */}
+          {/* Newly created token */}
           {created && (
-            <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--df-outline)", background: "rgba(255,77,0,0.05)" }}>
-              <div className="df-mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: "var(--df-amber-300)", textTransform: "uppercase", marginBottom: 6 }}>
-                Copy your token now — it won't be shown again.
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--color-outline)", background: "var(--color-heat-tint)" }}>
+              <Eyebrow tone="heat" style={{ marginBottom: 8 }}>{t("mcp.copyNow")}</Eyebrow>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <code
                   className="df-mono"
                   style={{
-                    flex: 1, fontSize: 12, color: "var(--df-steel-100)", background: "#0a0b0c",
-                    border: "1px solid var(--df-outline)", borderRadius: 5, padding: "8px 12px",
+                    flex: 1, minWidth: 0, fontSize: 12.5, color: "var(--color-steel-hi)", background: "var(--color-bg)",
+                    border: "1px solid var(--color-outline)", borderRadius: "var(--radius-sm)", padding: "8px 12px",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}
                 >
                   {created.key}
                 </code>
-                <button
-                  onClick={() => copy(created.key, "new-key")}
-                  style={ghostBtnStyle}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>content_copy</span>
-                  {copied === "new-key" ? "Copied" : "Copy"}
-                </button>
-                <button onClick={() => setCreated(null)} style={{ ...ghostBtnStyle, border: "none" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
-                </button>
+                <Button icon={copied === "new-key" ? "check" : "content_copy"} iconPosition="start" onClick={() => copy(created.key, "new-key")}>
+                  {copied === "new-key" ? t("mcp.copied") : t("common.copy")}
+                </Button>
+                <IconButton icon="close" label={t("common.close")} onClick={() => setCreated(null)} />
               </div>
             </div>
           )}
 
-          {error && (
-            <div style={{ padding: "8px 20px", fontSize: 12, color: "var(--df-error)" }}>{error}</div>
-          )}
+          {error && <div style={{ padding: "8px 20px", fontSize: 12.5, color: "var(--color-error)" }}>{error}</div>}
 
-          {/* Key list */}
+          {/* Token list */}
           <div>
-            {keys === null && <EmptyRow>Loading…</EmptyRow>}
-            {keys && keys.length === 0 && <EmptyRow>No active tokens. Generate one above to connect your first agent.</EmptyRow>}
+            {keys === null && <EmptyRow>{t("common.loading")}</EmptyRow>}
+            {keys && keys.length === 0 && <EmptyRow>{t("mcp.noTokens")}</EmptyRow>}
             {keys && keys.map((k, i) => {
               const hMeta = k.harness && isHarness(k.harness) ? HARNESS_META[k.harness] : null;
               const isEditingThis = editingHarness === k.id;
               return (
-                <div
-                  key={k.id}
-                  style={{
-                    borderTop: i === 0 ? "none" : "1px solid var(--df-outline)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "grid", gridTemplateColumns: "1fr auto auto",
-                      alignItems: "center", gap: 14,
-                      padding: "11px 20px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 13, color: hMeta ? hMeta.fg : "#e3e2e2" }}>{k.name}</span>
-                          {hMeta ? (
-                            <img src={hMeta.logo} width={14} height={14} alt={hMeta.label} title={hMeta.label} style={{ opacity: 0.85 }} />
-                          ) : null}
-                          {/* Edit harness button */}
-                          <button
-                            onClick={() => setEditingHarness(isEditingThis ? null : k.id)}
-                            title={hMeta ? "Change client" : "Set client"}
-                            style={{
-                              display: "inline-flex", alignItems: "center",
-                              background: "none", border: "none", cursor: "pointer",
-                              padding: 2, color: isEditingThis ? "var(--df-dim)" : "var(--df-faint)",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                              {isEditingThis ? "close" : hMeta ? "edit" : "label"}
-                            </span>
-                          </button>
-                        </div>
-                        <span className="df-mono" style={{ display: "block", fontSize: 10, color: "var(--df-faint)", letterSpacing: "0.06em", marginTop: 2 }}>
-                          Created {new Date(k.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                          {k.lastUsedAt && ` · Last used ${new Date(k.lastUsedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
-                        </span>
+                <div key={k.id} className="df-row" style={{ borderTop: i === 0 ? "none" : "1px solid var(--color-outline)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center", gap: 14, padding: "11px 20px" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {hMeta && <img src={hMeta.logo} width={14} height={14} alt={hMeta.label} title={hMeta.label} />}
+                        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>{k.name}</span>
+                        <IconButton
+                          icon={isEditingThis ? "close" : hMeta ? "edit" : "label"}
+                          label={hMeta ? t("mcp.changeClient") : t("mcp.setClient")}
+                          onClick={() => setEditingHarness(isEditingThis ? null : k.id)}
+                          style={{ width: 22, height: 22 }}
+                        />
                       </div>
+                      <span style={{ display: "block", fontSize: 11.5, color: "var(--color-faint)", marginTop: 2 }}>
+                        {t("mcp.created", { date: shortDate(k.createdAt, dateLocale) })}
+                        {k.lastUsedAt && ` · ${t("mcp.lastUsed", { time: relativeTime(k.lastUsedAt, dateLocale) })}`}
+                      </span>
                     </div>
-                    <span
-                      className="df-mono"
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        fontSize: 9.5, padding: "3px 9px", borderRadius: 999,
-                        color: hMeta ? hMeta.fg : "var(--df-steel-100)",
-                        background: hMeta ? hMeta.bg : "var(--df-steel-bg)",
-                        border: `1px solid ${hMeta ? hMeta.border : "var(--df-steel-border)"}`,
-                        letterSpacing: "0.08em", textTransform: "uppercase",
-                      }}
-                    >
-                      Active
-                    </span>
-                    <button
-                      onClick={() => handleRevoke(k.id)}
-                      title="Revoke token"
-                      style={{ ...ghostBtnStyle, color: "var(--df-faint)", gap: 4 }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>link_off</span>
-                      Revoke
-                    </button>
+                    <Pill tone="steel" compact>{t("mcp.active")}</Pill>
+                    <Button variant="ghost" icon="link_off" iconPosition="start" onClick={() => handleRevoke(k.id)} title={t("mcp.revokeTitle")}>
+                      {t("mcp.revoke")}
+                    </Button>
                   </div>
-                  {/* Inline harness picker */}
                   {isEditingThis && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 20px 12px" }}>
-                      {HARNESS_OPTIONS.map((h) => {
-                        const m = HARNESS_META[h];
-                        const isActive = k.harness === h;
-                        return (
-                          <button
-                            key={h}
-                            onClick={() => handleUpdateHarness(k.id, isActive ? null : h)}
-                            style={{
-                              display: "inline-flex", alignItems: "center", gap: 5,
-                              padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: 500,
-                              border: isActive ? `1px solid ${m.border}` : "1px solid var(--df-outline)",
-                              background: isActive ? m.bg : "transparent",
-                              color: isActive ? m.fg : "var(--df-faint)",
-                              cursor: "pointer", fontFamily: "inherit",
-                              transition: "border-color 0.15s, background 0.15s, color 0.15s",
-                            }}
-                          >
-                            <img src={m.logo} width={11} height={11} alt="" style={{ opacity: isActive ? 1 : 0.5 }} />
-                            {m.label}
-                          </button>
-                        );
-                      })}
-                      {k.harness && (
-                        <button
-                          onClick={() => handleUpdateHarness(k.id, null)}
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: 500,
-                            border: "1px solid var(--df-outline)", background: "transparent",
-                            color: "var(--df-faint)", cursor: "pointer", fontFamily: "inherit",
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: 11 }}>close</span>
-                          None
-                        </button>
-                      )}
+                    <div style={{ padding: "0 20px 12px" }}>
+                      <HarnessPicker
+                        selected={k.harness}
+                        onPick={(h) => handleUpdateHarness(k.id, k.harness === h ? null : h)}
+                        onClear={k.harness ? () => handleUpdateHarness(k.id, null) : undefined}
+                      />
                     </div>
                   )}
                 </div>
@@ -325,329 +197,319 @@ export function McpPage() {
           </div>
         </section>
 
-        {/* Client setup section */}
-        <section style={{ marginTop: 36 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.015em", margin: "0 0 18px" }}>Client setup</h2>
+        {/* Client setup */}
+        <section style={{ marginTop: 40 }}>
+          <SectionTitle>{t("mcp.setup")}</SectionTitle>
 
-          <div style={{ border: "1px solid var(--df-outline)", borderRadius: 12, background: "rgba(18,20,20,0.5)", overflow: "hidden" }}>
-            {/* Tab bar */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--df-outline)", padding: "0 4px" }}>
-              {TABS.map((t) => {
-                const meta = HARNESS_META[t.id];
-                const active = tab === t.id;
+          <div style={cardStyle}>
+            <div role="tablist" style={{ display: "flex", borderBottom: "1px solid var(--color-outline)", padding: "0 4px", overflowX: "auto" }}>
+              {TABS.map((id) => {
+                const active = tab === id;
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => setTab(t.id)}
+                    key={id}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setTab(id)}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       padding: "10px 14px 11px",
-                      fontSize: 13, fontWeight: active ? 500 : 400,
-                      color: active ? "#e3e2e2" : "var(--df-faint)",
+                      fontSize: 13, fontWeight: active ? 600 : 500,
+                      color: active ? "var(--color-text)" : "var(--color-faint)",
                       background: "none", border: "none", cursor: "pointer",
-                      borderBottom: active ? "2px solid #e3e2e2" : "2px solid transparent",
-                      marginBottom: -1,
-                      fontFamily: "inherit",
-                      transition: "color 0.15s",
+                      boxShadow: active ? "inset 0 -2px 0 var(--color-heat)" : "none",
+                      fontFamily: "inherit", whiteSpace: "nowrap",
+                      transition: "color var(--duration-fast) var(--ease-forge)",
                     }}
                   >
-                    <img src={meta.logo} width={16} height={16} alt="" style={{ opacity: active ? 1 : 0.45 }} />
-                    {t.label}
+                    <img src={HARNESS_META[id].logo} width={16} height={16} alt="" style={{ opacity: active ? 1 : 0.45 }} />
+                    {tabLabel(id, t)}
                   </button>
                 );
               })}
             </div>
 
-            {/* Panels */}
             <div style={{ padding: "24px 28px" }}>
-              {/* Info box */}
-              <div style={{
-                display: "flex", gap: 8, alignItems: "flex-start",
-                background: "rgba(255,255,255,0.03)", border: "1px solid var(--df-outline)",
-                borderRadius: 8, padding: "10px 14px", marginBottom: 24,
-                fontSize: 13, color: "var(--df-dim)", lineHeight: 1.5,
-              }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, flexShrink: 0, marginTop: 1, color: "var(--df-steel-200)" }}>info</span>
-                Generate an API token in the section above and copy it before following these steps.
-              </div>
-
-              {tab === "claude_code" && <ClaudeCodePanel copy={copy} copied={copied} />}
-              {tab === "codex"       && <CodexPanel copy={copy} copied={copied} />}
-              {tab === "cursor"      && <CursorPanel copy={copy} copied={copied} />}
-              {tab === "generic"     && <GenericPanel copy={copy} copied={copied} />}
+              <Callout>{t("mcp.setupInfo")}</Callout>
+              {tab === "claude_code" && <ClaudeCodePanel copy={copy} copied={copied} t={t} />}
+              {tab === "codex" && <CodexPanel copy={copy} copied={copied} t={t} />}
+              {tab === "cursor" && <CursorPanel copy={copy} copied={copied} t={t} />}
+              {tab === "generic" && <GenericPanel copy={copy} copied={copied} t={t} />}
             </div>
           </div>
         </section>
+
         {/* What your agent can access */}
-        <section style={{ marginTop: 36 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.015em", margin: "0 0 18px" }}>What your agent can access</h2>
-          <CapabilitiesCard />
+        <section style={{ marginTop: 40 }}>
+          <SectionTitle>{t("mcp.access")}</SectionTitle>
+          <CapabilitiesCard t={t} />
         </section>
 
         {/* Tips */}
-        <section style={{ marginTop: 36 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.015em", margin: "0 0 18px" }}>Tips</h2>
-          <div style={cardStyle}>
-            <div style={{ padding: "16px 20px" }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                <span style={{
-                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                  background: "rgba(255,255,255,0.04)", border: "1px solid var(--df-outline)",
-                  fontSize: 11, fontWeight: 500, color: "var(--df-dim)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>1</span>
-                <span style={{ fontSize: 13, color: "#e3e2e2", fontWeight: 500, paddingTop: 1 }}>
-                  Tell your agent to read the orientation guide first
-                </span>
-              </div>
-              <p style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.5, margin: "0 0 10px 30px" }}>
-                Agents in new environments default to tool discovery and may skip the orientation resource entirely.
-                Paste this into your first message to make sure they start from the right mental model.
-              </p>
-              <div style={{ marginLeft: 30 }}>
-                <CodeBlock
-                  text={`Before doing anything else, read the resource at docforge://guide/system-prompt.`}
-                  id="tip-sysprompt"
-                  copy={copy}
-                  copied={copied}
-                />
-              </div>
-            </div>
+        <section style={{ marginTop: 40 }}>
+          <SectionTitle>{t("mcp.tips")}</SectionTitle>
+          <div style={{ ...cardStyle, padding: "18px 20px" }}>
+            <Step num={1} title={t("mcp.tip1")}>
+              <Note style={{ marginBottom: 10 }}>{t("mcp.tip1Body")}</Note>
+              <CodeBlock text={t("mcp.tip1Prompt")} id="tip-sysprompt" copy={copy} copied={copied} t={t} />
+            </Step>
           </div>
         </section>
-      </main>
+      </Page>
     </div>
   );
 }
 
-// ─── Panel props ─────────────────────────────────────────────
+// ─── Harness picker ──────────────────────────────────────────
+
+function HarnessPicker({ selected, onPick, onClear }: { selected: string | null; onPick: (h: Tab) => void; onClear?: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {HARNESS_OPTIONS.map((h) => {
+        const meta = HARNESS_META[h];
+        const active = selected === h;
+        return (
+          <button
+            key={h}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onPick(h)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "4px 10px", borderRadius: "var(--radius-sm)", fontSize: 11.5, fontWeight: 500,
+              border: `1px solid ${active ? "var(--color-steel-line)" : "var(--color-outline)"}`,
+              background: active ? "var(--color-steel-wash)" : "transparent",
+              color: active ? "var(--color-steel-hi)" : "var(--color-faint)",
+              cursor: "pointer", fontFamily: "inherit",
+              transition: "border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast)",
+            }}
+          >
+            <img src={meta.logo} width={13} height={13} alt="" style={{ opacity: active ? 1 : 0.5 }} />
+            {h === "generic" ? t("mcp.genericAgent") : meta.label}
+          </button>
+        );
+      })}
+      {onClear && (
+        <Button variant="ghost" icon="close" iconPosition="start" onClick={onClear} style={{ padding: "4px 10px" }}>
+          {t("mcp.none")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ─── Client panels ───────────────────────────────────────────
 
 interface PanelProps {
   copy: (text: string, key: string) => void;
   copied: string | null;
+  t: T;
 }
 
-// ─── Claude Code ─────────────────────────────────────────────
-
-function ClaudeCodePanel({ copy, copied }: PanelProps) {
+function ClaudeCodePanel({ copy, copied, t }: PanelProps) {
   const cmd1 = `claude mcp add --transport http docforge https://mcp.doc-forge.dev/mcp -H "Authorization: Bearer your_api_key_here"`;
   const cmd2 = `claude mcp list`;
-  const cmd3 = `claude "Create a technical spec for the auth module using DocForge"`;
+  const cmd3 = `claude "${t("mcp.cc.prompt")}"`;
   return (
     <>
-      <Step num={1} title="Add the DocForge MCP server">
-        <CodeBlock text={cmd1} id="cc1" copy={copy} copied={copied} />
-        <Note>Alternatively, add it manually to <Mono>~/.claude/mcp.json</Mono>.</Note>
+      <Step num={1} title={t("mcp.cc.s1")}>
+        <CodeBlock text={cmd1} id="cc1" copy={copy} copied={copied} t={t} />
+        <Note><RichText text={t("mcp.cc.n1")} /></Note>
       </Step>
-      <Step num={2} title="Verify the connection">
-        <CodeBlock text={cmd2} id="cc2" copy={copy} copied={copied} />
-        <Note>You should see <Mono>docforge</Mono> listed as a connected server.</Note>
+      <Step num={2} title={t("mcp.cc.s2")}>
+        <CodeBlock text={cmd2} id="cc2" copy={copy} copied={copied} t={t} />
+        <Note><RichText text={t("mcp.cc.n2")} /></Note>
       </Step>
-      <Step num={3} title="Start using DocForge in your agent">
-        <CodeBlock text={cmd3} id="cc3" copy={copy} copied={copied} />
-        <Note>Claude Code will automatically use DocForge tools when relevant. You can also ask for a specific tool by name.</Note>
+      <Step num={3} title={t("mcp.cc.s3")}>
+        <CodeBlock text={cmd3} id="cc3" copy={copy} copied={copied} t={t} />
+        <Note>{t("mcp.cc.n3")}</Note>
       </Step>
     </>
   );
 }
 
-// ─── Codex ───────────────────────────────────────────────────
-
-function CodexPanel({ copy, copied }: PanelProps) {
-  const cmd1 = `codex mcp add docforge --url https://mcp.doc-forge.dev/mcp`;
+function CodexPanel({ copy, copied, t }: PanelProps) {
+  const posixEnv = `export DOCFORGE_API_KEY=your_api_key_here`;
+  const powershellEnv = `$env:DOCFORGE_API_KEY = "your_api_key_here"`;
+  const cmd1 = `codex mcp add docforge --url https://mcp.doc-forge.dev/mcp --bearer-token-env-var DOCFORGE_API_KEY`;
   const toml = `[mcp_servers.docforge]\nurl = "https://mcp.doc-forge.dev/mcp"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
-  const cmd3 = `export DOCFORGE_API_KEY=your_api_key_here\ncodex mcp list`;
+  const verify = `codex mcp get docforge\ncodex mcp list`;
+  const smokeTest = `codex "${t("mcp.cx.prompt")}"`;
   return (
     <>
-      <Step num={1} title="Add the DocForge MCP server via CLI">
-        <CodeBlock text={cmd1} id="cx1" copy={copy} copied={copied} />
-        <Note>Or edit <Mono>~/.codex/config.toml</Mono> directly (see step 2).</Note>
+      <Step num={1} title={t("mcp.cx.s1")}>
+        <Note style={{ marginBottom: 8 }}>{t("mcp.cx.posix")}</Note>
+        <CodeBlock text={posixEnv} id="cx-env-posix" copy={copy} copied={copied} t={t} />
+        <Note style={{ marginBottom: 8 }}>{t("mcp.cx.ps")}</Note>
+        <CodeBlock text={powershellEnv} id="cx-env-powershell" copy={copy} copied={copied} t={t} />
+        <Note>{t("mcp.cx.n1")}</Note>
       </Step>
-      <Step num={2} title="Configure authentication in config.toml">
-        <CodeBlock text={toml} id="cx2" copy={copy} copied={copied} toml />
+      <Step num={2} title={t("mcp.cx.s2")}>
+        <CodeBlock text={cmd1} id="cx1" copy={copy} copied={copied} t={t} />
+        <Note>{t("mcp.cx.n2")}</Note>
       </Step>
-      <Step num={3} title="Export your API key and verify">
-        <CodeBlock text={cmd3} id="cx3" copy={copy} copied={copied} />
-        <Note>Add the <Mono>export</Mono> line to your shell profile (<Mono>~/.zshrc</Mono> or <Mono>~/.bashrc</Mono>) to persist it.</Note>
+      <Step num={3} title={t("mcp.cx.s3")}>
+        <Note style={{ marginBottom: 8 }}><RichText text={t("mcp.cx.n3")} /></Note>
+        <CodeBlock text={toml} id="cx2" copy={copy} copied={copied} t={t} toml />
+      </Step>
+      <Step num={4} title={t("mcp.cx.s4")}>
+        <CodeBlock text={verify} id="cx3" copy={copy} copied={copied} t={t} />
+        <Note>{t("mcp.cx.n4")}</Note>
+      </Step>
+      <Step num={5} title={t("mcp.cx.s5")}>
+        <CodeBlock text={smokeTest} id="cx4" copy={copy} copied={copied} t={t} />
+        <Note><RichText text={t("mcp.cx.n5")} /></Note>
       </Step>
     </>
   );
 }
 
-// ─── Cursor ──────────────────────────────────────────────────
-
-function CursorPanel({ copy, copied }: PanelProps) {
+function CursorPanel({ copy, copied, t }: PanelProps) {
   const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "https://mcp.doc-forge.dev/mcp",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
   const cmd2 = `export DOCFORGE_API_KEY=your_api_key_here`;
   return (
     <>
-      <Step num={1} title="Create or edit your MCP config">
-        <Note style={{ marginBottom: 8 }}>For global access, edit <Mono>~/.cursor/mcp.json</Mono>. For project-only, create <Mono>.cursor/mcp.json</Mono> at the project root.</Note>
-        <CodeBlock text={json} id="cu1" copy={copy} copied={copied} />
+      <Step num={1} title={t("mcp.cu.s1")}>
+        <Note style={{ marginBottom: 8 }}><RichText text={t("mcp.cu.n1")} /></Note>
+        <CodeBlock text={json} id="cu1" copy={copy} copied={copied} t={t} />
       </Step>
-      <Step num={2} title="Set your API key in the environment">
-        <CodeBlock text={cmd2} id="cu2" copy={copy} copied={copied} />
-        <Note>Add this to your shell profile to persist across sessions. Cursor reads env variables at startup.</Note>
+      <Step num={2} title={t("mcp.cx.s1")}>
+        <CodeBlock text={cmd2} id="cu2" copy={copy} copied={copied} t={t} />
+        <Note>{t("mcp.cu.n2")}</Note>
       </Step>
-      <Step num={3} title="Enable in Cursor settings">
-        <Note>Go to <strong>Cursor Settings → MCP</strong>. DocForge should appear under available servers. Toggle it on. You'll see DocForge tools listed under <em>Available Tools</em> in the Agent chat.</Note>
+      <Step num={3} title={t("mcp.cu.s3")}>
+        <Note><RichText text={t("mcp.cu.n3")} /></Note>
       </Step>
     </>
   );
 }
 
-// ─── Generic ─────────────────────────────────────────────────
-
-function GenericPanel({ copy, copied }: PanelProps) {
+function GenericPanel({ copy, copied, t }: PanelProps) {
   const url = `https://mcp.doc-forge.dev/mcp`;
   const auth = `Authorization: Bearer your_api_key_here`;
   const transport = `# Streamable HTTP\nurl = "https://mcp.doc-forge.dev/mcp"`;
   return (
     <>
-      <Step num={1} title="Server URL">
-        <CodeBlock text={url} id="gn1" copy={copy} copied={copied} />
-        <Note>This is your MCP endpoint. Use it wherever your agent accepts an MCP server URL.</Note>
+      <Step num={1} title={t("mcp.gn.s1")}>
+        <CodeBlock text={url} id="gn1" copy={copy} copied={copied} t={t} />
+        <Note>{t("mcp.gn.n1")}</Note>
       </Step>
-      <Step num={2} title="Authentication">
-        <CodeBlock text={auth} id="gn2" copy={copy} copied={copied} />
-        <Note>Pass your DocForge API key as a Bearer token in the <Mono>Authorization</Mono> header on every request.</Note>
+      <Step num={2} title={t("mcp.gn.s2")}>
+        <CodeBlock text={auth} id="gn2" copy={copy} copied={copied} t={t} />
+        <Note><RichText text={t("mcp.gn.n2")} /></Note>
       </Step>
-      <Step num={3} title="Transport">
-        <Note style={{ marginBottom: 8 }}>DocForge uses <strong>Streamable HTTP</strong>. Check your client's docs for the exact configuration format.</Note>
-        <CodeBlock text={transport} id="gn3" copy={copy} copied={copied} comment />
+      <Step num={3} title={t("mcp.gn.s3")}>
+        <Note style={{ marginBottom: 8 }}><RichText text={t("mcp.gn.n3")} /></Note>
+        <CodeBlock text={transport} id="gn3" copy={copy} copied={copied} t={t} comment />
       </Step>
-      <hr style={{ border: "none", borderTop: "1px solid var(--df-outline)", margin: "20px 0" }} />
-      <p style={{ fontSize: 13, color: "var(--df-dim)", lineHeight: 1.5 }}>
-        Need help? Reach out at <Mono>support@docforge.dev</Mono>.
-      </p>
+      <hr style={{ border: "none", borderTop: "1px solid var(--color-outline)", margin: "20px 0" }} />
+      <Note><RichText text={t("mcp.gn.help")} /></Note>
     </>
   );
 }
 
-// ─── Capabilities card ────────────────────────────────────────
+// ─── Capabilities ────────────────────────────────────────────
 
-const TOOLS_INFO = [
-  { name: "get_user_info",         desc: "Check your account name, email, and remaining credits." },
-  { name: "list_documents",        desc: "List all your editor documents." },
-  { name: "create_document",       desc: "Create a new editor document without consuming credits." },
-  { name: "get_document",          desc: "Read a document's current body content and metadata." },
-  { name: "get_section",           desc: "Read one heading-scoped section of the document." },
-  { name: "write_section",         desc: "Replace the full document body; suggest or apply according to policy." },
-  { name: "append_section",        desc: "Append Markdown without resending the full body." },
-  { name: "patch_section",         desc: "Replace an exact fragment within a heading-scoped section." },
-  { name: "check_suggestions",     desc: "Check pending, accepted, or rejected agent suggestions." },
-  { name: "get_pending_feedback",  desc: "Read comments and rejection feedback before writing again." },
-  { name: "resolve_feedback",      desc: "Mark addressed feedback as resolved." },
-  { name: "snapshot_section",      desc: "Save a named version checkpoint." },
-  { name: "list_versions",         desc: "List all saved version checkpoints for a document." },
-  { name: "get_version_content",   desc: "Read any version's content, including inactive ones." },
-  { name: "select_active_version", desc: "Switch which version the user sees in their browser." },
-  { name: "rename_version",        desc: "Update a version's label or change summary." },
-  { name: "get_activity",          desc: "See recent writes, snapshots, and version switches by all actors." },
-  { name: "get_document_url",      desc: "Get the browser URL to share with the user." },
-  { name: "list_document_types",   desc: "List structured document types and their sections." },
-  { name: "start_pipeline",        desc: "Start a durable structured pipeline." },
-  { name: "get_next_step",         desc: "Resume a pipeline or read its current checkpoint." },
-  { name: "submit_step",           desc: "Submit discovery, alignment, generation, or audit work." },
-  { name: "get_quality_gate",      desc: "Read gate state and sections for an agent-run audit." },
-  { name: "submit_quality_findings", desc: "Record cross-section consistency findings." },
-  { name: "list_artifacts",        desc: "List attached diagrams, tables, and decision notes." },
-  { name: "create_artifact",        desc: "Attach supporting material to a document." },
+const TOOL_NAMES = [
+  "get_user_info", "list_documents", "create_document", "get_document", "get_section",
+  "write_section", "append_section", "patch_section", "check_suggestions", "get_pending_feedback",
+  "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
+  "rename_version", "get_activity", "get_document_url", "list_document_types", "start_pipeline",
+  "get_next_step", "submit_step", "get_quality_gate", "submit_quality_findings", "list_artifacts",
+  "create_artifact",
 ];
 
-const RESOURCES_INFO = [
-  { uri: "docforge://documents",               desc: "JSON list of all your documents." },
-  { uri: "docforge://document/{id}",           desc: "Current body content as Markdown." },
-  { uri: "docforge://document/{id}/versions",  desc: "JSON version history." },
-  { uri: "docforge://guide/system-prompt",     desc: "Agent orientation brief (also exposed as a prompt — see below)." },
-  { uri: "docforge://recipes",                 desc: "Index of available workflow recipe slugs." },
-  { uri: "docforge://recipes/{slug}",          desc: "Full procedural recipe (safe-rewrite, collaborative-edit, incremental-draft)." },
+const RESOURCES: { uri: string; key: string }[] = [
+  { uri: "docforge://documents", key: "documents" },
+  { uri: "docforge://document/{id}", key: "document" },
+  { uri: "docforge://document/{id}/versions", key: "versions" },
+  { uri: "docforge://guide/system-prompt", key: "guide" },
+  { uri: "docforge://recipes", key: "recipes" },
+  { uri: "docforge://recipes/{slug}", key: "recipe" },
 ];
 
-function CapabilitiesCard() {
-  const labelStyle: React.CSSProperties = {
-    fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase",
-    color: "var(--df-faint)", marginBottom: 12, fontFamily: "var(--df-font-mono)",
-  };
-  const descStyle: React.CSSProperties = { fontSize: 12, color: "var(--df-dim)", lineHeight: 1.45 };
-  const amberPill: React.CSSProperties = {
-    fontSize: 11.5, color: "var(--df-amber-200)", background: "rgba(255,77,0,0.08)",
-    padding: "1px 5px", borderRadius: 3, fontFamily: "var(--df-font-mono)",
-    whiteSpace: "nowrap" as const,
-  };
-  const steelPill: React.CSSProperties = {
-    fontSize: 11, color: "var(--df-steel-100)", background: "rgba(255,255,255,0.04)",
-    padding: "1px 5px", borderRadius: 3, fontFamily: "var(--df-font-mono)",
-    whiteSpace: "nowrap" as const,
-  };
-
+function CapabilitiesCard({ t }: { t: T }) {
+  const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 14, rowGap: 7, alignItems: "baseline", justifyItems: "start", fontSize: 12.5 };
+  const desc: React.CSSProperties = { fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.45 };
   return (
     <div style={cardStyle}>
-      {/* Tools */}
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--df-outline)" }}>
-        <div className="df-mono" style={labelStyle}>Tools</div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 6, alignItems: "baseline" }}>
-          {TOOLS_INFO.map(({ name, desc }) => (
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-outline)" }}>
+        <Eyebrow style={{ marginBottom: 12 }}>{t("mcp.tools")}</Eyebrow>
+        <div style={grid}>
+          {TOOL_NAMES.map((name) => (
             <React.Fragment key={name}>
-              <code className="df-mono" style={amberPill}>{name}</code>
-              <span style={descStyle}>{desc}</span>
+              <InlineCode>{name}</InlineCode>
+              <span style={desc}>{t(`mcp.tool.${name}`)}</span>
             </React.Fragment>
           ))}
         </div>
       </div>
 
-      {/* Resources */}
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--df-outline)" }}>
-        <div className="df-mono" style={labelStyle}>Resources</div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 6, alignItems: "baseline" }}>
-          {RESOURCES_INFO.map(({ uri, desc }) => (
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-outline)" }}>
+        <Eyebrow style={{ marginBottom: 12 }}>{t("mcp.resources")}</Eyebrow>
+        <div style={grid}>
+          {RESOURCES.map(({ uri, key }) => (
             <React.Fragment key={uri}>
-              <code className="df-mono" style={steelPill}>{uri}</code>
-              <span style={descStyle}>{desc}</span>
+              <InlineCode>{uri}</InlineCode>
+              <span style={desc}>{t(`mcp.res.${key}`)}</span>
             </React.Fragment>
           ))}
         </div>
       </div>
 
-      {/* Prompts */}
       <div style={{ padding: "16px 20px" }}>
-        <div className="df-mono" style={labelStyle}>Prompts</div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 6, alignItems: "baseline", marginBottom: 12 }}>
-          <code className="df-mono" style={steelPill}>docforge_orientation</code>
-          <span style={descStyle}>The same agent orientation brief as the resource above.</span>
+        <Eyebrow style={{ marginBottom: 12 }}>{t("mcp.prompts")}</Eyebrow>
+        <div style={{ ...grid, marginBottom: 12 }}>
+          <InlineCode>docforge_orientation</InlineCode>
+          <span style={desc}>{t("mcp.promptDesc")}</span>
         </div>
-        <div style={{
-          display: "flex", gap: 8, alignItems: "flex-start",
-          background: "rgba(255,255,255,0.02)", border: "1px solid var(--df-outline)",
-          borderRadius: 7, padding: "9px 12px",
-          fontSize: 12, color: "var(--df-dim)", lineHeight: 1.55,
-        }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 14, flexShrink: 0, marginTop: 1, color: "var(--df-faint)" }}>info</span>
-          <span>
-            The system prompt is exposed as both a resource (<code className="df-mono" style={{ ...steelPill, fontSize: 11 }}>docforge://guide/system-prompt</code>) and a named MCP prompt (<code className="df-mono" style={{ ...steelPill, fontSize: 11 }}>docforge_orientation</code>).
-            {" "}The resource lets an agent fetch it on demand by URI. The prompt surfaces it through <code className="df-mono" style={{ ...steelPill, fontSize: 11 }}>prompts/list</code> so clients that support MCP prompts can inject it automatically — without the agent needing to know to ask for it first.
-          </span>
-        </div>
+        <Callout><RichText text={t("mcp.promptNote")} /></Callout>
       </div>
     </div>
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────
+// ─── Sub-components ──────────────────────────────────────────
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 14px" }}>{children}</h2>;
+}
+
+function Callout({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex", gap: 8, alignItems: "flex-start",
+        background: "var(--color-hover)", border: "1px solid var(--color-outline)",
+        borderRadius: "var(--radius-sm)", padding: "10px 14px", marginBottom: 20,
+        fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.55,
+      }}
+    >
+      <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 16, flexShrink: 0, marginTop: 1, color: "var(--color-steel)" }}>info</span>
+      <span>{children}</span>
+    </div>
+  );
+}
 
 function Step({ num, title, children }: { num: number; title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <span style={{
-          width: 20, height: 20, borderRadius: "50%",
-          background: "rgba(255,255,255,0.04)", border: "1px solid var(--df-outline)",
-          fontSize: 11, fontWeight: 500, color: "var(--df-dim)",
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }}>{num}</span>
-        <span style={{ fontSize: 13.5, fontWeight: 500, color: "#e3e2e2" }}>{title}</span>
+        <span
+          className="df-mono"
+          style={{
+            width: 20, height: 20, borderRadius: "var(--radius-pill)",
+            background: "var(--color-hover)", border: "1px solid var(--color-outline-md)",
+            fontSize: 10, fontWeight: 600, color: "var(--color-dim)",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}
+        >
+          {num}
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{title}</span>
       </div>
-      {children}
+      <div style={{ paddingLeft: 30 }}>{children}</div>
     </div>
   );
 }
@@ -657,11 +519,12 @@ interface CodeBlockProps {
   id: string;
   copy: (t: string, k: string) => void;
   copied: string | null;
+  t: T;
   toml?: boolean;
   comment?: boolean;
 }
 
-function CodeBlock({ text, id, copy, copied, toml, comment }: CodeBlockProps) {
+function CodeBlock({ text, id, copy, copied, t, toml, comment }: CodeBlockProps) {
   const isCopied = copied === id;
 
   const renderContent = () => {
@@ -669,15 +532,13 @@ function CodeBlock({ text, id, copy, copied, toml, comment }: CodeBlockProps) {
       return text.split("\n").map((line, i) => {
         const sectionMatch = line.match(/^\[(.+)\]$/);
         const kvMatch = line.match(/^(\w+)\s*=\s*(.+)$/);
-        if (sectionMatch) {
-          return <span key={i} style={{ color: "var(--df-amber-300)" }}>{line}{"\n"}</span>;
-        }
+        if (sectionMatch) return <span key={i} style={{ color: "var(--color-heat-hi)" }}>{line}{"\n"}</span>;
         if (kvMatch) {
           return (
             <span key={i}>
-              <span style={{ color: "var(--df-amber-200)" }}>{kvMatch[1]}</span>
-              <span style={{ color: "var(--df-dim)" }}> = </span>
-              <span style={{ color: "var(--df-steel-200)" }}>{kvMatch[2]}</span>
+              <span style={{ color: "var(--color-heat-soft)" }}>{kvMatch[1]}</span>
+              <span style={{ color: "var(--color-dim)" }}> = </span>
+              <span style={{ color: "var(--color-steel)" }}>{kvMatch[2]}</span>
               {"\n"}
             </span>
           );
@@ -687,7 +548,7 @@ function CodeBlock({ text, id, copy, copied, toml, comment }: CodeBlockProps) {
     }
     if (comment) {
       return text.split("\n").map((line, i) => (
-        <span key={i} style={{ color: line.startsWith("#") ? "var(--df-faint)" : "var(--df-steel-100)" }}>
+        <span key={i} style={{ color: line.startsWith("#") ? "var(--color-faint)" : "var(--color-steel-hi)" }}>
           {line}{"\n"}
         </span>
       ));
@@ -695,83 +556,60 @@ function CodeBlock({ text, id, copy, copied, toml, comment }: CodeBlockProps) {
     return text;
   };
 
+  // The code scrolls on its own; the copy button sits beside it, never on top.
   return (
     <div
-      className="df-mono"
       style={{
-        background: "rgba(255,255,255,0.03)", border: "1px solid var(--df-outline)",
-        borderRadius: 8, padding: "12px 44px 12px 14px",
-        fontSize: 12.5, color: "var(--df-steel-100)",
-        position: "relative", whiteSpace: "pre", overflowX: "auto", lineHeight: 1.6,
-        marginBottom: 6,
+        display: "flex", alignItems: "flex-start", gap: 8,
+        padding: "6px 6px 6px 14px", marginBottom: 6,
+        background: "var(--color-sink)", border: "1px solid var(--color-outline)",
+        borderRadius: "var(--radius-md)",
       }}
     >
-      {renderContent()}
-      <button
-        onClick={() => copy(text, id)}
+      <pre
+        className="df-mono df-scroll-thin"
         style={{
-          position: "absolute", top: 8, right: 8,
-          background: "rgba(18,20,20,0.9)", border: "1px solid var(--df-outline)",
-          borderRadius: 5, padding: "3px 8px",
-          fontSize: 11, color: isCopied ? "var(--df-steel-100)" : "var(--df-faint)",
-          cursor: "pointer", fontFamily: "inherit",
+          flex: 1, minWidth: 0, margin: 0, padding: "6px 0",
+          overflowX: "auto", whiteSpace: "pre",
+          fontSize: 12.5, lineHeight: 1.6, color: "var(--color-steel-hi)",
         }}
       >
-        {isCopied ? "Copied" : "Copy"}
-      </button>
+        {renderContent()}
+      </pre>
+      <Button
+        variant="ghost"
+        icon={isCopied ? "check" : "content_copy"}
+        iconPosition="start"
+        onClick={() => copy(text, id)}
+        style={{ flexShrink: 0, padding: "6px 9px" }}
+      >
+        {isCopied ? t("mcp.copied") : t("common.copy")}
+      </Button>
     </div>
   );
 }
 
 function Note({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <p style={{ fontSize: 12.5, color: "var(--df-dim)", lineHeight: 1.5, margin: 0, ...style }}>
-      {children}
-    </p>
-  );
+  return <p style={{ fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.55, margin: 0, ...style }}>{children}</p>;
 }
 
-function Mono({ children }: { children: React.ReactNode }) {
-  return (
-    <code className="df-mono" style={{ fontSize: 11.5, color: "var(--df-amber-200)", background: "rgba(255,77,0,0.08)", padding: "1px 5px", borderRadius: 3 }}>
-      {children}
-    </code>
-  );
+function EmptyRow({ children }: { children: React.ReactNode }) {
+  return <div style={{ padding: "16px 20px", fontSize: 12.5, color: "var(--color-faint)", lineHeight: 1.5 }}>{children}</div>;
 }
 
-// ─── Styles ───────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid var(--df-outline)",
-  borderRadius: 12,
-  background: "rgba(18,20,20,0.5)",
+  border: "1px solid var(--color-outline)",
+  borderRadius: "var(--radius-md)",
+  background: "var(--color-surface)",
   overflow: "hidden",
 };
 
 const headStyle: React.CSSProperties = {
   padding: "14px 20px",
-  borderBottom: "1px solid var(--df-outline)",
+  borderBottom: "1px solid var(--color-outline)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
 };
-
-const ghostBtnStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "5px 10px",
-  background: "transparent",
-  border: "1px solid var(--df-outline-md)",
-  borderRadius: 6,
-  color: "var(--df-dim)",
-  cursor: "pointer",
-  fontSize: 11.5,
-  fontFamily: "inherit",
-};
-
-function EmptyRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ padding: "16px 20px", fontSize: 12, color: "var(--df-faint)", lineHeight: 1.5 }}>{children}</div>
-  );
-}

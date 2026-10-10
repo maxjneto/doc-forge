@@ -14,9 +14,9 @@ export function PhaseTimelineRow({ activeIndex = 2 }: { activeIndex?: number }) 
         display: "flex",
         alignItems: "stretch",
         gap: 0,
-        border: "1px solid var(--df-outline)",
-        borderRadius: 14,
-        background: "rgba(14,16,17,0.5)",
+        border: "1px solid var(--color-outline)",
+        borderRadius: "var(--radius-lg)",
+        background: "var(--color-veil)",
         padding: 8,
         overflow: "hidden",
       }}
@@ -24,27 +24,27 @@ export function PhaseTimelineRow({ activeIndex = 2 }: { activeIndex?: number }) 
       {PHASES.map((p, i) => {
         const isDone = i < activeIndex;
         const isNow = i === activeIndex;
-        const numColor = isNow ? "var(--df-amber-500)" : isDone ? "var(--df-amber-trail)" : "var(--df-mute)";
-        const nameColor = isNow ? "var(--df-on-surface)" : isDone ? "var(--df-dim)" : "var(--df-dim)";
+        const numColor = isNow ? "var(--color-heat)" : isDone ? "var(--color-heat-line)" : "var(--color-mute)";
+        const nameColor = isNow ? "var(--color-text)" : isDone ? "var(--color-dim)" : "var(--color-dim)";
         return (
           <div
             key={p.num}
             style={{
               flex: 1,
               padding: "18px 14px",
-              borderRadius: 8,
+              borderRadius: "var(--radius-md)",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 8,
               textAlign: "center",
               position: "relative",
-              borderLeft: i > 0 ? "1px solid var(--df-outline)" : "none",
+              borderLeft: i > 0 ? "1px solid var(--color-outline)" : "none",
             }}
           >
             <span
               className="df-mono"
-              style={{ fontSize: 11, color: numColor, letterSpacing: "0.12em", fontWeight: 600 }}
+              style={{ fontSize: 11.5, color: numColor, letterSpacing: "var(--tracking-label)", fontWeight: 600 }}
             >
               {p.num}
             </span>
@@ -53,19 +53,19 @@ export function PhaseTimelineRow({ activeIndex = 2 }: { activeIndex?: number }) 
               style={{
                 width: 6,
                 height: 6,
-                borderRadius: 999,
+                borderRadius: "var(--radius-pill)",
                 background: isNow
-                  ? "var(--df-amber-500)"
+                  ? "var(--color-heat)"
                   : isDone
-                  ? "var(--df-amber-trail)"
-                  : "var(--df-mute)",
+                  ? "var(--color-heat-line)"
+                  : "var(--color-mute)",
                 boxShadow: isNow
-                  ? "0 0 0 3px rgba(255,77,0,0.16), 0 0 10px rgba(255,77,0,0.55)"
+                  ? "0 0 0 3px var(--color-heat-strong), 0 0 10px var(--color-heat-line)"
                   : "none",
               }}
             />
             <span style={{ fontSize: 13, fontWeight: 500, color: nameColor }}>{p.name}</span>
-            <span style={{ fontSize: 11, color: "var(--df-faint)", marginTop: 4, lineHeight: 1.4, maxWidth: 120 }}>
+            <span style={{ fontSize: 11.5, color: "var(--color-faint)", marginTop: 4, lineHeight: 1.4, maxWidth: 120 }}>
               {p.desc}
             </span>
           </div>

@@ -58,14 +58,14 @@ export function PublicDocumentPage() {
       <div
         style={{
           minHeight: "100vh",
-          background: "var(--df-bg)",
+          background: "var(--color-bg)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
         }}
       >
-        <p style={{ fontSize: 13.5, color: "var(--df-faint)", textAlign: "center", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: "var(--color-faint)", textAlign: "center", lineHeight: 1.6 }}>
           {t("public.invalid")}
         </p>
       </div>
@@ -73,7 +73,7 @@ export function PublicDocumentPage() {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--df-bg)", overflow: "hidden" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bg)", overflow: "hidden" }}>
       <div
         style={{
           height: 56,
@@ -81,7 +81,7 @@ export function PublicDocumentPage() {
           alignItems: "center",
           gap: 9,
           padding: "0 24px",
-          borderBottom: "1px solid var(--df-outline)",
+          borderBottom: "1px solid var(--color-outline)",
           flexShrink: 0,
         }}
       >
@@ -91,14 +91,14 @@ export function PublicDocumentPage() {
           style={{
             fontSize: 12.5,
             fontWeight: 700,
-            letterSpacing: "0.14em",
-            color: "var(--df-on-surface)",
+            letterSpacing: "var(--tracking-eyebrow)",
+            color: "var(--color-text)",
           }}
         >
           DOCFORGE
         </div>
         <span style={{ flex: 1 }} />
-        <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+        <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
           {t("public.badge").toUpperCase()}
         </span>
         <LanguageSwitcher compact />
@@ -106,8 +106,8 @@ export function PublicDocumentPage() {
 
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         {doc && headings.length > 0 && (
-          <aside style={{ width: 220, flexShrink: 0, overflowY: "auto", padding: "28px 16px", borderRight: "1px solid var(--df-outline)", background: "var(--color-shade-20)" }} className="df-scroll-thin public-document-outline">
-            <div className="df-mono" style={{ marginBottom: 14, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--df-faint)" }}>
+          <aside style={{ width: 220, flexShrink: 0, overflowY: "auto", padding: "28px 16px", borderRight: "1px solid var(--color-outline)", background: "var(--color-sink)" }} className="df-scroll-thin public-document-outline">
+            <div className="df-mono" style={{ marginBottom: 14, fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-faint)" }}>
               › {t("public.structure")}
             </div>
             <DocumentOutline headings={headings} activeSlug={activeSlug} onNavigate={navigateTo} />
@@ -122,21 +122,21 @@ export function PublicDocumentPage() {
                 fontSize: 28,
                 fontWeight: 700,
                 letterSpacing: "-0.03em",
-                color: "var(--df-on-surface)",
+                color: "var(--color-text)",
                 margin: "0 0 28px",
               }}
             >
               {doc.title}
             </h1>
             {doc.updated_at && (
-              <div className="df-mono" style={{ marginTop: -18, marginBottom: 28, fontSize: 9.5, letterSpacing: "0.08em", color: "var(--df-faint)" }}>
+              <div className="df-mono" style={{ marginTop: -18, marginBottom: 28, fontSize: 10, letterSpacing: "var(--tracking-label)", color: "var(--color-faint)" }}>
                 {t("public.publishedOn", { date: new Date(doc.updated_at).toLocaleDateString(dateLocale) }).toUpperCase()}
               </div>
             )}
             <MarkdownRenderer content={doc.content} variant="editor" headingIds />
           </>
         ) : (
-          <p style={{ fontSize: 13, color: "var(--df-faint)" }}>{t("common.loading")}</p>
+          <p style={{ fontSize: 13, color: "var(--color-faint)" }}>{t("common.loading")}</p>
         )}
           </div>
         </main>

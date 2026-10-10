@@ -10,7 +10,7 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        color: "var(--df-faint)",
+        color: "var(--color-faint)",
       }}
     >
       <span className="material-symbols-outlined" style={{ fontSize: 15 }}>language</span>
@@ -20,13 +20,13 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
         onChange={(event) => setLocale(event.target.value as Locale)}
         className="df-mono"
         style={{
-          border: "1px solid var(--df-outline-md)",
+          border: "1px solid var(--color-outline-md)",
           borderRadius: "var(--radius-sm)",
-          background: "var(--df-surface-mid)",
-          color: "var(--df-dim)",
+          background: "var(--color-surface-mid)",
+          color: "var(--color-dim)",
           padding: compact ? "4px 6px" : "6px 8px",
           fontSize: compact ? 9.5 : 10.5,
-          letterSpacing: "0.06em",
+          letterSpacing: "var(--tracking-data)",
           cursor: "pointer",
           outline: "none",
         }}

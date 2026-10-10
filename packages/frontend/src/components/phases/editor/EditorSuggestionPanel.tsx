@@ -75,13 +75,13 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
     <Card tone="heat" style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       {/* #n · TIPO · §seção */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+        <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
           #{index}
         </span>
         <Pill tone="heat" dot={false}>
           {CHANGE_LABEL[kind]}
         </Pill>
-        <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+        <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
           {sections.length === 0
             ? "documento"
             : sections.length === 1
@@ -95,7 +95,7 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
         )}
       </div>
 
-      <div style={{ fontSize: 13.5, lineHeight: 1.45, fontWeight: 600, color: "var(--df-on-surface)" }}>
+      <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 600, color: "var(--color-text)" }}>
         {suggestion.agentName ?? "Agente"} propôs {hunks.length}{" "}
         {hunks.length === 1 ? "mudança" : "mudanças"}
       </div>
@@ -107,11 +107,11 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div
             className="df-mono"
-            style={{ fontSize: 9, letterSpacing: "0.16em", color: "var(--df-faint)" }}
+            style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: "var(--color-faint)" }}
           >
             › POR QUE
           </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "var(--df-dim)" }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "var(--color-dim)" }}>
             {suggestion.note}
           </div>
         </div>
@@ -130,11 +130,11 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
             boxSizing: "border-box",
             padding: "8px 10px",
             borderRadius: "var(--radius-sm)",
-            background: "var(--df-surface-mid)",
-            border: "1px solid var(--color-error-border)",
+            background: "var(--color-surface-mid)",
+            border: "1px solid var(--color-error-line)",
             fontSize: 11.5,
             lineHeight: 1.5,
-            color: "var(--df-dim)",
+            color: "var(--color-dim)",
             fontFamily: "inherit",
             outline: "none",
             resize: "vertical",
@@ -143,7 +143,7 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
       )}
 
       {error && (
-        <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--df-error)" }}>{error}</div>
+        <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "var(--color-error)" }}>{error}</div>
       )}
 
       <div style={{ display: "flex", gap: 7 }}>
@@ -217,7 +217,7 @@ export function EditorSuggestionPanel({
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-      <ScrollFadeContainer fadeColor="rgba(9,10,12,0.97)">
+      <ScrollFadeContainer fadeColor="var(--color-bg)">
       <div
         style={{
           padding: "12px 14px",
@@ -231,9 +231,9 @@ export function EditorSuggestionPanel({
             style={{
               margin: 0,
               padding: "8px 4px",
-              fontSize: 12,
+              fontSize: 12.5,
               lineHeight: 1.55,
-              color: "rgba(227,226,226,0.38)",
+              color: "var(--color-faint)",
             }}
           >
             Nada pendente. Escritas de agente aparecem aqui para revisão.
@@ -261,7 +261,7 @@ export function EditorSuggestionPanel({
         <div
           style={{
             flexShrink: 0,
-            borderTop: "1px solid var(--df-outline)",
+            borderTop: "1px solid var(--color-outline)",
             padding: "14px 16px",
             display: "flex",
             flexDirection: "column",
@@ -269,13 +269,13 @@ export function EditorSuggestionPanel({
           }}
         >
           {triage.error && (
-            <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--df-error)" }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "var(--color-error)" }}>
               {triage.error}
             </div>
           )}
           <div
             className="df-mono"
-            style={{ fontSize: 9, letterSpacing: "0.06em", color: "var(--df-faint)" }}
+            style={{ fontSize: 10, letterSpacing: "var(--tracking-data)", color: "var(--color-faint)" }}
           >
             ↑↓ NAVEGAR · A ACEITAR · R RECUSAR
           </div>
@@ -284,8 +284,8 @@ export function EditorSuggestionPanel({
               style={{
                 flex: 1,
                 height: 4,
-                borderRadius: 2,
-                background: "var(--df-outline)",
+                borderRadius: "var(--radius-xs)",
+                background: "var(--color-outline)",
                 overflow: "hidden",
               }}
             >
@@ -293,12 +293,12 @@ export function EditorSuggestionPanel({
                 style={{
                   width: `${(triage.decided / triage.total) * 100}%`,
                   height: "100%",
-                  background: "var(--df-amber-500)",
+                  background: "var(--color-heat)",
                   transition: "width 0.2s",
                 }}
               />
             </div>
-            <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-faint)" }}>
+            <span className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
               {triage.decided} / {triage.total}
             </span>
           </div>
