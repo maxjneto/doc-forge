@@ -38,11 +38,17 @@ async def test_builtin_types_listed(client_factory):
 async def test_new_type_creates_its_sections(client_factory, slug):
     user = User(id=f"u_{slug}", email=f"{slug}@test.com", name="T", credits=5)
     async with client_factory(user) as client:
-        with patch("app.routers.documents.inngest_client") as mock_inngest:
+        # Hosted guided creation is off by default (editor-first); the section
+        # skeleton only exists on the guided path, so turn it on for this test.
+        with (
+            patch("app.routers.documents.inngest_client") as mock_inngest,
+            patch("app.routers.documents.settings.HOSTED_GUIDED_WORKFLOW_ENABLED", True),
+        ):
             mock_inngest.send = AsyncMock()
             res = await client.post(
                 "/api/documents",
                 json={
+                    "mode": "guided",
                     "document_type_slug": slug,
                     "document_context": (
                         "The payments service returned elevated 500 error rates for "
