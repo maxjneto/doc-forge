@@ -13,6 +13,7 @@ from app.routers import (
     billing,
     document_types,
     documents,
+    layout,
     organization,
     pipeline,
     pipeline_definitions,
@@ -67,6 +68,7 @@ app.include_router(users_router.router, prefix="/api")
 app.include_router(document_types.router, prefix="/api")
 app.include_router(artifacts.router, prefix="/api")
 app.include_router(organization.router, prefix="/api")
+app.include_router(layout.router, prefix="/api")
 
 inngest.fast_api.serve(app, inngest_client, ALL_FUNCTIONS)
 
