@@ -6,7 +6,7 @@
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# The three app images (backend/frontend/mcp) are built by
+# The four app images (backend/frontend/mcp/layout) are built by
 # .github/workflows/build.yml and pulled from GHCR — the VPS never builds.
 #
 # Caddy terminates TLS (automatic Let's Encrypt) and routes:
@@ -15,7 +15,8 @@
 #   https://$DOCFORGE_MCP_DOMAIN/*  -> mcp:8001        (MCP streamable HTTP)
 #
 # Only Caddy publishes ports (80/443). Everything else talks over the internal
-# network, so Postgres is never exposed to the internet.
+# network, so Postgres is never exposed to the internet. The layout service has
+# no Caddy route at all: only the backend calls it.
 #
 # Single-VPS profile: the guided executor uses Inngest Cloud (managed) and SSE
 # uses in-process queues (single backend replica), so there is no self-hosted
@@ -70,9 +71,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      layout:
+        condition: service_healthy
     env_file:
       - .env
     environment:
+      LAYOUT_SERVICE_URL: http://layout:8002
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-docforge}
       # No REDIS_URL → SSE uses in-process queues (single replica).
       # No INNGEST_DEV_SERVER_URL → the SDK targets Inngest Cloud in production;
@@ -85,6 +89,11 @@ services:
       STRIPE_CHECKOUT_CANCEL_URL: https://${DOCFORGE_DOMAIN}/billing?checkout=cancel
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  # Runs @docforge/layout for the backend. Stateless, internal only.
+  layout:
+    image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-layout:${IMAGE_TAG:-latest}
+    restart: unless-stopped
 
   mcp:
     image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-mcp:${IMAGE_TAG:-latest}

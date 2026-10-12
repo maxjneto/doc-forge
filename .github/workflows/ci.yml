@@ -69,6 +69,20 @@ jobs:
           VITE_API_BASE: /api
         run: npm run build
 
+  layout-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        working-directory: packages/layout-service
+        run: npm ci --workspaces=false
+      - name: Test
+        working-directory: packages/layout-service
+        run: npm test
+
   mcp:
     runs-on: ubuntu-latest
     steps:
