@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
+import { useI18n } from "@/i18n";
 
 export function DashboardTipCard() {
+  const { t } = useI18n();
   return (
     <section
       style={{
-        border: "1px solid rgba(255,77,0,0.20)",
-        borderRadius: 12,
-        background: "linear-gradient(180deg, rgba(255,77,0,0.05), rgba(18,20,20,0.5))",
+        border: "1px solid var(--color-heat-strong)",
+        borderRadius: "var(--radius-md)",
+        background: "linear-gradient(180deg, var(--color-heat-tint), var(--color-veil))",
         overflow: "hidden",
       }}
     >
@@ -15,17 +17,16 @@ export function DashboardTipCard() {
           className="df-mono"
           style={{
             fontSize: 10,
-            letterSpacing: "0.18em",
+            letterSpacing: "var(--tracking-eyebrow)",
             textTransform: "uppercase",
-            color: "var(--df-amber-300)",
+            color: "var(--color-heat-hi)",
             fontWeight: 600,
           }}
         >
-          Tip
+          {t("dashboard.tip")}
         </span>
-        <div style={{ fontSize: 13, color: "#e3e2e2", lineHeight: 1.55, marginTop: 8 }}>
-          Connect <b>Claude Code</b> to keep editing a forge from your terminal. It picks up the same version history
-          and audit checkpoints.
+        <div style={{ fontSize: 13, color: "var(--color-text)", lineHeight: 1.55, marginTop: 8 }}>
+          {t("dashboard.tipBody")}
         </div>
         <Link
           to="/how-it-works#mcp"
@@ -34,13 +35,13 @@ export function DashboardTipCard() {
             alignItems: "center",
             gap: 5,
             marginTop: 12,
-            color: "var(--df-amber-200)",
-            fontSize: 12,
+            color: "var(--color-heat-soft)",
+            fontSize: 12.5,
             fontWeight: 600,
             textDecoration: "none",
           }}
         >
-          Set up MCP
+          {t("dashboard.setupMcp")}
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_forward</span>
         </Link>
       </div>

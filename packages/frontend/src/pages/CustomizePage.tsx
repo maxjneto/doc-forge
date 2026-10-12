@@ -1,7 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { TopBar } from "@/components/shared";
+import { Button, Card, Eyebrow, IconButton, Input, Page, PageHeader, Pill } from "@/components/ui";
 import {
   apiFetchMe,
   apiListDocumentTypes,
@@ -14,13 +15,16 @@ import {
   apiDeletePipelineDefinition,
 } from "@/utils/api";
 import type { DocumentType, PipelineDefinition, PipelineStep } from "@/types";
+import { useI18n } from "@/i18n";
 
 const PHASES = ["discovery", "alignment", "generation", "refinement", "audit", "coherence"];
 
 type CustomizeTab = "pipelines" | "documentTypes";
+type GetToken = () => Promise<string | null>;
 
 export function CustomizePage() {
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [plan, setPlan] = useState<string | null>(null);
   const [tab, setTab] = useState<CustomizeTab>("pipelines");
 
@@ -38,24 +42,19 @@ export function CustomizePage() {
   const locked = plan !== null && plan === "free";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--df-bg, #0a0b0c)", color: "#e3e2e2", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
       <TopBar dashboardNav />
 
-      <main style={{ flex: 1, paddingTop: 56 + 36, paddingBottom: 80, paddingLeft: 56, paddingRight: 56, maxWidth: 960, margin: "0 auto", width: "100%" }}>
-        <div style={{ marginBottom: 36 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 4px" }}>Customize</h1>
-          <p style={{ fontSize: 13, color: "var(--df-dim)", margin: 0 }}>
-            Clone the BYOA pipeline, define your own document types, and edit the prompts your agent reads at each step.
-          </p>
-        </div>
+      <Page>
+        <PageHeader title={t("cz.title")} lead={t("cz.lead")} />
 
         {locked ? (
           <UpgradeNotice />
         ) : (
           <>
-            <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--df-outline)", marginBottom: 28 }}>
-              <TabButton label="Pipelines" active={tab === "pipelines"} onClick={() => setTab("pipelines")} />
-              <TabButton label="Document types" active={tab === "documentTypes"} onClick={() => setTab("documentTypes")} />
+            <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-outline)", marginBottom: 28 }}>
+              <TabButton label={t("cz.tabPipelines")} active={tab === "pipelines"} onClick={() => setTab("pipelines")} />
+              <TabButton label={t("cz.tabTypes")} active={tab === "documentTypes"} onClick={() => setTab("documentTypes")} />
             </div>
             {/* Both sections stay mounted; switching tabs only toggles display,
                 so neither refetches on every tab switch. */}
@@ -67,7 +66,7 @@ export function CustomizePage() {
             </div>
           </>
         )}
-      </main>
+      </Page>
     </div>
   );
 }
@@ -75,17 +74,21 @@ export function CustomizePage() {
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
+      type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       style={{
         padding: "10px 16px",
         background: "transparent",
         border: "none",
-        borderBottom: `2px solid ${active ? "var(--df-amber-500)" : "transparent"}`,
-        color: active ? "#e3e2e2" : "var(--df-faint)",
+        boxShadow: active ? "inset 0 -2px 0 var(--color-heat)" : "none",
+        color: active ? "var(--color-text)" : "var(--color-faint)",
         fontSize: 13,
         fontWeight: active ? 600 : 500,
         cursor: "pointer",
         fontFamily: "inherit",
+        transition: "color var(--duration-fast) var(--ease-forge)",
       }}
     >
       {label}
@@ -94,29 +97,22 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 }
 
 function UpgradeNotice() {
+  const { t } = useI18n();
+  const navigate = useNavigate();
   return (
-    <div style={{ ...cardStyle, padding: "24px 20px", textAlign: "center" }}>
-      <span className="material-symbols-outlined" style={{ fontSize: 28, color: "var(--df-amber-300)", marginBottom: 10, display: "block" }}>
-        lock
-      </span>
-      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 6px" }}>Custom pipelines, document types, and prompts are a Pro feature.</p>
-      <p style={{ fontSize: 13, color: "var(--df-dim)", margin: "0 0 16px" }}>
-        Upgrade to clone the baseline pipeline, edit its prompts, and define your own document types.
-      </p>
-      <Link
-        to="/billing"
-        className="forge-btn"
-        style={{ display: "inline-flex", padding: "8px 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, textDecoration: "none" }}
-      >
-        View plans
-      </Link>
-    </div>
+    <Card style={{ padding: "28px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 28, color: "var(--color-faint)", marginBottom: 6 }}>lock</span>
+      <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{t("cz.lockedTitle")}</p>
+      <p style={{ fontSize: 13, color: "var(--color-dim)", margin: "0 0 12px", maxWidth: 520 }}>{t("cz.lockedBody")}</p>
+      <Button variant="primary" icon="arrow_forward" onClick={() => navigate("/billing")}>{t("cz.viewPlans")}</Button>
+    </Card>
   );
 }
 
 // ─── Pipelines ────────────────────────────────────────────────
 
-function PipelinesSection({ getToken }: { getToken: () => Promise<string | null> }) {
+function PipelinesSection({ getToken }: { getToken: GetToken }) {
+  const { t } = useI18n();
   const [definitions, setDefinitions] = useState<PipelineDefinition[] | null>(null);
   const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
   const [cloneSlug, setCloneSlug] = useState("rfc");
@@ -146,7 +142,7 @@ function PipelinesSection({ getToken }: { getToken: () => Promise<string | null>
       setCloneName("");
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to clone pipeline");
+      setError(e instanceof Error ? e.message : t("cz.errClone"));
     } finally {
       setCloning(false);
     }
@@ -157,44 +153,43 @@ function PipelinesSection({ getToken }: { getToken: () => Promise<string | null>
       await apiDeletePipelineDefinition(id, getToken);
       await refresh();
     } catch {
-      setError("Failed to delete pipeline");
+      setError(t("cz.errDelete"));
     }
   }
 
   return (
     <section style={{ marginBottom: 36 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.015em", margin: "0 0 14px" }}>Pipelines</h2>
       <div style={cardStyle}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--df-outline)" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-outline)" }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <select
+              className="df-input"
               value={cloneSlug}
               onChange={(e) => setCloneSlug(e.target.value)}
-              style={selectStyle}
+              aria-label={t("cz.baseType")}
+              style={{ width: "auto" }}
             >
               {docTypes.map((dt) => (
                 <option key={dt.slug} value={dt.slug}>{dt.name}</option>
               ))}
             </select>
-            <input
+            <Input
               value={cloneName}
               onChange={(e) => setCloneName(e.target.value)}
-              placeholder="Pipeline name (optional)"
-              style={{ ...inputStyle, flex: 1, minWidth: 160 }}
+              placeholder={t("cz.pipelineName")}
+              aria-label={t("cz.pipelineName")}
+              style={{ flex: 1, minWidth: 160, width: "auto" }}
             />
-            <button onClick={handleClone} disabled={cloning} style={primaryBtnStyle}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>fork_right</span>
-              {cloning ? "Cloning…" : "Clone baseline"}
-            </button>
+            <Button variant="primary" icon="fork_right" iconPosition="start" onClick={handleClone} disabled={cloning}>
+              {cloning ? t("cz.cloning") : t("cz.clone")}
+            </Button>
           </div>
-          {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: "8px 0 0" }}>{error}</p>}
+          {error && <p style={{ fontSize: 12.5, color: "var(--color-error)", margin: "8px 0 0" }}>{error}</p>}
         </div>
 
         <div>
-          {definitions === null && <EmptyRow>Loading…</EmptyRow>}
-          {definitions && definitions.length === 0 && (
-            <EmptyRow>No custom pipelines yet. Clone a baseline above to start editing steps.</EmptyRow>
-          )}
+          {definitions === null && <EmptyRow>{t("common.loading")}</EmptyRow>}
+          {definitions && definitions.length === 0 && <EmptyRow>{t("cz.noPipelines")}</EmptyRow>}
           {definitions && definitions.map((d, i) => (
             <PipelineRow
               key={d.id}
@@ -221,16 +216,11 @@ interface PipelineRowProps {
   onToggle: () => void;
   onDelete: () => void;
   onSaved: () => void;
-  getToken: () => Promise<string | null>;
+  getToken: GetToken;
   docTypes: DocumentType[];
 }
 
-const PIPELINE_GROUPS: { phase: string; label: string }[] = [
-  { phase: "discovery", label: "Discovery" },
-  { phase: "alignment", label: "Alignment" },
-  { phase: "generation", label: "Generation" },
-  { phase: "audit", label: "Audit" },
-];
+const PIPELINE_GROUPS = ["discovery", "alignment", "generation", "audit"];
 
 /** Structured editor over `definition.steps` — grouped by phase in the order
  * they already appear in the array (discovery → alignment → generation →
@@ -238,6 +228,7 @@ const PIPELINE_GROUPS: { phase: string; label: string }[] = [
  * the user; `phase`/`section_key`/`checkpoint` are always copied straight
  * from the original step object, so there's no client-side JSON to validate. */
 function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSaved, getToken, docTypes }: PipelineRowProps) {
+  const { t } = useI18n();
   const baseDocType = docTypes.find((dt) => dt.id === definition.baseDocumentTypeId) ?? null;
   const [nameDraft, setNameDraft] = useState(definition.name);
   const [steps, setSteps] = useState<PipelineStep[]>(() => definition.steps.map((s) => ({ ...s })));
@@ -260,74 +251,60 @@ function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSave
       await apiUpdatePipelineDefinition(definition.id, { name: nameDraft, steps }, getToken);
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save pipeline");
+      setError(e instanceof Error ? e.message : t("cz.errSave"));
     } finally {
       setSaving(false);
     }
   }
 
+  const count = definition.steps.length;
+
   return (
-    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--df-outline)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 20px" }}>
-        <button onClick={onToggle} style={{ ...ghostBtnStyle, border: "none", padding: 4 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            {expanded ? "expand_less" : "expand_more"}
-          </span>
-        </button>
+    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--color-outline)" }}>
+      <div className="df-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px" }}>
+        <IconButton
+          icon={expanded ? "expand_less" : "expand_more"}
+          label={expanded ? t("folder.collapse") : t("folder.expand")}
+          onClick={onToggle}
+          aria-expanded={expanded}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13 }}>{definition.name}</div>
-          <div className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", marginTop: 2 }}>
-            {definition.steps.length} steps
+          <div style={{ fontSize: 13, fontWeight: 500 }}>{definition.name}</div>
+          <div style={{ fontSize: 11.5, color: "var(--color-faint)", marginTop: 2 }}>
+            {count === 1 ? t("cz.step") : t("cz.steps", { count })}
+            {baseDocType ? ` · ${baseDocType.name}` : ""}
           </div>
         </div>
-        <button onClick={onDelete} style={{ ...ghostBtnStyle, color: "var(--df-faint)" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>delete</span>
-          Delete
-        </button>
+        <Button variant="ghost" icon="delete" iconPosition="start" onClick={onDelete}>{t("common.delete")}</Button>
       </div>
 
       {expanded && (
-        <div style={{ padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <input
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            style={inputStyle}
-          />
+        <div style={{ padding: "4px 20px 18px 54px", display: "flex", flexDirection: "column", gap: 18 }}>
+          <Input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} aria-label={t("versions.name")} />
 
-          {PIPELINE_GROUPS.map((group) => {
+          {PIPELINE_GROUPS.map((phase) => {
             const groupSteps = steps
               .map((step, index) => ({ step, index }))
-              .filter(({ step }) => step.phase === group.phase);
+              .filter(({ step }) => step.phase === phase);
             if (groupSteps.length === 0) return null;
             return (
-              <div key={group.phase}>
-                <div className="df-mono" style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--df-faint)", marginBottom: 8 }}>
-                  {group.label}
-                </div>
+              <div key={phase}>
+                <Eyebrow style={{ marginBottom: 8 }}>{t(`phase.${phase}`)}</Eyebrow>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {groupSteps.map(({ step, index }) => (
-                    <div
-                      key={index}
-                      style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--df-outline)" }}
-                    >
+                    <div key={index} style={subCardStyle}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 500, flex: 1 }}>
-                          {step.section_key ? sectionLabel(step.section_key) : group.label}
+                        <span style={{ fontSize: 12.5, fontWeight: 600, flex: 1 }}>
+                          {step.section_key ? sectionLabel(step.section_key) : t(`phase.${phase}`)}
                         </span>
-                        {step.checkpoint === "human" && (
-                          <span
-                            className="df-mono"
-                            style={{ fontSize: 9.5, letterSpacing: "0.04em", padding: "2px 7px", borderRadius: 4, background: "rgba(255,196,0,0.12)", color: "#ffd25e" }}
-                          >
-                            requires human approval
-                          </span>
-                        )}
+                        {step.checkpoint === "human" && <Pill tone="warn" compact>{t("cz.humanApproval")}</Pill>}
                       </div>
                       <textarea
+                        className="df-input"
                         value={step.prompt ?? ""}
                         onChange={(e) => updatePrompt(index, e.target.value)}
                         rows={4}
-                        style={{ ...inputStyle, fontSize: 12, lineHeight: 1.5, resize: "vertical" }}
+                        style={{ lineHeight: 1.55, resize: "vertical" }}
                       />
                     </div>
                   ))}
@@ -336,11 +313,11 @@ function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSave
             );
           })}
 
-          {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: 0 }}>{error}</p>}
+          {error && <p style={{ fontSize: 12.5, color: "var(--color-error)", margin: 0 }}>{error}</p>}
           <div>
-            <button onClick={handleSave} disabled={saving} style={primaryBtnStyle}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? t("versions.saving") : t("versions.saveChanges")}
+            </Button>
           </div>
         </div>
       )}
@@ -350,7 +327,8 @@ function PipelineRow({ definition, isFirst, expanded, onToggle, onDelete, onSave
 
 // ─── Document types + prompts ─────────────────────────────────
 
-function DocumentTypesSection({ getToken }: { getToken: () => Promise<string | null> }) {
+function DocumentTypesSection({ getToken }: { getToken: GetToken }) {
+  const { t } = useI18n();
   const [types, setTypes] = useState<DocumentType[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -364,34 +342,28 @@ function DocumentTypesSection({ getToken }: { getToken: () => Promise<string | n
 
   useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const customTypes = (types ?? []).filter((t) => t.isCustom);
+  const customTypes = (types ?? []).filter((dt) => dt.isCustom);
 
   return (
     <section>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.015em", margin: 0 }}>Custom document types</h2>
-        <button onClick={() => setShowCreate(!showCreate)} style={ghostBtnStyle}>
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{showCreate ? "close" : "add"}</span>
-          {showCreate ? "Cancel" : "New type"}
-        </button>
+        <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>{t("cz.customTypes")}</h2>
+        <Button icon={showCreate ? "close" : "add"} iconPosition="start" onClick={() => setShowCreate(!showCreate)}>
+          {showCreate ? t("common.cancel") : t("cz.newType")}
+        </Button>
       </div>
 
       {showCreate && (
         <div style={{ ...cardStyle, marginBottom: 16 }}>
-          <CreateTypeForm
-            getToken={getToken}
-            onCreated={() => { setShowCreate(false); refresh(); }}
-          />
+          <CreateTypeForm getToken={getToken} onCreated={() => { setShowCreate(false); refresh(); }} />
         </div>
       )}
 
       <div style={cardStyle}>
-        {types === null && <EmptyRow>Loading…</EmptyRow>}
-        {types && customTypes.length === 0 && (
-          <EmptyRow>No custom document types yet. Create one to expose it to the pipeline and MCP.</EmptyRow>
-        )}
-        {types && customTypes.map((t, i) => (
-          <DocumentTypeRow key={t.id} docType={t} isFirst={i === 0} getToken={getToken} />
+        {types === null && <EmptyRow>{t("common.loading")}</EmptyRow>}
+        {types && customTypes.length === 0 && <EmptyRow>{t("cz.noTypes")}</EmptyRow>}
+        {types && customTypes.map((dt, i) => (
+          <DocumentTypeRow key={dt.id} docType={dt} isFirst={i === 0} getToken={getToken} />
         ))}
       </div>
     </section>
@@ -425,12 +397,11 @@ function computeSectionKeys(sections: SectionDraft[]): string[] {
   });
 }
 
-function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<string | null>; onCreated: () => void }) {
+function CreateTypeForm({ getToken, onCreated }: { getToken: GetToken; onCreated: () => void }) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [sections, setSections] = useState<SectionDraft[]>([
-    { display_name: "", role_description: "" },
-  ]);
+  const [sections, setSections] = useState<SectionDraft[]>([{ display_name: "", role_description: "" }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -474,7 +445,7 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
       }, getToken);
       onCreated();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create document type");
+      setError(e instanceof Error ? e.message : t("cz.errCreate"));
     } finally {
       setSaving(false);
     }
@@ -482,53 +453,44 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
 
   return (
     <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (e.g. ADR)" style={inputStyle} />
+      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("cz.namePh")} aria-label={t("cz.namePh")} />
       <textarea
+        className="df-input"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Description"
+        placeholder={t("cz.descPh")}
+        aria-label={t("cz.descPh")}
         rows={2}
-        style={inputStyle}
       />
 
-      <div className="df-mono" style={{ fontSize: 10, letterSpacing: "0.1em", color: "var(--df-faint)", textTransform: "uppercase", marginTop: 6 }}>
-        Sections
-      </div>
+      <Eyebrow style={{ marginTop: 8 }}>{t("cz.sections")}</Eyebrow>
       {sections.map((s, i) => (
-        <div
-          key={i}
-          style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--df-outline)", display: "flex", flexDirection: "column", gap: 8 }}
-        >
+        <div key={i} style={{ ...subCardStyle, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <button onClick={() => moveSection(i, -1)} disabled={i === 0} style={reorderBtnStyle}>
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>keyboard_arrow_up</span>
-              </button>
-              <button onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1} style={reorderBtnStyle}>
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>keyboard_arrow_down</span>
-              </button>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <IconButton icon="keyboard_arrow_up" label={t("cz.moveUp")} onClick={() => moveSection(i, -1)} disabled={i === 0} style={{ width: 22, height: 18 }} />
+              <IconButton icon="keyboard_arrow_down" label={t("cz.moveDown")} onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1} style={{ width: 22, height: 18 }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <input
+              <Input
                 value={s.display_name}
                 onChange={(e) => updateSection(i, { display_name: e.target.value })}
-                placeholder="Display name (e.g. Context)"
-                style={inputStyle}
+                placeholder={t("cz.sectionNamePh")}
+                aria-label={t("cz.sectionNamePh")}
               />
-              <div className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", marginTop: 4 }}>
-                key: {sectionKeys[i]}
+              <div className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", marginTop: 4, letterSpacing: "var(--tracking-data)" }}>
+                {t("cz.key", { key: sectionKeys[i] })}
               </div>
             </div>
-            <button onClick={() => removeSection(i)} style={{ ...ghostBtnStyle, border: "none" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
-            </button>
+            <IconButton icon="close" label={t("cz.removeSection")} onClick={() => removeSection(i)} />
           </div>
           <textarea
+            className="df-input"
             value={s.role_description}
             onChange={(e) => updateSection(i, { role_description: e.target.value })}
-            placeholder="What this section should contain"
+            placeholder={t("cz.rolePh")}
+            aria-label={t("cz.rolePh")}
             rows={2}
-            style={inputStyle}
           />
           <SectionRoleGenButton
             documentTypeName={name}
@@ -540,17 +502,14 @@ function CreateTypeForm({ getToken, onCreated }: { getToken: () => Promise<strin
         </div>
       ))}
       <div>
-        <button onClick={addSection} style={ghostBtnStyle}>
-          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
-          Add section
-        </button>
+        <Button icon="add" iconPosition="start" onClick={addSection}>{t("cz.addSection")}</Button>
       </div>
 
-      {error && <p style={{ fontSize: 12, color: "var(--df-error, #f55)", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: 12.5, color: "var(--color-error)", margin: 0 }}>{error}</p>}
       <div>
-        <button onClick={handleSubmit} disabled={saving || !name} style={primaryBtnStyle}>
-          {saving ? "Creating…" : "Create document type"}
-        </button>
+        <Button variant="primary" onClick={handleSubmit} disabled={saving || !name}>
+          {saving ? t("common.creating") : t("cz.createType")}
+        </Button>
       </div>
     </div>
   );
@@ -562,9 +521,10 @@ function SectionRoleGenButton({
   documentTypeName: string;
   documentTypeDescription: string;
   sectionDisplayName: string;
-  getToken: () => Promise<string | null>;
+  getToken: GetToken;
   onGenerated: (text: string) => void;
 }) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const disabled = !documentTypeName.trim() || !documentTypeDescription.trim() || !sectionDisplayName.trim();
@@ -581,7 +541,7 @@ function SectionRoleGenButton({
       }, getToken);
       onGenerated(text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate");
+      setError(e instanceof Error ? e.message : t("cz.errGen"));
     } finally {
       setLoading(false);
     }
@@ -589,41 +549,47 @@ function SectionRoleGenButton({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button
+      <Button
+        variant="ghost"
+        icon="auto_awesome"
+        iconPosition="start"
         onClick={handleClick}
         disabled={disabled || loading}
-        title={disabled ? "Fill in the type's name, description, and this section's display name first" : undefined}
-        style={{ ...ghostBtnStyle, opacity: disabled ? 0.45 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
+        title={disabled ? t("cz.genHint") : undefined}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
-        {loading ? "Generating…" : "Generate with AI"}
-      </button>
-      {error && <span style={{ fontSize: 11, color: "var(--df-error, #f55)" }}>{error}</span>}
+        {loading ? t("cz.generating") : t("cz.genAi")}
+      </Button>
+      {error && <span style={{ fontSize: 11.5, color: "var(--color-error)" }}>{error}</span>}
     </div>
   );
 }
 
-function DocumentTypeRow({ docType, isFirst, getToken }: { docType: DocumentType; isFirst: boolean; getToken: () => Promise<string | null> }) {
+function DocumentTypeRow({ docType, isFirst, getToken }: { docType: DocumentType; isFirst: boolean; getToken: GetToken }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const count = docType.sections.length;
 
   return (
-    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--df-outline)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 20px" }}>
-        <button onClick={() => setExpanded(!expanded)} style={{ ...ghostBtnStyle, border: "none", padding: 4 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            {expanded ? "expand_less" : "expand_more"}
-          </span>
-        </button>
+    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--color-outline)" }}>
+      <div className="df-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px" }}>
+        <IconButton
+          icon={expanded ? "expand_less" : "expand_more"}
+          label={expanded ? t("folder.collapse") : t("folder.expand")}
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13 }}>{docType.name}</div>
-          <div className="df-mono" style={{ fontSize: 10, color: "var(--df-faint)", marginTop: 2 }}>
-            {docType.slug} · {docType.sections.length} section{docType.sections.length === 1 ? "" : "s"}
+          <div style={{ fontSize: 13, fontWeight: 500 }}>{docType.name}</div>
+          <div style={{ fontSize: 11.5, color: "var(--color-faint)", marginTop: 2 }}>
+            <span className="df-mono" style={{ letterSpacing: "var(--tracking-data)" }}>{docType.slug}</span>
+            {" · "}
+            {count === 1 ? t("cz.sectionCount") : t("cz.sectionsCount", { count })}
           </div>
         </div>
       </div>
       {expanded && (
-        <div style={{ padding: "0 20px 16px" }}>
-          <p style={{ fontSize: 12.5, color: "var(--df-dim)", margin: "0 0 14px" }}>{docType.description}</p>
+        <div style={{ padding: "0 20px 16px 54px" }}>
+          <p style={{ fontSize: 12.5, color: "var(--color-dim)", margin: "0 0 14px" }}>{docType.description}</p>
           {docType.sections.map((s) => (
             <PromptEditor key={s.sectionKey} docType={docType} sectionKey={s.sectionKey} sectionLabel={s.displayName} getToken={getToken} />
           ))}
@@ -636,8 +602,9 @@ function DocumentTypeRow({ docType, isFirst, getToken }: { docType: DocumentType
 function PromptEditor({
   docType, sectionKey, sectionLabel, getToken,
 }: {
-  docType: DocumentType; sectionKey: string; sectionLabel: string; getToken: () => Promise<string | null>;
+  docType: DocumentType; sectionKey: string; sectionLabel: string; getToken: GetToken;
 }) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState("generation");
   const [promptText, setPromptText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -654,33 +621,40 @@ function PromptEditor({
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save prompt");
+      setError(e instanceof Error ? e.message : t("cz.errPrompt"));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--df-outline)" }}>
+    <div style={{ ...subCardStyle, marginBottom: 12 }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 500, flex: 1 }}>{sectionLabel}</span>
-        <select value={phase} onChange={(e) => setPhase(e.target.value)} style={{ ...selectStyle, padding: "4px 8px", fontSize: 11 }}>
-          {PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
+        <span style={{ fontSize: 12.5, fontWeight: 600, flex: 1 }}>{sectionLabel}</span>
+        <select
+          className="df-input"
+          value={phase}
+          onChange={(e) => setPhase(e.target.value)}
+          aria-label={t("cz.phase")}
+          style={{ width: "auto", padding: "4px 8px" }}
+        >
+          {PHASES.map((p) => <option key={p} value={p}>{t(`phase.${p}`)}</option>)}
         </select>
       </div>
       <textarea
+        className="df-input"
         value={promptText}
         onChange={(e) => setPromptText(e.target.value)}
-        placeholder={`Prompt override for ${sectionLabel} / ${phase}…`}
+        placeholder={t("cz.promptPh", { section: sectionLabel, phase: t(`phase.${phase}`) })}
+        aria-label={t("cz.promptPh", { section: sectionLabel, phase: t(`phase.${phase}`) })}
         rows={3}
-        style={{ ...inputStyle, fontSize: 12 }}
       />
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-        <button onClick={handleSave} disabled={saving || !promptText.trim()} style={{ ...primaryBtnStyle, padding: "5px 12px", fontSize: 11 }}>
-          {saving ? "Saving…" : "Save prompt"}
-        </button>
-        {saved && <span style={{ fontSize: 11, color: "#50c878" }}>Saved</span>}
-        {error && <span style={{ fontSize: 11, color: "var(--df-error, #f55)" }}>{error}</span>}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+        <Button onClick={handleSave} disabled={saving || !promptText.trim()}>
+          {saving ? t("versions.saving") : t("cz.savePrompt")}
+        </Button>
+        {saved && <span role="status" style={{ fontSize: 11.5, color: "var(--color-ok)" }}>{t("cz.saved")}</span>}
+        {error && <span style={{ fontSize: 11.5, color: "var(--color-error)" }}>{error}</span>}
       </div>
     </div>
   );
@@ -689,73 +663,20 @@ function PromptEditor({
 // ─── Shared bits ──────────────────────────────────────────────
 
 function EmptyRow({ children }: { children: React.ReactNode }) {
-  return <div style={{ padding: "16px 20px", fontSize: 12, color: "var(--df-faint)", lineHeight: 1.5 }}>{children}</div>;
+  return <div style={{ padding: "16px 20px", fontSize: 12.5, color: "var(--color-faint)", lineHeight: 1.5 }}>{children}</div>;
 }
 
 const cardStyle: CSSProperties = {
-  border: "1px solid var(--df-outline)",
-  borderRadius: 12,
-  background: "rgba(18,20,20,0.5)",
+  border: "1px solid var(--color-outline)",
+  borderRadius: "var(--radius-md)",
+  background: "var(--color-surface)",
   overflow: "hidden",
 };
 
-const reorderBtnStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 20,
-  height: 16,
-  padding: 0,
-  background: "transparent",
-  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.09))",
-  borderRadius: 4,
-  color: "var(--df-dim)",
-  cursor: "pointer",
-};
-
-const ghostBtnStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "5px 10px",
-  background: "transparent",
-  border: "1px solid var(--df-outline-md, rgba(255,255,255,0.09))",
-  borderRadius: 6,
-  color: "var(--df-dim)",
-  cursor: "pointer",
-  fontSize: 11.5,
-  fontFamily: "inherit",
-};
-
-const primaryBtnStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "7px 14px",
-  borderRadius: 6,
-  fontSize: 12.5,
-  fontWeight: 600,
-  background: "var(--df-amber-500)",
-  color: "#fff",
-  border: "1px solid var(--df-amber-500)",
-  cursor: "pointer",
-  fontFamily: "inherit",
-};
-
-const inputStyle: CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid var(--df-outline)",
-  borderRadius: 6,
-  padding: "7px 10px",
-  color: "#e3e2e2",
-  fontSize: 12.5,
-  outline: "none",
-  fontFamily: "inherit",
-  boxSizing: "border-box",
-  width: "100%",
-};
-
-const selectStyle: CSSProperties = {
-  ...inputStyle,
-  width: "auto",
+/** A step or section inside a card — recessed one surface level. */
+const subCardStyle: CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: "var(--radius-sm)",
+  background: "var(--color-surface-mid)",
+  border: "1px solid var(--color-outline)",
 };

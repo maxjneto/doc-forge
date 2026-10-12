@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
-from app.config import settings
 from app.database import get_db
 from app.models.api_key import ApiKey
 from app.models.document import Document
@@ -21,6 +20,7 @@ from app.schemas.api_key import (
     ApiKeyUpdateRequest,
 )
 from app.services import tiers as tiers_service
+from app.services.credits import next_credit_reset, weekly_document_allowance
 
 router = APIRouter(tags=["users"])
 
@@ -37,8 +37,10 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name,
-        "credits": current_user.credits,
-        "weekly_credits": settings.WEEKLY_CREDITS,
+        "document_creations_remaining": current_user.credits,
+        "weekly_document_creations": weekly_document_allowance(current_user.plan),
+        "document_creations_reset_at": current_user.credits_reset_at,
+        "next_document_creations_reset_at": next_credit_reset(),
         "plan": current_user.plan,
     }
 

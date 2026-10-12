@@ -103,8 +103,8 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
             height: 128,
             width: 128,
             borderRadius: "50%",
-            border: "1px solid rgba(255,77,0,0.10)",
-            background: "rgba(255,77,0,0.05)",
+            border: "1px solid var(--color-heat-wash)",
+            background: "var(--color-heat-tint)",
           }}
         />
         {/* Hit wave ring */}
@@ -115,7 +115,7 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
             height: 128,
             width: 128,
             borderRadius: "50%",
-            border: "1px solid rgba(255,77,0,0.35)",
+            border: "1px solid var(--color-heat-line)",
           }}
         />
         {/* Hit glow */}
@@ -127,7 +127,7 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
             height: 32,
             width: 32,
             borderRadius: "50%",
-            background: "rgba(255,77,0,0.10)",
+            background: "var(--color-heat-wash)",
           }}
         />
         {/* Core */}
@@ -135,12 +135,12 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
           className="forge-hit-core"
           style={{
             position: "relative",
-            zIndex: 10,
+            zIndex: "var(--z-raised)",
             height: 16,
             width: 16,
             borderRadius: "50%",
-            background: "var(--df-amber-500, #ff4d00)",
-            boxShadow: "0 0 24px rgba(255,77,0,0.85), 0 0 0 3px rgba(255,77,0,0.15)",
+            background: "var(--color-heat)",
+            boxShadow: "0 0 24px var(--color-heat), 0 0 0 3px var(--color-heat-strong)",
           }}
         />
 
@@ -160,14 +160,14 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
         <p
           key={stepIndex}
           className="animate-fade-in"
-          style={{ fontSize: 13, color: "#e3e2e2", fontWeight: 500, margin: "0 0 4px" }}
+          style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 500, margin: "0 0 4px" }}
         >
           {current.message}
         </p>
         <p
           key={`detail-${stepIndex}`}
           className="animate-fade-in"
-          style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))", margin: 0 }}
+          style={{ fontSize: 11.5, color: "var(--color-faint)", margin: 0 }}
         >
           {current.detail}
         </p>
@@ -180,8 +180,8 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
           height: 1,
           width: 64,
           overflow: "hidden",
-          background: "var(--df-outline, rgba(255,255,255,0.06))",
-          borderRadius: 1,
+          background: "var(--color-outline)",
+          borderRadius: "var(--radius-xs)",
         }}
       >
         <div
@@ -190,7 +190,7 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
             position: "absolute",
             inset: 0,
             width: "50%",
-            background: "var(--df-amber-500, #ff4d00)",
+            background: "var(--color-heat)",
           }}
         />
       </div>
@@ -206,9 +206,9 @@ export function ForgeLoader({ steps, stepInterval = 3000 }: ForgeLoaderProps) {
               borderRadius: "50%",
               transition: "background 0.3s",
               background: i <= stepIndex
-                ? "var(--df-amber-500, #ff4d00)"
-                : "var(--df-mute, rgba(227,226,226,0.18))",
-              boxShadow: i === stepIndex ? "0 0 6px rgba(255,77,0,0.6)" : "none",
+                ? "var(--color-heat)"
+                : "var(--color-mute)",
+              boxShadow: i === stepIndex ? "0 0 6px var(--color-heat-line)" : "none",
             }}
           />
         ))}

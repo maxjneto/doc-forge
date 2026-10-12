@@ -10,8 +10,8 @@ export function AuditProblems({ problems, onFix }: AuditProblemsProps) {
     <div className="h-full pt-[64px] flex flex-col items-center px-6 overflow-y-auto">
       <div className="max-w-3xl w-full py-12">
         {/* Error banner */}
-        <div className="rounded-xl p-4 bg-error-container/30 border border-error/30 mb-8">
-          <p className="text-sm text-error font-medium text-center">
+        <div className="rounded-md p-4 bg-error-wash border border-error-line mb-8">
+          <p className="text-body text-error font-medium text-center">
             ✗ Inconsistencies found
           </p>
         </div>
@@ -21,25 +21,25 @@ export function AuditProblems({ problems, onFix }: AuditProblemsProps) {
           {problems.map((problem, idx) => (
             <div
               key={idx}
-              className="panel-depth rounded-xl p-5 bg-surface-container-low border border-error/20"
+              className="panel-depth rounded-md p-5 bg-surface border border-error-line"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <span className="text-xs text-error/80 font-medium uppercase tracking-wider">
+                  <span className="text-body-sm text-error font-medium uppercase tracking-wider">
                     {problem.section}
                   </span>
-                  <p data-ph-mask className="text-sm text-on-surface/80 mt-1">
+                  <p data-ph-mask className="text-body text-text mt-1">
                     {problem.issue}
                   </p>
                   {problem.severity && (
-                    <span className="text-xs text-on-surface-variant/50 mt-1 inline-block">
+                    <span className="text-body-sm text-faint mt-1 inline-block">
                       Severity: {problem.severity}
                     </span>
                   )}
                 </div>
                 <button
                   onClick={() => onFix(problem.section)}
-                  className="px-4 py-2 bg-error-container text-on-error-container rounded-lg text-xs font-medium hover:brightness-110 transition-all shrink-0"
+                  className="px-4 py-2 bg-error-wash text-error border border-error-line rounded-md text-body-sm font-medium hover:brightness-110 transition-all shrink-0"
                 >
                   Fix
                 </button>

@@ -13,6 +13,8 @@ class SectionVersionResponse(BaseModel):
     change_summary: str | None
     content: str
     is_active: bool
+    is_published: bool = False
+    published_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Section, SectionType } from "@/types";
 
+import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
 interface GenerationLayoutProps {
   documentId: string;
   sections: Section[];
@@ -8,11 +10,11 @@ interface GenerationLayoutProps {
 
 type GenerationStatus = "waiting" | "generating" | "done";
 
-const SECTION_ORDER: { type: SectionType; label: string }[] = [
-  { type: "context",        label: "Context" },
-  { type: "proposal",       label: "Proposal" },
-  { type: "implementation", label: "Implementation" },
-  { type: "risks",          label: "Risks & Alternatives" },
+const SECTION_ORDER: { type: SectionType }[] = [
+  { type: "context" },
+  { type: "proposal" },
+  { type: "implementation" },
+  { type: "risks" },
 ];
 
 function getSectionStatus(section: Section | undefined): GenerationStatus {
@@ -46,9 +48,9 @@ function PourBar({ status }: { status: GenerationStatus }) {
     <div
       style={{
         height: 8,
-        borderRadius: 999,
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+        borderRadius: "var(--radius-pill)",
+        background: "var(--color-hover)",
+        border: "1px solid var(--color-outline)",
         position: "relative",
         overflow: "hidden",
         minWidth: 180,
@@ -57,11 +59,11 @@ function PourBar({ status }: { status: GenerationStatus }) {
       <div
         style={{
           height: "100%",
-          borderRadius: 999,
+          borderRadius: "var(--radius-pill)",
           width: `${animatedWidth}%`,
           background: isDone
-            ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
-            : "linear-gradient(90deg, var(--df-amber-700, #6e1d00), var(--df-amber-500, #ff4d00) 60%, var(--df-amber-300, #ff8d4a))",
+            ? "var(--color-heat-line)"
+            : "linear-gradient(90deg, var(--color-heat-deep), var(--color-heat) 60%, var(--color-heat-hi))",
           transition: "width 8s ease-out",
           position: "relative",
         }}
@@ -75,7 +77,7 @@ function PourBar({ status }: { status: GenerationStatus }) {
               bottom: -2,
               width: 18,
               background:
-                "linear-gradient(90deg, transparent, rgba(255,217,184,0.85))",
+                "linear-gradient(90deg, transparent, var(--color-spark))",
               filter: "blur(5px)",
             }}
           />
@@ -89,6 +91,7 @@ export function GenerationLayout({
   documentId: _documentId,
   sections,
 }: GenerationLayoutProps) {
+  const { t } = useI18n();
   const sectionStates = SECTION_ORDER.map((s) => {
     const section = sections.find((sec) => sec.sectionType === s.type);
     return { ...s, status: getSectionStatus(section), section };
@@ -106,7 +109,7 @@ export function GenerationLayout({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--color-bg)",
         padding: "56px",
       }}
     >
@@ -114,11 +117,11 @@ export function GenerationLayout({
         style={{
           width: 880,
           maxWidth: "100%",
-          border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          borderRadius: 14,
+          border: "1px solid var(--color-outline)",
+          borderRadius: "var(--radius-lg)",
           padding: "32px 38px",
           background:
-            "radial-gradient(ellipse 800px 400px at 50% 0%, rgba(255,77,0,0.06), transparent 70%), rgba(18,20,20,0.55)",
+            "radial-gradient(ellipse 800px 400px at 50% 0%, var(--color-heat-tint), transparent 70%), var(--color-veil)",
         }}
       >
         {/* Header */}
@@ -131,33 +134,33 @@ export function GenerationLayout({
           }}
         >
           <div>
-            <span className="df-pill df-pill-heat" style={{ marginBottom: 8, display: "inline-flex" }}>
-              Foundry hot
-            </span>
+            <Pill tone="heat" style={{ marginBottom: 8 }}>
+              {t("g.gen.hot")}
+            </Pill>
             <h2
               style={{
-                fontSize: 22,
+                fontSize: 21,
                 fontWeight: 600,
                 letterSpacing: "-0.02em",
                 margin: "4px 0 0",
-                color: "#e3e2e2",
+                color: "var(--color-text)",
               }}
             >
-              Pouring{" "}
-              <em style={{ fontStyle: "normal", color: "var(--df-amber-300, #ff8d4a)" }}>
-                {SECTION_ORDER.length} sections
+              {t("g.gen.pouring")}{" "}
+              <em style={{ fontStyle: "normal", color: "var(--color-heat-hi)" }}>
+                {t("g.gen.sections", { count: SECTION_ORDER.length })}
               </em>
             </h2>
           </div>
           <span
             className="df-mono"
             style={{
-              fontSize: 11,
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
-              letterSpacing: "0.04em",
+              fontSize: 11.5,
+              color: "var(--color-dim)",
+              letterSpacing: "var(--tracking-data)",
             }}
           >
-            streaming live
+            {t("g.gen.live")}
           </span>
         </div>
 
@@ -166,10 +169,10 @@ export function GenerationLayout({
           const isDone = s.status === "done";
           const isGenerating = s.status === "generating";
           const arrowColor = isDone
-            ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+            ? "var(--color-heat-line)"
             : isGenerating
-            ? "var(--df-amber-300, #ff8d4a)"
-            : "var(--df-amber-700, #6e1d00)";
+            ? "var(--color-heat-hi)"
+            : "var(--color-heat-deep)";
 
           const peek = s.section?.summary
             ? `"${s.section.summary.slice(0, 90)}…"`
@@ -184,7 +187,7 @@ export function GenerationLayout({
                 gap: 16,
                 alignItems: "center",
                 padding: "14px 0",
-                borderTop: i === 0 ? "none" : "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                borderTop: i === 0 ? "none" : "1px solid var(--color-outline)",
               }}
             >
               {/* Arrow */}
@@ -201,16 +204,16 @@ export function GenerationLayout({
                   style={{
                     fontSize: 13,
                     fontWeight: 500,
-                    color: isDone ? "var(--df-dim, rgba(227,226,226,0.62))" : "#e3e2e2",
+                    color: isDone ? "var(--color-dim)" : "var(--color-text)",
                   }}
                 >
-                  {s.label}
+                  {t(`section.${s.type}`)}
                 </div>
                 {peek && (
                   <div
                     style={{
                       fontSize: 11.5,
-                      color: "var(--df-faint, rgba(227,226,226,0.38))",
+                      color: "var(--color-faint)",
                       marginTop: 5,
                       lineHeight: 1.45,
                       fontStyle: "italic",
@@ -225,17 +228,17 @@ export function GenerationLayout({
               <div
                 className="df-mono"
                 style={{
-                  fontSize: 11,
-                  letterSpacing: "0.04em",
+                  fontSize: 11.5,
+                  letterSpacing: "var(--tracking-data)",
                   textAlign: "right",
                   color: isDone
-                    ? "var(--df-amber-trail, rgba(255,77,0,0.42))"
+                    ? "var(--color-heat-line)"
                     : isGenerating
-                    ? "var(--df-amber-300, #ff8d4a)"
-                    : "var(--df-amber-700, #6e1d00)",
+                    ? "var(--color-heat-hi)"
+                    : "var(--color-heat-deep)",
                 }}
               >
-                {isDone ? "forged" : isGenerating ? "pouring…" : "queued"}
+                {isDone ? t("g.gen.forged") : isGenerating ? t("g.gen.pouringRow") : t("g.gen.queued")}
               </div>
 
               {/* Pour bar */}
@@ -252,20 +255,20 @@ export function GenerationLayout({
             justifyContent: "flex-end",
             marginTop: 22,
             paddingTop: 18,
-            borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderTop: "1px solid var(--color-outline)",
           }}
         >
           <span
             className="df-mono"
             style={{
-              fontSize: 11,
-              color: "var(--df-faint, rgba(227,226,226,0.38))",
-              letterSpacing: "0.04em",
+              fontSize: 11.5,
+              color: "var(--color-faint)",
+              letterSpacing: "var(--tracking-data)",
             }}
           >
-            {doneCount} / {SECTION_ORDER.length} forged
-            {generatingCount > 0 && ` · ${generatingCount} pouring`}
-            {doneCount === SECTION_ORDER.length && " · complete"}
+            {t("g.gen.footer", { done: doneCount, total: SECTION_ORDER.length })}
+            {generatingCount > 0 && t("g.gen.footerPouring", { count: generatingCount })}
+            {doneCount === SECTION_ORDER.length && t("g.gen.complete")}
           </span>
         </div>
 
@@ -274,10 +277,10 @@ export function GenerationLayout({
           <div
             style={{
               marginTop: 16,
-              borderRadius: 10,
+              borderRadius: "var(--radius-md)",
               padding: "16px 20px",
-              background: "rgba(13,14,15,0.6)",
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+              background: "var(--color-chrome)",
+              border: "1px solid var(--color-outline)",
             }}
             className="animate-fade-in"
           >
@@ -287,9 +290,9 @@ export function GenerationLayout({
                   key={i}
                   style={{
                     height: 6,
-                    borderRadius: 2,
+                    borderRadius: "var(--radius-xs)",
                     width: `${w}%`,
-                    background: "rgba(255,77,0,0.18)",
+                    background: "var(--color-heat-strong)",
                     animation: "pulse 1.6s ease-in-out infinite",
                     animationDelay: `${i * 100}ms`,
                   }}

@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import type { Phase, AuditProblem, Section, GuidedSectionType as SectionType } from "@/types";
 
-const AUDIT_STEPS = [
-  "Checking cross-section references...",
-  "Verifying technical consistency...",
-  "Comparing proposal against implementation...",
-  "Validating risk coverage...",
-];
+import { Pill } from "@/components/ui";
+import { useI18n } from "@/i18n";
+const AUDIT_STEPS = ["g.au.s1", "g.au.s2", "g.au.s3", "g.au.s4"];
 
 const SECTION_ORDER: SectionType[] = ["context", "proposal", "implementation", "risks"];
 
@@ -19,30 +16,15 @@ interface AuditLayoutProps {
 
 type SectionScanState = "verified" | "scanning" | "problem" | "queued";
 
-function getSeverityColor(severity: string): { color: string; borderColor: string; bg: string } {
-  const s = severity?.toLowerCase();
-  if (s === "high" || s === "blocker" || s === "critical") {
-    return {
-      color: "var(--df-error, #e86464)",
-      borderColor: "rgba(232,100,100,0.40)",
-      bg: "rgba(232,100,100,0.08)",
-    };
-  }
-  if (s === "medium" || s === "warn" || s === "warning") {
-    return {
-      color: "var(--df-amber-300, #ff8d4a)",
-      borderColor: "rgba(255,77,0,0.30)",
-      bg: "rgba(255,77,0,0.06)",
-    };
-  }
-  return {
-    color: "var(--df-steel-100, #b9c6d4)",
-    borderColor: "var(--df-steel-border, rgba(138,160,184,0.35))",
-    bg: "var(--df-steel-bg, rgba(138,160,184,0.10))",
-  };
-}
+/** Severity → pill tone (grammar: blocking = error, gate warning = warn). */
+const SEVERITY_TONE = { BLOCKER: "error", WARN: "warn", NIT: "ghost" } as const;
+const PROBLEM_TONE = {
+  error: { text: "var(--color-error)", line: "var(--color-error-line)", tint: "var(--color-error-tint)", strong: "var(--color-error-strong)" },
+  warn: { text: "var(--color-warn)", line: "var(--color-warn-line)", tint: "var(--color-warn-tint)", strong: "var(--color-warn-strong)" },
+};
+const SEVERITY_KEY = { BLOCKER: "g.sev.blocker", WARN: "g.sev.warn", NIT: "g.sev.nit" } as const;
 
-function severityLabel(severity: string): string {
+function severityLabel(severity: string): "BLOCKER" | "WARN" | "NIT" {
   const s = severity?.toLowerCase();
   if (s === "high" || s === "blocker" || s === "critical") return "BLOCKER";
   if (s === "medium" || s === "warn" || s === "warning") return "WARN";
@@ -50,6 +32,7 @@ function severityLabel(severity: string): string {
 }
 
 export function AuditLayout({ documentId: _documentId, currentPhase, sections, auditProblems = [] }: AuditLayoutProps) {
+  const { t } = useI18n();
   const [auditStep, setAuditStep] = useState(0);
   const [scanIdx, setScanIdx] = useState(0);
 
@@ -91,20 +74,17 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
       const hasProblem = auditProblems.some(
         (p) => p.section?.toLowerCase().includes(type)
       );
-      if (idx < scanIdx) return hasProblem ? "problem" : "verified";
-      return "queued";
+      // The audit has finished: every section is either clean or flagged.
+      // (scanIdx only advances during the live scan, so gating on it left
+      // every section "queued" once findings arrived.)
+      return hasProblem ? "problem" : "verified";
     }
     if (idx < scanIdx) return "verified";
     if (idx === scanIdx) return "scanning";
     return "queued";
   }
 
-  const sectionLabel: Record<SectionType, string> = {
-    context: "Context",
-    proposal: "Proposal",
-    implementation: "Implementation",
-    risks: "Risks",
-  };
+  const sectionLabel = (type: string) => t(`section.${type}`);
 
   return (
     <div
@@ -113,7 +93,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
         paddingTop: 56,
         display: "flex",
         flexDirection: "column",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--color-bg)",
         overflow: "hidden",
       }}
     >
@@ -122,37 +102,37 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
         {/* ── Left: X-ray doc preview ── */}
         <div
           style={{
-            borderRight: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+            borderRight: "1px solid var(--color-outline)",
             padding: "32px 40px",
             overflow: "hidden",
             background:
-              "radial-gradient(ellipse 700px 500px at 40% 40%, rgba(255,77,0,0.025), transparent 70%)",
+              "radial-gradient(ellipse 700px 500px at 40% 40%, var(--color-heat-tint), transparent 70%)",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
             <div>
               <div
                 className="df-mono"
-                style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)", marginBottom: 6 }}
+                style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-heat-hi)", marginBottom: 6 }}
               >
-                X-ray scan · {isScanning ? "live" : hasProblems ? "complete" : "pending"}
+                {t("g.au.xray", { state: isScanning ? t("g.au.live") : hasProblems ? t("g.au.complete") : t("g.au.pendingState") })}
               </div>
-              <div style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))" }}>
-                Each section is checked for cross-references and consistency.
+              <div style={{ fontSize: 13, color: "var(--color-dim)" }}>
+                {t("g.au.xrayLead")}
               </div>
             </div>
             {isScanning && (
-              <span className="df-pill df-pill-heat">
-                Scanning · {sectionLabel[SECTION_ORDER[scanIdx]]}
-              </span>
+              <Pill tone="heat">
+                {t("g.au.scanning", { section: sectionLabel(SECTION_ORDER[scanIdx]) })}
+              </Pill>
             )}
           </div>
 
           <div
             style={{
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-              borderRadius: 10,
-              background: "rgba(13,14,15,0.6)",
+              border: "1px solid var(--color-outline)",
+              borderRadius: "var(--radius-md)",
+              background: "var(--color-chrome)",
               padding: "22px 26px",
               height: "calc(100% - 80px)",
               overflow: "hidden",
@@ -172,49 +152,52 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                 (p) => severityLabel(p.severity) === "BLOCKER"
               );
 
+              // A flagged section takes the colour of its worst finding. Token
+              // names are spelled out in full: Tailwind only emits theme
+              // variables it can see literally in the source.
+              const tone = hasSectionBlocker ? PROBLEM_TONE.error : PROBLEM_TONE.warn;
+
               const borderColor = isVerified
-                ? "var(--df-steel-border, rgba(138,160,184,0.35))"
+                ? "var(--color-steel-line)"
                 : isScanning_
-                ? "rgba(255,77,0,0.45)"
+                ? "var(--color-heat-line)"
                 : isProblem
-                ? "rgba(232,100,100,0.40)"
-                : "var(--df-outline, rgba(255,255,255,0.06))";
+                ? tone.line
+                : "var(--color-outline)";
 
               const bg = isVerified
-                ? "var(--df-steel-bg, rgba(138,160,184,0.10))"
+                ? "var(--color-steel-wash)"
                 : isScanning_
-                ? "rgba(255,77,0,0.08)"
+                ? "var(--color-heat-wash)"
                 : isProblem
-                ? "rgba(232,100,100,0.05)"
+                ? tone.tint
                 : "transparent";
 
               const labelColor = isVerified
-                ? "var(--df-steel-100, #b9c6d4)"
+                ? "var(--color-steel-hi)"
                 : isScanning_
-                ? "var(--df-amber-300, #ff8d4a)"
+                ? "var(--color-heat-hi)"
                 : isProblem
-                ? "var(--df-error, #e86464)"
-                : "var(--df-mute, rgba(227,226,226,0.18))";
+                ? tone.text
+                : "var(--color-mute)";
 
-              const statusText = isVerified
-                ? hasSectionBlocker
-                  ? `1 BLOCKER`
-                  : sectionProblems.length > 0
-                  ? `${sectionProblems.length} WARN`
-                  : "VERIFIED"
+              const statusText = (isVerified
+                ? t("g.au.verified")
                 : isScanning_
-                ? "SCANNING…"
+                ? t("g.au.scanningRow")
                 : isProblem
-                ? `${sectionProblems.length} ISSUE${sectionProblems.length > 1 ? "S" : ""}`
-                : "QUEUED";
+                ? hasSectionBlocker
+                  ? `${t("g.sev.blocker")} · ${sectionProblems.length}`
+                  : sectionProblems.length === 1 ? t("g.au.issue") : t("g.au.issues", { count: sectionProblems.length })
+                : t("g.au.queued")).toUpperCase();
 
               const skelBg = isVerified
-                ? "rgba(138,160,184,0.20)"
+                ? "var(--color-steel-strong)"
                 : isScanning_
-                ? "rgba(255,77,0,0.20)"
+                ? "var(--color-heat-strong)"
                 : isProblem
-                ? "rgba(232,100,100,0.18)"
-                : "rgba(255,255,255,0.04)";
+                ? tone.strong
+                : "var(--color-hover)";
 
               return (
                 <div
@@ -222,7 +205,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                   style={{
                     marginBottom: 18,
                     padding: "14px 16px",
-                    borderRadius: 8,
+                    borderRadius: "var(--radius-md)",
                     border: `1px solid ${borderColor}`,
                     background: bg,
                     position: "relative",
@@ -238,7 +221,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                         right: 0,
                         height: 12,
                         background:
-                          "linear-gradient(180deg, transparent 0%, rgba(255,217,184,0.50) 50%, transparent 100%)",
+                          "linear-gradient(180deg, transparent 0%, var(--color-spark-soft) 50%, transparent 100%)",
                       }}
                     />
                   )}
@@ -253,9 +236,9 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                   >
                     <span
                       className="df-mono"
-                      style={{ fontSize: 10, letterSpacing: "0.14em", color: labelColor }}
+                      style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", color: labelColor }}
                     >
-                      › {sectionLabel[type]}
+                      › {sectionLabel(type)}
                       {isScanning_ && (
                         <span className="df-ember animate-df-pulse" style={{ marginLeft: 6 }} />
                       )}
@@ -273,7 +256,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                       key={i}
                       style={{
                         height: 5,
-                        borderRadius: 2,
+                        borderRadius: "var(--radius-xs)",
                         background: skelBg,
                         marginBottom: 5,
                         width: `${w}%`,
@@ -296,9 +279,9 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
               >
                 <span
                   className="df-mono"
-                  style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+                  style={{ fontSize: 11.5, color: "var(--color-faint)" }}
                 >
-                  No sections to scan
+                  {t("g.au.noSections")}
                 </span>
               </div>
             )}
@@ -320,25 +303,23 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
             <div>
               <h2
                 style={{
-                  fontSize: 20,
+                  fontSize: 21,
                   fontWeight: 600,
                   letterSpacing: "-0.02em",
                   margin: "0 0 4px",
-                  color: "#e3e2e2",
+                  color: "var(--color-text)",
                 }}
               >
-                Audit{hasProblems ? ` · ${auditProblems.length} findings` : ""}
+                {hasProblems ? t("g.au.titleCount", { count: auditProblems.length }) : t("g.au.title")}
               </h2>
-              <div style={{ fontSize: 12.5, color: "var(--df-dim, rgba(227,226,226,0.62))" }}>
-                {hasProblems
-                  ? "Review each finding. Fix in place opens the workspace with the issue pre-quoted."
-                  : "Running the coherence audit across all sections."}
+              <div style={{ fontSize: 12.5, color: "var(--color-dim)" }}>
+                {hasProblems ? t("g.au.leadDone") : t("g.au.leadRunning")}
               </div>
             </div>
             {hasProblems && warnCount + blockerCount > 0 && (
-              <span className="df-pill df-pill-warn">
-                {warnCount + blockerCount} issues require attention
-              </span>
+              <Pill tone="warn">
+                {t("g.au.attention", { count: warnCount + blockerCount })}
+              </Pill>
             )}
           </div>
 
@@ -351,7 +332,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                     position: "absolute",
                     inset: 0,
                     borderRadius: "50%",
-                    border: "2px solid rgba(255,77,0,0.30)",
+                    border: "2px solid var(--color-heat-line)",
                     animation: "pulse 1.6s ease-in-out infinite",
                   }}
                 />
@@ -360,7 +341,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                     position: "absolute",
                     inset: 0,
                     borderRadius: "50%",
-                    border: "2px solid rgba(255,77,0,0.60)",
+                    border: "2px solid var(--color-heat-line)",
                     animation: "spin 3s linear infinite",
                   }}
                 />
@@ -369,7 +350,7 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                     position: "absolute",
                     inset: 12,
                     borderRadius: "50%",
-                    background: "rgba(255,77,0,0.20)",
+                    background: "var(--color-heat-strong)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -377,22 +358,22 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                 >
                   <span
                     className="material-symbols-outlined"
-                    style={{ color: "var(--df-amber-300, #ff8d4a)", fontSize: 18 }}
+                    style={{ color: "var(--color-heat-hi)", fontSize: 18 }}
                   >
                     verified
                   </span>
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 6px", color: "#e3e2e2" }}>
-                  Running audit
+                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 6px", color: "var(--color-text)" }}>
+                  {t("g.au.running")}
                 </p>
                 <p
                   key={auditStep}
                   className="animate-fade-in df-mono"
-                  style={{ fontSize: 11, color: "var(--df-faint, rgba(227,226,226,0.38))", letterSpacing: "0.06em" }}
+                  style={{ fontSize: 11.5, color: "var(--color-faint)", letterSpacing: "var(--tracking-data)" }}
                 >
-                  {AUDIT_STEPS[auditStep]}
+                  {t(AUDIT_STEPS[auditStep])}
                 </p>
               </div>
             </div>
@@ -403,37 +384,37 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
             <>
               <div style={{ display: "flex", gap: 14 }}>
                 {[
-                  { label: "Blocker", count: blockerCount, cls: "blocker" },
-                  { label: "Warn",    count: warnCount,    cls: "warn" },
-                  { label: "Nit",     count: nitCount,     cls: "nit" },
+                  { label: t("g.sev.blocker"), count: blockerCount, cls: "blocker" },
+                  { label: t("g.sev.warn"),    count: warnCount,    cls: "warn" },
+                  { label: t("g.sev.nit"),     count: nitCount,     cls: "nit" },
                 ].map(({ label, count, cls }) => {
                   const style =
                     cls === "blocker"
-                      ? { borderLeft: "2px solid var(--df-error, #e86464)", labelColor: "var(--df-error, #e86464)" }
+                      ? { borderLeft: "2px solid var(--color-error)", labelColor: "var(--color-error)" }
                       : cls === "warn"
-                      ? { borderLeft: "2px solid var(--df-amber-300, #ff8d4a)", labelColor: "var(--df-amber-300, #ff8d4a)" }
-                      : { borderLeft: "2px solid var(--df-steel-200, #8aa0b8)", labelColor: "var(--df-steel-100, #b9c6d4)" };
+                      ? { borderLeft: "2px solid var(--color-warn)", labelColor: "var(--color-warn)" }
+                      : { borderLeft: "2px solid var(--color-outline-md)", labelColor: "var(--color-faint)" };
                   return (
                     <div
                       key={cls}
                       style={{
-                        border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                        border: "1px solid var(--color-outline)",
                         borderLeft: style.borderLeft,
-                        borderRadius: 8,
+                        borderRadius: "var(--radius-md)",
                         padding: "10px 14px",
                         flex: 1,
-                        background: "rgba(18,20,20,0.5)",
+                        background: "var(--color-surface)",
                       }}
                     >
                       <div
                         className="df-mono"
-                        style={{ fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: style.labelColor }}
+                        style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: style.labelColor }}
                       >
                         › {label}
                       </div>
                       <div
                         className="df-mono"
-                        style={{ fontSize: 22, fontWeight: 600, color: "#e3e2e2", letterSpacing: "-0.03em", marginTop: 4 }}
+                        style={{ fontSize: 21, fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.03em", marginTop: 4 }}
                       >
                         {count}
                       </div>
@@ -448,17 +429,17 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                   <div
                     key={section}
                     style={{
-                      border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-                      borderRadius: 10,
-                      background: "rgba(18,20,20,0.5)",
+                      border: "1px solid var(--color-outline)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--color-surface)",
                       overflow: "hidden",
                     }}
                   >
                     <div
                       style={{
                         padding: "10px 16px",
-                        background: "rgba(255,255,255,0.02)",
-                        borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                        background: "var(--color-hover)",
+                        borderBottom: "1px solid var(--color-outline)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -466,20 +447,19 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                     >
                       <span
                         className="df-mono"
-                        style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)" }}
+                        style={{ fontSize: 10, fontWeight: 600, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-text)" }}
                       >
-                        › {section}
+                        › {sectionLabel(section)}
                       </span>
                       <span
                         className="df-mono"
-                        style={{ fontSize: 10, color: "var(--df-faint, rgba(227,226,226,0.38))" }}
+                        style={{ fontSize: 10, color: "var(--color-faint)" }}
                       >
-                        {problems.length} finding{problems.length > 1 ? "s" : ""}
+                        {problems.length === 1 ? t("g.au.finding") : t("g.au.findings", { count: problems.length })}
                       </span>
                     </div>
 
                     {problems.map((problem, idx) => {
-                      const sev = getSeverityColor(problem.severity);
                       const label = severityLabel(problem.severity);
                       return (
                         <div
@@ -488,40 +468,20 @@ export function AuditLayout({ documentId: _documentId, currentPhase, sections, a
                             padding: "12px 16px",
                             borderBottom:
                               idx < problems.length - 1
-                                ? "1px solid var(--df-outline, rgba(255,255,255,0.06))"
+                                ? "1px solid var(--color-outline)"
                                 : "none",
                             display: "grid",
-                            gridTemplateColumns: "70px 1fr auto",
+                            gridTemplateColumns: "96px 1fr",
                             gap: 12,
                             alignItems: "flex-start",
                           }}
                         >
-                          <span
-                            className="df-mono"
-                            style={{
-                              fontSize: 9.5,
-                              letterSpacing: "0.14em",
-                              padding: "3px 7px",
-                              borderRadius: 4,
-                              textAlign: "center",
-                              border: `1px solid ${sev.borderColor}`,
-                              color: sev.color,
-                              background: sev.bg,
-                            }}
-                          >
-                            {label}
-                          </span>
+                          <div><Pill tone={SEVERITY_TONE[label]} compact>{t(SEVERITY_KEY[label])}</Pill></div>
                           <div
-                            style={{ fontSize: 12.5, color: "var(--df-on-surface-soft, #c6c5c4)", lineHeight: 1.55 }}
+                            style={{ fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.55 }}
                           >
                             {problem.issue}
                           </div>
-                          <span
-                            className="df-pill df-pill-warn"
-                            style={{ fontSize: 10, padding: "3px 8px", cursor: "default" }}
-                          >
-                            {label === "BLOCKER" ? "Fix required" : "Review"}
-                          </span>
                         </div>
                       );
                     })}

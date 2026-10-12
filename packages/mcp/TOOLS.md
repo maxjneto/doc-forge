@@ -6,14 +6,14 @@ All tools accept and return plain text. Document IDs are UUIDs. The server resol
 
 ## `get_user_info`
 
-Returns the authenticated user's name, email, credit balance, and weekly allowance.
+Returns the authenticated user's name, email, remaining document creations, and weekly allowance.
 
-**Call before `create_document`** to confirm the user has at least 1 credit.
+Each new document uses one weekly document creation. Editing and working in existing documents does not.
 
 ```
 Name: Max
 Email: max@example.com
-Credits: 12 (weekly allowance: 20)
+Document creations remaining: 12 (weekly allowance: 20)
 ```
 
 ---
@@ -31,7 +31,7 @@ Lists all your DocForge editor documents.
 
 ## `create_document`
 
-Creates a new editor document. Costs 1 credit.
+Creates a new editor document using one weekly document creation.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -73,6 +73,28 @@ Content (1842 chars):
 ```
 
 ---
+
+## `append_section`
+
+Appends content to the end of the body without requiring the agent to resend the whole document. It follows the same suggestion/direct-write policy as `write_section`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `content` | string | yes | Markdown to append |
+| `note` | string | no | Review note |
+
+## `patch_section`
+
+Replaces an exact text fragment scoped to a Markdown heading. Use it for a focused change instead of rewriting the whole body.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `anchor` | string | yes | Exact heading that scopes the edit |
+| `old_text` | string | yes | Exact text to replace once |
+| `new_text` | string | yes | Replacement text |
+| `note` | string | no | Review note |
 
 ## `write_section`
 
@@ -263,6 +285,27 @@ http://localhost:5173/document/abc123...
 
 ---
 
+## Structured pipelines
+
+| Tool | Purpose |
+|---|---|
+| `list_document_types` | List the available structured document types and their sections. |
+| `list_pipelines` | List custom pipeline definitions available to the user. |
+| `start_pipeline` | Start a durable agent-executed pipeline using one weekly document creation. |
+| `get_next_step` | Read the current step, context, or human-waiting/completed status. |
+| `submit_step` | Submit discovery context, alignment summaries, generated content, or audit findings. |
+
+The baseline pipeline is executed by the agent: discovery per section → alignment checkpoint → sequential generation → audit. The user approves alignment in the browser. After the run completes, the document is handed to the editor.
+
+## Quality gates and artifacts
+
+| Tool | Purpose |
+|---|---|
+| `get_quality_gate` | Read gate settings, current findings, and the sections to audit. |
+| `submit_quality_findings` | Record the agent's cross-section audit; high findings can block suggestion acceptance when enabled. |
+| `list_artifacts` | List diagrams, tables, and decision notes attached to a document. |
+| `create_artifact` | Create supporting material and return its `::artefato[key]` anchor directive. |
+
 ## Resources
 
 Resources are read-only URIs the agent can read without a tool call.
@@ -297,12 +340,13 @@ Composable mini-playbooks for common workflows.
 ## Recommended workflow
 
 ```
-1. get_user_info()                          → confirm ≥1 credit
-2. create_document("My Spec")               → get id + show URL to user
-3. [read local files via file tools]
-4. write_section(id, content, note="...")   → user sees it appear in browser
-5. snapshot_section(id, "Initial draft")    → preserve checkpoint
-6. get_document(id)                         → read current content before refining
-7. write_section(id, refined_content)       → user sees update
-8. snapshot_section(id, "Final")
+1. `get_user_info()`                         → confirm remaining weekly document creations
+2. `create_document("My Spec")`              → get id + show URL to user
+3. `get_pending_feedback(id)` and `get_document(id)` → read before editing
+4. Read local files with the agent's own tools
+5. Use `patch_section` / `append_section` for focused changes; use `write_section` for a deliberate full replacement
+6. `check_suggestions(id)`                    → verify review status
+7. `snapshot_section(id, "Initial draft")`   → preserve a named checkpoint
+
+For a structured document use `list_document_types` → `start_pipeline` → repeated `get_next_step` / `submit_step`. When the response says `WAITING_HUMAN`, ask the user to approve or reject the alignment in the browser before polling again.
 ```

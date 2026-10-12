@@ -1,12 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth, useClerk } from "@clerk/clerk-react";
+import { useI18n } from "@/i18n";
 
+import { Pill } from "@/components/ui";
 type Variant = "hero" | "picker";
 
 export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   function startForger() {
     if (variant === "hero") {
@@ -41,24 +44,24 @@ export function TrackPickerCards({ variant = "hero" }: { variant?: Variant }) {
     >
       <TrackCard
         primary
-        eyebrow="Path A · BYOA"
-        chip={<span className="df-pill df-pill-heat">Recommended</span>}
-        title="Bring your own agent"
-        body="Connect Claude Code, Cursor, Codex, Zed — any MCP client. Your IDE agent drives the whole document; you review each change as a diff, comment, and approve."
+        eyebrow={t("track.agentEyebrow")}
+        chip={<Pill tone="heat">{t("track.recommended")}</Pill>}
+        title={t("track.agentTitle")}
+        body={t("track.agentBody")}
         illustration={<Terminal />}
-        meta="stdio · 30 sec install"
-        cta={variant === "hero" ? "Connect an agent" : "Connect your agent"}
+        meta="MCP · Streamable HTTP"
+        cta={t(variant === "hero" ? "track.connectAgent" : "track.connectYourAgent")}
         onClick={connectAgent}
       />
       <TrackCard
         primary={false}
-        eyebrow="Path B · Guided"
-        chip={<span className="df-pill df-pill-ghost">No agent needed</span>}
-        title="Forge in the browser"
-        body='No agent yet? A hosted pipeline walks you from "I have an idea" to "ready to merge" — same review, audit and history apply.'
+        eyebrow={t("track.guidedEyebrow")}
+        chip={<Pill tone="ghost">{t("track.noAgent")}</Pill>}
+        title={t("track.guidedTitle")}
+        body={t("track.guidedBody")}
         illustration={<MiniTrail />}
-        meta="No setup · in-browser"
-        cta={variant === "hero" ? "Start a forge" : "Walk the six phases"}
+        meta={t("track.noSetup")}
+        cta={t(variant === "hero" ? "track.startForge" : "track.walkPhases")}
         onClick={variant === "hero" ? startForger : () => {
           const el = document.getElementById("forger");
           el?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -89,15 +92,15 @@ function TrackCard({
   cta: string;
   onClick: () => void;
 }) {
-  const baseBorder = primary ? "rgba(255,77,0,0.30)" : "rgba(138,160,184,0.25)";
-  const hoverBorder = primary ? "rgba(255,77,0,0.55)" : "rgba(138,160,184,0.50)";
+  const baseBorder = primary ? "var(--color-heat-line)" : "var(--color-steel-strong)";
+  const hoverBorder = primary ? "var(--color-heat-line)" : "var(--color-steel-line)";
   const hoverShadow = primary
-    ? "0 12px 36px -8px rgba(255,77,0,0.20)"
-    : "0 12px 36px -8px rgba(138,160,184,0.15)";
+    ? "0 12px 36px -8px var(--color-heat-strong)"
+    : "0 12px 36px -8px var(--color-steel-strong)";
   const bg = primary
-    ? "linear-gradient(180deg, rgba(255,77,0,0.06), rgba(14,16,17,0.65))"
-    : "linear-gradient(180deg, rgba(138,160,184,0.05), rgba(14,16,17,0.65))";
-  const arrowColor = primary ? "var(--df-amber-200)" : "var(--df-steel-100)";
+    ? "linear-gradient(180deg, var(--color-heat-tint), var(--color-veil))"
+    : "linear-gradient(180deg, var(--color-steel-tint), var(--color-veil))";
+  const arrowColor = primary ? "var(--color-heat-soft)" : "var(--color-steel-hi)";
 
   return (
     <button
@@ -106,7 +109,7 @@ function TrackCard({
         textAlign: "left",
         padding: "24px 26px",
         border: `1px solid ${baseBorder}`,
-        borderRadius: 14,
+        borderRadius: "var(--radius-lg)",
         background: bg,
         backdropFilter: "blur(8px)",
         display: "flex",
@@ -136,10 +139,10 @@ function TrackCard({
         <span
           className="df-mono"
           style={{
-            fontSize: 11,
-            letterSpacing: "0.18em",
+            fontSize: 11.5,
+            letterSpacing: "var(--tracking-eyebrow)",
             textTransform: "uppercase",
-            color: primary ? "var(--df-amber-300)" : "var(--df-steel-100)",
+            color: primary ? "var(--color-heat-hi)" : "var(--color-steel-hi)",
             fontWeight: 600,
           }}
         >
@@ -147,16 +150,16 @@ function TrackCard({
         </span>
         {chip}
       </div>
-      <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0, letterSpacing: "-0.015em" }}>{title}</h3>
-      <p style={{ fontSize: 13.5, color: "var(--df-dim)", margin: 0, lineHeight: 1.55 }}>{body}</p>
+      <h3 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: "-0.015em" }}>{title}</h3>
+      <p style={{ fontSize: 13, color: "var(--color-dim)", margin: 0, lineHeight: 1.55 }}>{body}</p>
       <div
         style={{
           height: 74,
           marginTop: 6,
-          borderRadius: 8,
-          border: "1px solid var(--df-outline)",
+          borderRadius: "var(--radius-md)",
+          border: "1px solid var(--color-outline)",
           padding: 10,
-          background: "rgba(0,0,0,0.25)",
+          background: "var(--color-sink)",
           display: "flex",
           alignItems: "center",
           gap: 8,
@@ -173,7 +176,7 @@ function TrackCard({
           marginTop: 6,
         }}
       >
-        <span className="df-mono" style={{ fontSize: 11, color: "var(--df-faint)" }}>
+        <span className="df-mono" style={{ fontSize: 11.5, color: "var(--color-faint)" }}>
           {meta}
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: arrowColor }}>
@@ -196,15 +199,15 @@ function MiniTrail() {
             style={{
               width: 7,
               height: 7,
-              borderRadius: 999,
+              borderRadius: "var(--radius-pill)",
               background:
                 state === "now"
-                  ? "var(--df-amber-500)"
+                  ? "var(--color-heat)"
                   : state === "done"
-                  ? "var(--df-amber-trail)"
-                  : "rgba(255,255,255,0.06)",
-              border: state === "future" ? "1px solid var(--df-mute)" : "none",
-              boxShadow: state === "now" ? "0 0 0 3px rgba(255,77,0,0.16), 0 0 10px rgba(255,77,0,0.55)" : "none",
+                  ? "var(--color-heat-line)"
+                  : "var(--color-outline)",
+              border: state === "future" ? "1px solid var(--color-mute)" : "none",
+              boxShadow: state === "now" ? "0 0 0 3px var(--color-heat-strong), 0 0 10px var(--color-heat-line)" : "none",
             }}
           />
           {i < dots.length - 1 && (
@@ -214,8 +217,8 @@ function MiniTrail() {
                 height: 1,
                 background:
                   state === "done" || (state === "now" && dots[i + 1] === "done")
-                    ? "var(--df-amber-trail)"
-                    : "var(--df-mute)",
+                    ? "var(--color-heat-line)"
+                    : "var(--color-mute)",
               }}
             />
           )}
@@ -231,33 +234,33 @@ function Terminal() {
       style={{
         width: "100%",
         height: "100%",
-        borderRadius: 6,
-        background: "#0a0b0c",
-        border: "1px solid var(--df-outline)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--color-bg)",
+        border: "1px solid var(--color-outline)",
         padding: "8px 10px",
         display: "flex",
         flexDirection: "column",
         gap: 3,
         overflow: "hidden",
-        fontFamily: "var(--df-font-mono)",
-        fontSize: 10.5,
-        color: "var(--df-steel-100)",
+        fontFamily: "var(--font-mono)",
+        fontSize: 11.5,
+        color: "var(--color-steel-hi)",
       }}
     >
       <div style={{ display: "flex", gap: 6 }}>
-        <span style={{ color: "var(--df-amber-300)" }}>$</span>
+        <span style={{ color: "var(--color-heat-hi)" }}>$</span>
         <span>claude mcp add docforge</span>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <span style={{ color: "var(--df-steel-200)" }}>✓</span>
-        <span style={{ color: "var(--df-dim)" }}>authenticated as you</span>
+        <span style={{ color: "var(--color-steel)" }}>✓</span>
+        <span style={{ color: "var(--color-dim)" }}>authenticated as you</span>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <span style={{ color: "var(--df-steel-200)" }}>✓</span>
-        <span style={{ color: "var(--df-dim)" }}>workspace ready · 1 doc shared</span>
+        <span style={{ color: "var(--color-steel)" }}>✓</span>
+        <span style={{ color: "var(--color-dim)" }}>workspace ready · 1 doc shared</span>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <span style={{ color: "var(--df-amber-300)" }}>›</span>
+        <span style={{ color: "var(--color-heat-hi)" }}>›</span>
         <span>agent connected · ready to forge</span>
       </div>
     </div>

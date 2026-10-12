@@ -15,16 +15,16 @@ export function ClosingCta() {
     <section style={{ maxWidth: 900, margin: "0 auto 80px", padding: "0 56px", textAlign: "center" }}>
       <span
         className="df-mono"
-        style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300)", fontWeight: 600 }}
+        style={{ fontSize: 11.5, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-heat-hi)", fontWeight: 600 }}
       >
         Stop pasting markdown between tools
       </span>
       <h2 style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.035em", margin: "16px 0 16px", lineHeight: 1.05 }}>
         Forge your next RFC
         <br />
-        where <em style={{ fontStyle: "normal", color: "var(--df-amber-300)" }}>you and your agent</em> can both work.
+        where <em style={{ fontStyle: "normal", color: "var(--color-heat-hi)" }}>you and your agent</em> can both work.
       </h2>
-      <p style={{ fontSize: 15, color: "var(--df-dim)", lineHeight: 1.55, margin: "0 0 32px" }}>
+      <p style={{ fontSize: 14, color: "var(--color-dim)", lineHeight: 1.55, margin: "0 0 32px" }}>
         Free while in beta. Five forges per week. Bring any agent that speaks MCP.
       </p>
       <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
@@ -34,16 +34,16 @@ export function ClosingCta() {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            background: "var(--df-amber-500)",
-            color: "#fff",
+            background: "var(--color-heat)",
+            color: "var(--color-on-heat)",
             padding: "10px 18px",
-            borderRadius: 6,
+            borderRadius: "var(--radius-sm)",
             fontSize: 13,
             fontWeight: 600,
             letterSpacing: "0.02em",
-            border: "1px solid var(--df-amber-500)",
+            border: "1px solid var(--color-heat)",
             cursor: "pointer",
-            boxShadow: "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)",
+            boxShadow: "0 0 0 1px var(--color-heat-strong), 0 4px 14px var(--color-heat-strong)",
             fontFamily: "inherit",
           }}
         >
@@ -56,13 +56,13 @@ export function ClosingCta() {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            color: "var(--df-steel-100)",
+            color: "var(--color-steel-hi)",
             padding: "10px 18px",
-            borderRadius: 6,
+            borderRadius: "var(--radius-sm)",
             fontSize: 13,
             fontWeight: 600,
-            border: "1px solid var(--df-steel-border)",
-            background: "var(--df-steel-bg)",
+            border: "1px solid var(--color-steel-line)",
+            background: "var(--color-steel-wash)",
             cursor: "pointer",
             fontFamily: "inherit",
           }}

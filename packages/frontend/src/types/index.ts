@@ -25,7 +25,13 @@ export interface Document {
   createdAt: string;
   updatedAt: string;
   hasApiKeyActivity?: boolean;
+  /** Folder it is filed under, null at the root. */
+  folderId?: string | null;
   lastApiKeyName?: string | null;
+  publishedVersionId?: string | null;
+  publishedAt?: string | null;
+  hasUnpublishedChanges?: boolean;
+  archivedAt?: string | null;
 }
 
 // ─── Sections ────────────────────────────────────────────────
@@ -49,6 +55,8 @@ export interface SectionVersion {
   changeSummary: string | null;
   content: string;
   isActive: boolean;
+  isPublished?: boolean;
+  publishedAt?: string | null;
   createdAt: string;
 }
 
@@ -250,6 +258,62 @@ export interface AuditFinding {
   sectionType: SectionType;
   description: string;
   severity: "high" | "low";
+  /** Verbatim phrase the finding is about — null when it concerns the whole
+   * document. Drives the underline in the text. */
+  quote: string | null;
+  /** Short label shown next to the severity pill: "coerência", "escopo"… */
+  category: string | null;
   dismissed: boolean;
   createdAt: string;
+}
+
+// ─── Artifacts ────────────────────────────────────────────────
+// Supporting material around the text: the diagram, table or decision note
+// that explains why a passage says what it says. Anchored explicitly from the
+// markdown via a `::artefato[key]` directive, so the anchor never drifts.
+
+export type ArtifactKind = "diagram" | "table" | "decision";
+
+export interface Artifact {
+  id: string;
+  documentId: string;
+  key: string;
+  kind: ArtifactKind;
+  title: string;
+  content: string;
+  author: string | null;
+  isAgent: boolean;
+  revision: number;
+  /** True when a ::artefato[key] directive for this key exists in the body. */
+  anchored: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Organization ─────────────────────────────────────────────
+
+export interface Folder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  documentCount: number;
+  directDocumentCount?: number;
+}
+
+/** Least to most capable. The owner is not a member row. */
+export type MemberRole = "viewer" | "commenter" | "editor";
+
+export interface DocumentMember {
+  id: string;
+  email: string;
+  role: MemberRole;
+  /** False while the invitation is addressed to someone with no account yet. */
+  accepted: boolean;
+}
+
+export interface SharedDocument {
+  id: string;
+  title: string;
+  role: MemberRole;
+  updatedAt: string;
 }

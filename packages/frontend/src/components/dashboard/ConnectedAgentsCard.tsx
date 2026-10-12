@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { apiListApiKeys } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { ApiKey } from "@/types";
+import { useI18n } from "@/i18n";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -12,14 +13,15 @@ function initials(name: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function formatCreated(iso: string) {
+function formatCreated(iso: string, locale: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 export function ConnectedAgentsCard() {
   const { getToken } = useAuth();
   const navigate = useNavigate();
+  const { t, dateLocale } = useI18n();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
 
   useEffect(() => {
@@ -40,13 +42,13 @@ export function ConnectedAgentsCard() {
     <>
       <section style={cardStyle}>
         <header style={headStyle}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Connected agents</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t("dashboard.connectedAgents")}</span>
         </header>
         <div style={{ padding: "14px 18px" }}>
-          {keys === null && <Empty>Loading…</Empty>}
+          {keys === null && <Empty>{t("common.loading")}</Empty>}
           {keys && keys.length === 0 && (
             <Empty>
-              No agents connected yet. Generate an API key to hook up Claude Code, Cursor, or any MCP-capable client.
+              {t("dashboard.noAgents")}
             </Empty>
           )}
           {keys && keys.map((k, i) => (
@@ -57,7 +59,7 @@ export function ConnectedAgentsCard() {
                 alignItems: "center",
                 gap: 10,
                 padding: "8px 0",
-                borderTop: i === 0 ? "none" : "1px solid var(--df-outline)",
+                borderTop: i === 0 ? "none" : "1px solid var(--color-outline)",
               }}
             >
               <span
@@ -65,10 +67,10 @@ export function ConnectedAgentsCard() {
                 style={{
                   width: 24,
                   height: 24,
-                  borderRadius: 5,
-                  background: "var(--df-steel-bg)",
-                  border: "1px solid var(--df-steel-border)",
-                  color: "var(--df-steel-100)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-steel-wash)",
+                  border: "1px solid var(--color-steel-line)",
+                  color: "var(--color-steel-hi)",
                   display: "grid",
                   placeItems: "center",
                   fontSize: 10,
@@ -79,20 +81,20 @@ export function ConnectedAgentsCard() {
                   ? <img src={HARNESS_META[k.harness].logo} width={14} height={14} alt={HARNESS_META[k.harness].label} />
                   : initials(k.name)}
               </span>
-              <span style={{ fontSize: 12.5, color: k.harness && isHarness(k.harness) ? HARNESS_META[k.harness].fg : "#e3e2e2", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12.5, color: k.harness && isHarness(k.harness) ? HARNESS_META[k.harness].fg : "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {k.name}
               </span>
               <span
                 className="df-mono"
                 style={{
                   marginLeft: "auto",
-                  fontSize: 9.5,
-                  letterSpacing: "0.10em",
-                  color: "var(--df-faint)",
+                  fontSize: 10,
+                  letterSpacing: "var(--tracking-label)",
+                  color: "var(--color-faint)",
                   textTransform: "uppercase",
                 }}
               >
-                Added {formatCreated(k.createdAt)}
+                {t("dashboard.agentAdded", { date: formatCreated(k.createdAt, dateLocale) })}
               </span>
             </div>
           ))}
@@ -101,8 +103,8 @@ export function ConnectedAgentsCard() {
           style={{
             margin: "0 18px 18px",
             padding: 14,
-            border: "1px dashed var(--df-outline-md)",
-            borderRadius: 8,
+            border: "1px dashed var(--color-outline-md)",
+            borderRadius: "var(--radius-md)",
             textAlign: "center",
           }}
         >
@@ -112,13 +114,13 @@ export function ConnectedAgentsCard() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              color: "var(--df-steel-100)",
+              color: "var(--color-steel-hi)",
               padding: "7px 12px",
-              borderRadius: 6,
+              borderRadius: "var(--radius-sm)",
               fontSize: 11.5,
               fontWeight: 600,
-              border: "1px solid var(--df-steel-border)",
-              background: "var(--df-steel-bg)",
+              border: "1px solid var(--color-steel-line)",
+              background: "var(--color-steel-wash)",
               cursor: "pointer",
               width: "100%",
               justifyContent: "center",
@@ -126,7 +128,7 @@ export function ConnectedAgentsCard() {
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
-            Connect another agent
+            {t("dashboard.connectAgent")}
           </button>
         </div>
       </section>
@@ -135,15 +137,15 @@ export function ConnectedAgentsCard() {
 }
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid var(--df-outline)",
-  borderRadius: 12,
-  background: "rgba(18,20,20,0.5)",
+  border: "1px solid var(--color-outline)",
+  borderRadius: "var(--radius-md)",
+  background: "var(--color-veil)",
   overflow: "hidden",
 };
 
 const headStyle: React.CSSProperties = {
   padding: "14px 18px",
-  borderBottom: "1px solid var(--df-outline)",
+  borderBottom: "1px solid var(--color-outline)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -152,6 +154,6 @@ const headStyle: React.CSSProperties = {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 12, color: "var(--df-faint)", lineHeight: 1.5, padding: "4px 0" }}>{children}</div>
+    <div style={{ fontSize: 12.5, color: "var(--color-faint)", lineHeight: 1.5, padding: "4px 0" }}>{children}</div>
   );
 }

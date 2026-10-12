@@ -8,3 +8,4 @@ export { PricingPage } from "./PricingPage";
 export { McpPage } from "./McpPage";
 export { BillingPage } from "./BillingPage";
 export { CustomizePage } from "./CustomizePage";
+export { PublicDocumentPage } from "./PublicDocumentPage";

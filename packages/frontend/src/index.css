@@ -1,104 +1,182 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colors - Molten forge dark palette */
-  --color-surface-container-highest: #343535;
-  --color-primary-fixed: #ffdbd0;
-  --color-surface-variant: #343535;
-  --color-surface-bright: #383939;
-  --color-on-tertiary-fixed: #1c1b1b;
-  --color-outline: #ad897e;
-  --color-on-tertiary-fixed-variant: #474646;
-  --color-on-surface-variant: #e6beb2;
-  --color-background: #0d0e0f;
-  --color-on-primary-fixed-variant: #852400;
-  --color-on-tertiary-container: #2a2a29;
-  --color-surface-dim: #121414;
-  --color-outline-variant: #5c4037;
-  --color-secondary: #c8c6c5;
-  --color-error-container: #93000a;
-  --color-on-secondary-container: #b7b5b4;
-  --color-primary-container: #ff4d00;
-  --color-error: #ffb4ab;
-  --color-on-secondary-fixed: #1c1b1b;
-  --color-tertiary-fixed: #e5e2e1;
-  --color-on-error: #690005;
-  --color-tertiary-fixed-dim: #c9c6c5;
-  --color-primary: #ffb59e;
-  --color-on-secondary-fixed-variant: #474746;
-  --color-inverse-surface: #e3e2e2;
-  --color-on-surface: #e3e2e2;
-  --color-on-error-container: #ffdad6;
-  --color-tertiary-container: #929090;
-  --color-tertiary: #c9c6c5;
-  --color-on-tertiary: #313030;
-  --color-inverse-on-surface: #303031;
-  --color-surface-container-lowest: #0d0e0f;
-  --color-on-primary-container: #521300;
-  --color-secondary-fixed-dim: #c8c6c5;
-  --color-on-primary: #5e1700;
-  --color-inverse-primary: #ae3200;
-  --color-surface-container-high: #292a2a;
-  --color-on-secondary: #313030;
-  --color-on-primary-fixed: #3a0b00;
-  --color-surface: #121414;
-  --color-surface-container: #1f2020;
-  --color-secondary-fixed: #e5e2e1;
-  --color-on-background: #e3e2e2;
-  --color-surface-tint: #ffb59e;
-  --color-primary-fixed-dim: #ffb59e;
-  --color-surface-container-low: #1b1c1c;
-  --color-secondary-container: #474746;
-  --color-forge-orange: #FF4D00;
+  /* ─── DocForge ramp — the single source of truth ──────────────
+     docs/product/design-system-consolidation.md (v2). Rules:
+     · Only the base colours below are typed as literals. Everything else is
+       derived from them (color-mix) or is a named role.
+     · Names say when to use a value, never how much of it there is —
+       no `heat-08`, no `white-04`.
+     · Nothing new enters without a semantic name. */
 
-  /* Spacing */
-  --spacing-xl: 48px;
-  --spacing-unit: 4px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-sm: 8px;
-  --spacing-gutter: 16px;
-  --spacing-xs: 4px;
+  /* surfaces — 4 steps + borders */
+  --color-bg: #0a0b0c;            /* window */
+  --color-surface: #121414;       /* panel, card */
+  --color-surface-mid: #1d1f21;   /* input, hunk */
+  --color-surface-high: #262829;  /* active tab, menu */
+  --color-outline: rgb(255 255 255 / 6%);
+  --color-outline-md: rgb(255 255 255 / 10%);
 
-  /* Font family */
+  /* states over any surface */
+  --color-hover: rgb(255 255 255 / 4%);
+  --color-press: rgb(255 255 255 / 8%);
+  --color-sink: rgb(0 0 0 / 20%);      /* recessed area */
+  --color-scrim: rgb(0 0 0 / 60%);     /* behind a dialog */
+  --color-active-line: rgb(255 255 255 / 2%);
+  /* translucent layers derive from the surface they sit on */
+  --color-chrome: color-mix(in srgb, var(--color-bg) 85%, transparent);
+  --color-veil: color-mix(in srgb, var(--color-surface) 50%, transparent);
+  --color-card-footer: color-mix(in srgb, var(--color-surface-mid) 35%, transparent);
+  /* the leading edge of a pour / scan animation, and a glass sheen */
+  --color-spark: color-mix(in srgb, var(--color-heat-pale) 80%, transparent);
+  --color-spark-soft: color-mix(in srgb, var(--color-heat-pale) 50%, transparent);
+  --color-sheen: rgb(255 255 255 / 20%);
+
+  /* text — 4 levels */
+  --color-text: #e3e2e2;
+  --color-dim: color-mix(in srgb, var(--color-text) 62%, transparent);
+  --color-faint: color-mix(in srgb, var(--color-text) 38%, transparent);
+  --color-mute: color-mix(in srgb, var(--color-text) 18%, transparent);
+  --color-on-heat: #ffffff;       /* text on a heat fill */
+
+  /* accents — each one means exactly one thing */
+  --color-heat: #ff4d00;          /* action, active, now */
+  --color-heat-hi: #ff8d4a;       /* hover, small warm text */
+  --color-heat-soft: #ffb59e;     /* text on a heat wash */
+  --color-heat-pale: #ffd9b8;     /* flagged prose (gate underline) */
+  --color-heat-deep: #6e1d00;
+  --color-steel: #8aa0b8;         /* MCP, frozen, artifact */
+  --color-steel-hi: #b9c6d4;
+  --color-ok: #5fb383;            /* accepted, resolved */
+  --color-warn: #f0b27a;          /* gate warning */
+  --color-error: #e86464;         /* blocking, failure */
+
+  /* tiers — derived, never typed. Same four for every accent:
+     tint (active row, warm hover) · wash (chip, active card, callout) ·
+     strong (selection, input ring, progress) · line (every tinted border) */
+  --color-heat-tint: color-mix(in srgb, var(--color-heat) 5%, transparent);
+  --color-heat-wash: color-mix(in srgb, var(--color-heat) 10%, transparent);
+  --color-heat-strong: color-mix(in srgb, var(--color-heat) 20%, transparent);
+  --color-heat-line: color-mix(in srgb, var(--color-heat) 40%, transparent);
+  --color-steel-tint: color-mix(in srgb, var(--color-steel) 5%, transparent);
+  --color-steel-wash: color-mix(in srgb, var(--color-steel) 10%, transparent);
+  --color-steel-strong: color-mix(in srgb, var(--color-steel) 20%, transparent);
+  --color-steel-line: color-mix(in srgb, var(--color-steel) 40%, transparent);
+  --color-ok-tint: color-mix(in srgb, var(--color-ok) 5%, transparent);
+  --color-ok-wash: color-mix(in srgb, var(--color-ok) 10%, transparent);
+  --color-ok-strong: color-mix(in srgb, var(--color-ok) 20%, transparent);
+  --color-ok-line: color-mix(in srgb, var(--color-ok) 40%, transparent);
+  --color-warn-tint: color-mix(in srgb, var(--color-warn) 5%, transparent);
+  --color-warn-wash: color-mix(in srgb, var(--color-warn) 10%, transparent);
+  --color-warn-strong: color-mix(in srgb, var(--color-warn) 20%, transparent);
+  --color-warn-line: color-mix(in srgb, var(--color-warn) 40%, transparent);
+  --color-error-tint: color-mix(in srgb, var(--color-error) 5%, transparent);
+  --color-error-wash: color-mix(in srgb, var(--color-error) 10%, transparent);
+  --color-error-strong: color-mix(in srgb, var(--color-error) 20%, transparent);
+  --color-error-line: color-mix(in srgb, var(--color-error) 40%, transparent);
+
+  /* diff — the ok/error pair */
+  --color-diff-add-bg: var(--color-ok-wash);
+  --color-diff-del-bg: var(--color-error-wash);
+  --color-diff-add-fg: #a5d6bb;
+  --color-diff-del-fg: #f0a9a9;
+  --color-diff-add-gutter: color-mix(in srgb, var(--color-ok) 55%, transparent);
+  --color-diff-del-gutter: color-mix(in srgb, var(--color-error) 55%, transparent);
+
+  /* radius — xs icon-button, kbd · sm button, tab, input · md card, panel ·
+     lg dialog, marketing card · pill badge, dot. Inside an md card nothing
+     goes past sm. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* type — two families, a closed size scale.
+     label 10 · caption 11.5 · body-sm/ui 12.5 · code 13 · body 14 ·
+     title 17 · heading 21 · display 28 · hero (marketing only) */
   --font-sans: "Inter", sans-serif;
-  --font-mono: "Inter", monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --text-label: 10px;
+  --text-label--line-height: 1;
+  --text-label--letter-spacing: 0.1em;
+  --text-label--font-weight: 600;
+  --text-caption: 11.5px;
+  --text-caption--line-height: 1.45;
+  --text-body-sm: 12.5px;
+  --text-body-sm--line-height: 1.5;
+  --text-code: 13px;
+  --text-code--line-height: 1.7;
+  --text-body: 14px;
+  --text-body--line-height: 1.65;
+  --text-title: 17px;
+  --text-title--line-height: 1.3;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 600;
+  --text-heading: 21px;
+  --text-heading--line-height: 1.25;
+  --text-heading--letter-spacing: -0.025em;
+  --text-heading--font-weight: 600;
+  --text-display: 28px;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 700;
+  --text-hero: clamp(40px, 6vw, 64px);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.045em;
+  --text-hero--font-weight: 700;
+  /* mono tracking — data (counters, kbd) · label (pill, status) ·
+     eyebrow ("› STRUCTURE") */
+  --tracking-data: 0.04em;
+  --tracking-label: 0.1em;
+  --tracking-eyebrow: 0.16em;
+
+  /* shadow — only what floats, plus the glow of a primary action */
+  --shadow-pop: 0 12px 28px -10px rgb(0 0 0 / 70%), 0 0 0 1px var(--color-outline-md);
+  --shadow-modal: 0 24px 60px -12px rgb(0 0 0 / 80%);
+  --shadow-glow: 0 0 15px var(--color-heat-line);
+  --shadow-glow-hi: 0 0 24px color-mix(in srgb, var(--color-heat) 65%, transparent);
+  --shadow-ember: 0 0 6px var(--color-heat), 0 0 12px var(--color-heat-line);
+
+  --ease-forge: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* ─── DocForge design tokens ─────────────────────────────────── */
+/* Folder reordering uses pointer events so the browser never draws its native
+   unavailable/dotted drag cursor. Keep one cursor across every nested child. */
+body[data-folder-dragging="true"],
+body[data-folder-dragging="true"] * {
+  cursor: grabbing !important;
+}
+
+body[data-document-dragging="true"],
+body[data-document-dragging="true"] * {
+  cursor: grabbing !important;
+}
+
+@media (max-width: 760px) {
+  .public-document-outline {
+    display: none;
+  }
+}
+
+/* ─── Tokens Tailwind v4 has no namespace for ───────────────── */
 :root {
-  --df-bg: #0a0b0c;
-  --df-surface: #121414;
-  --df-surface-mid: #1d1f21;
-  --df-surface-high: #262829;
-  --df-outline: rgba(255,255,255,0.06);
-  --df-outline-md: rgba(255,255,255,0.10);
-  --df-mute: rgba(227,226,226,0.18);
-  --df-faint: rgba(227,226,226,0.38);
-  --df-dim: rgba(227,226,226,0.62);
+  --duration-fast: 150ms;   /* colour, border, hover */
+  --duration-base: 220ms;   /* tab, panel, popover */
+  --duration-slow: 400ms;   /* forge, pour, progress */
 
-  --df-amber-100: #ffd9b8;
-  --df-amber-200: #ffb59e;
-  --df-amber-300: #ff8d4a;
-  --df-amber-400: #ff6a14;
-  --df-amber-500: #ff4d00;
-  --df-amber-600: #c93800;
-  --df-amber-700: #6e1d00;
-  --df-amber-trail: rgba(255,77,0,0.42);
-  --df-amber-glow: rgba(255,77,0,0.40);
+  /* stacking layers — nothing else is allowed a z-index above 2 */
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-popover: 50;
+  --z-drawer: 60;
+  --z-modal: 100;
+  --z-toast: 200;
 
-  --df-steel-100: #b9c6d4;
-  --df-steel-200: #8aa0b8;
-  --df-steel-300: #5d7591;
-  --df-steel-bg: rgba(138,160,184,0.10);
-  --df-steel-bg-strong: rgba(138,160,184,0.22);
-  --df-steel-border: rgba(138,160,184,0.35);
-
-  --df-error: #e86464;
-  --df-error-bg: rgba(232,100,100,0.10);
-  --df-warn: #f0b27a;
-
-  --df-font-mono: 'JetBrains Mono', monospace;
+  /* marketing art with a name, so the colour guard holds in pages/ too */
+  --gradient-warm: linear-gradient(145deg, var(--color-heat-wash), var(--color-veil));
+  --gradient-steel: linear-gradient(145deg, var(--color-steel-wash), var(--color-veil));
+  --gradient-band: linear-gradient(100deg, var(--color-heat-wash), var(--color-hover));
 }
 
 /* Base styles */
@@ -106,6 +184,19 @@ body {
   letter-spacing: -0.02em;
   overflow: hidden;
   font-family: var(--font-sans);
+}
+
+/* The body's negative tracking is for Inter only — it wrecks mono, which
+   carries its own positive tracking on labels. */
+.df-mono,
+code,
+pre,
+kbd,
+samp,
+textarea.font-mono,
+.font-mono {
+  font-family: var(--font-mono);
+  letter-spacing: normal;
 }
 
 /* Material Symbols — self-sufficient so icons render even if Google's helper
@@ -145,113 +236,240 @@ body {
   background: transparent;
 }
 .df-scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--df-outline-md);
+  background: var(--color-outline-md);
   border-radius: 99px;
 }
 .df-scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,77,0,0.45);
+  background: var(--color-heat-line);
 }
 .df-scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--df-outline-md) transparent;
+  scrollbar-color: var(--color-outline-md) transparent;
 }
 
 .linear-gradient-bg {
-  background: linear-gradient(180deg, #0d0e0f 0%, #18110f 100%);
+  background: linear-gradient(180deg, var(--color-bg) 0%, color-mix(in srgb, var(--color-heat-deep) 12%, var(--color-bg)) 100%);
 }
 
 .panel-depth {
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-outline);
+  box-shadow: inset 0 1px 0 var(--color-outline-md);
 }
 
-.atmospheric-shadow {
-  box-shadow:
-    0 20px 40px -10px rgba(10, 12, 16, 0.8),
-    0 10px 20px -5px rgba(20, 24, 32, 0.5);
-}
-
-.glass-node {
-  backdrop-filter: blur(4px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.active-glow-primary {
-  box-shadow: 0 0 15px rgba(255, 77, 0, 0.28);
-}
-
+/* Primary action outside the Button primitive. Hover brightens the heat
+   instead of inverting to white (design-system plan §4). */
 .forge-btn {
-  background: #FF4D00;
-  color: white;
-  box-shadow: 0 0 15px rgba(255, 77, 0, 0.4);
-  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  background: var(--color-heat);
+  color: var(--color-on-heat);
+  box-shadow: var(--shadow-glow);
+  transition: background var(--duration-fast) var(--ease-forge), box-shadow var(--duration-fast) var(--ease-forge);
 }
 .forge-btn:hover {
-  background: white;
-  color: black;
-  box-shadow: 0 0 20px rgba(255, 77, 0, 0.6);
-}
-
-.stage-card {
-  border: 1px solid #262626;
-  transition: border-color 0.3s;
-}
-.stage-card:hover {
-  border-color: rgba(255, 77, 0, 0.4);
+  background: var(--color-heat-hi);
+  color: var(--color-on-heat);
+  box-shadow: var(--shadow-glow-hi);
 }
 
 /* DocForge utility classes */
-.df-mono { font-family: var(--df-font-mono); }
-
 .df-ember {
   display: inline-block;
   width: 6px; height: 6px;
-  border-radius: 999px;
-  background: var(--df-amber-500);
-  box-shadow: 0 0 6px var(--df-amber-500), 0 0 12px var(--df-amber-glow);
+  border-radius: var(--radius-pill);
+  background: var(--color-heat);
+  box-shadow: var(--shadow-ember);
 }
 
-.df-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--df-font-mono);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.10em; text-transform: uppercase;
-  padding: 4px 9px; border-radius: 999px; border: 1px solid; line-height: 1;
+/* ─── Primitive states (components/ui) ──────────────────────────
+   In CSS rather than inline so hover, focus and disabled work from the
+   keyboard and never need onMouseEnter bookkeeping. */
+.df-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-forge),
+    border-color var(--duration-fast) var(--ease-forge),
+    color var(--duration-fast) var(--ease-forge),
+    box-shadow var(--duration-fast) var(--ease-forge);
 }
-.df-pill-heat {
-  color: var(--df-amber-200);
-  border-color: rgba(255,77,0,0.45);
-  background: rgba(255,77,0,0.10);
+.df-btn--primary { background: var(--color-heat); color: var(--color-on-heat); font-weight: 600; }
+.df-btn--primary:hover:not(:disabled) { background: var(--color-heat-hi); box-shadow: var(--shadow-glow); }
+.df-btn--secondary { background: var(--color-hover); color: var(--color-text); border-color: var(--color-outline-md); }
+.df-btn--secondary:hover:not(:disabled) { background: var(--color-press); border-color: var(--color-heat-line); }
+.df-btn--ghost { background: transparent; color: var(--color-faint); }
+.df-btn--ghost:hover:not(:disabled) { color: var(--color-text); background: var(--color-hover); }
+.df-btn--lg { padding: 11px 17px; font-size: var(--text-code); font-weight: 600; }
+.df-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.df-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-faint);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-forge), color var(--duration-fast) var(--ease-forge);
 }
-.df-pill-heat::before {
-  content: ""; width: 6px; height: 6px; border-radius: 999px;
-  background: var(--df-amber-500);
-  box-shadow: 0 0 6px var(--df-amber-500), 0 0 12px var(--df-amber-glow);
+.df-icon-btn:hover:not(:disabled) { background: var(--color-hover); color: var(--color-text); }
+.df-icon-btn--active { background: var(--color-heat-wash); color: var(--color-heat-hi); }
+.df-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.df-input {
+  width: 100%;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-mid);
+  border: 1px solid var(--color-outline-md);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-forge), box-shadow var(--duration-fast) var(--ease-forge);
 }
-.df-pill-steel {
-  color: var(--df-steel-100);
-  border-color: var(--df-steel-border);
-  background: var(--df-steel-bg);
+.df-input::placeholder { color: var(--color-faint); }
+.df-input:focus-visible { border-color: var(--color-heat-line); box-shadow: 0 0 0 3px var(--color-heat-strong); }
+
+.df-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-faint);
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-forge);
 }
-.df-pill-steel::before {
-  content: ""; width: 6px; height: 6px; border-radius: 999px;
-  background: var(--df-steel-200);
+.df-switch:hover:not(:disabled), .df-switch[aria-checked="true"] { color: var(--color-text); }
+.df-switch:disabled { opacity: 0.5; cursor: wait; }
+.df-switch-track {
+  position: relative;
+  width: 26px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-outline-md);
+  transition: background var(--duration-fast) var(--ease-forge);
 }
-.df-pill-ghost {
-  color: var(--df-faint);
-  border-color: var(--df-outline);
-  background: rgba(255,255,255,0.02);
+.df-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-pill);
+  background: var(--color-faint);
+  transition: transform var(--duration-fast) var(--ease-forge), background var(--duration-fast) var(--ease-forge);
 }
-.df-pill-warn {
-  color: var(--df-warn);
-  border-color: rgba(240,178,122,0.40);
-  background: rgba(240,178,122,0.08);
+.df-switch[aria-checked="true"] .df-switch-track { background: var(--color-heat-strong); }
+.df-switch[aria-checked="true"] .df-switch-knob { transform: translateX(11px); background: var(--color-heat); }
+
+.df-kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-outline-md);
+  border-bottom-width: 2px;
+  background: var(--color-surface-mid);
+  color: var(--color-dim);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-data);
+  line-height: 1.2;
+  text-align: center;
 }
-.df-pill-error {
-  color: var(--df-error);
-  border-color: rgba(232,100,100,0.45);
-  background: var(--df-error-bg);
+
+/* ─── Lists and navigation ──────────────────────────────────────
+   One row language for every list (library, versions, keys): hover lifts
+   the row, secondary actions appear on hover/focus, the chevron says
+   "this opens". A drop target gets the steel bar. */
+.df-row {
+  transition: background var(--duration-fast) var(--ease-forge), box-shadow var(--duration-fast) var(--ease-forge);
+}
+.df-row:hover { background: var(--color-hover); }
+.df-row--drop { background: var(--color-steel-wash); box-shadow: inset 3px 0 0 var(--color-steel); }
+.df-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-forge);
+}
+.df-row:hover .df-row-actions,
+.df-row:focus-within .df-row-actions { opacity: 1; }
+.df-row-chevron { color: var(--color-mute); transition: color var(--duration-fast) var(--ease-forge), transform var(--duration-fast) var(--ease-forge); }
+.df-row:hover .df-row-chevron { color: var(--color-dim); transform: translateX(2px); }
+
+.df-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-dim);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-forge), color var(--duration-fast) var(--ease-forge);
+}
+.df-nav-item:hover { background: var(--color-hover); color: var(--color-text); }
+.df-nav-item--active { background: var(--color-heat-tint); color: var(--color-text); box-shadow: inset 2px 0 0 var(--color-heat); }
+.df-nav-item--active .material-symbols-outlined { color: var(--color-heat-hi); }
+.df-nav-item .material-symbols-outlined { color: var(--color-faint); font-size: 17px; }
+.df-nav-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-data);
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Focus — keyboard users see where they are ─────────────────
+   Scoped to controls and single-line fields. Writing surfaces (textareas,
+   the CodeMirror editor) stay unringed: the caret is the focus there. */
+:where(button, a[href], summary, select, [role="button"], [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"]):not(.cm-content)):focus-visible {
+  outline: 2px solid var(--color-heat-hi);
+  outline-offset: 2px;
+}
+:where(input:not([type="checkbox"]):not([type="radio"])):focus-visible {
+  box-shadow: 0 0 0 3px var(--color-heat-strong);
+}
+
+/* ─── Reduced motion — the forge loops stop, state changes stay ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Animations */
@@ -322,8 +540,8 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes df-forge-flash {
-  0%   { box-shadow: 0 0 0 2px rgba(255,77,0,0.55), 0 0 18px rgba(255,77,0,0.25); }
-  60%  { box-shadow: 0 0 0 2px rgba(138,160,184,0.25), 0 0 8px rgba(138,160,184,0.10); }
+  0%   { box-shadow: 0 0 0 2px var(--color-heat-line), 0 0 18px var(--color-heat-strong); }
+  60%  { box-shadow: 0 0 0 2px var(--color-steel-strong), 0 0 8px var(--color-steel-wash); }
   100% { box-shadow: none; }
 }
 @keyframes df-zone-shimmer {
@@ -331,8 +549,8 @@ body {
   to   { transform: translateX(250%); }
 }
 @keyframes df-counter-pulse {
-  0%, 100% { color: var(--df-faint, rgba(227,226,226,0.38)); }
-  35%       { color: #ff8d4a; }
+  0%, 100% { color: var(--color-faint); }
+  35%       { color: var(--color-heat-hi); }
 }
 @keyframes df-ember-float {
   0%   { opacity: 1; transform: translateY(0) scale(1); }
@@ -340,8 +558,8 @@ body {
   100% { opacity: 0; transform: translateY(-56px) scale(0.25); }
 }
 @keyframes df-section-forged-pulse {
-  0%, 100% { box-shadow: none; border-color: var(--df-steel-border, rgba(138,160,184,0.35)); }
-  50%       { box-shadow: 0 0 0 2px rgba(138,160,184,0.10), 0 0 12px rgba(138,160,184,0.08); border-color: rgba(138,160,184,0.55); }
+  0%, 100% { box-shadow: none; border-color: var(--color-steel-line); }
+  50%       { box-shadow: 0 0 0 2px var(--color-steel-wash), 0 0 12px var(--color-steel-wash); border-color: var(--color-steel-line); }
 }
 @keyframes df-shimmer-loop {
   0%   { transform: translateX(-100%); }

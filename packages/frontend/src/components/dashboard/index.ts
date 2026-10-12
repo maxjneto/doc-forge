@@ -1,6 +1,12 @@
 export { TwinModeTabs } from "./TwinModeTabs";
 export type { TwinMode } from "./TwinModeTabs";
-export { DocTableRow } from "./DocTableRow";
+export { DocTableRow, LIBRARY_GRID } from "./DocTableRow";
 export { ConnectedAgentsCard } from "./ConnectedAgentsCard";
 export { RecentActivityCard } from "./RecentActivityCard";
 export { DashboardTipCard } from "./DashboardTipCard";
+export { ShareDialog } from "./ShareDialog";
+export { FolderRail, type LibraryView } from "./FolderRail";
+export { FolderTableRow } from "./FolderTableRow";
+export { MoveDocumentDialog } from "./MoveDocumentDialog";
+export { FolderDragOverlay } from "./folderPointerDrag";
+export { DocumentDragOverlay } from "./documentPointerDrag";

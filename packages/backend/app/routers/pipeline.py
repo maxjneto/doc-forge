@@ -94,24 +94,17 @@ async def start_pipeline_document(
     if limit_error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=limit_error)
 
-    # BYOA route is cheap to serve — costs the editor-document credit, not the guided one
-    cost = settings.EDITOR_DOCUMENT_COST
-    result = await db.execute(
-        update(User)
-        .where(User.id == current_user.id, User.credits >= cost)
-        .values(credits=User.credits - cost)
-    )
-    if result.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="No credits remaining. Credits reset weekly.",
-        )
-    await db.commit()
+    from app.services.credits import consume_document_creation, refund_document_creation
 
-    doc, run = await pipeline_service.start_pipeline(
-        db, current_user.id, doc_type, payload.title, payload.document_context,
-        definition=definition,
-    )
+    await consume_document_creation(db, current_user)
+    try:
+        doc, run = await pipeline_service.start_pipeline(
+            db, current_user.id, doc_type, payload.title, payload.document_context,
+            definition=definition,
+        )
+    except Exception:
+        await refund_document_creation(db, current_user.id)
+        raise
     api_key_id = getattr(request.state, "api_key_id", None)
     if api_key_id:
         capture_event(str(current_user.id), str(doc.id), "mcp_pipeline_started", {

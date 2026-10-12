@@ -72,3 +72,16 @@ class SectionWriteResponse(BaseModel):
     version_id: UUID | None = None
     suggestion_id: UUID | None = None
     content_length: int
+
+
+class SuggestionTriageRequest(BaseModel):
+    """Which numbered changes the reviewer kept.
+
+    Indexes are 1-based and match what the browser showed as `CHANGE n OF m`.
+    The server recomputes the hunks with the same algorithm rather than
+    trusting a client-built result — see app/services/hunks.py.
+    """
+
+    accepted_indexes: list[int] = Field(default_factory=list)
+    # Why the rest were turned down. Becomes agent-readable feedback.
+    comment: str | None = Field(default=None, max_length=4000)

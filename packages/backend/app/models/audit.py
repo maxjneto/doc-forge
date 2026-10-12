@@ -18,6 +18,12 @@ class AuditFinding(Base):
     section_type: Mapped[str] = mapped_column(String(20), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[str] = mapped_column(String(10), nullable=False)
+    # Verbatim phrase the finding is about, so it can be shown underlined where
+    # it sits. Null when the finding is about the document as a whole.
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Free-form label shown next to the severity pill: "coerência", "escopo",
+    # "terminologia"…
+    category: Mapped[str | None] = mapped_column(String(40), nullable=True)
     dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

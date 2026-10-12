@@ -10,11 +10,12 @@ import {
 import { ForgeLoader } from "@/components/shared";
 import { SummaryCard } from "./SummaryCard";
 
+import { useI18n } from "@/i18n";
 const ALIGNMENT_STEPS = [
-  { message: "Analyzing your answers...", detail: "Extracting key requirements" },
-  { message: "Mapping document structure...", detail: "Organizing sections" },
-  { message: "Drafting section summaries...", detail: "Preparing alignment view" },
-  { message: "Almost ready...", detail: "Finalizing section content" },
+  { message: "g.al.s1", detail: "g.al.s1d" },
+  { message: "g.al.s2", detail: "g.al.s2d" },
+  { message: "g.al.s3", detail: "g.al.s3d" },
+  { message: "g.al.s4", detail: "g.al.s4d" },
 ];
 
 interface AlignmentLayoutProps {
@@ -31,12 +32,6 @@ interface CardState {
   rejectionReason: string;
 }
 
-const SECTION_META: Record<SectionType, { label: string }> = {
-  context:        { label: "Context" },
-  proposal:       { label: "Proposal" },
-  implementation: { label: "Implementation" },
-  risks:          { label: "Risks & Alternatives" },
-};
 
 const SECTION_ORDER: SectionType[] = [
   "context",
@@ -46,6 +41,7 @@ const SECTION_ORDER: SectionType[] = [
 ];
 
 export function AlignmentLayout({ documentId, sections, documentMode }: AlignmentLayoutProps) {
+  const { t } = useI18n();
   const { getToken } = useAuth();
   const isPipeline = documentMode === "pipeline";
   const [cards, setCards] = useState<Record<SectionType, CardState>>(() => {
@@ -127,7 +123,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
       // Backend gate refused (e.g. a section still has open feedback from a
       // rejection the client didn't know about) — surface it instead of
       // leaving the button stuck on "Confirming…" forever.
-      setConfirmError("Some sections still have unresolved feedback — wait for the agent to address it and try again.");
+      setConfirmError(t("g.al.err"));
     } finally {
       setConfirming(false);
     }
@@ -145,14 +141,14 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
         paddingTop: 56,
         display: "flex",
         flexDirection: "column",
-        background: "var(--df-bg, #0a0b0c)",
+        background: "var(--color-bg)",
         overflow: "hidden",
       }}
     >
       {!hasSummaries ? (
         <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
           <div className="animate-fade-in">
-            <ForgeLoader steps={ALIGNMENT_STEPS} stepInterval={3500} />
+            <ForgeLoader steps={ALIGNMENT_STEPS.map((step) => ({ message: t(step.message), detail: t(step.detail) }))} stepInterval={3500} />
           </div>
         </div>
       ) : (
@@ -169,10 +165,10 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
           {/* Progress card */}
           <div
             style={{
-              border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-              borderRadius: 10,
+              border: "1px solid var(--color-outline)",
+              borderRadius: "var(--radius-md)",
               padding: "16px 22px",
-              background: "rgba(18,20,20,0.5)",
+              background: "var(--color-veil)",
               display: "flex",
               alignItems: "center",
               gap: 22,
@@ -182,23 +178,23 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span
                 className="df-mono"
-                style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--df-amber-300, #ff8d4a)" }}
+                style={{ fontSize: 10, letterSpacing: "var(--tracking-eyebrow)", textTransform: "uppercase", color: "var(--color-heat-hi)" }}
               >
-                Align before generation
+                {t("g.al.eyebrow")}
               </span>
               <span style={{ fontSize: 14, fontWeight: 600 }}>
-                Approve each summary or send notes back.
+                {t("g.al.title")}
               </span>
               <span
                 className="df-mono"
-                style={{ fontSize: 11, color: "var(--df-dim, rgba(227,226,226,0.62))" }}
+                style={{ fontSize: 11.5, color: "var(--color-dim)" }}
               >
-                <span style={{ color: "var(--df-amber-300, #ff8d4a)" }}>{approvedCount} approved</span>
+                <span style={{ color: "var(--color-heat-hi)" }}>{t("g.al.approved", { count: approvedCount })}</span>
                 {revisingCount > 0 && (
-                  <> · <span style={{ color: "var(--df-amber-300, #ff8d4a)" }}>{revisingCount} in revision</span></>
+                  <> · <span style={{ color: "var(--color-heat-hi)" }}>{t("g.al.revising", { count: revisingCount })}</span></>
                 )}
                 {" · "}
-                <span style={{ color: "var(--df-steel-100, #b9c6d4)" }}>approve all to pour</span>
+                <span style={{ color: "var(--color-faint)" }}>{t("g.al.hint")}</span>
               </span>
             </div>
 
@@ -208,9 +204,9 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                 flex: 1,
                 maxWidth: 360,
                 height: 6,
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+                borderRadius: "var(--radius-pill)",
+                background: "var(--color-hover)",
+                border: "1px solid var(--color-outline)",
                 position: "relative",
                 overflow: "hidden",
               }}
@@ -220,7 +216,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                   height: "100%",
                   width: `${(approvedCount / SECTION_ORDER.length) * 100}%`,
                   background:
-                    "linear-gradient(90deg, var(--df-amber-700, #6e1d00), var(--df-amber-500, #ff4d00) 60%, var(--df-amber-300, #ff8d4a))",
+                    "linear-gradient(90deg, var(--color-heat-deep), var(--color-heat) 60%, var(--color-heat-hi))",
                   position: "relative",
                   transition: "width 0.4s ease",
                 }}
@@ -234,7 +230,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                       bottom: 0,
                       width: 16,
                       background:
-                        "linear-gradient(90deg, transparent, rgba(255,217,184,0.65))",
+                        "linear-gradient(90deg, transparent, var(--color-spark))",
                       filter: "blur(4px)",
                     }}
                   />
@@ -251,18 +247,18 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                   alignItems: "center",
                   gap: 8,
                   padding: "8px 16px",
-                  borderRadius: 6,
-                  fontSize: 12,
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 12.5,
                   fontWeight: 600,
-                  border: "1px solid var(--df-amber-500, #ff4d00)",
-                  background: "var(--df-amber-500, #ff4d00)",
-                  color: "#fff",
+                  border: "1px solid var(--color-heat)",
+                  background: "var(--color-heat)",
+                  color: "var(--color-on-heat)",
                   cursor: !allApproved || confirming ? "not-allowed" : "pointer",
                   opacity: !allApproved || confirming ? 0.55 : 1,
                   position: "relative",
                   overflow: "hidden",
                   boxShadow: allApproved
-                    ? "0 0 0 1px rgba(255,77,0,0.20), 0 4px 14px rgba(255,77,0,0.18)"
+                    ? "0 0 0 1px var(--color-heat-strong), 0 4px 14px var(--color-heat-strong)"
                     : "none",
                 }}
               >
@@ -273,12 +269,12 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
                       position: "absolute",
                       inset: 0,
                       background:
-                        "linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.20) 35%, transparent 65%)",
+                        "linear-gradient(120deg, transparent 0%, var(--color-sheen) 35%, transparent 65%)",
                       pointerEvents: "none",
                     }}
                   />
                 )}
-                {confirming ? "Confirming…" : "Confirm and pour"}
+                {confirming ? t("g.al.confirming") : t("g.al.confirm")}
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                   arrow_forward
                 </span>
@@ -286,7 +282,7 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
               {confirmError && (
                 <div
                   className="df-mono"
-                  style={{ marginTop: 6, fontSize: 10.5, color: "var(--df-amber-300, #ff8d4a)", maxWidth: 220, textAlign: "right" }}
+                  style={{ marginTop: 6, fontSize: 11.5, color: "var(--color-error)", maxWidth: 220, textAlign: "right" }}
                 >
                   {confirmError}
                 </div>
@@ -302,13 +298,14 @@ export function AlignmentLayout({ documentId, sections, documentMode }: Alignmen
               gap: 16,
               flex: 1,
               overflow: "auto",
+              alignContent: "start",
             }}
             className="hide-scrollbar"
           >
             {SECTION_ORDER.map((type) => (
               <SummaryCard
                 key={type}
-                label={SECTION_META[type].label}
+                label={t(`section.${type}`)}
                 summary={cards[type].summary}
                 status={cards[type].status}
                 locked={confirming}

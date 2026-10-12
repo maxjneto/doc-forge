@@ -2,6 +2,7 @@ import { useRef, useCallback } from "react";
 import { useWorkspaceStore } from "@/store";
 import { Icon, MarkdownRenderer } from "../shared";
 
+import { useI18n } from "@/i18n";
 type EditorMode = "source" | "preview";
 
 // ─── Editor Toolbar ──────────────────────────────────────────
@@ -15,34 +16,35 @@ function EditorToolbar({
   onModeChange: (mode: EditorMode) => void;
   isReadonly: boolean;
 }) {
+  const { t } = useI18n();
   return (
-    <div className="flex items-center justify-center px-6 py-3 border-b border-outline-variant/20 bg-surface/40 backdrop-blur-md gap-4">
-      <div className="flex items-center bg-surface-container-high/50 p-0.5 rounded-lg border border-outline-variant/10">
+    <div className="flex items-center justify-center px-6 py-3 border-b border-outline bg-surface/60 backdrop-blur-md gap-4">
+      <div className="flex items-center bg-surface-mid/50 p-0.5 rounded-sm border border-outline">
         <button
           onClick={() => onModeChange("source")}
-          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+          className={`px-3 py-1 text-body-sm font-medium rounded-xs transition-colors ${
             mode === "source"
-              ? "text-on-surface bg-surface-container-highest shadow-sm"
-              : "text-on-surface-variant/60 hover:text-on-surface"
+              ? "text-text bg-surface-high shadow-sm"
+              : "text-faint hover:text-text"
           }`}
         >
-          Source
+          {t("editor.source")}
         </button>
         <button
           onClick={() => onModeChange("preview")}
-          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+          className={`px-3 py-1 text-body-sm font-medium rounded-xs transition-colors ${
             mode === "preview"
-              ? "text-on-surface bg-surface-container-highest shadow-sm"
-              : "text-on-surface-variant/60 hover:text-on-surface"
+              ? "text-text bg-surface-high shadow-sm"
+              : "text-faint hover:text-text"
           }`}
         >
-          Preview
+          {t("editor.preview")}
         </button>
       </div>
       {isReadonly && (
-        <span className="flex items-center gap-1 text-[11px] text-on-surface-variant/50 font-medium">
+        <span className="flex items-center gap-1 text-caption text-faint font-medium">
           <Icon name="lock" className="!text-[14px]" />
-          Read-only
+          {t("g.ws.readOnly")}
         </span>
       )}
     </div>
@@ -82,7 +84,7 @@ function SourceEditor({
         readOnly={readonly}
         value={content}
         onChange={handleChange}
-        className={`w-full h-full bg-transparent text-on-surface-variant/90 font-mono text-sm leading-relaxed resize-none focus:outline-none p-0 ${
+        className={`w-full h-full bg-transparent text-dim font-mono text-body leading-relaxed resize-none focus:outline-none p-0 ${
           readonly ? "cursor-default opacity-70" : ""
         }`}
       />

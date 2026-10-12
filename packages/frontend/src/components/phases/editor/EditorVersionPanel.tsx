@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
-import DiffMatchPatch from "diff-match-patch";
 import type { SectionVersion } from "@/types";
 import {
   apiFetchVersions,
@@ -11,8 +10,10 @@ import {
   apiUpdateSectionContent,
 } from "@/utils/api";
 import { ScrollFadeContainer } from "./ScrollFadeContainer";
-
-const dmp = new DiffMatchPatch();
+import { diffHunks, type Hunk } from "@/utils/diff";
+import { Button, Eyebrow, IconButton, Input, Pill, textStyle } from "@/components/ui";
+import { useI18n } from "@/i18n";
+import { fullDate, relativeTime } from "@/utils/time";
 
 // ─── Version item ─────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ interface VersionItemProps {
 
 function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, onPatch }: VersionItemProps) {
   const { getToken } = useAuth();
+  const { t, dateLocale } = useI18n();
   const [editOpen, setEditOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState(version.versionName);
   const [noteDraft, setNoteDraft] = useState(version.changeSummary ?? "");
@@ -64,234 +66,116 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
 
   return (
     <div style={{ position: "relative", paddingLeft: 20 }}>
-      {/* L-connector */}
+      {/* L-connector to the trunk */}
       <div
+        aria-hidden
         style={{
           position: "absolute",
           left: 0,
           top: -10,
           width: 14,
-          height: 20,
-          borderLeft: `1px solid ${version.isActive ? "var(--df-outline-md, rgba(255,255,255,0.10))" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-          borderBottom: `1px solid ${version.isActive ? "var(--df-outline-md, rgba(255,255,255,0.10))" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-          borderRadius: "0 0 0 6px",
+          height: 22,
+          borderLeft: "1px solid var(--color-outline-md)",
+          borderBottom: "1px solid var(--color-outline-md)",
+          borderRadius: "0 0 0 var(--radius-sm)",
         }}
       />
 
       <div
+        className="df-row"
+        role="button"
+        tabIndex={0}
+        aria-expanded={isSelected}
         onClick={onSelect}
+        onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onSelect(); }}
         style={{
-          padding: "6px 8px",
-          borderRadius: 6,
+          padding: "8px 10px",
+          borderRadius: "var(--radius-sm)",
           cursor: "pointer",
-          background: version.isActive
-            ? "rgba(255,77,0,0.05)"
-            : isSelected
-            ? "rgba(255,255,255,0.03)"
-            : "transparent",
-          border: `1px solid ${version.isActive ? "rgba(255,77,0,0.20)" : isSelected ? "rgba(255,255,255,0.06)" : "transparent"}`,
-          transition: "background 0.12s, border-color 0.12s",
-          opacity: !version.isActive && !isSelected ? 0.55 : 1,
-        }}
-        onMouseEnter={(e) => {
-          if (!version.isActive && !isSelected)
-            (e.currentTarget as HTMLElement).style.opacity = "1";
-        }}
-        onMouseLeave={(e) => {
-          if (!version.isActive && !isSelected)
-            (e.currentTarget as HTMLElement).style.opacity = "0.55";
+          background: version.isActive ? "var(--color-heat-tint)" : isSelected ? "var(--color-hover)" : undefined,
+          boxShadow: version.isActive ? "inset 2px 0 0 var(--color-heat)" : undefined,
         }}
       >
-        {/* Row: dot + name + badge + pencil */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: "50%",
-              flexShrink: 0,
-              background: version.isActive
-                ? "var(--df-amber-500, #ff4d00)"
-                : "var(--df-mute, rgba(227,226,226,0.18))",
-              boxShadow: version.isActive ? "0 0 6px var(--df-amber-500)" : "none",
-            }}
-          />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
-            className="df-mono"
             style={{
-              fontSize: 11,
-              fontWeight: version.isActive ? 600 : 400,
-              color: version.isActive
-                ? "var(--df-amber-200, #ffb59e)"
-                : "var(--df-faint, rgba(227,226,226,0.38))",
               flex: 1,
+              minWidth: 0,
+              fontSize: 12.5,
+              fontWeight: version.isActive ? 600 : 500,
+              color: version.isActive || isSelected ? "var(--color-text)" : "var(--color-dim)",
               lineHeight: 1.35,
-              wordBreak: "break-word",
+              overflowWrap: "anywhere",
             }}
           >
             {version.versionName}
           </span>
-          {/* Pencil */}
-          <button
-            onClick={openEdit}
-            title="Edit name / note"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "2px 3px",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--df-mute, rgba(227,226,226,0.18))",
-              borderRadius: 3,
-              flexShrink: 0,
-              transition: "color 0.12s",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--df-mute, rgba(227,226,226,0.18))"; }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>edit</span>
-          </button>
+          {version.isActive && <Pill tone="heat" compact>{t("versions.current")}</Pill>}
+          {version.isPublished && <Pill tone="steel" compact dot={false}>{t("versions.published")}</Pill>}
+          <div className="df-row-actions">
+            <IconButton icon="edit" label={t("versions.edit")} onClick={openEdit} style={{ width: 24, height: 24 }} />
+          </div>
         </div>
 
-        {/* Note */}
         {version.changeSummary && !editOpen && (
-          <div style={{ marginTop: 3, paddingLeft: 11 }}>
-            <span
-              className="df-mono"
-              style={{ fontSize: 10.5, lineHeight: 1.4, color: "var(--df-faint, rgba(227,226,226,0.38))", display: "block" }}
-            >
-              {version.changeSummary}
-            </span>
+          <div style={{ marginTop: 3, fontSize: 11.5, lineHeight: 1.45, color: "var(--color-faint)" }}>
+            {version.changeSummary}
           </div>
         )}
 
-        {/* Timestamp */}
         {!editOpen && (
-          <div style={{ marginTop: 3, paddingLeft: 11 }}>
-            <span className="df-mono" style={{ fontSize: 9.5, color: "var(--df-mute, rgba(227,226,226,0.18))" }}>
-              {new Date(version.createdAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}
-            </span>
+          <div
+            title={fullDate(version.createdAt, dateLocale)}
+            style={{ marginTop: 3, fontSize: 11.5, color: "var(--color-mute)", fontVariantNumeric: "tabular-nums" }}
+          >
+            {relativeTime(version.createdAt, dateLocale)}
           </div>
         )}
 
-        {/* Inline edit form */}
         {editOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              marginTop: 8,
-              padding: "10px 10px",
-              borderRadius: 6,
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
+            style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}
           >
-            <div>
-              <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute, rgba(227,226,226,0.18))", marginBottom: 4 }}>NAME</div>
-              <input
-                autoFocus
-                value={nameDraft}
-                onChange={(e) => setNameDraft(e.target.value)}
-                maxLength={100}
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: "1px solid rgba(255,255,255,0.10)",
-                  fontSize: 10,
-                  color: "var(--df-dim, rgba(227,226,226,0.62))",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  padding: "2px 0",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <div>
-              <div className="df-mono" style={{ fontSize: 8, letterSpacing: "0.12em", color: "var(--df-mute, rgba(227,226,226,0.18))", marginBottom: 4 }}>NOTE</div>
-              <input
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                placeholder="Add a note…"
-                maxLength={500}
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: "1px solid rgba(255,255,255,0.10)",
-                  fontSize: 10,
-                  color: "var(--df-dim, rgba(227,226,226,0.62))",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  padding: "2px 0",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
+            <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <span style={{ ...textStyle.label, color: "var(--color-faint)" }}>{t("versions.name")}</span>
+              <Input autoFocus value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} maxLength={100} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <span style={{ ...textStyle.label, color: "var(--color-faint)" }}>{t("versions.note")}</span>
+              <Input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={t("versions.notePlaceholder")} maxLength={500} />
+            </label>
             <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-              <button
-                onClick={cancelEdit}
-                className="df-mono"
-                style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid var(--df-outline, rgba(255,255,255,0.06))", background: "transparent", color: "var(--df-faint, rgba(227,226,226,0.38))", cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveMeta}
-                disabled={saving}
-                className="df-mono"
-                style={{ fontSize: 9, padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(255,77,0,0.35)", background: "rgba(255,77,0,0.08)", color: "var(--df-amber-200, #ffb59e)", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
-              >
-                {saving ? "Saving…" : "Save"}
-              </button>
+              <Button variant="ghost" onClick={cancelEdit}>{t("common.cancel")}</Button>
+              <Button onClick={handleSaveMeta} disabled={saving}>{saving ? t("versions.saving") : t("versions.save")}</Button>
             </div>
           </div>
         )}
 
-        {/* Switch button when selected and not active */}
         {showDiff && (
-          <button
+          <Button
+            icon="swap_horiz"
+            iconPosition="start"
             onClick={(e) => { e.stopPropagation(); onSwitch(version); }}
-            style={{
-              marginTop: 8,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11,
-              fontWeight: 600,
-              padding: "5px 10px",
-              borderRadius: 4,
-              border: "1px solid rgba(255,77,0,0.30)",
-              background: "rgba(255,77,0,0.08)",
-              color: "var(--df-amber-300, #ff8d4a)",
-              cursor: "pointer",
-            }}
+            style={{ marginTop: 10 }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>swap_horiz</span>
-            Switch to version
-          </button>
+            {t("versions.restore")}
+          </Button>
         )}
       </div>
 
-      {/* Diff pane — renders inline (no nested scroll: the tab's single
-          outer scroll owns this) */}
+      {/* Diff pane — inline, the tab's single outer scroll owns it */}
       {showDiff && (
         <div
           style={{
             marginTop: 6,
-            padding: "10px",
-            borderRadius: 6,
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            padding: 10,
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface-mid)",
+            border: "1px solid var(--color-outline)",
           }}
         >
-          <div className="df-mono" style={{ fontSize: 9.5, letterSpacing: "0.12em", color: "rgba(227,226,226,0.3)", marginBottom: 6, textTransform: "uppercase" }}>
-            Diff vs current
-          </div>
+          <Eyebrow style={{ marginBottom: 8 }}>{t("versions.diffVsCurrent")}</Eyebrow>
           <DiffView oldText={currentContent} newText={version.content} />
         </div>
       )}
@@ -299,37 +183,132 @@ function VersionItem({ version, isSelected, currentContent, onSelect, onSwitch, 
   );
 }
 
-// ─── Diff view ────────────────────────────────────────────────
+// ─── Change summary ───────────────────────────────────────────
 
+/**
+ * What changed between two versions — sections first, detail on demand.
+ *
+ * The old view ran a character-level diff over the whole document and printed
+ * it into this 340px column, which for a long document was a wall of text. A
+ * version comparison should start by answering "which parts moved", and only
+ * then show the lines.
+ */
 function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
-  const diffs = dmp.diff_main(oldText, newText);
-  dmp.diff_cleanupSemantic(diffs);
+  const hunks = diffHunks(oldText, newText);
+
+  const bySection = hunks.reduce<Record<string, Hunk[]>>((acc, h) => {
+    const key = h.heading?.text ?? "(sem seção)";
+    (acc[key] ??= []).push(h);
+    return acc;
+  }, {});
+  const sections = Object.entries(bySection);
+
+  if (hunks.length === 0) {
+    return (
+      <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.6 }}>
+        Idêntica à versão atual.
+      </div>
+    );
+  }
 
   return (
-    <pre
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)" }}>
+        {hunks.length} {hunks.length === 1 ? "MUDANÇA" : "MUDANÇAS"} EM {sections.length}{" "}
+        {sections.length === 1 ? "SEÇÃO" : "SEÇÕES"}
+      </div>
+
+      {sections.map(([section, list]) => (
+        <SectionChanges key={section} section={section} hunks={list} />
+      ))}
+    </div>
+  );
+}
+
+function SectionChanges({ section, hunks }: { section: string; hunks: Hunk[] }) {
+  const [open, setOpen] = useState(false);
+  const added = hunks.reduce((n, h) => n + h.added, 0);
+  const removed = hunks.reduce((n, h) => n + h.removed, 0);
+
+  return (
+    <div
       style={{
-        fontFamily: "var(--df-font-mono, monospace)",
-        fontSize: 12,
-        lineHeight: 1.65,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-        margin: 0,
-        color: "rgba(227,226,226,0.68)",
+        border: "1px solid var(--color-outline)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--color-surface-mid)",
+        overflow: "hidden",
       }}
     >
-      {diffs.map(([op, text], i) => (
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 10px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
         <span
-          key={i}
           style={{
-            background: op === 1 ? "rgba(80,200,120,0.15)" : op === -1 ? "rgba(232,100,100,0.15)" : "transparent",
-            color: op === 1 ? "#50c878" : op === -1 ? "#e86464" : "rgba(227,226,226,0.45)",
-            textDecoration: op === -1 ? "line-through" : "none",
+            flex: 1,
+            minWidth: 0,
+            fontSize: 11.5,
+            color: "var(--color-text)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          {text}
+          {section}
         </span>
-      ))}
-    </pre>
+        {added > 0 && (
+          <span className="df-mono" style={{ fontSize: 10, color: "var(--color-ok)" }}>
+            +{added}
+          </span>
+        )}
+        {removed > 0 && (
+          <span className="df-mono" style={{ fontSize: 10, color: "var(--color-error)" }}>
+            −{removed}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{ borderTop: "1px solid var(--color-outline)" }}>
+          {hunks.map((h) =>
+            h.rows
+              .filter((r) => r.kind !== "context")
+              .map((r, i) => (
+                <div
+                  key={`${h.index}-${i}`}
+                  className="df-mono"
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    padding: "1px 10px",
+                    fontSize: 11.5,
+                    lineHeight: 1.6,
+                    background:
+                      r.kind === "add" ? "var(--color-diff-add-bg)" : "var(--color-diff-del-bg)",
+                    color:
+                      r.kind === "add" ? "var(--color-diff-add-fg)" : "var(--color-diff-del-fg)",
+                  }}
+                >
+                  <span style={{ flexShrink: 0 }}>{r.kind === "add" ? "+" : "−"}</span>
+                  <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", minWidth: 0 }}>
+                    {r.text || " "}
+                  </span>
+                </div>
+              )),
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -347,6 +326,7 @@ interface EditorVersionPanelProps {
  * label, so no own header here. */
 export function EditorVersionPanel({ sectionId, documentId, currentContent, refreshTick, onVersionSwitch }: EditorVersionPanelProps) {
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const [versions, setVersions] = useState<SectionVersion[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [snapshotting, setSnapshotting] = useState(false);
@@ -443,11 +423,11 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
       }}
     >
       {/* Version list with tree-style trunk — single scroll region for the tab */}
-      <ScrollFadeContainer fadeColor="rgba(0,0,0,0.94)">
+      <ScrollFadeContainer fadeColor="var(--color-bg)">
         <div style={{ padding: "16px 18px 0" }}>
           {versions.length === 0 ? (
-            <p style={{ fontSize: 11, color: "var(--df-mute, rgba(227,226,226,0.18))", lineHeight: 1.5, margin: 0 }}>
-              No versions yet. Save a snapshot to start tracking history.
+            <p style={{ fontSize: 12.5, color: "var(--color-faint)", lineHeight: 1.55, margin: 0 }}>
+              {t("versions.empty")}
             </p>
           ) : (
             <div style={{ position: "relative" }}>
@@ -459,7 +439,7 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
                   top: 6,
                   bottom: 0,
                   width: 1,
-                  background: "var(--df-outline, rgba(255,255,255,0.06))",
+                  background: "var(--color-outline)",
                 }}
               />
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -483,72 +463,20 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
       {/* Action buttons — pinned below the scroll area, always visible */}
       <div
         style={{
-          padding: "14px 16px",
-          borderTop: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
+          padding: "12px 16px",
+          borderTop: "1px solid var(--color-outline)",
           flexShrink: 0,
         }}
       >
-        {/* Save changes to active version */}
-        <button
-          onClick={handleSaveChanges}
-          disabled={saving}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            padding: "7px 12px",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 500,
-            background: "transparent",
-            border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-            color: saving ? "var(--df-mute, rgba(227,226,226,0.18))" : "var(--df-faint, rgba(227,226,226,0.38))",
-            cursor: saving ? "not-allowed" : "pointer",
-            opacity: saving ? 0.6 : 1,
-            transition: "all 0.15s",
-            fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-          onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.color = "var(--df-dim, rgba(227,226,226,0.62))"; }}
-          onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.color = "var(--df-faint, rgba(227,226,226,0.38))"; }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>save</span>
-          {saving ? "Saving…" : "Save changes"}
-        </button>
-
-        {/* Create new version snapshot */}
-        <button
-          onClick={handleSnapshot}
-          disabled={snapshotting}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            padding: "7px 12px",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            background: "rgba(255,77,0,0.08)",
-            border: "1px solid rgba(255,77,0,0.30)",
-            color: snapshotting ? "rgba(255,77,0,0.4)" : "var(--df-amber-200, #ffb59e)",
-            cursor: snapshotting ? "not-allowed" : "pointer",
-            transition: "all 0.15s",
-            fontFamily: "var(--df-font-mono, 'JetBrains Mono', monospace)",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-          onMouseEnter={(e) => { if (!snapshotting) { (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.14)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 10px rgba(255,77,0,0.15)"; } }}
-          onMouseLeave={(e) => { if (!snapshotting) { (e.currentTarget as HTMLElement).style.background = "rgba(255,77,0,0.08)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; } }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>fork_right</span>
-          {snapshotting ? "Saving…" : "New version"}
-        </button>
+        {/* Both quiet: the document bar already owns the one primary (Publish). */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button icon="save" iconPosition="start" grow onClick={handleSaveChanges} disabled={saving}>
+            {saving ? t("versions.saving") : t("versions.saveChanges")}
+          </Button>
+          <Button icon="fork_right" iconPosition="start" grow onClick={handleSnapshot} disabled={snapshotting}>
+            {snapshotting ? t("versions.saving") : t("versions.new")}
+          </Button>
+        </div>
       </div>
     </aside>
   );

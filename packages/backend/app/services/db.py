@@ -300,7 +300,11 @@ async def _prune_old_versions(db: AsyncSession, section_id: uuid.UUID, doc_id: u
         .where(SectionVersion.section_id == section_id, SectionVersion.is_active.is_(False))
         .order_by(SectionVersion.created_at.desc())
     )
-    inactive = [v for v in inactive_result.scalars().all() if v.id not in referenced_ids]
+    inactive = [
+        v
+        for v in inactive_result.scalars().all()
+        if v.id not in referenced_ids and not v.is_published
+    ]
     if len(inactive) <= max_inactive:
         return
 
@@ -366,7 +370,23 @@ async def update_section_content(
         raise ValueError("No active version found for section")
 
     old_len = len(active.content or "")
-    active.content = new_content
+
+    # A published version is an immutable release. The first write after a
+    # publication forks a fresh working draft so public links keep serving the
+    # signed-off content until the user explicitly publishes again. Subsequent
+    # autosaves can update that draft in place without creating a version per
+    # keystroke.
+    if active.is_published:
+        active = await create_section_version(
+            db,
+            section_id,
+            f"Draft after {active.version_name}",
+            new_content,
+            parent_version_id=active.id,
+            doc_id=doc_id,
+        )
+    else:
+        active.content = new_content
     new_len = len(new_content)
     bytes_delta = new_len - old_len
 

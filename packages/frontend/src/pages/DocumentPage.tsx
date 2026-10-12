@@ -15,12 +15,14 @@ import { EditorLayout } from "@/components/phases/editor/EditorLayout";
 import { AuditLayout } from "@/components/phases/audit/AuditLayout";
 import { ForgeLoader, TopBar } from "@/components/shared";
 import { apiUpdateDocumentTitle } from "@/utils/api";
+import { useI18n } from "@/i18n";
 
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { getToken } = useAuth();
+  const { t } = useI18n();
   const isNew = urlId === "new";
   const locationState = location.state as { documentTypeSlug?: string; documentTitle?: string | null } | null;
   const documentTypeSlug = locationState?.documentTypeSlug ?? "rfc";
@@ -85,17 +87,24 @@ export function DocumentPage() {
 
   if (loading && !document && !isNew) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <div className="text-on-surface-variant/60 text-sm animate-pulse">
-          Loading document...
+      <div className="h-screen w-full flex items-center justify-center bg-bg">
+        <div className="text-faint text-body animate-pulse">
+          {t("document.loading")}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-background text-on-surface antialiased selection:bg-primary/30">
-      <TopBar phase={currentPhase} phaseLabel={config?.label} docTitle={document?.title} onRenameTitle={document ? handleRenameTitle : undefined} />
+    <div className="h-screen w-full overflow-hidden bg-bg text-text antialiased selection:bg-heat-strong">
+      {/* In the editor the document bar carries the title (and its rename); the
+          top bar repeating it was a second copy of the same breadcrumb. */}
+      <TopBar
+        phase={currentPhase}
+        phaseLabel={config?.label}
+        docTitle={currentPhase === "editing" ? undefined : document?.title}
+        onRenameTitle={document && currentPhase !== "editing" ? handleRenameTitle : undefined}
+      />
       <PhaseTransition phase={currentPhase}>
         {currentPhase === "discovery" && (
           <DiscoveryLayout
@@ -124,9 +133,9 @@ export function DocumentPage() {
             <div className="h-full pt-[64px] flex items-center justify-center px-6">
               <ForgeLoader
                 steps={[
-                  { message: "Finalizing your document...", detail: "Preparing the completed draft" },
-                  { message: "Running quality checks...", detail: "Verifying section consistency" },
-                  { message: "Wrapping up...", detail: "Almost there" },
+                  { message: t("g.load.s1"), detail: t("g.load.s1d") },
+                  { message: t("g.load.s2"), detail: t("g.load.s2d") },
+                  { message: t("g.load.s3"), detail: t("g.load.s3d") },
                 ]}
                 stepInterval={3500}
               />
@@ -155,6 +164,12 @@ export function DocumentPage() {
         )}
         {currentPhase === "editing" && (
           <EditorLayout
+            documentTitle={document?.title ?? "Documento"}
+            isMcpManaged={Boolean(document?.hasApiKeyActivity)}
+            publishedAt={document?.publishedAt}
+            hasUnpublishedChanges={document?.hasUnpublishedChanges}
+            onPublished={refreshNow}
+            onRenameTitle={document ? handleRenameTitle : undefined}
             documentId={activeDocId!}
             sections={sections}
             sseTick={sseTick}

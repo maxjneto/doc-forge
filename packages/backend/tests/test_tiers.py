@@ -19,7 +19,7 @@ async def test_tiers_endpoint_is_public_and_complete(client_factory):
         free = tiers[0]
         assert free["limits"]["max_active_documents"] == settings.FREE_MAX_ACTIVE_DOCUMENTS
         assert free["limits"]["max_api_keys"] == settings.FREE_MAX_API_KEYS
-        assert free["limits"]["weekly_credits"] == settings.WEEKLY_CREDITS
+        assert free["limits"]["weekly_document_creations"] == settings.FREE_WEEKLY_DOCUMENT_CREDITS
 
 
 @pytest.mark.asyncio
@@ -36,6 +36,25 @@ async def test_free_plan_document_limit_enforced(client_factory):
         res = await client.post("/api/documents", json={"title": "Over limit", "mode": "editor"})
         assert res.status_code == 403
         assert "limit" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_archiving_frees_an_active_document_slot(client_factory):
+    user = User(
+        id="u_tier_archive", email="archive@test.com", name="Archive",
+        credits=settings.FREE_MAX_ACTIVE_DOCUMENTS + 1,
+    )
+    async with client_factory(user) as client:
+        ids = []
+        for i in range(settings.FREE_MAX_ACTIVE_DOCUMENTS):
+            res = await client.post("/api/documents", json={"title": f"Doc {i}", "mode": "editor"})
+            assert res.status_code == 201, res.text
+            ids.append(res.json()["id"])
+        assert (await client.post(f"/api/documents/{ids[0]}/archive")).status_code == 200
+        res = await client.post("/api/documents", json={"title": "Replacement", "mode": "editor"})
+        assert res.status_code == 201, res.text
+        archived = await client.get("/api/documents?include_archived=true")
+        assert any(doc["id"] == ids[0] and doc["archived_at"] for doc in archived.json()["documents"])
 
 
 @pytest.mark.asyncio
@@ -79,4 +98,7 @@ async def test_pro_plan_bypasses_limits(client_factory):
 async def test_me_exposes_plan(client_factory):
     async with client_factory() as client:
         res = await client.get("/api/users/me")
-        assert res.json()["plan"] == "free"
+        payload = res.json()
+        assert payload["plan"] == "free"
+        assert payload["next_document_creations_reset_at"]
+        assert payload["weekly_document_creations"] == settings.FREE_WEEKLY_DOCUMENT_CREDITS

@@ -4,6 +4,7 @@ import { AppFooter } from "@/components/shared";
 import { MarketingNav } from "@/components/marketing";
 import { apiFetchTiers, type Tier } from "@/utils/api";
 
+import { Pill } from "@/components/ui";
 // Rendered until the API answers — tiers are served by GET /api/tiers so the
 // backend limits and this page can never drift apart.
 const FALLBACK_TIERS: Tier[] = [];
@@ -28,8 +29,8 @@ export function PricingPage() {
     <div
       className="hide-scrollbar"
       style={{
-        background: "#050608",
-        color: "var(--df-on-surface, #e3e2e2)",
+        background: "var(--color-bg)",
+        color: "var(--color-text)",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -45,7 +46,7 @@ export function PricingPage() {
           inset: 0,
           pointerEvents: "none",
           background:
-            "radial-gradient(ellipse 800px 600px at 50% 20%, rgba(255,77,0,0.08), transparent 60%)",
+            "radial-gradient(ellipse 800px 600px at 50% 20%, var(--color-heat-wash), transparent 60%)",
           zIndex: 0,
         }}
       />
@@ -57,7 +58,7 @@ export function PricingPage() {
         style={{
           flex: 1,
           position: "relative",
-          zIndex: 10,
+          zIndex: "var(--z-raised)",
           paddingTop: 80,
           paddingBottom: 96,
           paddingLeft: 56,
@@ -68,30 +69,30 @@ export function PricingPage() {
         }}
       >
         <div style={{ marginBottom: 56, textAlign: "center" }}>
-          <span className="df-pill df-pill-ghost" style={{ marginBottom: 20, display: "inline-block" }}>
+          <Pill tone="ghost" style={{ marginBottom: 20 }}>
             Pricing
-          </span>
+          </Pill>
           <h1
             style={{
               fontSize: "clamp(28px, 3.5vw, 44px)",
               fontWeight: 600,
               letterSpacing: "-0.03em",
               margin: "0 0 16px",
-              color: "#e3e2e2",
+              color: "var(--color-text)",
             }}
           >
-            Simple, credit-based pricing.
+            Capacity for durable document workflows.
           </h1>
           <p
             style={{
-              fontSize: 15,
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
+              fontSize: 14,
+              color: "var(--color-dim)",
               maxWidth: 480,
               lineHeight: 1.6,
               margin: "0 auto",
             }}
           >
-            Each document consumes one credit. Credits reset weekly. No seats, no overage surprises.
+            Each plan includes weekly document creations and active-document capacity. Edit, review, and publish existing documents without metering.
           </p>
         </div>
 
@@ -108,9 +109,9 @@ export function PricingPage() {
               key={tier.name}
               style={{
                 padding: "28px 24px",
-                background: tier.highlight ? "rgba(255,77,0,0.04)" : "rgba(13,14,15,0.6)",
-                border: `1px solid ${tier.highlight ? "rgba(255,77,0,0.25)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-                borderRadius: 10,
+                background: tier.highlight ? "var(--color-heat-tint)" : "var(--color-chrome)",
+                border: `1px solid ${tier.highlight ? "var(--color-heat-strong)" : "var(--color-outline)"}`,
+                borderRadius: "var(--radius-md)",
                 display: "flex",
                 flexDirection: "column",
                 gap: 20,
@@ -118,12 +119,9 @@ export function PricingPage() {
               }}
             >
               {tier.highlight && (
-                <span
-                  className="df-pill df-pill-heat"
-                  style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)" }}
-                >
+                <Pill tone="heat" style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)" }}>
                   Best option
-                </span>
+                </Pill>
               )}
 
               <div>
@@ -132,9 +130,9 @@ export function PricingPage() {
                   style={{
                     display: "block",
                     fontSize: 10,
-                    letterSpacing: "0.18em",
+                    letterSpacing: "var(--tracking-eyebrow)",
                     textTransform: "uppercase",
-                    color: tier.highlight ? "var(--df-amber-300, #ff8d4a)" : "var(--df-faint, rgba(227,226,226,0.38))",
+                    color: tier.highlight ? "var(--color-heat-hi)" : "var(--color-faint)",
                     marginBottom: 6,
                   }}
                 >
@@ -142,9 +140,9 @@ export function PricingPage() {
                 </span>
                 <span
                   style={{
-                    fontSize: 20,
+                    fontSize: 21,
                     fontWeight: 600,
-                    color: "#e3e2e2",
+                    color: "var(--color-text)",
                     letterSpacing: "-0.01em",
                   }}
                 >
@@ -152,7 +150,7 @@ export function PricingPage() {
                 </span>
               </div>
 
-              <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.55, margin: 0 }}>
+              <p style={{ fontSize: 13, color: "var(--color-dim)", lineHeight: 1.55, margin: 0 }}>
                 {tier.description}
               </p>
 
@@ -161,11 +159,11 @@ export function PricingPage() {
                   <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                     <span
                       className="material-symbols-outlined"
-                      style={{ fontSize: 14, color: "var(--df-amber-300, #ff8d4a)", flexShrink: 0, fontVariationSettings: "'FILL' 1" }}
+                      style={{ fontSize: 14, color: "var(--color-heat-hi)", flexShrink: 0, fontVariationSettings: "'FILL' 1" }}
                     >
                       check_circle
                     </span>
-                    <span style={{ color: "var(--df-dim, rgba(227,226,226,0.62))" }}>{f}</span>
+                    <span style={{ color: "var(--color-dim)" }}>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -181,8 +179,8 @@ export function PricingPage() {
                           alignItems: "center",
                           justifyContent: "center",
                           padding: "9px 18px",
-                          borderRadius: 6,
-                          fontSize: 12,
+                          borderRadius: "var(--radius-sm)",
+                          fontSize: 12.5,
                           fontWeight: 600,
                           textDecoration: "none",
                           letterSpacing: "0.02em",
@@ -192,13 +190,13 @@ export function PricingPage() {
                           alignItems: "center",
                           justifyContent: "center",
                           padding: "9px 18px",
-                          borderRadius: 6,
-                          fontSize: 12,
+                          borderRadius: "var(--radius-sm)",
+                          fontSize: 12.5,
                           fontWeight: 600,
                           textDecoration: "none",
                           letterSpacing: "0.02em",
-                          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-                          color: "var(--df-dim, rgba(227,226,226,0.62))",
+                          border: "1px solid var(--color-outline-md)",
+                          color: "var(--color-dim)",
                           background: "transparent",
                         }
                   }
@@ -216,11 +214,11 @@ export function PricingPage() {
             textAlign: "center",
             marginTop: 40,
             fontSize: 10,
-            letterSpacing: "0.12em",
-            color: "var(--df-mute, rgba(227,226,226,0.18))",
+            letterSpacing: "var(--tracking-label)",
+            color: "var(--color-mute)",
           }}
         >
-          Pricing details subject to change during beta. All credits reset on Sunday at midnight UTC.
+          Pricing details are subject to change during beta. Weekly document creations renew every Monday at 00:00 UTC.
         </p>
       </main>
 

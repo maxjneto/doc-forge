@@ -39,6 +39,17 @@ async def _start(client) -> str:
 
 
 @pytest.mark.asyncio
+async def test_byoa_pipeline_uses_one_weekly_creation(client_factory):
+    """A pipeline creates a document, so it uses the common weekly allowance."""
+    user = User(id="u_pipe_free", email="pipe-free@test.com", credits=0)
+    async with client_factory(user) as client:
+        res = await client.post("/api/pipeline/documents", json={
+            "document_type_slug": "rfc", "title": "Blocked", "document_context": CONTEXT,
+        })
+        assert res.status_code == 429
+
+
+@pytest.mark.asyncio
 async def test_pipeline_full_flow(client_factory):
     user = User(id="u_pipe1", email="p1@test.com", name="P", credits=5)
     async with client_factory(user) as client:

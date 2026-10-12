@@ -2,8 +2,13 @@ import { useRef, useState } from "react";
 import { EditorGatePanel } from "./EditorGatePanel";
 import { EditorSuggestionPanel } from "./EditorSuggestionPanel";
 import { EditorVersionPanel } from "./EditorVersionPanel";
+import type { Suggestion } from "@/types";
+import { Tab } from "@/components/ui";
+import { EditorArtifactPanel } from "./EditorArtifactPanel";
+import type { Artifact, AuditFinding } from "@/types";
+import { useI18n } from "@/i18n";
 
-type Tab = "gate" | "review" | "versions";
+type Tab = "gate" | "review" | "artifacts" | "versions";
 
 interface EditorSidebarTabsProps {
   documentId: string;
@@ -12,6 +17,27 @@ interface EditorSidebarTabsProps {
   refreshTick: number;
   onSuggestionResolved: () => void;
   onVersionSwitch: (content: string) => void;
+  /** Pending suggestions, lifted so the nav can tally changes per section. */
+  onPendingChange?: (suggestions: Suggestion[]) => void;
+  /** Opens an artifact full-screen in the centre panel. */
+  onArtifactOpen?: (artifact: Artifact) => void;
+  /** Per-hunk triage state, owned by the layout and shown in the Review footer. */
+  triage?: TriageState;
+  /** Blocking gate findings, lifted so the document bar can refuse publishing. */
+  onGateBlockingChange?: (count: number) => void;
+  /** Open findings, so the centre panel can draw them inside the text. */
+  onFindingsChange?: (findings: AuditFinding[]) => void;
+  onGoToFinding?: (finding: AuditFinding) => void;
+  onRequestArtifact?: () => void;
+}
+
+export interface TriageState {
+  total: number;
+  decided: number;
+  accepted: number;
+  error: string | null;
+  onDecide: (decision: "accept" | "reject") => void;
+  onSave: () => void;
 }
 
 /** Tab bar for Quality Gate + Review + Versions, each getting the full
@@ -26,10 +52,19 @@ export function EditorSidebarTabs({
   refreshTick,
   onSuggestionResolved,
   onVersionSwitch,
+  onPendingChange,
+  onArtifactOpen,
+  triage,
+  onGateBlockingChange,
+  onFindingsChange,
+  onGoToFinding,
+  onRequestArtifact,
 }: EditorSidebarTabsProps) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("versions");
   const [reviewCount, setReviewCount] = useState(0);
   const [gateStatus, setGateStatus] = useState({ openFindings: 0, blocking: false });
+  const [artifactCount, setArtifactCount] = useState(0);
   const defaultApplied = useRef(false);
 
   function applyDefault(reviewN: number, blocking: boolean) {
@@ -46,6 +81,7 @@ export function EditorSidebarTabs({
 
   function handleGateStatus(openFindings: number, blocking: boolean) {
     setGateStatus({ openFindings, blocking });
+    onGateBlockingChange?.(blocking ? openFindings : 0);
     applyDefault(reviewCount, blocking);
   }
 
@@ -55,32 +91,19 @@ export function EditorSidebarTabs({
       <div
         style={{
           display: "flex",
-          borderBottom: "1px solid var(--df-outline, rgba(255,255,255,0.06))",
+          borderBottom: "1px solid var(--color-outline)",
           flexShrink: 0,
         }}
       >
-        <TabButton
-          label="Gate"
-          count={gateStatus.openFindings}
-          badgeTone={gateStatus.blocking ? "danger" : "warn"}
-          active={tab === "gate"}
-          accent="#ffd25e"
-          onClick={() => setTab("gate")}
+        <Tab label={t("editor.gate")} count={gateStatus.openFindings} active={tab === "gate"} onClick={() => setTab("gate")} />
+        <Tab label={t("editor.review")} count={reviewCount} active={tab === "review"} onClick={() => setTab("review")} />
+        <Tab
+          label={t("editor.artifacts")}
+          count={artifactCount}
+          active={tab === "artifacts"}
+          onClick={() => setTab("artifacts")}
         />
-        <TabButton
-          label="Review"
-          count={reviewCount}
-          badgeTone="info"
-          active={tab === "review"}
-          accent="#8aa8ff"
-          onClick={() => setTab("review")}
-        />
-        <TabButton
-          label="Versions"
-          active={tab === "versions"}
-          accent="var(--df-amber-300, #ff8d4a)"
-          onClick={() => setTab("versions")}
-        />
+        <Tab label={t("editor.versions")} active={tab === "versions"} onClick={() => setTab("versions")} />
       </div>
 
       {/* Active tab content — all three stay mounted (display:none when
@@ -91,14 +114,27 @@ export function EditorSidebarTabs({
           documentId={documentId}
           refreshTick={refreshTick}
           onStatusChange={handleGateStatus}
+          onFindingsChange={onFindingsChange}
+          onGoToFinding={onGoToFinding}
         />
       </div>
       <div style={{ flex: 1, minHeight: 0, display: tab === "review" ? "flex" : "none" }}>
         <EditorSuggestionPanel
+          triage={triage}
           documentId={documentId}
           refreshTick={refreshTick}
           onSuggestionResolved={onSuggestionResolved}
           onCountChange={handleReviewCount}
+          onPendingChange={onPendingChange}
+        />
+      </div>
+      <div style={{ flex: 1, minHeight: 0, display: tab === "artifacts" ? "flex" : "none" }}>
+        <EditorArtifactPanel
+          documentId={documentId}
+          refreshTick={refreshTick}
+          onCountChange={setArtifactCount}
+          onOpen={onArtifactOpen}
+          onRequestArtifact={onRequestArtifact}
         />
       </div>
       <div style={{ flex: 1, minHeight: 0, display: tab === "versions" ? "flex" : "none" }}>
@@ -114,64 +150,3 @@ export function EditorSidebarTabs({
   );
 }
 
-function TabButton({
-  label,
-  count,
-  badgeTone = "info",
-  active,
-  accent,
-  onClick,
-}: {
-  label: string;
-  count?: number;
-  badgeTone?: "info" | "warn" | "danger";
-  active: boolean;
-  accent: string;
-  onClick: () => void;
-}) {
-  const badgeColors = {
-    info: { bg: "rgba(120,160,255,0.15)", fg: "#b8c8ff" },
-    warn: { bg: "rgba(255,196,0,0.15)", fg: "#ffd25e" },
-    danger: { bg: "rgba(232,100,100,0.2)", fg: "#e88" },
-  }[badgeTone];
-
-  return (
-    <button
-      onClick={onClick}
-      className="df-mono"
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        padding: "12px 10px",
-        fontSize: 10.5,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        fontWeight: active ? 600 : 400,
-        color: active ? accent : "var(--df-faint, rgba(227,226,226,0.38))",
-        background: active ? "rgba(255,255,255,0.03)" : "transparent",
-        border: "none",
-        borderBottom: `2px solid ${active ? accent : "transparent"}`,
-        cursor: "pointer",
-      }}
-    >
-      {label}
-      {Boolean(count) && (
-        <span
-          style={{
-            fontSize: 9,
-            padding: "1px 6px",
-            borderRadius: 8,
-            background: badgeColors.bg,
-            color: badgeColors.fg,
-            fontWeight: 600,
-          }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}

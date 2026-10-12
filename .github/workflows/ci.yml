@@ -57,6 +57,9 @@ jobs:
       - name: Type check
         working-directory: packages/frontend
         run: npx tsc --noEmit
+      - name: Design tokens
+        working-directory: packages/frontend
+        run: npm run lint:tokens
       - name: Test
         working-directory: packages/frontend
         run: npm run test
