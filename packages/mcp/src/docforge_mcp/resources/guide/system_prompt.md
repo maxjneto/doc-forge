@@ -78,10 +78,18 @@ If `get_activity` shows a write by someone other than you between your last read
 | `get_quality_gate` | Read the quality-gate state and sections to audit. |
 | `submit_quality_findings` | Record findings from an agent-run cross-section audit. |
 | `list_artifacts` / `create_artifact` | Manage diagrams, tables, and decision notes attached to the document. |
+| `create_layout_document` | New layout document (components on a grid). Uses one weekly document creation. |
+| `get_layout_map` | Read a layout document as text: bands, columns, sizes, alerts. |
+| `apply_layout_ops` | Change a layout document. All-or-nothing; returns diagnostics + map. |
+| `get_layout_document` | Raw JSON of a layout document. |
 
 ## Pipelines (structured documents)
 
 For structured documents (RFC today, more types over time), prefer `start_pipeline` over freehand writing. The server drives a durable state machine: discovery per section (you gather the facts — read the repo, ask your user), an alignment checkpoint the human approves in the browser, sectioned generation (reviewed via suggestions where an existing version exists), and a final audit you perform. When the pipeline completes, the document is handed to the free editor. If your session dies mid-run, call `get_next_step` from any future session to resume exactly where it stopped.
+
+## Layout documents
+
+For one-pagers, reports and proposals where position matters (KPIs side by side, a chart next to its explanation, cards), use a layout document instead of markdown. It is a different document mode with its own tools: you place components on a 12-column grid, and every write tells you what does not fit, as text, so you never need to see the page. Read `docforge://guide/layout` before the first one.
 
 ## Resources
 
@@ -91,6 +99,7 @@ For structured documents (RFC today, more types over time), prefer `start_pipeli
 - `docforge://recipes` — index of named workflow playbooks.
 - `docforge://recipes/{workflow}` — specific procedural recipe (e.g. `safe-rewrite`, `suggestion-review-loop`).
 - `docforge://writing` — index of curated writing guides by document type.
+- `docforge://guide/layout` — the layout document format: grid, components, operations, styles.
 - `docforge://writing/{type}` — writing guide (`adr`, `postmortem`, `runbook`, `rfc`) — read before drafting that kind of document.
 
 Read the relevant recipe before starting a workflow you've not done before. They encode the safe ordering of tool calls.

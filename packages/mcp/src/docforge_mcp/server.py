@@ -837,6 +837,132 @@ async def submit_quality_findings(document_id: str, findings_json: str, *, ctx: 
     return f"Gate recorded: {count} finding(s) now visible to the user in the browser."
 
 
+# ─── Layout documents ───────────────────────────────────────
+# Components placed on a grid (@docforge/layout). The agent never sees the
+# page: every write returns diagnostics and a text map of the grid instead.
+
+_LAYOUT_GUIDE_HINT = "Format, components and operations: read docforge://guide/layout."
+
+
+def _parse_json_arg(value: Any, name: str) -> Any:
+    """Accept a JSON value or a JSON string (some clients send objects as strings)."""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as e:
+            raise DocForgeError(f"`{name}` is not valid JSON: {e}") from e
+    return value
+
+
+def _format_diagnostics(diagnostics: list[dict]) -> str:
+    if not diagnostics:
+        return "No problems."
+    lines = []
+    for d in diagnostics:
+        where = d.get("component") or d.get("band") or d.get("section")
+        lines.append(f"- [{d['severity']}] {d['code']}{f' ({where})' if where else ''}: {d['message']}")
+        for tip in d.get("suggestions") or []:
+            lines.append(f"    try: {tip}")
+    return "\n".join(lines)
+
+
+def _format_layout_write(result: dict, saved_label: str) -> str:
+    if result["ok"]:
+        head = f"{saved_label} Revision {result['revision']}."
+        map_label = "Map (level 1)"
+    else:
+        head = (
+            f"NOT saved: nothing changed (still revision {result['revision']}). "
+            "Fix the errors below and send the operations again."
+        )
+        map_label = "Map of the rejected attempt (level 1), NOT the saved document"
+    return (
+        f"{head}\n\nDiagnostics:\n{_format_diagnostics(result['diagnostics'])}\n\n"
+        f"{map_label}:\n{result.get('map') or '(none)'}"
+    )
+
+
+@mcp.tool()
+async def create_layout_document(title: str, content: dict[str, Any] | str | None = None, *, ctx: Context) -> str:
+    """Create a layout document: components placed on a 12-column grid,
+    measured and paginated by DocForge. Uses one weekly document creation.
+    Without `content` it starts empty (an A4 surface and one section `s-1`);
+    then add components with apply_layout_ops.
+    Format, components and operations: read docforge://guide/layout first.
+
+    Args:
+        title: Document title.
+        content: Optional full layout document (JSON object with format "docforge/layout").
+    """
+    _use_api_key(ctx)
+    parsed = _parse_json_arg(content, "content") if content is not None else None
+    result = await api.create_layout_document(title, parsed)
+    url = api.document_url(result["document_id"])
+    return (
+        f"Layout document created.\nID: {result['document_id']}\nURL: {url}\n"
+        f"Share this URL with the user so they can see the rendered pages.\n\n"
+        + _format_layout_write(result, "Saved.")
+        + f"\n\n{_LAYOUT_GUIDE_HINT}"
+    )
+
+
+@mcp.tool()
+async def get_layout_map(document_id: str, level: int = 1, components: list[str] | None = None, *, ctx: Context) -> str:
+    """Read a layout document as text, instead of looking at the page.
+    Level 0: one-screen outline. Level 1: every band with its height and each
+    component's columns and size in px, plus alerts (! error, ~ warning).
+    Level 2: resolved styles of the components you name, with the layer each
+    value came from.
+
+    Args:
+        document_id: Document UUID.
+        level: 0, 1 or 2.
+        components: Level 2 only: component ids to detail (default: all).
+    """
+    _use_api_key(ctx)
+    result = await api.get_layout_map(document_id, level, components)
+    return f"Revision {result['revision']} · level {result['level']}\n\n{result['text']}"
+
+
+@mcp.tool()
+async def get_layout_document(document_id: str, *, ctx: Context) -> str:
+    """Read the raw JSON of a layout document, with its current revision. Use
+    get_layout_map for an overview; use this only when you need exact content
+    (e.g. before an `update` op that rewrites a component's content)."""
+    _use_api_key(ctx)
+    result = await api.get_layout(document_id)
+    content = json.dumps(result["content"], indent=2, ensure_ascii=False)
+    return f"Revision {result['revision']}\n\n{content}"
+
+
+@mcp.tool()
+async def apply_layout_ops(
+    document_id: str,
+    ops: list[dict[str, Any]] | str,
+    base_revision: int | None = None,
+    *,
+    ctx: Context,
+) -> str:
+    """Change a layout document with operations: add, place, update, remove,
+    addSection, addBand, setBand, moveBand, removeBand, setStyle, setRegion,
+    removeRegion, setTokens (shapes: docforge://guide/layout).
+    All-or-nothing: if any operation fails or leaves an error in what it
+    touched, nothing is saved. Either way you get the diagnostics and the
+    level-1 map, so read them, fix the problem and send again.
+
+    Args:
+        document_id: Document UUID.
+        ops: List of operation objects, applied in order.
+        base_revision: Optional. The revision you based the ops on; refused with a conflict if the document moved on.
+    """
+    _use_api_key(ctx)
+    parsed = _parse_json_arg(ops, "ops")
+    if not isinstance(parsed, list) or not parsed:
+        raise DocForgeError("`ops` must be a non-empty list of operation objects.")
+    result = await api.apply_layout_ops(document_id, parsed, base_revision)
+    return _format_layout_write(result, "Saved.")
+
+
 # ─── Resources ───────────────────────────────────────────────
 
 @mcp.resource("docforge://documents")
@@ -869,6 +995,12 @@ async def resource_list_versions(document_id: str, ctx: Context) -> str:
 async def resource_system_prompt() -> str:
     """Orientation brief: how to operate on DocForge documents via MCP."""
     return read_resource("guide", "system_prompt.md")
+
+
+@mcp.resource("docforge://guide/layout")
+async def resource_layout_guide() -> str:
+    """How layout documents work: the grid, the 11 components, the operations and styles."""
+    return read_resource("guide", "layout.md")
 
 
 @mcp.resource("docforge://recipes")
