@@ -16,7 +16,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.services.credits import credit_period_start, refresh_credits_if_due, weekly_document_allowance
+from app.services.credits import (
+    credit_period_start,
+    refresh_credits_if_due,
+    weekly_document_allowance,
+)
 
 security = HTTPBearer(auto_error=False)
 
