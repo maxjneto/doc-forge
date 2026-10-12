@@ -57,6 +57,7 @@ export const folders = [
 type DocSeed = {
   id: string; title: string; folder: string | null; updated: number;
   published?: number; unpublished?: boolean; agent?: string | null; archived?: number; guided?: boolean; phase?: string;
+  layout?: boolean;
 };
 
 const docSeeds: DocSeed[] = [
@@ -68,6 +69,7 @@ const docSeeds: DocSeed[] = [
   { id: "doc-run-pg", title: "Runbook: rotação de chaves do Postgres", folder: "f-run", updated: 60 * 24 * 6, published: 60 * 24 * 6 },
   { id: "doc-run-hooks", title: "Postmortem 30/09 — fila de webhooks parada", folder: "f-run", updated: 60 * 24 * 2, published: 60 * 24 * 8, unpublished: true, agent: "Cursor" },
   { id: "doc-roadmap", title: "Roadmap Q4", folder: null, updated: 60 * 3, published: 60 * 24 * 12, unpublished: true },
+  { id: "doc-layout-q3", title: "Relatório do 3º trimestre", folder: null, updated: 25, agent: "Claude Code — laptop", layout: true },
   { id: "doc-notes", title: "Notas soltas de entrevistas com usuários", folder: null, updated: 60 * 24 * 9 },
   { id: "doc-old", title: "Proposta de pricing (v1)", folder: null, updated: 60 * 24 * 40, archived: 60 * 24 * 20 },
 ];
@@ -76,7 +78,7 @@ export const documents = docSeeds.map((d) => ({
   id: d.id,
   title: d.title,
   current_phase: d.phase ?? "editing",
-  document_mode: d.guided ? "guided" : "editor",
+  document_mode: d.guided ? "guided" : d.layout ? "layout" : "editor",
   agent_write_policy: "suggest",
   global_context: null,
   user_preferences: null,
@@ -186,6 +188,9 @@ const proposedBody = copasimBody
 export const documentDetail = (id: string) => {
   const doc = documents.find((d) => d.id === id) ?? documents[0];
   const isCopasim = doc.id === "doc-copasim";
+  if (doc.document_mode === "layout") {
+    return { document: doc, sections: [], discovery_questions: [], audit_problems: [] };
+  }
   return {
     document: doc,
     sections: [

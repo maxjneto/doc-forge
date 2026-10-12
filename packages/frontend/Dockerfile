@@ -4,6 +4,8 @@ FROM node:20-alpine AS dev
 WORKDIR /app
 
 COPY package.json ./
+# @docforge/layout is vendored as a tarball (scripts/vendor-layout.sh).
+COPY vendor ./vendor
 RUN npm install
 
 COPY . .

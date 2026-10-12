@@ -18,7 +18,7 @@ export interface Document {
   id: string;
   title: string;
   currentPhase: Phase;
-  documentMode: "guided" | "editor" | "pipeline";
+  documentMode: "guided" | "editor" | "pipeline" | "layout";
   agentWritePolicy?: "suggest" | "direct";
   globalContext: string | null;
   userPreferences: string | null;

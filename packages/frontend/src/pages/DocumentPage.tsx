@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
 import type { Phase } from "@/types";
@@ -16,6 +16,9 @@ import { AuditLayout } from "@/components/phases/audit/AuditLayout";
 import { ForgeLoader, TopBar } from "@/components/shared";
 import { apiUpdateDocumentTitle } from "@/utils/api";
 import { useI18n } from "@/i18n";
+
+// Layout documents pull in the layout engine and its fonts: load them only when one is opened.
+const LayoutDocumentView = lazy(() => import("@/components/layout-doc/LayoutDocumentView"));
 
 export function DocumentPage() {
   const { id: urlId } = useParams<{ id: string }>();
@@ -91,6 +94,22 @@ export function DocumentPage() {
         <div className="text-faint text-body animate-pulse">
           {t("document.loading")}
         </div>
+      </div>
+    );
+  }
+
+  if (document?.documentMode === "layout" && activeDocId) {
+    return (
+      <div className="h-screen w-full overflow-hidden bg-bg text-text antialiased selection:bg-heat-strong">
+        <TopBar
+          phase={currentPhase}
+          phaseLabel={config?.label}
+          docTitle={document.title}
+          onRenameTitle={handleRenameTitle}
+        />
+        <Suspense fallback={null}>
+          <LayoutDocumentView documentId={activeDocId} sseTick={sseTick} />
+        </Suspense>
       </div>
     );
   }

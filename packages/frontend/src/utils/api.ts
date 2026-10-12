@@ -573,6 +573,26 @@ export async function apiUpdateDocumentTitle(
   return mapDocument(await res.json());
 }
 
+export interface LayoutState {
+  /** The @docforge/layout document, rendered in the browser by the same library. */
+  content: unknown;
+  revision: number;
+  updatedAt: string | null;
+}
+
+export async function apiGetLayout(documentId: string, getToken: GetToken): Promise<LayoutState> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error(`Failed to load layout (${res.status})`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  return {
+    content: raw.content,
+    revision: Number(raw.revision),
+    updatedAt: (raw.updated_at as string | null) ?? null,
+  };
+}
+
 export async function apiListDocumentTypes(getToken: GetToken): Promise<DocumentType[]> {
   const res = await fetch(`${API_BASE}/document-types`, {
     headers: await authHeaders(getToken),
