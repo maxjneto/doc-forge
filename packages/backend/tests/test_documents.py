@@ -1,6 +1,6 @@
-import uuid
 """Tests for document creation and credit system."""
 
+import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest

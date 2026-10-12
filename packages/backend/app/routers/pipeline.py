@@ -2,12 +2,11 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
-from sqlalchemy import or_, select, update
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
-from app.config import settings
 from app.database import get_db
 from app.models import Document
 from app.models.document_type import DocumentType
