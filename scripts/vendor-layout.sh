@@ -5,8 +5,11 @@
 #
 #   scripts/vendor-layout.sh [path-to-docforge-layout]   (default: ../docforge-layout)
 #
-# After running it, `npm install` in packages/frontend and packages/layout-service
-# picks up the new tarball; commit the tarball and both lockfiles together.
+# It also rewrites the tarball's integrity hash in every lockfile: npm keeps the
+# old hash when the version did not change, and `npm ci` then fails with
+# EINTEGRITY. Afterwards run `npm install --workspaces=false` in
+# packages/layout-service and `npm install` at the root, and commit the tarballs
+# and the lockfiles together.
 set -eu
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,3 +27,31 @@ for pkg in frontend layout-service; do
   echo "vendored $tarball -> packages/$pkg/vendor/"
 done
 rm "$root/$tarball"
+
+# Point every lock entry for the vendored tarball at its real hash.
+node - "$root" "$tarball" <<'JS'
+const { createHash } = require("node:crypto");
+const { readFileSync, writeFileSync } = require("node:fs");
+const { join } = require("node:path");
+const [root, tarball] = process.argv.slice(2);
+const integrity =
+  "sha512-" + createHash("sha512").update(readFileSync(join(root, "packages/frontend/vendor", tarball))).digest("base64");
+for (const lock of ["package-lock.json", "packages/layout-service/package-lock.json", "packages/frontend/package-lock.json"]) {
+  const path = join(root, lock);
+  let text;
+  try { text = readFileSync(path, "utf8"); } catch { continue; }
+  const data = JSON.parse(text);
+  let changed = 0;
+  for (const entry of Object.values(data.packages ?? {})) {
+    if (typeof entry.resolved === "string" && entry.resolved.endsWith(tarball) && entry.integrity !== integrity) {
+      entry.integrity = integrity;
+      changed++;
+    }
+  }
+  if (changed) {
+    const eol = text.includes("\r\n") ? "\r\n" : "\n";
+    writeFileSync(path, JSON.stringify(data, null, 2).replace(/\n/g, eol) + eol);
+    console.log(`updated ${changed} integrity hash(es) in ${lock}`);
+  }
+}
+JS
