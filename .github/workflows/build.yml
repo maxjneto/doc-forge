@@ -1,6 +1,6 @@
 name: Build & push images (GHCR)
 
-# Builds the three app images on GitHub's runners (not on the VPS) and pushes
+# Builds the four app images on GitHub's runners (not on the VPS) and pushes
 # them to the GitHub Container Registry. The 1-core VPS then only *pulls* these
 # images — it never compiles anything (the Vite build in particular would be
 # slow/OOM-prone on a small box).
@@ -9,6 +9,7 @@ name: Build & push images (GHCR)
 #   ghcr.io/<owner>/doc-forge-backend
 #   ghcr.io/<owner>/doc-forge-frontend
 #   ghcr.io/<owner>/doc-forge-mcp
+#   ghcr.io/<owner>/doc-forge-layout
 #
 # Set these as repo *secrets* so the frontend bundle is built with the right
 # keys (they are baked at build time — VITE_* are inlined by Vite):
@@ -38,6 +39,8 @@ jobs:
             context: packages/frontend
           - service: mcp
             context: packages/mcp
+          - service: layout
+            context: packages/layout-service
     steps:
       - uses: actions/checkout@v4
 

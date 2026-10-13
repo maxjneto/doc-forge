@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     AI_SECTION_SUMMARY_RATE_LIMIT: int = 10
     AI_SECTION_SUMMARY_WINDOW_HOURS: int = 1
 
+    # Internal Node service that runs @docforge/layout (packages/layout-service).
+    LAYOUT_SERVICE_URL: str = "http://127.0.0.1:8002"
+    LAYOUT_SERVICE_TIMEOUT_SECONDS: float = 15.0
+
     # Version retention (Free plan): oldest inactive versions beyond this count
     # are pruned when a new one is created. None/0 on paid plans (see tiers.py).
     FREE_MAX_VERSIONS_PER_SECTION: int = 20

@@ -51,14 +51,24 @@ services:
         condition: service_healthy
       inngest:
         condition: service_healthy
+      layout:
+        condition: service_healthy
     env_file:
       - ./packages/backend/.env
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/docforge
       REDIS_URL: redis://redis:6379/0
       INNGEST_DEV_SERVER_URL: http://inngest:8288
+      LAYOUT_SERVICE_URL: http://layout:8002
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  # Runs @docforge/layout for the backend (validate, apply ops, map).
+  layout:
+    build:
+      context: ./packages/layout-service
+    ports:
+      - "8002:8002"
 
   frontend:
     build:

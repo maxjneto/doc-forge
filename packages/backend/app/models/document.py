@@ -49,6 +49,8 @@ class Document(Base):
     chat_messages = relationship("ChatMessage", back_populates="document", cascade="all, delete-orphan")
     audit_findings = relationship("AuditFinding", back_populates="document", cascade="all, delete-orphan")
     contract = relationship("DocumentContract", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    # Only set for document_mode="layout".
+    layout = relationship("DocumentLayout", back_populates="document", uselist=False, cascade="all, delete-orphan")
     suggestions = relationship("Suggestion", back_populates="document", cascade="all, delete-orphan")
     artifacts = relationship("Artifact", back_populates="document", cascade="all, delete-orphan")
     members = relationship("DocumentMember", back_populates="document", cascade="all, delete-orphan")

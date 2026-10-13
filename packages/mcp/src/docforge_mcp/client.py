@@ -19,6 +19,25 @@ class DocForgeError(Exception):
     pass
 
 
+def _failure(method: str, path: str, r: httpx.Response) -> DocForgeError:
+    """Prefer the API's own message (and code) over a raw response body."""
+    try:
+        detail: Any = r.json().get("detail")
+    except (ValueError, AttributeError):
+        detail = None
+    prefix = f"{method} {path} failed ({r.status_code})"
+    if isinstance(detail, dict) and detail.get("message"):
+        code = f" [{detail['code']}]" if detail.get("code") else ""
+        problems = "".join(
+            f"\n- [{d.get('severity')}] {d.get('code')}: {d.get('message')}"
+            for d in detail.get("diagnostics") or []
+        )
+        return DocForgeError(f"{prefix}{code}: {detail['message']}{problems}")
+    if isinstance(detail, str):
+        return DocForgeError(f"{prefix}: {detail}")
+    return DocForgeError(f"{prefix}: {r.text}")
+
+
 def _client() -> httpx.AsyncClient:
     key = _api_key_var.get()
     if not key:
@@ -34,7 +53,7 @@ async def _get(path: str, **params: Any) -> Any:
     async with _client() as c:
         r = await c.get(path, params=params or None)
     if not r.is_success:
-        raise DocForgeError(f"GET {path} failed ({r.status_code}): {r.text}")
+        raise _failure("GET", path, r)
     return r.json()
 
 
@@ -42,7 +61,15 @@ async def _post(path: str, json: Any = None) -> Any:
     async with _client() as c:
         r = await c.post(path, json=json)
     if not r.is_success:
-        raise DocForgeError(f"POST {path} failed ({r.status_code}): {r.text}")
+        raise _failure("POST", path, r)
+    return r.json()
+
+
+async def _put(path: str, json: Any) -> Any:
+    async with _client() as c:
+        r = await c.put(path, json=json)
+    if not r.is_success:
+        raise _failure("PUT", path, r)
     return r.json()
 
 
@@ -50,7 +77,7 @@ async def _patch(path: str, json: Any) -> Any:
     async with _client() as c:
         r = await c.patch(path, json=json)
     if not r.is_success:
-        raise DocForgeError(f"PATCH {path} failed ({r.status_code}): {r.text}")
+        raise _failure("PATCH", path, r)
     return r.json()
 
 
@@ -216,6 +243,44 @@ async def submit_step(document_id: str, payload: dict[str, Any]) -> dict[str, An
 
 def document_url(document_id: str) -> str:
     return f"{FRONTEND_BASE}/document/{document_id}"
+
+
+# ─── Layout documents ─────────────────────────────────────────
+
+async def create_layout_document(title: str, content: dict[str, Any] | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"title": title}
+    if content is not None:
+        body["content"] = content
+    return await _post("/layout-documents", json=body)
+
+
+async def get_layout(document_id: str) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/layout")
+
+
+async def get_layout_map(document_id: str, level: int = 1, components: list[str] | None = None) -> dict[str, Any]:
+    params: dict[str, Any] = {"level": level}
+    if components:
+        params["components"] = ",".join(components)
+    return await _get(f"/documents/{document_id}/layout/map", **params)
+
+
+async def apply_layout_ops(
+    document_id: str, ops: list[dict[str, Any]], base_revision: int | None = None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"ops": ops}
+    if base_revision is not None:
+        body["base_revision"] = base_revision
+    return await _post(f"/documents/{document_id}/layout/ops", json=body)
+
+
+async def replace_layout(
+    document_id: str, content: dict[str, Any], base_revision: int | None = None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"content": content}
+    if base_revision is not None:
+        body["base_revision"] = base_revision
+    return await _put(f"/documents/{document_id}/layout", json=body)
 
 
 # ─── Artifacts ────────────────────────────────────────────────────

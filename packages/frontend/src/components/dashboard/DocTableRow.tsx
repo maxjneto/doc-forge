@@ -109,7 +109,7 @@ export function DocTableRow({
           aria-hidden
           style={{ fontSize: 20, color: doc.archivedAt ? "var(--color-mute)" : "var(--color-faint)", flexShrink: 0 }}
         >
-          {doc.documentMode === "guided" ? "account_tree" : "description"}
+          {doc.documentMode === "guided" ? "account_tree" : doc.documentMode === "layout" ? "dashboard" : "description"}
         </span>
         <div style={{ minWidth: 0, flex: 1 }}>
           {renaming ? (

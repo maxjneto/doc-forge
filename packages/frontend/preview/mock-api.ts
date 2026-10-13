@@ -5,6 +5,7 @@
  * for testing flows.
  */
 import * as fx from "./fixtures";
+import { layoutContent } from "./layout";
 import { guidedChat, guidedDetail, guidedDocuments, guidedFindings, guidedFolder, guidedVersions } from "./guided";
 
 const allDocuments = [...fx.documents, ...guidedDocuments];
@@ -36,6 +37,7 @@ const routes: Route[] = [
   ["GET", /\/shared-documents$/, () => ({ documents: fx.sharedDocuments })],
   ["GET", /\/documents\/([^/]+)$/, (m) => detailFor(docFrom(m))],
   ["PATCH", /\/documents\/([^/]+)$/, (m, init) => ({ ...fx.documentDetail(docFrom(m)).document, ...bodyOf(init) })],
+  ["GET", /\/documents\/([^/]+)\/layout$/, (m) => ({ document_id: docFrom(m), content: layoutContent, revision: 3, updated_at: fx.ago(25) })],
   ["GET", /\/documents\/([^/]+)\/activity$/, () => fx.activity],
   ["GET", /\/documents\/([^/]+)\/suggestions$/, (m, _i, url) => {
     const status = url.searchParams.get("status");
