@@ -1,18 +1,17 @@
 {
   "name": "@docforge/layout-service",
   "private": true,
-  "version": "0.1.0",
-  "description": "Internal HTTP service that runs @docforge/layout for the Python backend: validate, apply operations, map.",
+  "version": "0.2.0",
+  "description": "Runs the @docforge/layout HTTP server for the Python backend. No code of its own: the lib ships the server.",
   "type": "module",
-  "main": "server.mjs",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "start": "node server.mjs",
+    "start": "docforge-layout serve --host 0.0.0.0 --port 8002",
     "test": "node --test"
   },
   "dependencies": {
-    "@docforge/layout": "file:vendor/docforge-layout-0.1.0.tgz"
+    "@docforge/layout": "file:vendor/docforge-layout-0.2.0.tgz"
   }
 }
