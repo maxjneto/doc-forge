@@ -148,12 +148,15 @@ async def create_layout_document(
         )
 
     api_key_id = getattr(request.state, "api_key_id", None)
+    # Read before the try: after a rollback the user instance is expired, and
+    # loading it again in the except block would raise and hide the real error.
+    user_id = current_user.id
     await consume_document_creation(db, current_user)
     try:
         doc = Document(
             title=title,
             document_context="",
-            user_id=current_user.id,
+            user_id=user_id,
             current_phase="editing",
             document_mode=LAYOUT_MODE,
         )
@@ -168,12 +171,12 @@ async def create_layout_document(
         await db.commit()
     except Exception:
         await db.rollback()
-        await refund_document_creation(db, current_user.id)
+        await refund_document_creation(db, user_id)
         raise
 
     if api_key_id:
-        capture_event(str(current_user.id), str(doc.id), "mcp_layout_document_created", {"has_content": payload.content is not None})
-    logger.info("[layout] document created | doc_id={} user_id={}", doc.id, current_user.id)
+        capture_event(str(user_id), str(doc.id), "mcp_layout_document_created", {"has_content": payload.content is not None})
+    logger.info("[layout] document created | doc_id={} user_id={}", doc.id, user_id)
     return LayoutWriteResponse(
         document_id=str(doc.id),
         ok=True,

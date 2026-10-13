@@ -210,3 +210,16 @@ async def test_layout_routes_refuse_other_documents_and_other_users(client_facto
     assert not_layout.status_code == 400
     assert hidden.status_code == 404
     assert write.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_failed_create_refunds_the_creation_and_reports_the_real_error(client_factory):
+    user = User(id="u_refund", email="r@test.com", name="R", credits=5)
+    with patch("app.routers.layout.db_service.log_activity", side_effect=RuntimeError("boom")):
+        async with client_factory(user) as client:
+            with pytest.raises(RuntimeError, match="boom"):
+                await client.post("/api/layout-documents", json={"title": "x"})
+    async with TestSession() as session:
+        refreshed = await session.get(User, "u_refund")
+        assert (await session.execute(select(DocumentLayout))).first() is None
+    assert refreshed.credits == 5
