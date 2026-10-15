@@ -78,9 +78,17 @@ If `get_activity` shows a write by someone other than you between your last read
 | `get_quality_gate` | Read the quality-gate state and sections to audit. |
 | `submit_quality_findings` | Record findings from an agent-run cross-section audit. |
 | `list_artifacts` / `create_artifact` | Manage diagrams, tables, and decision notes attached to the document. |
-| `create_layout_document` | New layout document (components on a grid). Uses one weekly document creation. |
-| `get_layout_map` | Read a layout document as text: bands, columns, sizes, alerts. |
-| `apply_layout_ops` | Change a layout document. All-or-nothing; returns diagnostics + map. |
+| `create_layout_document` | New layout document (components on a unit grid). Uses one weekly document creation. |
+| `get_layout_map` | Read a layout document as text: settings, each page drawn in ASCII, a table of components. |
+| `request_review` | Hand a layout document to the person: summary, what to look at, questions with options. |
+| `render_page` | A page of a layout document as a PNG, for agents that can see images. |
+| `review_layout` | What a reader would notice (empty boxes, ragged rows, edges off the guides), with fixing ops. |
+| `find_layout` | Find components by text, type, class, page, grid area or state. |
+| `measure_component` | How tall a component would be at given widths. Free. |
+| `preview_layout` | What ops (or a whole draft) would produce. Free, saves nothing. |
+| `calibrate_style` | Compare style variants for a component, class or type before choosing. Free. |
+| `apply_layout_ops` | Change a layout document (`edit` and `replaceText` fix parts of the content); answers with a short summary of what changed and what moved. |
+| `get_layout_notes` / `resolve_layout_note` | Notices (what the layout moved on its own) and annotations people pinned. |
 | `get_layout_document` | Raw JSON of a layout document. |
 
 ## Pipelines (structured documents)
@@ -89,7 +97,7 @@ For structured documents (RFC today, more types over time), prefer `start_pipeli
 
 ## Layout documents
 
-For one-pagers, reports and proposals where position matters (KPIs side by side, a chart next to its explanation, cards), use a layout document instead of markdown. It is a different document mode with its own tools: you place components on a 12-column grid, and every write tells you what does not fit, as text, so you never need to see the page. Read `docforge://guide/layout` before the first one.
+For one-pagers, reports and proposals where position matters (KPIs side by side, a chart next to its explanation, cards), use a layout document instead of markdown. It is a different document mode with its own tools: you place components on a grid of 8px units (12 guide columns help you align), measure and preview before writing, and read each page as an ASCII drawing, so you never need to see the page. Read `docforge://guide/layout` before the first one.
 
 ## Resources
 

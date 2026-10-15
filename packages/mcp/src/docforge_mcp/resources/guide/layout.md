@@ -1,39 +1,79 @@
 # DocForge layout documents
 
-A layout document is made of **components placed on a grid**. You never see the
-page. Instead, every write returns **diagnostics** (what does not fit, what is
-illegible, what is wrong) and a **text map** of where everything ended up.
-Read the map, fix what the diagnostics say, and send the operations again.
+A layout document is made of **components placed on a grid of square units**. You never
+see the page. You read a **text map** (each page drawn in ASCII, plus a table), you can
+**measure** a component and **preview** any change for free, and every write tells you
+what the layout did on its own.
 
-Tools: `create_layout_document` → `get_layout_map` → `apply_layout_ops` (repeat).
-`get_layout_document` returns the raw JSON when you need exact content.
+Tools:
+- `measure_component` — how tall something would be at a given width. Free.
+- `preview_layout` — what ops (or a whole draft document) would produce. Free, saves nothing.
+- `create_layout_document` → `apply_layout_ops` — write.
+- `get_layout_map`, `find_layout` — read; `get_layout_document` for the raw JSON.
+- `get_layout_notes` → `resolve_layout_note` — what the layout did on its own, and what people pinned.
+- `calibrate_style` — compare style variants (sizes, lines, what would move) before choosing one. Free.
+- `render_page` — the page as an image (PNG), if you can see images: type, color and balance the map cannot show. Free.
+- `review_layout` — what a reader would notice (empty boxes, ragged rows, edges off the guides, a near-empty last page), each with the ops that fix it. Free.
 
-## The grid
+## Positions
+
+Every component has `at: {page, x, y, w, h?}`:
+- `page` starts at 1; `x`, `y`, `w`, `h` are **units** (8px by default), counted from the top-left corner of the page's content area. An A4 page with 40px margins is **89 units wide and 130 tall**. The map's first lines give the exact numbers.
+- `h` is a **minimum** height. Text, lists, tables, code, steps, timelines and cards grow to fit their content; leave `h` out and they are exactly as tall as they need to be. KPIs, charts, images and dividers fill `h` (without it, they take a natural size).
+- **Guide columns** (12 by default, with a 16px gutter) are only for alignment. The map lists them as `1:0–6 2:8–13 …` (x where each starts and ends). Place by guides with `cols: [first, last]` instead of x/w.
+
+### What the layout does on its own
+
+- **Something that grows pushes down only what it runs into** (overlapping columns), and that pushes what it runs into, and so on. Everything else stays where it was. Pushed boxes keep 2 units of space (`grid.gap`).
+- The document stores the position **you** chose. A pushed box returns to its place when whatever pushed it shrinks.
+- **Pages:** a box crossing the bottom of a page splits there when it can (text, list, table, code, steps, timeline; tables repeat their header). Otherwise it moves whole to the top of the next page. Either way it pushes what it meets.
+- A box wider than the page is pulled back inside (`clamped`). Going over a page's `maxPages` is a warning.
+- None of this refuses a write. Each write lists these side effects, and they stay as **notices** until they stop being true.
+
+## What a write answers
+
+`apply_layout_ops` and `preview_layout` (with ops) answer with a summary, not the whole map:
 
 ```
-document
-└─ sections            (id, optional name)
-   └─ bands            (id, span: rows | "auto"), stacked top to bottom
-      └─ items         (component id, colStart 1-based, colSpan) on 12 columns
+Saved. Revision 8.
+you changed
+  analise  p1 x0 y30 w44 h29 → h38
+it moved on its own
+  tabela   ↓9 (pushed by analise)
+problems: none
+pages: 2 · p1 0 free rows · p2 93 free rows
 ```
 
-- A band is a horizontal strip. Its items sit side by side; columns must not overlap and must end at column 12 or earlier.
-- `span: "auto"` makes the band as tall as its tallest component, and is almost always what you want. A number fixes the height in row units (1 unit = 8px). A component whose content is taller than a fixed band gets an `overflow` error.
-- Pages: a band never splits across pages; it moves whole to the next page. The exception is a band holding a single content component (text, list, table, code, steps or timeline), which can split between lines or items. Tables repeat their header.
-- Ids use letters, digits, `-` and `_`. Every component listed in `components` must be placed exactly once.
+Pass `map: "pages"` with `pages: [1]` to get the drawing of some pages, `map: "full"` for all, or call `get_layout_map`.
 
-## Reading the map
-
-Level 1 (returned by every write):
+## Reading the map (level 1)
 
 ```
-s-intro r-kpis [16 rows · 128px]  [kpi-revenue kpi 1-4 · 221.9×128] [kpi-churn kpi 5-8 · 221.9×128]
+document "Q3" · surface a4 (A4, 2 pages)
+page 793.7×1122.5px · margins 40px · content 713.7px wide = 89 units × 130 rows · 1 unit = 8px
+guides: 12 columns, gutter 16px → 1:0–6 2:8–13 3:15–21 …
+classes: highlight [color] (2: kpi-a, kpi-b)
+
+page 1/2 · 5 boxes · 17 free rows at the bottom
+    0         10        20        30   ← x (units)
+    1       2      3       4           ← guide columns
+  0 +-title---------------------------…
+ 12 +---------------------------------…
+ 15 +-kpi-a-----------+  +-kpi-b v----…
+ 30 +-----------------+  +------------…
+130 (end of page)
+  id     type  x   y   w   h   class      content                      notes
+  title  text  0   0   89  13  —          title-1: "Q3 results" (+1 ¶)
+  kpi-b  kpi   30  15  29  16  highlight  kpi 31% "Margin"            moved ↓2 from y13 (pushed by title)
 ```
 
-That line reads: section `s-intro`, band `r-kpis`, 128px tall, holding `kpi-revenue` in columns 1–4 (221.9 px wide). Alerts follow the component: `!overflow 24px` is an error, and `~word-broken` is a warning.
-Level 0 is a one-screen outline. Level 2 details the components you name: resolved styles, and which layer each value came from.
+- The drawing has one character per unit across. The number on the left is the row; rows that repeat the one above are left out.
+- Marks in a box's top edge: `!` error, `~` warning, `v` moved from its declared place, `2/3` piece of a split box.
+- The table has the drawn position, the classes, a summary of the content, and what the layout did.
+- Long documents: `pages: [2]`, or `draw: false` for the tables only.
+- Level 0 is the outline. Level 2 details components: declared vs drawn position, content, every style value with the layer it came from.
 
-## Components (`components[]`: `{id, type, content, props?, labels?, style?}`)
+## Components (`{id, type, at, content, props?, labels?, style?}`)
 
 | type | content | props |
 | --- | --- | --- |
@@ -49,44 +89,72 @@ Level 0 is a one-screen outline. Level 2 details the components you name: resolv
 | `image` | `src` (https or data:image), `alt`, `width`, `height` (intrinsic px) | `fit: contain\|cover` |
 | `divider` | none | `kind: line\|space` |
 
-Text roles: `title-1`, `title-2`, `title-3`, `subtitle`, `body`, `quote`, `caption`. There is no separate title component; a title is a text with `role: "title-1"`.
-Inline text is a string with `**bold**`, `*italic*`, `` `code` `` and `[link](https://…)`. Use runs (`[{text, bold?, italic?, code?, color?, highlight?, link?, size?}]`) only when you need colour or size.
-Links: `https://`, `http://`, `mailto:` and `#id` (another component or a section).
+- **Text roles:** `title-1`, `title-2`, `title-3`, `subtitle`, `body`, `quote`, `caption`. A title is a text with `role: "title-1"`.
+- **Inline text:** `**bold**`, `*italic*`, `` `code` ``, `[link](https://…)`. Use runs (`[{text, bold?, italic?, code?, color?, highlight?, link?, size?}]`) only when you need a colour or a size.
+- **Links:** `https://`, `http://`, `mailto:` and `#component-id`.
+- Ids use letters, digits, `-` and `_`.
 
-Content components (text, list, table, code, steps, timeline) grow with their content. Area components (kpi, card, chart, image, divider) fill the area they are given. A chart needs a plot area of at least 80×60px (a pie, a 40px radius), and `chart-too-small` tells you when it falls short.
-
-## Operations (`apply_layout_ops`)
+## Operations (`apply_layout_ops`, `preview_layout`)
 
 ```json
-{"op": "add", "component": {...}, "at": {"section": "s-1", "band": "r-1", "colStart": 1, "colSpan": 12, "newBand": {"span": "auto", "after": "r-0"}}}
-{"op": "place", "component": "id", "at": {...}}
+{"op": "add", "component": {...}, "at": {"page": 1, "x": 0, "y": 20, "w": 40}}
+{"op": "add", "component": {...}, "at": {"below": "title", "cols": [1, 4]}}
+{"op": "add", "component": {...}, "at": {"end": true, "page": 2, "cols": [1, 12]}}
+{"op": "place", "component": "id", "at": {"x": 45, "w": 44}}
+{"op": "place", "component": "id", "at": {"h": null}}
 {"op": "update", "component": "id", "content": {...}, "props": {...}, "labels": [...], "style": {...} | null}
+{"op": "edit", "component": "id", "set": {"paragraphs.1": "New text", "rows.2.0": "Sul"}, "remove": ["items.3"]}
+{"op": "replaceText", "find": "T2", "replace": "Q2", "components": ["id"], "matchCase": false}
+{"op": "row", "below": "title", "h": 16, "items": [{"id": "kpi-a", "type": "kpi", "content": {...}}, {...}, {...}]}
+{"op": "row", "below": "kpi-a", "widths": [2, 1], "align": "top", "items": ["analysis", "chart"]}
 {"op": "remove", "component": "id"}
-{"op": "addSection", "section": {"id": "s-2", "name": "Results"}, "after": "s-1"}
-{"op": "addBand", "section": "s-2", "band": {"id": "r-3", "span": "auto"}, "after": "r-2"}
-{"op": "setBand", "band": "r-3", "span": 24}
-{"op": "moveBand", "band": "r-3", "section": "s-1", "after": null}
-{"op": "removeBand", "band": "r-3"}
 {"op": "setStyle", "layer": "document", "selector": "text.title-1", "style": {...}}
 {"op": "setStyle", "layer": "label", "label": "highlight", "style": {...}}
-{"op": "setRegion", "region": {"id": "sidebar", "section": "s-1", "cols": [9, 12], "style": {...}}}
+{"op": "setRegion", "region": {"id": "sidebar", "page": 1, "x": 60, "y": 0, "w": 29, "h": 130, "style": {...}}}
 {"op": "setTokens", "tokens": {"color": {"primary": "#0b6e4f"}}}
+{"op": "setGrid", "grid": {"columns": 6, "gutter": 24}}
+{"op": "setSurface", "surface": {"id": "a4", "kind": "page", "size": "A4", "margin": 48, "maxPages": 2}}
+{"op": "setMeta", "meta": {"title": "Q3", "locale": "pt-BR"}}
+{"op": "compact", "acrossPages": true}
+{"op": "fit", "pages": 2, "strategies": ["compact", "spacing", "type"], "minScale": 0.85}
 ```
 
-- `newBand` creates the band if it does not exist yet. `after: null` means "first".
-- `update` replaces `content` entirely and merges `props` and `style`.
-- One call is all-or-nothing. If anything fails, nothing is saved, and you get the diagnostics and the revision you are still on.
+**Positions in `add` and `place`:**
+- `below: "id"` puts the component right under where that component is drawn now (`gap` units apart, default 2) and takes its x/w unless you give them.
+- `end: true` puts it under the lowest box of `page` (default: the last page).
+- In `place`, whatever you leave out keeps its current value. `h: null` removes the minimum height.
+- Relative positions are turned into absolute ones when the op runs.
+
+**Other rules:**
+- `update` replaces `content` entirely and merges `props` and `style`; `null` clears either (send `null`, then the new value, to replace).
+- `row` places components side by side across guide columns in one op: objects are added, ids are moved. `widths` are proportions (`[2, 1]` = two thirds and one third), rounded to whole guide columns; `cols: [a, b]` limits the row to some columns; the y comes from `below`, `end` or `page` + `y`. `h` gives all of them the same minimum height; `align: "stretch"` makes them as tall as the tallest. The summary shows where each one landed.
+- `edit` changes parts of `content` by dotted path, with numbers for list positions: `paragraphs.1`, `rows.2.0`, `items.0.text`, `events.1.date`. `set` replaces (one past the end appends), `remove` deletes. Use it to fix a cell or a paragraph without reading the JSON first.
+- `replaceText` replaces words in every text of the document (or only in `components`); finding nothing refuses the call.
+- `setGrid` with a new `unit` converts every position so nothing changes size. Changing guides moves nothing.
+- `compact` moves components up into the empty space above them (only some with `components`, one `page`, or back across a page break with `acrossPages`).
+- `fit` makes the document fit `pages` (default: the page limit) with the strategies you allow, mildest first: `compact`, `spacing` (tighter gaps and padding), `type` (text sizes down to `minScale`). It says what it did, or that it could not — and then changes nothing. Try it in `preview_layout` first.
+- A call is refused (nothing saved) only for a malformed op, an id that does not exist, or an invalid document.
 - Pass `base_revision` (from the last response) when several writers may be working on the same document.
 
 ## Styles
 
-The cascade, from least to most specific: preset → `document` (by type or `type.role`) → region (a grid area) → label → the component's own `style`. Prefer tokens over raw values:
-`$color.text|muted|primary|surface|subtle|border|success|danger|warning|highlight|chart1-6`, `$size.xs|s|m|l|xl|xxl|display`, `$space.0-6`, `$radius.none|s|m`, `$lineHeight.tight|normal`.
-Style props: `fontFamily fontSize fontWeight italic color lineHeight align background borderColor borderWidth radius padding gap accent muted`.
+The cascade, from least to most specific: preset → `document` (by type or `type.role`) → region (an area of the grid) → class (`labels`) → the component's own `style`.
 
-## A good first document
+**Prefer tokens over raw values:**
+- colors: `$color.text|muted|primary|surface|subtle|border|success|danger|warning|highlight|chart1-6`
+- sizes: `$size.xs|s|m|l|xl|xxl|display`
+- spacing: `$space.0-6`
+- radius: `$radius.none|s|m`
+- line height: `$lineHeight.tight|normal`
 
-1. Add a band with a `title-1` text across all 12 columns.
-2. Add a band of 3 KPIs or cards (4 columns each).
-3. Add the body in 8 + 4 or 6 + 6 splits.
-4. Read the map, fix every `!` error, and look at the `~` warnings.
+**Style props:** `fontFamily fontSize fontWeight italic color lineHeight align background borderColor borderWidth radius padding gap accent muted`.
+
+## A good way to build one
+
+1. For a report, a proposal or a one-pager, start from a template (`create_layout_document(template="relatorio" | "proposta" | "one-pager")`) and replace its sample content with `edit` and `replaceText`. Otherwise draft the whole document and check it with `preview_layout(content=…)`, or create it empty and add as you go.
+2. A `title-1` text across the page (`cols: [1, 12]`), then a `row` of 3–4 KPIs or cards `below` it, with one `h`.
+3. Body as a `row` with `widths: [2, 1]` or `[1, 1]` (text beside a chart: `align: "top"`, and leave the text without `h`). Before placing a long text next to something, `measure_component` it at both widths.
+4. Read the summary of each write. When a page is done, run `review_layout`, check the map (`get_layout_map`) and, if you can see images, look at it with `render_page`. Fix every `!`, look at the `~`, and check the notes column for anything pushed or split you did not intend.
+5. Give each write a `note` (why, in one sentence): the person reviews your changes one by one, with it.
+6. When you are done, `request_review` with a summary, the components to look at and the questions only the person can answer. Their answers come back in `get_layout_notes`.
+7. Later: `get_layout_notes` shows what people pinned to the page and what moved since you last looked.
