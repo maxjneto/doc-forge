@@ -173,6 +173,7 @@ async def get_current_user(
         )
         api_key_id = result.scalar_one_or_none()
         request.state.api_key_id = api_key_id
+        request.state.user_id = user.id
         logger.debug("[auth] API key auth succeeded | user={} key_id={}", user.id, api_key_id)
         return await refresh_credits_if_due(db, user)
 

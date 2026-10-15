@@ -10,6 +10,7 @@ from app.models.document_activity import DocumentActivity
 from app.models.document_contract import DocumentContract
 from app.models.document_layout import DocumentLayout
 from app.models.document_type import DocumentType, SectionDefinition
+from app.models.layout_note import DocumentLayoutRevision, LayoutNote
 from app.models.organization import OWNER_ROLE, ROLE_RANK, ROLES, DocumentMember, Folder
 from app.models.pipeline import PipelineDefinition, PipelineRun
 from app.models.prompt_template import PromptTemplate
@@ -39,6 +40,8 @@ __all__ = [
     "PromptTemplate",
     "DocumentContract",
     "DocumentLayout",
+    "DocumentLayoutRevision",
+    "LayoutNote",
     "ApiKey",
     "DocumentActivity",
     "Suggestion",

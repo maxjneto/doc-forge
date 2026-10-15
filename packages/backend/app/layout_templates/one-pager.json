@@ -1,0 +1,281 @@
+{
+  "format": "docforge/layout",
+  "version": 2,
+  "meta": {
+    "title": "DocForge Layout — one-pager",
+    "locale": "pt-BR"
+  },
+  "grid": {
+    "unit": 8,
+    "columns": 12,
+    "gutter": 16,
+    "gap": 2
+  },
+  "styles": {
+    "labels": {
+      "cartao": {
+        "background": "$color.subtle",
+        "radius": "$radius.m",
+        "padding": "$space.4"
+      }
+    }
+  },
+  "surfaces": [
+    {
+      "id": "a4",
+      "kind": "page",
+      "size": "A4",
+      "margin": 40
+    },
+    {
+      "id": "continua",
+      "kind": "continuous",
+      "width": 820,
+      "margin": 40
+    }
+  ],
+  "components": [
+    {
+      "id": "titulo",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 0,
+        "w": 89
+      },
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-1",
+            "text": "Documentos que o agente monta sem ver a tela"
+          },
+          {
+            "role": "subtitle",
+            "text": "Componentes numa grade, medidos pela própria lib. O agente pede um lugar; a lib responde se coube."
+          }
+        ]
+      }
+    },
+    {
+      "id": "kpi-tokens",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 15,
+        "w": 28,
+        "h": 16
+      },
+      "labels": [
+        "cartao"
+      ],
+      "type": "kpi",
+      "content": {
+        "value": "~1.000",
+        "label": "tokens por ciclo de layout",
+        "delta": "vs ~8.500 com prints",
+        "trend": "up"
+      }
+    },
+    {
+      "id": "kpi-precisao",
+      "at": {
+        "page": 1,
+        "x": 30,
+        "y": 15,
+        "w": 29,
+        "h": 16
+      },
+      "labels": [
+        "cartao"
+      ],
+      "type": "kpi",
+      "content": {
+        "value": "≤ 1px",
+        "label": "diferença entre medida e tela",
+        "delta": "meta do spike",
+        "trend": "flat"
+      }
+    },
+    {
+      "id": "kpi-componentes",
+      "at": {
+        "page": 1,
+        "x": 61,
+        "y": 15,
+        "w": 28,
+        "h": 16
+      },
+      "labels": [
+        "cartao"
+      ],
+      "type": "kpi",
+      "content": {
+        "value": "10",
+        "label": "componentes no catálogo inicial"
+      }
+    },
+    {
+      "id": "problema",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 35,
+        "w": 44,
+        "h": 28
+      },
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-3",
+            "text": "O problema"
+          },
+          "Artefatos gerados por agentes quebram no PDF: tabelas cortadas, textos fora da caixa, gráficos espremidos. O agente só descobre olhando a tela, e cada print custa milhares de tokens.",
+          "Aqui o agente nunca olha. Ele lê um mapa em texto e recebe um diagnóstico quando algo não cabe."
+        ]
+      }
+    },
+    {
+      "id": "uso-tokens",
+      "at": {
+        "page": 1,
+        "x": 46,
+        "y": 35,
+        "w": 43,
+        "h": 28
+      },
+      "type": "chart",
+      "content": {
+        "kind": "pie",
+        "categories": [
+          "Mapa",
+          "Diagnósticos",
+          "Conteúdo"
+        ],
+        "series": [
+          {
+            "name": "tokens",
+            "values": [
+              450,
+              300,
+              250
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "card-formato",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 65,
+        "w": 28,
+        "h": 29
+      },
+      "type": "card",
+      "content": {
+        "eyebrow": "FORMATO",
+        "title": "Componentes numa grade",
+        "text": "Seções, faixas e colunas. Cada célula tem área fixa; a lib diz se o conteúdo cabe.",
+        "footer": "Ver o problema →"
+      },
+      "props": {
+        "href": "#problema"
+      }
+    },
+    {
+      "id": "card-medicao",
+      "at": {
+        "page": 1,
+        "x": 30,
+        "y": 65,
+        "w": 29,
+        "h": 29
+      },
+      "type": "card",
+      "content": {
+        "eyebrow": "MEDIÇÃO",
+        "title": "Sem navegador",
+        "value": "99,9%",
+        "text": "das linhas medidas pela lib batem com a tela, dentro de 1px."
+      }
+    },
+    {
+      "id": "card-docforge",
+      "at": {
+        "page": 1,
+        "x": 61,
+        "y": 65,
+        "w": 28,
+        "h": 29
+      },
+      "type": "card",
+      "content": {
+        "eyebrow": "DOCFORGE",
+        "title": "Revisão humana no mesmo modelo",
+        "text": "O que o agente monta, a pessoa abre e edita.",
+        "footer": "doc-forge.dev →"
+      },
+      "props": {
+        "href": "https://doc-forge.dev"
+      }
+    },
+    {
+      "id": "beneficios",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 96,
+        "w": 51
+      },
+      "type": "list",
+      "content": {
+        "items": [
+          {
+            "text": "PDF igual à tela: a lib pagina, o navegador só imprime.",
+            "checked": true
+          },
+          {
+            "text": "Estilo em cascata com origem visível para o agente.",
+            "checked": true
+          },
+          {
+            "text": "Edição humana no mesmo modelo que o agente usa.",
+            "checked": false
+          }
+        ]
+      },
+      "props": {
+        "marker": "check"
+      }
+    },
+    {
+      "id": "citacao",
+      "at": {
+        "page": 1,
+        "x": 53,
+        "y": 96,
+        "w": 36,
+        "h": 17
+      },
+      "labels": [
+        "cartao"
+      ],
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "quote",
+            "text": "O agente não desenha nem olha: pede um lugar, e a lib mede e responde em texto."
+          },
+          {
+            "role": "caption",
+            "text": "Princípio do formato"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -13,6 +13,7 @@ SSEEventType = Literal[
     "suggestion_resolved",
     "feedback_created",
     "feedback_resolved",
+    "layout_note_changed",
 ]
 
 
