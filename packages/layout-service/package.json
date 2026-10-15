@@ -2,7 +2,7 @@
   "name": "@docforge/layout-service",
   "private": true,
   "version": "0.2.0",
-  "description": "Runs the @docforge/layout HTTP server for the Python backend. No code of its own: the lib ships the server.",
+  "description": "Runs the @docforge/layout HTTP server for the Python backend. No code of its own: the lib ships the server; @resvg/resvg-js lets it turn pages into PNGs without a browser.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -12,6 +12,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@docforge/layout": "file:vendor/docforge-layout-0.2.0.tgz"
+    "@docforge/layout": "file:vendor/docforge-layout-0.3.0.tgz",
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

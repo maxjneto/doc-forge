@@ -4,6 +4,7 @@ WORKDIR /app
 
 # The lib is vendored as a tarball (scripts/vendor-layout.sh) and ships the server
 # itself (`docforge-layout serve`), so this image is just Node + the package.
+# @resvg/resvg-js (prebuilt musl binary) draws page PNGs for /render-image.
 COPY package.json package-lock.json ./
 COPY vendor ./vendor
 RUN npm ci --omit=dev

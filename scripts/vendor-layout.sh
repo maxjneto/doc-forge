@@ -28,6 +28,11 @@ for pkg in frontend layout-service; do
 done
 rm "$root/$tarball"
 
+# npm keeps an installed package whose version did not change, even when the
+# tarball did: drop the installed copies (and Vite's pre-bundle) so the next
+# install really takes the new build.
+rm -rf "$root/node_modules/@docforge/layout"   "$root/packages/frontend/node_modules/@docforge/layout"   "$root/packages/layout-service/node_modules/@docforge/layout"   "$root/packages/frontend/node_modules/.vite"
+
 # Point every lock entry for the vendored tarball at its real hash.
 node - "$root" "$tarball" <<'JS'
 const { createHash } = require("node:crypto");
