@@ -1,0 +1,63 @@
+# DocForge on a VPS that already runs another app with its own Caddy (the CopaSim
+# box). Use it on top of the production file:
+#
+#   docker network create edge        # once per VPS (skip if it exists)
+#   docker compose -f docker-compose.prod.yml -f docker-compose.colocated.yml pull
+#   docker compose -f docker-compose.prod.yml -f docker-compose.colocated.yml up -d
+#
+# What changes from docker-compose.prod.yml:
+# - DocForge's Caddy does not start: the host's existing Caddy already owns 80/443
+#   and gets two extra site blocks (deploy/Caddyfile.colocated.snippet) that proxy
+#   to the containers below over the shared `edge` network.
+# - backend, frontend and mcp join `edge` under unambiguous names
+#   (docforge-backend, docforge-frontend, docforge-mcp). Postgres and the layout
+#   service stay on DocForge's private network only.
+# - Every container gets a memory ceiling and a low CPU weight, so under contention
+#   the other app (CopaSim's simulator has cpu_shares 2048) wins and a runaway
+#   DocForge process is killed instead of the box swapping. Ceilings are ~2-3× what
+#   the stack uses at rest (see docs/product/vps-copasim.md for the measurements).
+
+services:
+  caddy:
+    # Only started with `--profile standalone`, i.e. never on this box.
+    profiles: ["standalone"]
+
+  postgres:
+    mem_limit: 512m
+    cpu_shares: 512
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=40"]
+    logging: &logs
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  backend:
+    mem_limit: 768m
+    cpu_shares: 512
+    logging: *logs
+    networks:
+      default: {}
+      edge:
+        aliases: [docforge-backend]
+
+  layout:
+    mem_limit: 512m
+    cpu_shares: 384
+    logging: *logs
+
+  mcp:
+    mem_limit: 256m
+    cpu_shares: 384
+    logging: *logs
+    networks:
+      default: {}
+      edge:
+        aliases: [docforge-mcp]
+
+  frontend:
+    mem_limit: 96m
+    cpu_shares: 256
+    logging: *logs
+    networks:
+      default: {}
+      edge:
+        aliases: [docforge-frontend]

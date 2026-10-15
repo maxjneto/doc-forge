@@ -39,7 +39,7 @@ htmlcov/
 *.sqlite3
 
 # Docs
-docs/
+/docs/
 docforge-kit-png/
 
 # Claude

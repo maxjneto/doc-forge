@@ -17,6 +17,7 @@ name: Build & push images (GHCR)
 #   VITE_POSTHOG_KEY             (optional)
 # And optionally this repo *variable*:
 #   VITE_POSTHOG_HOST            (defaults to https://us.i.posthog.com)
+#   VITE_MCP_URL                 (where agents connect; defaults to https://mcp.doc-forge.dev/mcp)
 
 on:
   push:
@@ -68,5 +69,6 @@ jobs:
             VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
             VITE_POSTHOG_KEY=${{ secrets.VITE_POSTHOG_KEY }}
             VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST || 'https://us.i.posthog.com' }}
+            VITE_MCP_URL=${{ vars.VITE_MCP_URL || 'https://mcp.doc-forge.dev/mcp' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -82,6 +82,8 @@ services:
       - ./packages/frontend/.env
     environment:
       VITE_API_BASE: http://localhost:8000/api
+      # Setup snippets in the app point agents at the local MCP server.
+      VITE_MCP_URL: http://localhost:8001/mcp
 
   mcp:
     build:
