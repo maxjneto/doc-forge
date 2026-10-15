@@ -28,6 +28,10 @@ export const textStyle = {
     textTransform: "uppercase",
     lineHeight: 1,
   },
+  /** Form field label in dense editors — sans, sentence case (mono caps get hard to scan in long forms). */
+  fieldLabel: { fontSize: "var(--text-caption)", fontWeight: 500, lineHeight: 1.3 },
+  /** Group heading inside a side panel — sans, sentence case. */
+  group: { fontSize: "var(--text-body-sm)", fontWeight: 600, lineHeight: 1.3, letterSpacing: "-0.005em" },
   /** Timestamp, author, dense-list metadata. */
   caption: { fontSize: "var(--text-caption)", lineHeight: 1.45 },
   /** List row, side-panel item. */

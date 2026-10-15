@@ -284,30 +284,32 @@ interface TabProps {
   count?: number;
   active: boolean;
   onClick: () => void;
+  /** Sentence-case sans label, sized to its text: for dense editors where mono caps get hard to read. */
+  plain?: boolean;
 }
 
 /** One cell of a tab bar — heat underline when active, as in the v4 panel. */
-export function Tab({ label, count, active, onClick }: TabProps) {
+export function Tab({ label, count, active, onClick, plain }: TabProps) {
   return (
     <button
       type="button"
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className="df-mono"
+      className={plain ? undefined : "df-mono"}
       style={{
-        flex: 1,
+        flex: plain ? "none" : 1,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         gap: 5,
-        padding: "12px 8px",
-        fontSize: "var(--text-label)",
-        letterSpacing: "var(--tracking-eyebrow)",
-        textTransform: "uppercase",
+        padding: plain ? "10px 10px" : "12px 8px",
+        fontSize: plain ? "var(--text-body-sm)" : "var(--text-label)",
+        letterSpacing: plain ? "normal" : "var(--tracking-eyebrow)",
+        textTransform: plain ? "none" : "uppercase",
         fontWeight: active ? 600 : 500,
-        color: active ? "var(--color-heat-hi)" : "var(--color-faint)",
-        background: active ? "linear-gradient(180deg, transparent, var(--color-heat-tint))" : "transparent",
+        color: active ? (plain ? "var(--color-text)" : "var(--color-heat-hi)") : plain ? "var(--color-dim)" : "var(--color-faint)",
+        background: active && !plain ? "linear-gradient(180deg, transparent, var(--color-heat-tint))" : "transparent",
         border: "none",
         boxShadow: active ? "inset 0 -2px 0 var(--color-heat)" : "none",
         cursor: "pointer",

@@ -1,14 +1,20 @@
 /**
- * A layout document (components on a grid), as an agent built it through MCP
+ * A layout document (components placed on a unit grid, version 2), as an agent built it through MCP
  * with create_layout_document + apply_layout_ops. Rendered in the browser by
  * @docforge/layout.
  */
 export const layoutContent = {
   "format": "docforge/layout",
-  "version": 1,
+  "version": 2,
   "meta": {
     "title": "Relatório do 3º trimestre",
     "locale": "pt-BR"
+  },
+  "grid": {
+    "unit": 8,
+    "columns": 12,
+    "gutter": 16,
+    "gap": 2
   },
   "surfaces": [
     {
@@ -24,107 +30,15 @@ export const layoutContent = {
       "margin": 40
     }
   ],
-  "sections": [
-    {
-      "id": "s-1",
-      "bands": [
-        {
-          "id": "r-titulo",
-          "span": "auto",
-          "items": [
-            {
-              "component": "titulo",
-              "colStart": 1,
-              "colSpan": 12
-            }
-          ]
-        },
-        {
-          "id": "r-kpis",
-          "span": "auto",
-          "items": [
-            {
-              "component": "kpi-receita",
-              "colStart": 1,
-              "colSpan": 4
-            },
-            {
-              "component": "kpi-churn",
-              "colStart": 5,
-              "colSpan": 4
-            },
-            {
-              "component": "kpi-nps",
-              "colStart": 9,
-              "colSpan": 4
-            }
-          ]
-        },
-        {
-          "id": "r-corpo",
-          "span": "auto",
-          "items": [
-            {
-              "component": "analise",
-              "colStart": 1,
-              "colSpan": 6
-            },
-            {
-              "component": "grafico",
-              "colStart": 7,
-              "colSpan": 6
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "s-2",
-      "name": "Próximos passos",
-      "bands": [
-        {
-          "id": "r-cards",
-          "span": "auto",
-          "items": [
-            {
-              "component": "card-pro",
-              "colStart": 1,
-              "colSpan": 4
-            },
-            {
-              "component": "card-churn",
-              "colStart": 5,
-              "colSpan": 4
-            },
-            {
-              "component": "card-risco",
-              "colStart": 9,
-              "colSpan": 4
-            }
-          ]
-        },
-        {
-          "id": "r-plano",
-          "span": "auto",
-          "items": [
-            {
-              "component": "tabela",
-              "colStart": 1,
-              "colSpan": 7
-            },
-            {
-              "component": "etapas",
-              "colStart": 8,
-              "colSpan": 5
-            }
-          ]
-        }
-      ]
-    }
-  ],
   "components": [
     {
       "id": "titulo",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 0,
+        "w": 89
+      },
       "type": "text",
       "content": {
         "paragraphs": [
@@ -141,6 +55,13 @@ export const layoutContent = {
     },
     {
       "id": "kpi-receita",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 12,
+        "w": 28,
+        "h": 16
+      },
       "type": "kpi",
       "content": {
         "value": "R$ 4,2 mi",
@@ -151,6 +72,13 @@ export const layoutContent = {
     },
     {
       "id": "kpi-churn",
+      "at": {
+        "page": 1,
+        "x": 30,
+        "y": 12,
+        "w": 29,
+        "h": 16
+      },
       "type": "kpi",
       "content": {
         "value": "2,1%",
@@ -161,6 +89,13 @@ export const layoutContent = {
     },
     {
       "id": "kpi-nps",
+      "at": {
+        "page": 1,
+        "x": 61,
+        "y": 12,
+        "w": 28,
+        "h": 16
+      },
       "type": "kpi",
       "content": {
         "value": "61",
@@ -170,6 +105,13 @@ export const layoutContent = {
     },
     {
       "id": "analise",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 30,
+        "w": 44,
+        "h": 29
+      },
       "type": "text",
       "content": {
         "paragraphs": [
@@ -180,6 +122,13 @@ export const layoutContent = {
     },
     {
       "id": "grafico",
+      "at": {
+        "page": 1,
+        "x": 46,
+        "y": 30,
+        "w": 43,
+        "h": 29
+      },
       "type": "chart",
       "content": {
         "kind": "bar",
@@ -205,6 +154,13 @@ export const layoutContent = {
     },
     {
       "id": "card-pro",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 63,
+        "w": 28,
+        "h": 23
+      },
       "type": "card",
       "content": {
         "eyebrow": "Plano",
@@ -218,6 +174,13 @@ export const layoutContent = {
     },
     {
       "id": "card-churn",
+      "at": {
+        "page": 1,
+        "x": 30,
+        "y": 63,
+        "w": 29,
+        "h": 23
+      },
       "type": "card",
       "content": {
         "eyebrow": "Retenção",
@@ -227,6 +190,13 @@ export const layoutContent = {
     },
     {
       "id": "card-risco",
+      "at": {
+        "page": 1,
+        "x": 61,
+        "y": 63,
+        "w": 28,
+        "h": 23
+      },
       "type": "card",
       "content": {
         "eyebrow": "Risco",
@@ -236,6 +206,13 @@ export const layoutContent = {
     },
     {
       "id": "tabela",
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 88,
+        "w": 51,
+        "h": 19
+      },
       "type": "table",
       "content": {
         "columns": [
@@ -273,6 +250,13 @@ export const layoutContent = {
     },
     {
       "id": "etapas",
+      "at": {
+        "page": 1,
+        "x": 53,
+        "y": 88,
+        "w": 36,
+        "h": 19
+      },
       "type": "steps",
       "content": {
         "steps": [

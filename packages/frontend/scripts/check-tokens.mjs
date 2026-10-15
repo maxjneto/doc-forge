@@ -34,6 +34,8 @@ const BASELINE = 0;
 const ALLOW = [
   // mermaid theme config has to hand hex to a third-party library
   "components/shared/MarkdownRenderer.tsx",
+  // palettes of the printed layout document (its own tokens), not app colours
+  "components/layout-doc/themes.ts",
 ];
 
 /** The type scale (index.css `--text-*`). Larger numbers are hero/display art. */

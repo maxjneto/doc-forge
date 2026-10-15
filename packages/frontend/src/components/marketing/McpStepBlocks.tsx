@@ -1,3 +1,5 @@
+import { MCP_URL } from "@/utils/mcpUrl";
+
 
 export function McpStepBlocks() {
   return (
@@ -349,7 +351,7 @@ function TerminalSnippet() {
       <span style={{ color: "var(--color-heat-hi)" }}>$</span> claude mcp add{" "}
       <span style={{ color: "var(--color-heat-soft)" }}>docforge</span> \
       <br />
-      &nbsp;&nbsp;&nbsp;&nbsp;--server-url <span style={{ color: "var(--color-steel)" }}>https://mcp.doc-forge.dev/mcp</span> \
+      &nbsp;&nbsp;&nbsp;&nbsp;--server-url <span style={{ color: "var(--color-steel)" }}>{MCP_URL}</span> \
       <br />
       &nbsp;&nbsp;&nbsp;&nbsp;--auth-token <span style={{ color: "var(--color-steel)" }}>$DOCFORGE_TOKEN</span>
       <br />
