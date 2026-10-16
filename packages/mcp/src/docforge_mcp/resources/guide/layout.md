@@ -17,6 +17,8 @@ Tools:
 - `render_page` — the page as an image (PNG), if you can see images: type, color and balance the map cannot show. Free.
 - `review_layout` — what a reader would notice (empty boxes, ragged rows, edges off the guides, a near-empty last page), each with the ops that fix it. Free.
 
+Publishing (the public link other sites load with `@docforge-lib/layout`) is the person's decision, made in the editor: there is no tool for it. Edits you make after it stay private until they publish again.
+
 ## Positions
 
 Every component has `at: {page, x, y, w, h?}`:

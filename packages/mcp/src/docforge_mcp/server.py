@@ -1035,7 +1035,7 @@ async def create_layout_document(
 
     Args:
         title: Document title.
-        content: Optional full layout document (JSON object, format "docforge/layout", version 2).
+        content: Optional full layout document (JSON object, format "docforge/layout", version 3).
         template: Optional. relatorio, proposta, one-pager or apresentacao. Not with content.
         format: Optional, empty documents only: "page" (A4, default) or "slide" (16:9 deck).
     """
