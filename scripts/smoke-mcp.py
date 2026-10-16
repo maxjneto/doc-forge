@@ -2,7 +2,8 @@
 
 Creates a report from the `relatorio` template, edits it, adds a row of KPIs,
 runs the composition review, renders page 1 as a PNG, asks the person for a
-review and reads the notes back. Prints, for every call, how long it took and
+review and reads the notes back; then saves a version, applies and saves a
+theme and creates a slide deck. Prints, for every call, how long it took and
 how much text it handed the agent (≈ characters / 4 tokens) — the same numbers
 the usage telemetry reports, so it doubles as the token benchmark.
 
@@ -89,6 +90,17 @@ async def run(url: str, key: str, out: str) -> int:
                 r"Review requested",
             )
             await call("get_layout_notes", {"document_id": doc, "kind": "annotation"}, r"review request")
+
+            # v3: themes, saved versions, threads, slides.
+            await call("list_layout_themes", {}, r"Noite \(night\)")
+            await call("save_layout_version", {"document_id": doc, "name": "Antes do tema", "note": "Smoke test"}, r"Version saved")
+            await call("apply_layout_theme", {"document_id": doc, "theme": "editorial"}, r"Theme applied")
+            await call("save_layout_theme", {"name": "Smoke (do documento)", "from_document": doc}, r"Theme saved")
+            await call("list_layout_versions", {"document_id": doc}, r"Antes do tema")
+            _, deck = await call("create_layout_document", {"title": "Smoke deck", "template": "apresentacao"}, r"ID: [0-9a-f-]{36}")
+            deck_id = re.search(r"ID: ([0-9a-f-]{36})", deck)
+            if deck_id:
+                await call("apply_layout_ops", {"document_id": deck_id.group(1), "ops": [{"op": "page", "action": "duplicate", "page": 3}], "note": "Duplicando o slide de indicadores"}, r"Saved")
 
     print(f"\n{'tool':<24}{'ms':>8}{'chars':>9}{'≈tokens':>9}  ok")
     for name, ms, chars, ok in rows:

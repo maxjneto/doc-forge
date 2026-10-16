@@ -10,7 +10,9 @@ Tools:
 - `preview_layout` — what ops (or a whole draft document) would produce. Free, saves nothing.
 - `create_layout_document` → `apply_layout_ops` — write.
 - `get_layout_map`, `find_layout` — read; `get_layout_document` for the raw JSON.
-- `get_layout_notes` → `resolve_layout_note` — what the layout did on its own, and what people pinned.
+- `get_layout_notes` → `reply_layout_note` / `resolve_layout_note` — what people pinned to the page (threads; requests made to you come first) and what the layout did on its own.
+- `list_layout_themes` → `apply_layout_theme`, `save_layout_theme` — themes (colors, page color, fonts, radii) people reuse across documents.
+- `save_layout_version`, `list_layout_versions`, `restore_layout_version` — named versions and the edit timeline.
 - `calibrate_style` — compare style variants (sizes, lines, what would move) before choosing one. Free.
 - `render_page` — the page as an image (PNG), if you can see images: type, color and balance the map cannot show. Free.
 - `review_layout` — what a reader would notice (empty boxes, ragged rows, edges off the guides, a near-empty last page), each with the ops that fix it. Free.
@@ -114,7 +116,8 @@ page 1/2 · 5 boxes · 17 free rows at the bottom
 {"op": "setTokens", "tokens": {"color": {"primary": "#0b6e4f"}}}
 {"op": "setGrid", "grid": {"columns": 6, "gutter": 24}}
 {"op": "setSurface", "surface": {"id": "a4", "kind": "page", "size": "A4", "margin": 48, "maxPages": 2}}
-{"op": "setMeta", "meta": {"title": "Q3", "locale": "pt-BR"}}
+{"op": "setMeta", "meta": {"title": "Q3", "locale": "pt-BR", "theme": "Executivo"}}
+{"op": "page", "action": "insert" | "duplicate" | "remove" | "move", "page": 2, "to": 4}
 {"op": "compact", "acrossPages": true}
 {"op": "fit", "pages": 2, "strategies": ["compact", "spacing", "type"], "minScale": 0.85}
 ```
@@ -133,6 +136,7 @@ page 1/2 · 5 boxes · 17 free rows at the bottom
 - `setGrid` with a new `unit` converts every position so nothing changes size. Changing guides moves nothing.
 - `compact` moves components up into the empty space above them (only some with `components`, one `page`, or back across a page break with `acrossPages`).
 - `fit` makes the document fit `pages` (default: the page limit) with the strategies you allow, mildest first: `compact`, `spacing` (tighter gaps and padding), `type` (text sizes down to `minScale`). It says what it did, or that it could not — and then changes nothing. Try it in `preview_layout` first.
+- `page` works on whole pages (slides) by declared position: `insert` adds an empty one after `page` (0 = before the first), `duplicate` copies `page` right after it (copies get new ids, `<id>-2`), `remove` deletes it and what is on it, `move` puts it at `to`.
 - A call is refused (nothing saved) only for a malformed op, an id that does not exist, or an invalid document.
 - Pass `base_revision` (from the last response) when several writers may be working on the same document.
 
@@ -147,14 +151,26 @@ The cascade, from least to most specific: preset → `document` (by type or `typ
 - radius: `$radius.none|s|m`
 - line height: `$lineHeight.tight|normal`
 
+**Fonts:** `$font.sans` (text), `$font.heading` (titles, KPI values, card titles), `$font.mono`. Families: Inter, Source Serif 4, Space Grotesk, JetBrains Mono.
+
+**Themes:** a theme is a token set. `apply_layout_theme` writes every color, both fonts and the radii in one go; `$color.surface` is the page color, so a dark theme ("night") makes the page dark and the text light. Components follow a theme only through tokens: write `$color.primary`, not `#1f4fd8`. When the person likes a look you built, offer to keep it with `save_layout_theme(from_document=…)`.
+
 **Style props:** `fontFamily fontSize fontWeight italic color lineHeight align background borderColor borderWidth radius padding gap accent muted`.
+
+## Slides
+
+A page surface with `"size": "Slide"` (1280 × 720 px, 16:9) is a deck: one slide per page, 146 × 76 units with the default 56px margin. Start with `create_layout_document(template="apresentacao")` or `format="slide"` (empty, with a type scale for slides: body 20px, titles 44px).
+- Each slide is self-contained: a `title-1` at the top (one per slide is right here), then one idea — a row of KPIs, a chart beside two or three short paragraphs, steps or a timeline. Keep text short; split a crowded slide in two with `page` `duplicate` and remove half from each.
+- Place every component with its slide's `at.page`; nothing should be pushed to the next slide (check the summary for `moved-page`).
+- The person presents from the editor (full screen, one slide at a time) or exports a PDF.
 
 ## A good way to build one
 
-1. For a report, a proposal or a one-pager, start from a template (`create_layout_document(template="relatorio" | "proposta" | "one-pager")`) and replace its sample content with `edit` and `replaceText`. Otherwise draft the whole document and check it with `preview_layout(content=…)`, or create it empty and add as you go.
+1. For a report, a proposal, a one-pager or a deck, start from a template (`create_layout_document(template="relatorio" | "proposta" | "one-pager" | "apresentacao")`) and replace its sample content with `edit` and `replaceText`. Otherwise draft the whole document and check it with `preview_layout(content=…)`, or create it empty and add as you go.
 2. A `title-1` text across the page (`cols: [1, 12]`), then a `row` of 3–4 KPIs or cards `below` it, with one `h`.
 3. Body as a `row` with `widths: [2, 1]` or `[1, 1]` (text beside a chart: `align: "top"`, and leave the text without `h`). Before placing a long text next to something, `measure_component` it at both widths.
 4. Read the summary of each write. When a page is done, run `review_layout`, check the map (`get_layout_map`) and, if you can see images, look at it with `render_page`. Fix every `!`, look at the `~`, and check the notes column for anything pushed or split you did not intend.
 5. Give each write a `note` (why, in one sentence): the person reviews your changes one by one, with it.
 6. When you are done, `request_review` with a summary, the components to look at and the questions only the person can answer. Their answers come back in `get_layout_notes`.
-7. Later: `get_layout_notes` shows what people pinned to the page and what moved since you last looked.
+7. Before a big change, `save_layout_version` ("Before the new chart"), so the person can go back with one click.
+8. Later: `get_layout_notes` shows what people pinned to the page and what moved since you last looked. Notes marked "for you" are requests: do them, `reply_layout_note` with what you did, then `resolve_layout_note`.

@@ -5,6 +5,8 @@ Run: pip install -e ".[dev]" && pytest
 import asyncio
 import base64
 
+import pytest
+
 import docforge_mcp.server as srv
 
 PNG = base64.b64encode(bytes([137, 80, 78, 71, 13, 10, 26, 10]) + b"fake").decode()
@@ -35,8 +37,6 @@ async def fake_notes(document_id, status, kind, component):
         ],
     }
 
-
-import pytest
 
 
 @pytest.fixture(autouse=True)

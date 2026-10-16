@@ -1011,6 +1011,7 @@ async def create_layout_document(
     title: str,
     content: dict[str, Any] | str | None = None,
     template: str = "",
+    format: str = "",  # noqa: A002 (the parameter agents see)
     *,
     ctx: Context,
 ) -> str:
@@ -1024,21 +1025,31 @@ async def create_layout_document(
     Templates give a finished composition with sample content to replace
     (edit/replaceText): "relatorio" (KPIs, chart with analysis, table, next
     steps), "proposta" (scope, steps, timeline, price), "one-pager" (a product
-    or project on one page). Starting from one is usually faster and better
+    or project on one page), "apresentacao" (a 16:9 slide deck: cover, agenda,
+    KPIs, chart, next steps). Starting from one is usually faster and better
     composed than starting empty.
+
+    Slides: format="slide" starts an empty 16:9 deck (1280 × 720 px, one slide
+    per page, type sized for slides). Put each component on its slide with
+    at.page; the `page` op inserts, duplicates, removes or reorders slides.
 
     Args:
         title: Document title.
         content: Optional full layout document (JSON object, format "docforge/layout", version 2).
-        template: Optional. relatorio, proposta or one-pager. Not with content.
+        template: Optional. relatorio, proposta, one-pager or apresentacao. Not with content.
+        format: Optional, empty documents only: "page" (A4, default) or "slide" (16:9 deck).
     """
     _use_api_key(ctx)
     if template and content is not None:
         raise DocForgeError("Give content or template, not both.")
-    if template and template not in ("relatorio", "proposta", "one-pager"):
-        raise DocForgeError("`template` must be relatorio, proposta or one-pager.")
+    if template and template not in ("relatorio", "proposta", "one-pager", "apresentacao"):
+        raise DocForgeError("`template` must be relatorio, proposta, one-pager or apresentacao.")
+    if format and format not in ("page", "slide"):
+        raise DocForgeError('`format` must be "page" or "slide".')
+    if format and (template or content is not None):
+        raise DocForgeError("`format` is only for an empty document; a template or content brings its own.")
     parsed = _parse_json_arg(content, "content") if content is not None else None
-    result = await api.create_layout_document(title, parsed, template or None)
+    result = await api.create_layout_document(title, parsed, template or None, format or None)
     url = api.document_url(result["document_id"])
     return (
         f"Layout document created.\nID: {result['document_id']}\nURL: {url}\n"
@@ -1111,7 +1122,7 @@ async def apply_layout_ops(
 ) -> str:
     """Change a layout document with operations: add, place, update, edit,
     replaceText, remove, setStyle, setRegion, removeRegion, setTokens, setGrid,
-    setSurface, removeSurface, setMeta, compact, fit (shapes: docforge://guide/layout).
+    setSurface, removeSurface, setMeta, page, compact, fit (shapes: docforge://guide/layout).
     Positions: {page, x, y, w, h?} in units, or relative — cols:[a,b] for x/w,
     below:"id" or end:true for y.
     To change a word, a paragraph or a cell, use edit (by path, e.g.
@@ -1346,7 +1357,9 @@ async def get_layout_notes(
       next page, a split, the page limit) — they close themselves when no longer true;
     - annotations: notes people pinned to a component or an area of the grid.
     Each note comes with where its anchor is NOW and what is drawn there.
-    Resolve what you handled with resolve_layout_note.
+    Annotations are threads: replies are listed under their note. Notes marked
+    [for you] are requests the person made to you: act on them, answer with
+    reply_layout_note, then resolve_layout_note.
 
     Args:
         document_id: Document UUID.
@@ -1356,10 +1369,17 @@ async def get_layout_notes(
     """
     _use_api_key(ctx)
     result = await api.list_layout_notes(document_id, status, kind, component)
-    notes = result["notes"]
+    every = result["notes"]
+    replies: dict[str, list[dict]] = {}
+    for n in every:
+        if n.get("parent_id"):
+            replies.setdefault(n["parent_id"], []).append(n)
+    # Requests for the agent first, then the rest in order.
+    notes = sorted((n for n in every if not n.get("parent_id")), key=lambda n: not n.get("for_agent"))
     if not notes:
         return f"Revision {result['revision']}: no {status if status != 'all' else ''} notes.".replace("  ", " ")
-    lines = [f"Revision {result['revision']} · {len(notes)} note(s)"]
+    asks = sum(1 for n in notes if n.get("for_agent") and n["status"] == "open")
+    lines = [f"Revision {result['revision']} · {len(notes)} note(s)" + (f" · {asks} request(s) for you" if asks else "")]
     for n in notes:
         if n.get("code") == "review-request":
             data = n.get("data") or {}
@@ -1371,7 +1391,7 @@ async def get_layout_notes(
             head = "[review answer by a person]"
         elif n["kind"] == "annotation":
             who = "an agent" if n.get("by_agent") else "a person"
-            head = f"[annotation by {who}]"
+            head = f"[{'for you · ' if n.get('for_agent') else ''}annotation by {who}]"
         else:
             head = f"[notice {n['severity']} {n.get('code')}]"
         lines.append(f"- {head} {n['message']}")
@@ -1382,6 +1402,8 @@ async def get_layout_notes(
             lines.append(f"    anchor: {json.dumps(anchor)}")
         status_part = n["status"] + (f" — {n['resolution_note']}" if n.get("resolution_note") else "")
         lines.append(f"    id {n['id']} · revision {n['revision']} · {status_part}")
+        for r in replies.get(n["id"], []):
+            lines.append(f"    ↳ {'agent' if r.get('by_agent') else 'person'}: {r['message']}")
     return "\n".join(lines)
 
 
@@ -1431,6 +1453,164 @@ async def resolve_layout_note(note_id: str, note: str = "", status: str = "resol
         raise DocForgeError("`status` must be resolved, acknowledged or open.")
     result = await api.update_layout_note(note_id, status, note or None)
     return f"Note {result['id']} is now {result['status']}."
+
+
+@mcp.tool()
+async def reply_layout_note(document_id: str, note_id: str, message: str, *, ctx: Context) -> str:
+    """Answer in a note's thread (the person sees it next to the page): what you
+    did about it, or a question back. Replying to a resolved note opens it again.
+
+    Args:
+        document_id: Document UUID.
+        note_id: The note (or any reply in its thread) from get_layout_notes.
+        message: Your answer.
+    """
+    _use_api_key(ctx)
+    reply = await api.reply_layout_note(document_id, note_id, message)
+    return f"Replied (note {reply['id']}, thread {reply.get('parent_id') or note_id})."
+
+
+# ─── Themes ──────────────────────────────────────────────────
+
+
+def _theme_line(t: dict[str, Any]) -> str:
+    colors = t["tokens"].get("color") or {}
+    fonts = t["tokens"].get("font") or {}
+    swatch = ", ".join(f"{k} {colors[k]}" for k in ("surface", "text", "primary") if k in colors)
+    font = f" · titles {fonts['heading']}" if fonts.get("heading") else ""
+    ref = t.get("key") or t["id"]
+    return f"- {t['name']} ({ref}){' — ' + t['description'] if t.get('description') else ''}\n    {swatch}{font}"
+
+
+@mcp.tool()
+async def list_layout_themes(*, ctx: Context) -> str:
+    """Themes for layout documents: the built-in ones and the ones the person
+    (or you) saved. A theme sets colors (including the page color, `surface`),
+    fonts and corner radii. Apply one with apply_layout_theme."""
+    _use_api_key(ctx)
+    result = await api.list_layout_themes()
+    builtin = [t for t in result["themes"] if t.get("builtin")]
+    saved = [t for t in result["themes"] if not t.get("builtin")]
+    lines = ["Built-in:"] + [_theme_line(t) for t in builtin]
+    lines += ["", "Saved:"] + ([_theme_line(t) for t in saved] or ["- none yet (save_layout_theme)"])
+    lines += ["", f"Fonts you can use: {', '.join(result['fonts'])}."]
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def apply_layout_theme(document_id: str, theme: str, *, ctx: Context) -> str:
+    """Apply a theme to a layout document in one write: every color, both fonts
+    and the radii (what the theme leaves out goes back to the defaults), plus
+    its name. Components that use tokens ($color.primary…) follow; literal
+    colors written on components do not.
+
+    Args:
+        document_id: Document UUID.
+        theme: Built-in key (sober, executive, green, forge, editorial, tech, night), a saved theme's id, or a theme name.
+    """
+    _use_api_key(ctx)
+    result = await api.apply_layout_theme(document_id, theme)
+    return _format_layout_write(result, "Theme applied.")
+
+
+@mcp.tool()
+async def save_layout_theme(
+    name: str,
+    tokens: dict[str, Any] | str | None = None,
+    from_document: str = "",
+    description: str = "",
+    *,
+    ctx: Context,
+) -> str:
+    """Save a theme the person can reuse in any layout document (it appears in
+    their Design panel). Give `tokens` ({"color": {...}, "font": {"sans": ...,
+    "heading": ...}, "radius": {...}, "size": {...}}) or `from_document` to
+    save a document's current tokens. A dark theme sets color.surface dark and
+    color.text light; keep text readable on surface and subtle.
+
+    Args:
+        name: Theme name shown to people.
+        tokens: Token groups: color, font, size, space, radius, lineHeight.
+        from_document: A layout document UUID whose tokens to save instead.
+        description: One line on when to use it.
+    """
+    _use_api_key(ctx)
+    if (tokens is None) == (not from_document):
+        raise DocForgeError("Give tokens or from_document (one of them).")
+    if from_document:
+        layout = await api.get_layout(from_document)
+        parsed = (layout.get("content") or {}).get("tokens") or {}
+        if not parsed:
+            raise DocForgeError("That document uses the default tokens; there is nothing to save.")
+    else:
+        parsed = _parse_json_arg(tokens, "tokens")
+    saved = await api.save_layout_theme(name, parsed, description or None)
+    return f"Theme saved: {saved['name']} (id {saved['id']}). Apply it with apply_layout_theme."
+
+
+# ─── Saved versions ──────────────────────────────────────────
+
+
+@mcp.tool()
+async def save_layout_version(document_id: str, name: str, note: str = "", *, ctx: Context) -> str:
+    """Save the layout document's current state as a named version (like
+    "Sent to the client"), so the person can find it in the timeline and come
+    back to it. Save one before a big change. Nothing is copied: it names the
+    current revision.
+
+    Args:
+        document_id: Document UUID.
+        name: Short version name.
+        note: Optional: what this version is.
+    """
+    _use_api_key(ctx)
+    saved = await api.save_layout_version(document_id, name, note or None)
+    return f"Version saved: \"{saved['name']}\" = revision {saved['revision']}."
+
+
+@mcp.tool()
+async def list_layout_versions(document_id: str, all_edits: bool = False, limit: int = 20, *, ctx: Context) -> str:
+    """The layout document's history, newest first: saved versions only, or
+    (all_edits=True) every write with who made it and what it did.
+
+    Args:
+        document_id: Document UUID.
+        all_edits: Every write instead of saved versions only.
+        limit: How many to list (max 100).
+    """
+    _use_api_key(ctx)
+    result = await api.list_layout_revisions(document_id, named=not all_edits, limit=max(1, min(limit, 100)))
+    rows = result["revisions"]
+    if not rows:
+        return f"Revision {result['revision']}: no saved versions yet (save_layout_version)." if not all_edits else "No history."
+    lines = [f"Now at revision {result['revision']}."]
+    for r in rows:
+        who = "agent" if r.get("by_agent") else "person"
+        what = r.get("description") or ""
+        if r.get("summary"):
+            ops = ", ".join(f"{k}×{v}" for k, v in r["summary"]["ops"].items())
+            what = f"{what} ({ops})" if what else ops
+        name = f"★ {r['name']} — " if r.get("name") else ""
+        note = f"\n    {r['note']}" if r.get("note") else ""
+        lines.append(f"- r{r['revision']} · {name}{what} · by {who} · {r.get('created_at') or ''}{note}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def restore_layout_version(document_id: str, revision: int, *, ctx: Context) -> str:
+    """Bring back an earlier revision of the layout document. It becomes a new
+    write on top (nothing is erased; the history keeps everything), so it can be
+    undone the same way.
+
+    Args:
+        document_id: Document UUID.
+        revision: The revision to bring back (from list_layout_versions).
+    """
+    _use_api_key(ctx)
+    past = await api.get_layout_revision(document_id, revision)
+    current = await api.get_layout(document_id)
+    result = await api.replace_layout(document_id, past["content"], current["revision"])
+    return _format_layout_write(result, f"Revision {revision} restored.")
 
 
 # ─── Resources ───────────────────────────────────────────────

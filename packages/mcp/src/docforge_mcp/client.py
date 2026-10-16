@@ -247,12 +247,16 @@ def document_url(document_id: str) -> str:
 
 # ─── Layout documents ─────────────────────────────────────────
 
-async def create_layout_document(title: str, content: dict[str, Any] | None = None, template: str | None = None) -> dict[str, Any]:
+async def create_layout_document(
+    title: str, content: dict[str, Any] | None = None, template: str | None = None, fmt: str | None = None
+) -> dict[str, Any]:
     body: dict[str, Any] = {"title": title}
     if content is not None:
         body["content"] = content
     if template:
         body["template"] = template
+    if fmt:
+        body["format"] = fmt
     return await _post("/layout-documents", json=body)
 
 
@@ -403,6 +407,45 @@ async def list_layout_notes(
 
 async def update_layout_note(note_id: str, status: str, resolution_note: str | None = None) -> dict[str, Any]:
     return await _patch(f"/layout-notes/{note_id}", {"status": status, "resolution_note": resolution_note})
+
+
+async def reply_layout_note(document_id: str, note_id: str, message: str) -> dict[str, Any]:
+    return await _post(f"/documents/{document_id}/layout/notes", json={"message": message, "parent_id": note_id})
+
+
+async def list_layout_themes() -> dict[str, Any]:
+    return await _get("/layout-themes")
+
+
+async def save_layout_theme(name: str, tokens: dict[str, Any], description: str | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"name": name, "tokens": tokens}
+    if description:
+        body["description"] = description
+    return await _post("/layout-themes", json=body)
+
+
+async def apply_layout_theme(document_id: str, theme: str) -> dict[str, Any]:
+    return await _post(f"/documents/{document_id}/layout/theme", json={"theme": theme})
+
+
+async def save_layout_version(document_id: str, name: str, note: str | None = None, revision: int | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"name": name}
+    if note:
+        body["note"] = note
+    if revision is not None:
+        body["revision"] = revision
+    return await _post(f"/documents/{document_id}/layout/versions", json=body)
+
+
+async def list_layout_revisions(document_id: str, named: bool = False, limit: int = 30) -> dict[str, Any]:
+    params: dict[str, Any] = {"limit": limit}
+    if named:
+        params["named"] = "true"
+    return await _get(f"/documents/{document_id}/layout/revisions", **params)
+
+
+async def get_layout_revision(document_id: str, revision: int) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/layout/revisions/{revision}")
 
 
 async def replace_layout(
