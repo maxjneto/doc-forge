@@ -24,13 +24,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Document, DocumentLayout, DocumentLayoutRevision, LayoutNote
+from app.models import Document, DocumentLayout, DocumentLayoutRevision, LayoutNote, LayoutTheme
 from app.models.user import User
 from app.schemas.layout import (
     LayoutCalibrateRequest,
     LayoutCalibrateResponse,
     LayoutDocumentCreate,
     LayoutFindResponse,
+    LayoutImageResponse,
     LayoutMapResponse,
     LayoutMeasureRequest,
     LayoutMeasureResponse,
@@ -41,24 +42,29 @@ from app.schemas.layout import (
     LayoutOpsRequest,
     LayoutPreviewRequest,
     LayoutPreviewResponse,
-    LayoutImageResponse,
     LayoutReplaceRequest,
     LayoutReviewData,
     LayoutReviewResponse,
     LayoutRevisionItem,
     LayoutRevisionResponse,
     LayoutRevisionsResponse,
+    LayoutRevisionUpdate,
     LayoutStateResponse,
+    LayoutThemeApply,
+    LayoutThemeCreate,
+    LayoutThemeResponse,
+    LayoutThemesResponse,
+    LayoutThemeUpdate,
+    LayoutVersionCreate,
     LayoutWriteResponse,
 )
 from app.schemas.sse import SSEEvent
-from app.services import access
+from app.services import access, layout_templates, layout_themes
 from app.services import db as db_service
 from app.services import layout as layout_service
-from app.services import layout_templates
 from app.services import sse as sse_service
 from app.services.layout_notes import record_changes
-from app.services.observability import capture_event
+from app.services.observability import capture_account_event, capture_event
 
 
 def _track(request: Request, user_id: str, document_id: uuid.UUID | str, event: str, props: dict | None = None) -> None:
@@ -203,7 +209,7 @@ async def create_layout_document(
     meta_title = meta.get("title") if isinstance(meta, dict) else None
     title = payload.title or meta_title or f"Layout — {datetime.datetime.now(datetime.UTC).strftime('%b %d, %Y')}"
     if content is None:
-        content = layout_service.starter_document(title)
+        content = layout_service.starter_document(title, payload.format or "page")
 
     # Validate before spending a creation: an unusable document is never stored.
     check = await layout_service.validate(content)
@@ -258,7 +264,11 @@ async def create_layout_document(
         capture_event(str(user_id), str(doc.id), "mcp_layout_document_created", {"has_content": payload.content is not None})
     _track(
         request, user_id, doc.id, "layout_document_created",
-        {"template": payload.template or ("content" if payload.content is not None else "blank"), "components": len(content.get("components", []))},
+        {
+            "template": payload.template or ("content" if payload.content is not None else "blank"),
+            "format": "slide" if any(s.get("size") == "Slide" for s in content.get("surfaces", [])) else "page",
+            "components": len(content.get("components", [])),
+        },
     )
     logger.info("[layout] document created | doc_id={} user_id={}", doc.id, user_id)
     return LayoutWriteResponse(
@@ -587,6 +597,8 @@ def _note_response(note: LayoutNote, located: dict | None = None) -> LayoutNoteR
         resolution_note=note.resolution_note,
         created_at=note.created_at,
         resolved_at=note.resolved_at,
+        parent_id=str(note.parent_id) if note.parent_id else None,
+        for_agent=bool(note.for_agent),
         where=located.get("text") if located else None,
         located=located,
     )
@@ -604,13 +616,15 @@ async def list_layout_notes(
     """Notes with their anchors resolved against the current layout."""
     _, layout = await _load(db, document_id, current_user, "read")
     query = select(LayoutNote).where(LayoutNote.document_id == document_id)
-    if status_filter != "all":
-        query = query.where(LayoutNote.status == status_filter)
     if kind:
         query = query.where(LayoutNote.kind == kind)
-    notes = list((await db.execute(query.order_by(LayoutNote.revision, LayoutNote.created_at))).scalars())
+    every = list((await db.execute(query.order_by(LayoutNote.revision, LayoutNote.created_at))).scalars())
+    # The status filter picks threads by their root; a reply always follows its root.
+    roots = [n for n in every if n.parent_id is None and (status_filter == "all" or n.status == status_filter)]
     if component:
-        notes = [n for n in notes if (n.anchor or {}).get("component") == component]
+        roots = [n for n in roots if (n.anchor or {}).get("component") == component]
+    kept = {n.id for n in roots}
+    notes = [n for n in every if n.id in kept or (n.parent_id is not None and n.parent_id in kept)]
 
     located: list[dict | None] = [None] * len(notes)
     anchored = [i for i, n in enumerate(notes) if n.anchor]
@@ -640,7 +654,19 @@ async def create_layout_annotation(
 ):
     """An annotation on a component and/or an area of the grid."""
     _, layout = await _load(db, document_id, current_user, "comment")
+    parent: LayoutNote | None = None
+    if payload.parent_id:
+        try:
+            parent = await db.get(LayoutNote, uuid.UUID(payload.parent_id))
+        except ValueError:
+            parent = None
+        if parent is None or parent.document_id != document_id:
+            raise HTTPException(status_code=404, detail="The note this replies to was not found.")
+        if parent.parent_id is not None:
+            parent = await db.get(LayoutNote, parent.parent_id)  # replies attach to the thread's root
     anchor = payload.anchor.model_dump(exclude_none=True) if payload.anchor else {}
+    if parent is not None and not anchor:
+        anchor = dict(parent.anchor or {})
     if "rect" in anchor:
         anchor["rect"] = {k: v for k, v in anchor["rect"].items() if v is not None}
     data: dict | None = None
@@ -661,8 +687,14 @@ async def create_layout_annotation(
         author_user_id=current_user.id,
         api_key_id=getattr(request.state, "api_key_id", None),
         status="open",
+        parent_id=parent.id if parent is not None else None,
+        for_agent=payload.for_agent and parent is None,
     )
     db.add(note)
+    if parent is not None and parent.status == "resolved":
+        # Answering a closed thread opens it again.
+        parent.status = "open"
+        parent.resolved_at = None
     await db.commit()
     await db.refresh(note)
     sse_service.publish(str(document_id), SSEEvent(type="layout_note_changed", payload={"doc_id": str(document_id), "note_id": str(note.id)}))
@@ -679,8 +711,13 @@ async def create_layout_annotation(
             if asked is not None and asked.created_at is not None and note.created_at is not None:
                 minutes = round((note.created_at - asked.created_at).total_seconds() / 60, 1)
         _track(request, current_user.id, document_id, "layout_review_answered", {"answers": len(payload.answers or {}), "minutes_to_answer": minutes})
+    elif parent is not None:
+        _track(request, current_user.id, document_id, "layout_note_replied", {"to_agent_request": bool(parent.for_agent), "thread_by_agent": parent.api_key_id is not None})
     else:
-        _track(request, current_user.id, document_id, "layout_annotation_created", {"anchor": "rect" if "rect" in anchor else "component"})
+        _track(
+            request, current_user.id, document_id, "layout_annotation_created",
+            {"anchor": "rect" if "rect" in anchor else "component" if anchor.get("component") else "document", "for_agent": bool(payload.for_agent)},
+        )
     return _note_response(note)
 
 
@@ -697,49 +734,92 @@ async def update_layout_note(
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     await _load(db, note.document_id, current_user, "comment")
-    note.status = payload.status
-    note.resolution_note = payload.resolution_note
-    note.resolved_at = datetime.datetime.now(datetime.UTC) if payload.status == "resolved" else None
+    if payload.status is not None:
+        note.status = payload.status
+        note.resolution_note = payload.resolution_note
+        note.resolved_at = datetime.datetime.now(datetime.UTC) if payload.status == "resolved" else None
+    if payload.for_agent is not None and note.parent_id is None:
+        note.for_agent = payload.for_agent
     await db.commit()
     await db.refresh(note)
     sse_service.publish(str(note.document_id), SSEEvent(type="layout_note_changed", payload={"doc_id": str(note.document_id), "note_id": str(note.id)}))
-    _track(request, current_user.id, note.document_id, "layout_note_status", {"status": payload.status, "kind": note.kind, "code": note.code or ""})
+    _track(
+        request, current_user.id, note.document_id, "layout_note_status",
+        {"status": payload.status or note.status, "kind": note.kind, "code": note.code or "", "for_agent": bool(note.for_agent)},
+    )
     return _note_response(note)
 
 
-# ─── Revisions ───────────────────────────────────────────────
+# ─── Revisions and saved versions ────────────────────────────
+
+
+def _ops_summary(ops: list | None) -> dict[str, Any] | None:
+    """What a write did, from its ops: counts by op and the components it named."""
+    if not ops:
+        return None
+    counts: dict[str, int] = {}
+    components: list[str] = []
+    for op in ops:
+        if not isinstance(op, dict):
+            continue
+        name = str(op.get("op"))
+        counts[name] = counts.get(name, 0) + 1
+        target = op.get("component")
+        ids = [target.get("id")] if isinstance(target, dict) else [target]
+        if name == "row":
+            ids = [i if isinstance(i, str) else (i or {}).get("id") for i in op.get("items") or []]
+        for cid in ids:
+            if isinstance(cid, str) and cid not in components:
+                components.append(cid)
+    return {"ops": counts, "components": components[:20]}
+
+
+def _revision_item(r: DocumentLayoutRevision) -> LayoutRevisionItem:
+    return LayoutRevisionItem(
+        revision=r.revision,
+        description=r.description,
+        ops_count=len(r.ops) if r.ops is not None else None,
+        author_user_id=r.author_user_id,
+        by_agent=r.api_key_id is not None,
+        created_at=r.created_at,
+        name=r.name,
+        note=r.note,
+        summary=_ops_summary(r.ops),
+    )
+
+
+async def _revision_row(db: AsyncSession, document_id: uuid.UUID, revision: int) -> DocumentLayoutRevision:
+    row = (
+        await db.execute(
+            select(DocumentLayoutRevision).where(
+                DocumentLayoutRevision.document_id == document_id,
+                DocumentLayoutRevision.revision == revision,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Revision not found")
+    return row
 
 
 @router.get("/documents/{document_id}/layout/revisions", response_model=LayoutRevisionsResponse)
 async def list_layout_revisions(
     document_id: uuid.UUID,
     limit: int = Query(default=50, ge=1, le=500),
+    named: bool = Query(default=False, description="Only saved versions (revisions with a name)."),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """The edit timeline, newest first: every accepted write, with its saved-version name if it has one."""
     _, layout = await _load(db, document_id, current_user, "read")
-    rows = (
-        await db.execute(
-            select(DocumentLayoutRevision)
-            .where(DocumentLayoutRevision.document_id == document_id)
-            .order_by(DocumentLayoutRevision.revision.desc())
-            .limit(limit)
-        )
-    ).scalars()
+    query = select(DocumentLayoutRevision).where(DocumentLayoutRevision.document_id == document_id)
+    if named:
+        query = query.where(DocumentLayoutRevision.name.is_not(None))
+    rows = (await db.execute(query.order_by(DocumentLayoutRevision.revision.desc()).limit(limit))).scalars()
     return LayoutRevisionsResponse(
         document_id=str(document_id),
         revision=layout.revision,
-        revisions=[
-            LayoutRevisionItem(
-                revision=r.revision,
-                description=r.description,
-                ops_count=len(r.ops) if r.ops is not None else None,
-                author_user_id=r.author_user_id,
-                by_agent=r.api_key_id is not None,
-                created_at=r.created_at,
-            )
-            for r in rows
-        ],
+        revisions=[_revision_item(r) for r in rows],
     )
 
 
@@ -751,16 +831,7 @@ async def get_layout_revision(
     current_user: User = Depends(get_current_user),
 ):
     await _load(db, document_id, current_user, "read")
-    row = (
-        await db.execute(
-            select(DocumentLayoutRevision).where(
-                DocumentLayoutRevision.document_id == document_id,
-                DocumentLayoutRevision.revision == revision,
-            )
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Revision not found")
+    row = await _revision_row(db, document_id, revision)
     return LayoutRevisionResponse(
         document_id=str(document_id),
         revision=row.revision,
@@ -768,4 +839,193 @@ async def get_layout_revision(
         ops=row.ops,
         description=row.description,
         created_at=row.created_at,
+        name=row.name,
+        note=row.note,
+        by_agent=row.api_key_id is not None,
     )
+
+
+@router.post("/documents/{document_id}/layout/versions", response_model=LayoutRevisionItem, status_code=201)
+async def save_layout_version(
+    request: Request,
+    document_id: uuid.UUID,
+    payload: LayoutVersionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save a version: give the current revision (or `revision`) a name and a note. Nothing is copied."""
+    _, layout = await _load(db, document_id, current_user, "write")
+    row = await _revision_row(db, document_id, payload.revision or layout.revision)
+    row.name = payload.name.strip()
+    row.note = (payload.note or "").strip() or None
+    await db.commit()
+    await db.refresh(row)
+    await db_service.log_activity(db, document_id, "snapshot", description=f"Version saved: {row.name}", api_key_id=getattr(request.state, "api_key_id", None))
+    await db.commit()
+    sse_service.publish(str(document_id), SSEEvent(type="layout_version_saved", payload={"doc_id": str(document_id), "revision": row.revision}))
+    _track(request, current_user.id, document_id, "layout_version_saved", {"revision": row.revision, "has_note": bool(row.note), "behind": layout.revision - row.revision})
+    return _revision_item(row)
+
+
+@router.patch("/documents/{document_id}/layout/revisions/{revision}", response_model=LayoutRevisionItem)
+async def update_layout_revision(
+    request: Request,
+    document_id: uuid.UUID,
+    revision: int,
+    payload: LayoutRevisionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Rename a saved version or change its note; `name: null` takes it off the saved list."""
+    await _load(db, document_id, current_user, "write")
+    row = await _revision_row(db, document_id, revision)
+    fields = payload.model_fields_set
+    if "name" in fields:
+        row.name = (payload.name or "").strip() or None
+    if "note" in fields:
+        row.note = (payload.note or "").strip() or None
+    await db.commit()
+    await db.refresh(row)
+    sse_service.publish(str(document_id), SSEEvent(type="layout_version_saved", payload={"doc_id": str(document_id), "revision": row.revision}))
+    _track(request, current_user.id, document_id, "layout_version_updated", {"revision": row.revision, "unsaved": row.name is None})
+    return _revision_item(row)
+
+
+# ─── Themes ──────────────────────────────────────────────────
+
+
+def _theme_response(theme: LayoutTheme) -> LayoutThemeResponse:
+    return LayoutThemeResponse(
+        id=str(theme.id),
+        name=theme.name,
+        description=theme.description,
+        builtin=False,
+        by_agent=theme.api_key_id is not None,
+        tokens=theme.tokens,
+        created_at=theme.created_at,
+        updated_at=theme.updated_at,
+    )
+
+
+async def _check_tokens(tokens: dict[str, Any]) -> dict[str, Any]:
+    """Tokens a document would accept (the layout service checks them), with only known groups."""
+    allowed = {"color", "font", "size", "space", "radius", "lineHeight"}
+    unknown = sorted(set(tokens) - allowed)
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown token groups: {', '.join(unknown)}. Use {', '.join(sorted(allowed))}.")
+    fonts = (tokens.get("font") or {}).values()
+    missing = sorted({f for f in fonts if f not in layout_themes.FONT_FAMILIES})
+    if missing:
+        raise HTTPException(status_code=422, detail=f"Fonts not available: {', '.join(missing)}. Use {', '.join(layout_themes.FONT_FAMILIES)}.")
+    probe = layout_service.starter_document("theme")
+    probe["tokens"] = tokens
+    check = await layout_service.validate(probe)
+    errors = _errors(check["diagnostics"])
+    if errors:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_TOKENS", "message": "The theme's tokens are not valid.", "diagnostics": errors})
+    return tokens
+
+
+async def _own_theme(db: AsyncSession, theme_id: uuid.UUID, user: User) -> LayoutTheme:
+    theme = await db.get(LayoutTheme, theme_id)
+    if theme is None or theme.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Theme not found")
+    return theme
+
+
+@router.get("/layout-themes", response_model=LayoutThemesResponse)
+async def list_layout_themes(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Built-in themes first, then the ones this person (or their agents) saved."""
+    rows = (await db.execute(select(LayoutTheme).where(LayoutTheme.user_id == current_user.id).order_by(LayoutTheme.created_at))).scalars()
+    themes = [LayoutThemeResponse(**t) for t in layout_themes.builtin_themes()] + [_theme_response(r) for r in rows]
+    return LayoutThemesResponse(themes=themes, fonts=list(layout_themes.FONT_FAMILIES))
+
+
+@router.post("/layout-themes", response_model=LayoutThemeResponse, status_code=201)
+async def create_layout_theme(
+    request: Request,
+    payload: LayoutThemeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tokens = await _check_tokens(payload.tokens)
+    theme = LayoutTheme(
+        id=uuid.uuid4(),
+        user_id=current_user.id,
+        name=payload.name.strip(),
+        description=(payload.description or "").strip() or None,
+        tokens=tokens,
+        api_key_id=getattr(request.state, "api_key_id", None),
+    )
+    db.add(theme)
+    await db.commit()
+    await db.refresh(theme)
+    capture_account_event(
+        str(current_user.id), "layout_theme_saved",
+        {"source": "agent" if theme.api_key_id else "person", "groups": ",".join(sorted(tokens)), "colors": len(tokens.get("color") or {})},
+    )
+    return _theme_response(theme)
+
+
+@router.patch("/layout-themes/{theme_id}", response_model=LayoutThemeResponse)
+async def update_layout_theme(
+    theme_id: uuid.UUID,
+    payload: LayoutThemeUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    theme = await _own_theme(db, theme_id, current_user)
+    if payload.name is not None:
+        theme.name = payload.name.strip()
+    if "description" in payload.model_fields_set:
+        theme.description = (payload.description or "").strip() or None
+    if payload.tokens is not None:
+        theme.tokens = await _check_tokens(payload.tokens)
+    await db.commit()
+    await db.refresh(theme)
+    return _theme_response(theme)
+
+
+async def _find_theme(db: AsyncSession, ref: str, user: User) -> dict[str, Any]:
+    """A theme as a dict (name, tokens) by id, built-in key or name (built-ins first, then saved, case-insensitive)."""
+    ref = ref.strip()
+    builtin = layout_themes.BUILTIN_BY_ID.get(ref) or layout_themes.BUILTIN_BY_ID.get(f"builtin:{ref}")
+    if builtin:
+        return builtin
+    rows = list((await db.execute(select(LayoutTheme).where(LayoutTheme.user_id == user.id))).scalars())
+    for row in rows:
+        if str(row.id) == ref:
+            return {"name": row.name, "tokens": row.tokens}
+    lowered = ref.casefold()
+    for theme in layout_themes.BUILTIN_THEMES:
+        if theme["name"].casefold() == lowered:
+            return theme
+    for row in rows:
+        if row.name.casefold() == lowered:
+            return {"name": row.name, "tokens": row.tokens}
+    raise HTTPException(status_code=404, detail=f'Theme "{ref}" not found. List them with GET /layout-themes.')
+
+
+@router.post("/documents/{document_id}/layout/theme", response_model=LayoutWriteResponse)
+async def apply_layout_theme(
+    request: Request,
+    document_id: uuid.UUID,
+    payload: LayoutThemeApply,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Apply a theme: one write with its tokens (every color, font and radius) and its name."""
+    theme = await _find_theme(db, payload.theme, current_user)
+    ops = layout_themes.apply_ops(theme)
+    return await apply_layout_ops(request, document_id, LayoutOpsRequest(ops=ops, note=f"Tema: {theme['name']}"), db, current_user)
+
+
+@router.delete("/layout-themes/{theme_id}", status_code=204)
+async def delete_layout_theme(
+    theme_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    theme = await _own_theme(db, theme_id, current_user)
+    await db.delete(theme)
+    await db.commit()

@@ -19,8 +19,25 @@ from app.config import settings
 FORMAT = "docforge/layout"
 
 
-def starter_document(title: str) -> dict[str, Any]:
-    """An empty layout document: an A4 surface and a continuous one, no components."""
+# Type for a 1280 × 720 slide: the document scale read from across a room.
+SLIDE_SIZES = {"xs": 14, "s": 16, "m": 20, "l": 26, "xl": 34, "xxl": 44, "display": 60}
+
+
+def starter_document(title: str, fmt: str = "page") -> dict[str, Any]:
+    """An empty layout document, no components.
+
+    "page": an A4 surface and a continuous one. "slide": a 16:9 deck (one slide
+    per page) with the type scale made for slides.
+    """
+    if fmt == "slide":
+        return {
+            "format": FORMAT,
+            "version": 2,
+            "meta": {"title": title},
+            "tokens": {"size": dict(SLIDE_SIZES)},
+            "surfaces": [{"id": "slides", "kind": "page", "size": "Slide", "margin": 56}],
+            "components": [],
+        }
     return {
         "format": FORMAT,
         "version": 2,

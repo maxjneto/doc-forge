@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, false, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
@@ -22,6 +22,10 @@ class LayoutNote(Base):
     `anchor` is `{component?, rect?}` (rect in grid units, optionally with a page).
     Positions move with the layout, so readers resolve the anchor on every read;
     the anchor itself never stores a computed position.
+
+    Annotations are conversations: a reply has `parent_id` (and no status of its
+    own; the thread's root carries it). `for_agent` marks a root as a request for
+    the agent to act on, which agents read first.
 
     Separate from `Feedback` on purpose: that one belongs to Markdown documents
     and their sections.
@@ -47,6 +51,10 @@ class LayoutNote(Base):
     api_key_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
     )
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("layout_notes.id", ondelete="CASCADE"), nullable=True
+    )
+    for_agent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -59,7 +67,9 @@ class DocumentLayoutRevision(Base):
     """One accepted write of a layout document: who, which ops, and the result.
 
     `content` is the whole document after the write, so any revision can be read
-    back or restored without replaying operations.
+    back or restored without replaying operations. A revision with a `name` is a
+    saved version (what the Markdown editor calls a version): a checkpoint people
+    and agents name on purpose, shown apart from the stream of edits.
     """
 
     __tablename__ = "document_layout_revisions"
@@ -79,6 +89,8 @@ class DocumentLayoutRevision(Base):
         UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
     )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

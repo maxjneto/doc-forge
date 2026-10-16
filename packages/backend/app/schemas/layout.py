@@ -9,12 +9,16 @@ class LayoutDocumentCreate(BaseModel):
     # A full @docforge/layout document. Omitted = an empty starter document.
     content: dict[str, Any] | None = None
     # Start from a curated template instead (see GET /layout-templates). Not with `content`.
-    template: Literal["relatorio", "proposta", "one-pager"] | None = None
+    template: Literal["relatorio", "proposta", "one-pager", "apresentacao"] | None = None
+    # An empty document's format: "page" (A4, the default) or "slide" (16:9, a deck). Only without content/template.
+    format: Literal["page", "slide"] | None = None
 
     @model_validator(mode="after")
     def _one_source(self):
         if self.content is not None and self.template is not None:
             raise ValueError("Give content or template, not both.")
+        if self.format is not None and (self.content is not None or self.template is not None):
+            raise ValueError("`format` is only for an empty document.")
         return self
 
 
@@ -195,17 +199,28 @@ class LayoutNoteCreate(BaseModel):
     # For a review answer: the request it answers and the chosen options.
     answers: dict[str, str] | None = None
     request_id: str | None = None
+    # A reply in the thread of this note (it takes the root's anchor).
+    parent_id: str | None = None
+    # A request for the agent to act on (roots only).
+    for_agent: bool = False
 
     @model_validator(mode="after")
     def _anchored(self):
-        if self.code is None and self.anchor is None:
+        if self.code is None and self.anchor is None and self.parent_id is None:
             raise ValueError("An annotation needs an anchor.")
         return self
 
 
 class LayoutNoteUpdate(BaseModel):
-    status: Literal["open", "acknowledged", "resolved"]
+    status: Literal["open", "acknowledged", "resolved"] | None = None
     resolution_note: str | None = Field(default=None, max_length=2000)
+    for_agent: bool | None = None
+
+    @model_validator(mode="after")
+    def _something(self):
+        if self.status is None and self.for_agent is None:
+            raise ValueError("Give status and/or for_agent.")
+        return self
 
 
 class LayoutNoteResponse(BaseModel):
@@ -224,6 +239,8 @@ class LayoutNoteResponse(BaseModel):
     resolution_note: str | None = None
     created_at: datetime.datetime | None = None
     resolved_at: datetime.datetime | None = None
+    parent_id: str | None = None
+    for_agent: bool = False
     # Where the anchor is now and what is drawn there (resolved on read; null when
     # the layout service could not be reached).
     where: str | None = None
@@ -243,6 +260,11 @@ class LayoutRevisionItem(BaseModel):
     author_user_id: str | None = None
     by_agent: bool = False
     created_at: datetime.datetime | None = None
+    # A saved version: the name and note someone gave this revision.
+    name: str | None = None
+    note: str | None = None
+    # What the write did, from its ops: {"ops": {"edit": 2, "place": 1}, "components": ["a", "b"]}.
+    summary: dict[str, Any] | None = None
 
 
 class LayoutRevisionsResponse(BaseModel):
@@ -258,3 +280,62 @@ class LayoutRevisionResponse(BaseModel):
     ops: list[dict[str, Any]] | None = None
     description: str | None = None
     created_at: datetime.datetime | None = None
+    name: str | None = None
+    note: str | None = None
+    by_agent: bool = False
+
+
+class LayoutVersionCreate(BaseModel):
+    """Save a version: name a revision (default: the current one)."""
+
+    name: str = Field(min_length=1, max_length=120)
+    note: str | None = Field(default=None, max_length=2000)
+    revision: int | None = Field(default=None, ge=1)
+
+
+class LayoutRevisionUpdate(BaseModel):
+    """Rename a saved version, change its note, or (name: null) take it off the saved list."""
+
+    name: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=2000)
+
+
+# ─── Themes ──────────────────────────────────────────────────
+
+
+class LayoutThemeCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    # Partial @docforge/layout tokens: color, font, size, space, radius, lineHeight.
+    tokens: dict[str, Any]
+
+
+class LayoutThemeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    tokens: dict[str, Any] | None = None
+
+
+class LayoutThemeResponse(BaseModel):
+    id: str
+    # Built-in themes only: a stable key ("sober", "night"…).
+    key: str | None = None
+    name: str
+    description: str | None = None
+    builtin: bool = False
+    by_agent: bool = False
+    tokens: dict[str, Any]
+    created_at: datetime.datetime | None = None
+    updated_at: datetime.datetime | None = None
+
+
+class LayoutThemeApply(BaseModel):
+    """A theme by id ("builtin:night" or a saved theme's UUID), built-in key ("night") or name."""
+
+    theme: str = Field(min_length=1, max_length=120)
+
+
+class LayoutThemesResponse(BaseModel):
+    themes: list[LayoutThemeResponse]
+    # Font families a theme may use (the ones the layout engine measures).
+    fonts: list[str]

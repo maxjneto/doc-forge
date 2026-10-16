@@ -11,6 +11,7 @@ from app.models.document_contract import DocumentContract
 from app.models.document_layout import DocumentLayout
 from app.models.document_type import DocumentType, SectionDefinition
 from app.models.layout_note import DocumentLayoutRevision, LayoutNote
+from app.models.layout_theme import LayoutTheme
 from app.models.organization import OWNER_ROLE, ROLE_RANK, ROLES, DocumentMember, Folder
 from app.models.pipeline import PipelineDefinition, PipelineRun
 from app.models.prompt_template import PromptTemplate
@@ -42,6 +43,7 @@ __all__ = [
     "DocumentLayout",
     "DocumentLayoutRevision",
     "LayoutNote",
+    "LayoutTheme",
     "ApiKey",
     "DocumentActivity",
     "Suggestion",

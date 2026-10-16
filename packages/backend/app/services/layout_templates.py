@@ -19,6 +19,7 @@ TEMPLATES: list[dict[str, str]] = [
     {"slug": "relatorio", "title": "Relatório", "description": "Indicadores, gráfico com análise, tabela e próximos passos."},
     {"slug": "proposta", "title": "Proposta", "description": "Escopo, etapas, cronograma e investimento."},
     {"slug": "one-pager", "title": "One-pager", "description": "Um produto ou projeto em uma página."},
+    {"slug": "apresentacao", "title": "Apresentação", "description": "Slides 16:9: capa, agenda, indicadores, gráfico e próximos passos."},
 ]
 TEMPLATE_SLUGS = tuple(t["slug"] for t in TEMPLATES)
 
@@ -42,5 +43,11 @@ def list_templates() -> list[dict[str, Any]]:
     out = []
     for t in TEMPLATES:
         doc = _load(t["slug"])
-        out.append({**t, "components": len(doc.get("components", [])), "max_pages": next((s.get("maxPages") for s in doc.get("surfaces", []) if s.get("maxPages")), None)})
+        surfaces = doc.get("surfaces", [])
+        out.append({
+            **t,
+            "components": len(doc.get("components", [])),
+            "max_pages": next((s.get("maxPages") for s in surfaces if s.get("maxPages")), None),
+            "format": "slide" if any(s.get("size") == "Slide" for s in surfaces) else "page",
+        })
     return out

@@ -8,7 +8,6 @@ from loguru import logger
 from app.config import settings
 from app.inngest_client import inngest_client
 from app.logging_config import setup_logging
-from app.services.observability import capture_account_event
 from app.routers import (
     artifacts,
     billing,
@@ -24,6 +23,7 @@ from app.routers import (
     telemetry,
 )
 from app.routers import users as users_router
+from app.services.observability import capture_account_event
 from app.workflows.registry import ALL_FUNCTIONS
 
 setup_logging()

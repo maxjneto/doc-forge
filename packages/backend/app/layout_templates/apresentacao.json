@@ -1,0 +1,465 @@
+{
+  "format": "docforge/layout",
+  "version": 2,
+  "meta": {
+    "title": "Plano de crescimento 2027",
+    "locale": "pt-BR",
+    "theme": "Tech"
+  },
+  "grid": {
+    "unit": 8,
+    "columns": 12,
+    "gutter": 16,
+    "gap": 2
+  },
+  "tokens": {
+    "color": {
+      "text": "#16151d",
+      "muted": "#5e5b6e",
+      "primary": "#5b4fe0",
+      "surface": "#ffffff",
+      "subtle": "#f2f1fb",
+      "border": "#dcd9ef",
+      "success": "#1e8e3e",
+      "danger": "#c5221f",
+      "warning": "#b06000",
+      "highlight": "#e6fbd8",
+      "chart1": "#5b4fe0",
+      "chart2": "#12a4af",
+      "chart3": "#f25f5c",
+      "chart4": "#ffb400",
+      "chart5": "#9b8cff",
+      "chart6": "#2bb673"
+    },
+    "font": {
+      "sans": "Inter",
+      "heading": "Space Grotesk",
+      "mono": "JetBrains Mono"
+    },
+    "radius": {
+      "none": 0,
+      "s": 6,
+      "m": 12
+    },
+    "size": {
+      "xs": 14,
+      "s": 16,
+      "m": 20,
+      "l": 26,
+      "xl": 34,
+      "xxl": 44,
+      "display": 60
+    }
+  },
+  "styles": {
+    "labels": {
+      "capa": {
+        "fontSize": "$size.display"
+      },
+      "eyebrow": {
+        "color": "$color.primary",
+        "fontWeight": 600
+      },
+      "acento": {
+        "borderColor": "$color.primary",
+        "borderWidth": 3
+      }
+    }
+  },
+  "surfaces": [
+    {
+      "id": "slides",
+      "kind": "page",
+      "size": "Slide",
+      "margin": 56
+    }
+  ],
+  "components": [
+    {
+      "id": "capa-eyebrow",
+      "type": "text",
+      "labels": [
+        "eyebrow"
+      ],
+      "content": {
+        "paragraphs": [
+          {
+            "role": "caption",
+            "text": "APRESENTAÇÃO · OUTUBRO 2026"
+          }
+        ]
+      },
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 19,
+        "w": 109
+      }
+    },
+    {
+      "id": "capa-titulo",
+      "type": "text",
+      "labels": [
+        "capa"
+      ],
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-1",
+            "text": "Plano de crescimento 2027"
+          }
+        ]
+      },
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 24,
+        "w": 109
+      }
+    },
+    {
+      "id": "capa-subtitulo",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "subtitle",
+            "text": "Onde estamos, para onde vamos e o que precisamos decidir hoje."
+          }
+        ]
+      },
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 35,
+        "w": 109
+      }
+    },
+    {
+      "id": "capa-acento",
+      "type": "divider",
+      "labels": [
+        "acento"
+      ],
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 46,
+        "w": 23,
+        "h": 2
+      }
+    },
+    {
+      "id": "capa-rodape",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "caption",
+            "text": "Equipe de Produto · Reunião de planejamento"
+          }
+        ]
+      },
+      "at": {
+        "page": 1,
+        "x": 0,
+        "y": 50,
+        "w": 109
+      }
+    },
+    {
+      "id": "agenda-titulo",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-1",
+            "text": "Agenda"
+          }
+        ]
+      },
+      "at": {
+        "page": 2,
+        "x": 0,
+        "y": 0,
+        "w": 146
+      }
+    },
+    {
+      "id": "agenda-passos",
+      "type": "steps",
+      "content": {
+        "steps": [
+          {
+            "title": "Onde estamos",
+            "text": "Os números do ano até aqui."
+          },
+          {
+            "title": "O que aprendemos",
+            "text": "O que puxou e o que segurou a receita."
+          },
+          {
+            "title": "O plano para 2027",
+            "text": "Três frentes, com metas por trimestre."
+          },
+          {
+            "title": "Decisão de hoje",
+            "text": "O orçamento do primeiro semestre."
+          }
+        ]
+      },
+      "at": {
+        "page": 2,
+        "x": 0,
+        "y": 12,
+        "w": 84
+      }
+    },
+    {
+      "id": "agenda-objetivo",
+      "type": "card",
+      "content": {
+        "eyebrow": "OBJETIVO DA REUNIÃO",
+        "title": "Aprovar o plano e o orçamento do primeiro semestre",
+        "text": "Saímos daqui com as três frentes priorizadas e o investimento liberado."
+      },
+      "at": {
+        "page": 2,
+        "x": 86,
+        "y": 12,
+        "w": 60,
+        "h": 37
+      }
+    },
+    {
+      "id": "numeros-titulo",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-1",
+            "text": "Onde estamos"
+          }
+        ]
+      },
+      "at": {
+        "page": 3,
+        "x": 0,
+        "y": 0,
+        "w": 146
+      }
+    },
+    {
+      "id": "kpi-receita",
+      "type": "kpi",
+      "content": {
+        "value": "R$ 14,8M",
+        "label": "Receita em 2026 (até setembro)",
+        "delta": "+22% no ano",
+        "trend": "up"
+      },
+      "at": {
+        "page": 3,
+        "x": 0,
+        "y": 12,
+        "w": 47,
+        "h": 24
+      }
+    },
+    {
+      "id": "kpi-clientes",
+      "type": "kpi",
+      "content": {
+        "value": "1.284",
+        "label": "Clientes ativos",
+        "delta": "+312 no ano",
+        "trend": "up"
+      },
+      "at": {
+        "page": 3,
+        "x": 49,
+        "y": 12,
+        "w": 48,
+        "h": 24
+      }
+    },
+    {
+      "id": "kpi-churn",
+      "type": "kpi",
+      "content": {
+        "value": "2,1%",
+        "label": "Churn mensal",
+        "delta": "−0,4 p.p.",
+        "trend": "down"
+      },
+      "at": {
+        "page": 3,
+        "x": 99,
+        "y": 12,
+        "w": 47,
+        "h": 24
+      }
+    },
+    {
+      "id": "numeros-leitura",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          "Crescemos acima da meta pelo terceiro trimestre seguido, puxados pelos planos anuais. O churn caiu depois do novo onboarding, mas ainda está acima dos **1,5%** que queremos para 2027."
+        ]
+      },
+      "at": {
+        "page": 3,
+        "x": 0,
+        "y": 40,
+        "w": 109
+      }
+    },
+    {
+      "id": "receita-titulo",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-1",
+            "text": "Receita por trimestre"
+          }
+        ]
+      },
+      "at": {
+        "page": 4,
+        "x": 0,
+        "y": 0,
+        "w": 146
+      }
+    },
+    {
+      "id": "receita-grafico",
+      "type": "chart",
+      "content": {
+        "kind": "bar",
+        "categories": [
+          "T1",
+          "T2",
+          "T3",
+          "T4"
+        ],
+        "series": [
+          {
+            "name": "2025",
+            "values": [
+              3.1,
+              3.4,
+              3.6,
+              4.0
+            ]
+          },
+          {
+            "name": "2026",
+            "values": [
+              4.3,
+              4.9,
+              5.6,
+              6.2
+            ]
+          }
+        ]
+      },
+      "props": {
+        "unit": "M"
+      },
+      "at": {
+        "page": 4,
+        "x": 0,
+        "y": 12,
+        "w": 84,
+        "h": 60
+      }
+    },
+    {
+      "id": "receita-leitura",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-3",
+            "text": "O que mudou"
+          },
+          "Os planos anuais passaram de 30% para **48%** da receita nova.",
+          "O T3 de 2026 já supera o T4 de 2025, nosso melhor trimestre até então."
+        ]
+      },
+      "at": {
+        "page": 4,
+        "x": 86,
+        "y": 12,
+        "w": 60
+      }
+    },
+    {
+      "id": "passos-titulo",
+      "type": "text",
+      "content": {
+        "paragraphs": [
+          {
+            "role": "title-1",
+            "text": "Próximos passos"
+          }
+        ]
+      },
+      "at": {
+        "page": 5,
+        "x": 0,
+        "y": 0,
+        "w": 146
+      }
+    },
+    {
+      "id": "passos-cronograma",
+      "type": "timeline",
+      "content": {
+        "events": [
+          {
+            "date": "Nov",
+            "title": "Contratar o time de expansão",
+            "text": "Duas pessoas em vendas e uma em sucesso do cliente."
+          },
+          {
+            "date": "Jan",
+            "title": "Lançar o plano Empresas",
+            "text": "Preço anual, com integração dedicada."
+          },
+          {
+            "date": "Mar",
+            "title": "Primeira leitura do semestre",
+            "text": "Comparar receita e churn com a meta."
+          }
+        ]
+      },
+      "at": {
+        "page": 5,
+        "x": 0,
+        "y": 12,
+        "w": 84,
+        "h": 30
+      }
+    },
+    {
+      "id": "passos-decisao",
+      "type": "card",
+      "content": {
+        "eyebrow": "DECISÃO DE HOJE",
+        "title": "Orçamento do primeiro semestre",
+        "value": "R$ 1,2M",
+        "footer": "Aprovar até 30 de outubro"
+      },
+      "at": {
+        "page": 5,
+        "x": 86,
+        "y": 12,
+        "w": 60,
+        "h": 30
+      }
+    }
+  ]
+}

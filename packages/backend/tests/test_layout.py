@@ -291,7 +291,8 @@ async def test_create_from_a_template_copies_it_with_the_title(client_factory):
         created = await _create(client, title="Q4", template="one-pager")
         state = (await client.get(f"/api/documents/{created['document_id']}/layout")).json()
         both = await client.post("/api/layout-documents", json={"template": "relatorio", "content": {"components": []}})
-    assert [t["slug"] for t in listed] == ["relatorio", "proposta", "one-pager"]
+    assert [t["slug"] for t in listed] == ["relatorio", "proposta", "one-pager", "apresentacao"]
+    assert listed[3]["format"] == "slide" and listed[0]["format"] == "page"
     assert state["content"]["meta"]["title"] == "Q4"
     assert len(state["content"]["components"]) == listed[2]["components"] > 0
     assert both.status_code == 422
