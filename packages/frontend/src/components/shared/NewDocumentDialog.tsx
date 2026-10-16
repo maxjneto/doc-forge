@@ -14,7 +14,8 @@ interface NewDocumentDialogProps {
 }
 
 type Kind = "editor" | "layout";
-type Template = LayoutTemplateSlug | "blank";
+type Template = LayoutTemplateSlug | "blank" | "blank-slides";
+const TEMPLATES: Template[] = ["relatorio", "proposta", "one-pager", "apresentacao", "blank", "blank-slides"];
 
 /** A sketch of each template's composition, drawn with blocks (no screenshots to keep in sync). */
 const SKETCH: Record<Template, ReactNode> = {
@@ -53,7 +54,24 @@ const SKETCH: Record<Template, ReactNode> = {
       <i style={{ height: 6, width: "80%" }} />
     </>
   ),
+  apresentacao: (
+    <span className="df-tpl__slides">
+      <span className="df-tpl__slide">
+        <i className="df-tpl__accent" style={{ height: 6, width: "70%" }} />
+        <i style={{ height: 3, width: "45%" }} />
+      </span>
+      <span className="df-tpl__slide">
+        <i style={{ height: 4, width: "50%" }} />
+        <span className="df-tpl__row" style={{ flex: 1 }}>
+          <i />
+          <i />
+          <i />
+        </span>
+      </span>
+    </span>
+  ),
   blank: null,
+  "blank-slides": null,
 };
 
 /**
@@ -77,7 +95,8 @@ export function NewDocumentDialog({ onClose, remaining, weeklyLimit }: NewDocume
     setError(null);
     try {
       if (kind === "layout") {
-        const id = await apiCreateLayoutDocument(title.trim(), template === "blank" ? null : template, getToken);
+        const blank = template === "blank" || template === "blank-slides";
+        const id = await apiCreateLayoutDocument(title.trim(), blank ? null : template, getToken, template === "blank-slides" ? "slide" : null);
         posthog.capture("document_created", { mode: "layout", template });
         onClose();
         navigate(`/document/${id}`);
@@ -128,13 +147,13 @@ export function NewDocumentDialog({ onClose, remaining, weeklyLimit }: NewDocume
       {kind === "layout" && (
         <>
           <span style={{ ...textStyle.fieldLabel, display: "block", color: "var(--color-dim)", margin: "16px 0 8px" }}>{t("newDocument.template")}</span>
-          <div role="radiogroup" aria-label={t("newDocument.template")} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-            {(["relatorio", "proposta", "one-pager", "blank"] as const).map((slug) => (
+          <div role="radiogroup" aria-label={t("newDocument.template")} style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+            {TEMPLATES.map((slug) => (
               <button key={slug} type="button" role="radio" aria-checked={template === slug} className="df-tpl" onClick={() => setTemplate(slug)}>
                 <span className="df-tpl__sketch" aria-hidden>
                   {SKETCH[slug] ?? (
                     <span className="material-symbols-outlined" style={{ margin: "auto", fontSize: 22 }}>
-                      add
+                      {slug === "blank-slides" ? "slideshow" : "add"}
                     </span>
                   )}
                 </span>

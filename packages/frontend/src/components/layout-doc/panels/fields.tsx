@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode, TextareaHTMLAttributes } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { IconButton, textStyle } from "@/components/ui";
 
 /** A label above its control, with an optional hint under it. */
@@ -81,5 +81,60 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
       <span style={{ ...textStyle.group, color: "var(--color-text)" }}>{children}</span>
       {action}
     </div>
+  );
+}
+
+/**
+ * A number that is written when the person is done typing (Enter or leaving the
+ * field), not on every keystroke: each write re-renders the page and saves.
+ */
+export function NumberField({
+  value,
+  onCommit,
+  min,
+  max,
+  step,
+  label,
+  style,
+  disabled,
+}: {
+  value: number;
+  onCommit: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  label: string;
+  style?: CSSProperties;
+  disabled?: boolean;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = () => {
+    const n = Number(text.replace(",", "."));
+    if (!Number.isFinite(n) || text.trim() === "") return setText(String(value));
+    const clamped = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
+    setText(String(clamped));
+    if (clamped !== value) onCommit(clamped);
+  };
+  return (
+    <input
+      className="df-input"
+      type="number"
+      aria-label={label}
+      min={min}
+      max={max}
+      step={step}
+      disabled={disabled}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") setText(String(value));
+      }}
+      style={{ padding: "4px 8px", ...style }}
+    />
   );
 }

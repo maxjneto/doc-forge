@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { createEngine, type ComponentType, type Diagnostic, type Engine, type LayoutDocument, type LayoutResult, type Surface } from "@docforge/layout";
-import { Button, IconButton, Pill, Switch, Tab, textStyle } from "@/components/ui";
+import { createEngine, type ComponentType, type Engine, type Surface } from "@docforge/layout";
+import { Button, IconButton, Switch, textStyle } from "@/components/ui";
 import {
   apiCreateLayoutAnnotation,
   apiFetchMembers,
   apiGetLayout,
   apiListLayoutNotes,
+  apiReplyLayoutNote,
   apiUpdateLayoutNote,
   type LayoutNote,
   type LayoutRect,
@@ -17,13 +18,21 @@ import { ADDABLE_TYPES, addOp, newComponentId, starterComponent, TYPE_ICON } fro
 import { loadRegistry } from "./fonts";
 import { PageCanvas, type PageCanvasHandle } from "./PageCanvas";
 import { ComponentPanel, type ComponentTab } from "./panels/ComponentPanel";
-import { DocumentPanel } from "./panels/DocumentPanel";
-import { NotesPanel } from "./panels/NotesPanel";
-import { HealthSection } from "./panels/HealthSection";
-import { ChangesPanel } from "./panels/ChangesPanel";
+import { CommentsPanel } from "./panels/CommentsPanel";
+import { DesignPanel, type DesignDraft } from "./panels/DesignPanel";
+import { HistoryPanel, type ViewingVersion } from "./panels/HistoryPanel";
+import { PagePanel } from "./panels/PagePanel";
+import { ReviewPanel } from "./panels/ReviewPanel";
+import { StructurePanel } from "./panels/StructurePanel";
+import { PresentMode } from "./PresentMode";
+import { SlideRail } from "./SlideRail";
+import { threadsOf, type Thread } from "./history";
 import { useLayoutEditor } from "./useLayoutEditor";
-import { displayName, rowsOf, widthLabel } from "./names";
+import { useThemes } from "./useThemes";
+import { displayName } from "./names";
+import { withDraft } from "./themes";
 import { track } from "./track";
+import { relativeTime } from "@/utils/time";
 
 interface LayoutDocumentViewProps {
   documentId: string;
@@ -91,43 +100,77 @@ export default function LayoutDocumentView({ documentId, sseTick }: LayoutDocume
   return <LayoutWorkspace key={documentId} engine={engine} initial={state} documentId={documentId} role={role} sseTick={sseTick} />;
 }
 
-type SideTab = "structure" | "changes" | "document" | "notes";
-const ZOOMS = [0.5, 0.75, 1, 1.25];
+type SideTab = "structure" | "review" | "design" | "page" | "comments" | "history";
+const ZOOMS = [0.5, 0.6, 0.75, 1, 1.25];
+
+/** The largest zoom at which a page this wide fits beside the panels (slides are wide). */
+function fitZoom(pageWidth: number): number {
+  const room = (typeof window === "undefined" ? 1440 : window.innerWidth) - 172 - 340 - 64 - 24;
+  return [...ZOOMS].reverse().find((z) => (pageWidth + 48) * z <= room) ?? (ZOOMS[0] as number);
+}
+const TAB_ICON: Record<SideTab, string> = {
+  structure: "account_tree",
+  review: "fact_check",
+  design: "palette",
+  page: "description",
+  comments: "forum",
+  history: "history",
+};
 
 function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engine: Engine; initial: LayoutState; documentId: string; role: Role; sseTick: number }) {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const { getToken } = useAuth();
   const canEdit = role === "owner" || role === "editor";
   const canComment = canEdit || role === "commenter";
   const editor = useLayoutEditor(engine, documentId, initial, getToken, sseTick);
   const doc = editor.content;
   const canvas = useRef<PageCanvasHandle>(null);
+  const library = useThemes(getToken);
 
+  const primary = doc.surfaces[0] as Surface;
+  const deck = primary.kind === "page" && primary.size === "Slide";
   const [editing, setEditing] = useState(canEdit);
   const [surfaceId, setSurfaceId] = useState<string | undefined>(undefined);
   const [showGrid, setShowGrid] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(() => (deck ? fitZoom(1280) : 1));
   const [selected, setSelected] = useState<string | null>(null);
   const [side, setSide] = useState<SideTab>("structure");
+  const [panelOpen, setPanelOpen] = useState(true);
   const [componentTab, setComponentTab] = useState<ComponentTab>("content");
   const [annotating, setAnnotating] = useState(false);
-  const [pendingRect, setPendingRect] = useState<LayoutRect | null>(null);
+  const [pending, setPending] = useState<{ rect?: LayoutRect; component?: string } | null>(null);
   const [notes, setNotes] = useState<LayoutNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(true);
+  const [resolvedNotes, setResolvedNotes] = useState<LayoutNote[] | null>(null);
+  const [focusedThread, setFocusedThread] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [draft, setDraft] = useState<DesignDraft | null>(null);
+  const [viewing, setViewing] = useState<ViewingVersion | null>(null);
+  const [visiblePage, setVisiblePage] = useState(1);
+  const [presenting, setPresenting] = useState(false);
 
   const surfaces = doc.surfaces;
   const activeSurface = surfaceId && surfaces.some((s) => s.id === surfaceId) ? surfaceId : surfaces[0]?.id;
-  const output = useMemo(() => engine.render(doc, { surfaceId: activeSurface, grid: showGrid, backdrop: null }), [engine, doc, activeSurface, showGrid]);
+  const slides = deck && activeSurface === primary.id;
+  // What the page shows: a past version, or the document with the design draft over it.
+  const shown = useMemo(() => (viewing ? viewing.content : withDraft(doc, draft?.tokens ?? null)), [viewing, doc, draft]);
+  const output = useMemo(() => engine.render(shown, { surfaceId: activeSurface, grid: showGrid, backdrop: null }), [engine, shown, activeSurface, showGrid]);
   const layout = output.layout;
+  const current = useMemo(() => (shown === doc ? layout : engine.layout(doc, activeSurface)), [engine, doc, shown, layout, activeSurface]);
   const families = useMemo(() => engine.registry.families(), [engine]);
-  const problems = layout.diagnostics.filter((d) => d.severity !== "info");
+  const problems = current.diagnostics.filter((d) => d.severity !== "info");
   // The same composition review agents get from review_layout, computed here with the same library.
   const findings = useMemo(() => engine.review(doc, { surfaceId: activeSurface }).findings, [engine, doc, activeSurface]);
   const attention = problems.length + findings.filter((f) => f.severity === "warning").length;
   const selectedComponent = selected ? doc.components.find((c) => c.id === selected) : undefined;
-  const editable = canEdit && editing;
+  const editable = canEdit && editing && !viewing;
+  const nameOf = useCallback(
+    (id: string) => {
+      const c = doc.components.find((x) => x.id === id) ?? viewing?.content.components.find((x) => x.id === id);
+      return c ? displayName(c, t) : id;
+    },
+    [doc, viewing, t],
+  );
 
   // Notes: on open, after every save (writes create notices) and on SSE events.
   const loadNotes = useCallback(async () => {
@@ -135,25 +178,47 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
       setNotes(await apiListLayoutNotes(documentId, getToken));
     } catch {
       // Notes are secondary: the document stays usable without them.
-    } finally {
-      setNotesLoading(false);
+    }
+  }, [documentId, getToken]);
+  const loadResolved = useCallback(async () => {
+    try {
+      setResolvedNotes(await apiListLayoutNotes(documentId, getToken, "resolved", "annotation"));
+    } catch {
+      setResolvedNotes([]);
     }
   }, [documentId, getToken]);
   useEffect(() => {
     const timer = setTimeout(() => void loadNotes(), 400);
     return () => clearTimeout(timer);
   }, [loadNotes, editor.revision, sseTick]);
+  const refreshComments = useCallback(async () => {
+    await loadNotes();
+    if (resolvedNotes) await loadResolved();
+  }, [loadNotes, loadResolved, resolvedNotes]);
 
   const select = useCallback((id: string | null) => {
     setSelected(id);
-    if (id) setSide("structure");
+    if (id) {
+      setSide((s) => (s === "comments" || s === "design" ? s : "structure"));
+      setPanelOpen(true);
+    }
   }, []);
+  const openSide = (tab: SideTab) => {
+    if (tab === side && panelOpen) return setPanelOpen(false);
+    setSide(tab);
+    setPanelOpen(true);
+    track("layout_panel_opened", { panel: tab });
+  };
 
-  // Undo / redo from anywhere but text fields (they keep their own undo).
+  // Undo / redo from anywhere but text fields (they keep their own undo); Esc leaves a past version.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+      if (e.key === "Escape" && viewing) {
+        setViewing(null);
+        return;
+      }
       const mod = e.ctrlKey || e.metaKey;
       if (!mod || !editable) return;
       if (e.key.toLowerCase() === "z" && !e.shiftKey) {
@@ -166,13 +231,13 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editable, editor]);
+  }, [editable, editor, viewing]);
 
   const add = (type: ComponentType) => {
     setAddOpen(false);
     const id = newComponentId(doc, type);
     const component = starterComponent(type, id, (key) => t(key));
-    const page = Math.max(1, layout.pages.length);
+    const page = slides ? visiblePage : Math.max(1, layout.pages.length);
     const below = selected && layout.components[selected] ? selected : null;
     const result = editor.commit([addOp(component, type, below, page)]);
     if (result.ok) {
@@ -194,49 +259,48 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
     : null;
 
   const openNotes = notes.filter((n) => n.status === "open");
-  // An agent's hand-off: shown with its questions in Changes, not as a loose note.
+  // An agent's hand-off: shown with its questions in Comments, not as a loose note.
   const requests = openNotes.filter((n) => n.code === "review-request");
+  const notices = openNotes.filter((n) => n.kind === "notice");
+  const threads = useMemo(() => threadsOf(openNotes), [openNotes]);
+  const resolvedThreads = useMemo(() => (resolvedNotes ? threadsOf(resolvedNotes) : null), [resolvedNotes]);
   const external = editor.external;
   const comparison = useMemo(() => (external ? engine.compare(external.before, doc, { surfaceId: activeSurface }) : null), [engine, external, doc, activeSurface]);
-  const changeCount = (comparison?.edits.length ?? 0) + requests.length;
-  const showChanges = Boolean(external) || requests.length > 0;
   const highlights = useMemo(
-    () => (side === "changes" && comparison ? new Map(comparison.edits.filter((e) => !e.kinds.includes("removed")).map((e, i) => [e.component, i + 1] as const)) : undefined),
-    [side, comparison],
+    () => (side === "history" && comparison && !viewing ? new Map(comparison.edits.filter((e) => !e.kinds.includes("removed")).map((e, i) => [e.component, i + 1] as const)) : undefined),
+    [side, comparison, viewing],
   );
-  // The tab counts what needs a look: people's annotations and warnings, not every box that moved.
-  const notesBadge = openNotes.filter((n) => n.code !== "review-request" && (n.kind === "annotation" || n.severity === "warning")).length;
+  const badges: Partial<Record<SideTab, number>> = {
+    review: attention,
+    comments: threads.length + requests.length,
+    history: comparison?.edits.length ?? 0,
+  };
+
+  const show = (id: string) => {
+    setSelected(id);
+    canvas.current?.reveal(id);
+  };
+  const startComment = (anchor: { rect?: LayoutRect; component?: string }) => {
+    setPending(anchor);
+    setAnnotating(false);
+    setSide("comments");
+    setPanelOpen(true);
+  };
 
   return (
     <div style={{ height: "100%", paddingTop: 56, display: "flex", overflow: "hidden", background: "var(--color-bg)" }}>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <div
-          role="toolbar"
-          aria-label={t("layout.editor.toolbar")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 16px",
-            borderBottom: "1px solid var(--color-outline)",
-            background: "var(--color-surface)",
-            flexWrap: "wrap",
-          }}
-        >
+        <div role="toolbar" aria-label={t("layout.editor.toolbar")} className="df-layout-toolbar">
           {canEdit && <Switch checked={editing} onChange={setEditing} label={t("layout.editor.editMode")} />}
-          <select
-            className="df-input"
-            aria-label={t("layout.surface")}
-            value={activeSurface ?? ""}
-            onChange={(e) => setSurfaceId(e.target.value)}
-            style={{ width: "auto", padding: "4px 8px" }}
-          >
-            {surfaces.map((s) => (
-              <option key={s.id} value={s.id}>
-                {surfaceName(s, t)}
-              </option>
-            ))}
-          </select>
+          {surfaces.length > 1 && (
+            <select className="df-input" aria-label={t("layout.surface")} value={activeSurface ?? ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ width: "auto", padding: "4px 8px" }}>
+              {surfaces.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {surfaceName(s, t)}
+                </option>
+              ))}
+            </select>
+          )}
           <select className="df-input" aria-label={t("layout.editor.zoom")} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} style={{ width: "auto", padding: "4px 8px" }}>
             {ZOOMS.map((z) => (
               <option key={z} value={z}>
@@ -247,7 +311,7 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
           <Switch checked={showGrid} onChange={setShowGrid} label={t("layout.grid")} />
           {editable && (
             <>
-              <span aria-hidden style={{ width: 1, height: 20, background: "var(--color-outline)" }} />
+              <span aria-hidden className="df-layout-toolbar__sep" />
               <IconButton icon="undo" label={t("layout.editor.undo")} disabled={!editor.canUndo} onClick={editor.undo} />
               <IconButton icon="redo" label={t("layout.editor.redo")} disabled={!editor.canRedo} onClick={editor.redo} />
               <div style={{ position: "relative" }}>
@@ -258,18 +322,20 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
               </div>
             </>
           )}
-          {canComment && (
+          {canComment && !viewing && (
             <Button
               variant={annotating ? "secondary" : "ghost"}
-              icon="edit_note"
+              icon="add_comment"
               iconPosition="start"
               aria-pressed={annotating}
               onClick={() => {
                 setAnnotating(!annotating);
-                setSide("notes");
+                setPending(null);
+                setSide("comments");
+                setPanelOpen(true);
               }}
             >
-              {annotating ? t("layout.notes.stopAnnotating") : t("layout.notes.annotate")}
+              {annotating ? t("layout.notes.stopAnnotating") : t("layout.comments.comment")}
             </Button>
           )}
           <div style={{ flex: 1 }} />
@@ -283,23 +349,36 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
               style={{ width: 6, height: 6, borderRadius: "50%", background: editor.status === "error" ? "var(--color-error)" : editor.status === "saving" ? "var(--color-warn)" : "var(--color-ok)" }}
             />
             {editor.status === "saving" ? t("layout.status.saving") : editor.status === "error" ? t("layout.editor.notSaved") : t("layout.status.saved")}
-            <span style={{ color: "var(--color-faint)" }}>· {t("layout.pages", { count: layout.pages.length })}</span>
+            <span style={{ color: "var(--color-faint)" }}>· {slides ? t("layout.slides.count", { count: layout.pages.length }) : t("layout.pages", { count: layout.pages.length })}</span>
           </span>
+          {slides && (
+            <Button
+              variant="secondary"
+              icon="slideshow"
+              iconPosition="start"
+              onClick={() => {
+                track("layout_presented", { slides: layout.pages.length });
+                setPresenting(true);
+              }}
+            >
+              {t("layout.slides.present")}
+            </Button>
+          )}
           <Button
             variant="secondary"
             icon="download"
             iconPosition="start"
             onClick={() => {
-              track("document_exported", { document_id: documentId, mode: "layout", format: "pdf", pages: layout.pages.length });
+              track("document_exported", { document_id: documentId, mode: "layout", format: "pdf", pages: layout.pages.length, slides });
               canvas.current?.print();
             }}
           >
             {t("layout.print")}
           </Button>
         </div>
-        {noticeText && (
-          <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 16px", background: "var(--color-steel-wash)", borderBottom: "1px solid var(--color-steel-line)" }}>
-            <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 16, color: "var(--color-steel)" }}>
+        {noticeText && !viewing && (
+          <div role="status" className="df-layout-banner df-layout-banner--steel">
+            <span className="material-symbols-outlined" aria-hidden>
               smart_toy
             </span>
             <span style={{ ...textStyle.caption, color: "var(--color-text)", flex: 1 }}>
@@ -309,7 +388,8 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setSide("changes");
+                  setSide("history");
+                  setPanelOpen(true);
                   editor.dismissNotice();
                 }}
               >
@@ -319,163 +399,211 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
             <IconButton icon="close" label={t("common.close")} onClick={editor.dismissNotice} />
           </div>
         )}
-        <PageCanvas
-          ref={canvas}
-          engine={engine}
-          content={doc}
-          surfaceId={activeSurface}
-          layout={layout}
-          html={output.page}
-          editable={editable && !annotating}
-          selected={selected}
-          onSelect={select}
-          commit={editor.commit}
-          preview={editor.preview}
-          annotating={annotating}
-          onAnnotate={(rect) => {
-            setPendingRect(rect);
-            setSide("notes");
-          }}
-          notes={openNotes}
-          highlights={highlights}
-          zoom={zoom}
-          announce={setAnnouncement}
-          onOpenContent={() => {
-            setSide("structure");
-            setComponentTab("content");
-          }}
-        />
+        {viewing && (
+          <div role="status" className="df-layout-banner df-layout-banner--heat">
+            <span className="material-symbols-outlined" aria-hidden>
+              history
+            </span>
+            <span style={{ ...textStyle.caption, color: "var(--color-text)", flex: 1 }}>
+              {t("layout.history.viewing", { label: viewing.label, when: viewing.createdAt ? relativeTime(viewing.createdAt, dateLocale) : "", revision: viewing.revision })}
+            </span>
+            {canEdit && (
+              <Button
+                variant="primary"
+                icon="restore"
+                iconPosition="start"
+                onClick={() => {
+                  track("layout_version_restored", { back: editor.revision - viewing.revision });
+                  editor.replaceAll(viewing.content);
+                  setViewing(null);
+                  setAnnouncement(t("layout.history.restored", { revision: viewing.revision }));
+                }}
+              >
+                {t("layout.history.restore")}
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setViewing(null)}>
+              {t("layout.history.back")}
+            </Button>
+          </div>
+        )}
+        <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+          {slides && !viewing && (
+            <SlideRail
+              engine={engine}
+              doc={doc}
+              layout={layout}
+              current={visiblePage}
+              onGo={(n) => canvas.current?.goToPage(n)}
+              commit={editor.commit}
+              editable={editable}
+              onAdded={(id, page) => {
+                setSelected(id);
+                requestAnimationFrame(() => canvas.current?.goToPage(page));
+              }}
+            />
+          )}
+          <PageCanvas
+            ref={canvas}
+            engine={engine}
+            content={shown}
+            surfaceId={activeSurface}
+            layout={layout}
+            html={output.page}
+            editable={editable && !annotating}
+            selected={viewing ? null : selected}
+            onSelect={select}
+            commit={editor.commit}
+            preview={editor.preview}
+            annotating={annotating && !viewing}
+            onAnnotate={(rect) => startComment({ rect })}
+            onAnnotateComponent={(id) => startComment({ component: id })}
+            threads={viewing ? [] : threads}
+            focusedThread={focusedThread}
+            onPinClick={(id) => {
+              setFocusedThread(id);
+              setSide("comments");
+              setPanelOpen(true);
+            }}
+            onCommentBlock={canComment ? (id) => startComment({ component: id }) : undefined}
+            onVisiblePage={setVisiblePage}
+            highlights={highlights}
+            zoom={zoom}
+            announce={setAnnouncement}
+            onOpenContent={() => {
+              setSide("structure");
+              setPanelOpen(true);
+              setComponentTab("content");
+            }}
+          />
+        </div>
         <div aria-live="polite" className="sr-only">
           {announcement}
         </div>
       </div>
 
-      <aside
-        aria-label={t("layout.editor.panel")}
-        style={{
-          width: 360,
-          flexShrink: 0,
-          borderLeft: "1px solid var(--color-outline)",
-          background: "var(--color-surface)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        <div role="tablist" style={{ display: "flex", gap: 2, padding: "8px 12px 0", borderBottom: "1px solid var(--color-outline)" }}>
-          <Tab plain label={t("layout.side.structure")} count={attention || undefined} active={side === "structure"} onClick={() => setSide("structure")} />
-          {showChanges && <Tab plain label={t("layout.side.changes")} count={changeCount || undefined} active={side === "changes"} onClick={() => setSide("changes")} />}
-          <Tab plain label={t("layout.side.document")} active={side === "document"} onClick={() => setSide("document")} />
-          <Tab plain label={t("layout.side.notes")} count={notesBadge || undefined} active={side === "notes"} onClick={() => setSide("notes")} />
-        </div>
-        <div style={{ padding: 16, overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
-          {side === "structure" &&
-            (selectedComponent ? (
-              <ComponentPanel
-                doc={doc}
-                component={selectedComponent}
-                geometry={layout.components[selectedComponent.id]}
-                layout={layout}
-                tokens={layout.tokens}
-                families={families}
-                commit={editor.commit}
-                readOnly={!editable}
-                tab={componentTab}
-                onTab={setComponentTab}
-                onRemoved={() => select(null)}
-                onBack={() => select(null)}
-              />
-            ) : (
-              <StructurePanel
-                doc={doc}
-                layout={layout}
-                problems={problems}
-                health={
-                  <HealthSection
-                    doc={doc}
-                    findings={findings}
-                    commit={editor.commit}
-                    preview={editor.preview}
-                    readOnly={!editable}
-                    onShow={(id) => {
-                      select(id);
-                      canvas.current?.reveal(id);
-                    }}
-                  />
-                }
-                map={() => engine.map(doc, { level: 1, surfaceId: activeSurface }).text}
-                onPick={(id) => {
-                  select(id);
-                  canvas.current?.reveal(id);
+      {panelOpen && (
+        <aside aria-label={t("layout.editor.panel")} className="df-layout-panel">
+          <header className="df-layout-panel__head">
+            <span style={{ ...textStyle.group, color: "var(--color-text)" }}>{t(`layout.side.${side}`)}</span>
+            <IconButton icon="right_panel_close" label={t("layout.side.hide")} onClick={() => setPanelOpen(false)} />
+          </header>
+          <div className="df-layout-panel__body">
+            {side === "structure" &&
+              (selectedComponent && !viewing ? (
+                <ComponentPanel
+                  doc={doc}
+                  component={selectedComponent}
+                  geometry={current.components[selectedComponent.id]}
+                  layout={current}
+                  tokens={current.tokens}
+                  families={families}
+                  commit={editor.commit}
+                  readOnly={!editable}
+                  tab={componentTab}
+                  onTab={setComponentTab}
+                  onRemoved={() => select(null)}
+                  onBack={() => select(null)}
+                />
+              ) : (
+                <StructurePanel doc={shown} layout={layout} slides={slides} map={() => engine.map(doc, { level: 1, surfaceId: activeSurface }).text} onPick={(id) => (viewing ? canvas.current?.reveal(id) : (select(id), canvas.current?.reveal(id)))} />
+              ))}
+            {side === "review" && (
+              <ReviewPanel doc={doc} layout={current} problems={problems} findings={findings} commit={editor.commit} preview={editor.preview} readOnly={!editable} onShow={(id) => (select(id), canvas.current?.reveal(id))} />
+            )}
+            {side === "design" && (
+              <DesignPanel doc={doc} layout={viewing ? current : layout} families={families} library={library} draft={draft} setDraft={setDraft} commit={editor.commit} readOnly={!editable} slide={deck} />
+            )}
+            {side === "page" && <PagePanel doc={doc} layout={current} commit={editor.commit} preview={editor.preview} readOnly={!editable} />}
+            {side === "comments" && (
+              <CommentsPanel
+                documentId={documentId}
+                open={threads}
+                resolved={resolvedThreads}
+                loadResolved={() => void loadResolved()}
+                requests={requests}
+                onAnswered={() => void loadNotes()}
+                canComment={canComment}
+                annotating={annotating}
+                onToggleAnnotate={() => setAnnotating(!annotating)}
+                pending={pending}
+                onCreate={async (message, forAgent) => {
+                  if (!pending) return;
+                  await apiCreateLayoutAnnotation(documentId, message, pending, getToken, { forAgent });
+                  setPending(null);
+                  await loadNotes();
                 }}
+                onCancelPending={() => setPending(null)}
+                onReply={async (thread: Thread, message: string) => {
+                  await apiReplyLayoutNote(documentId, thread.root.id, message, getToken);
+                  track("layout_comment_replied", { thread_by_agent: thread.root.byAgent, for_agent: thread.root.forAgent });
+                  await refreshComments();
+                }}
+                onStatus={async (thread, status) => {
+                  await apiUpdateLayoutNote(thread.root.id, status, getToken);
+                  await loadNotes();
+                  await loadResolved();
+                }}
+                onToggleAgent={async (thread, on) => {
+                  await apiUpdateLayoutNote(thread.root.id, null, getToken, undefined, { forAgent: on });
+                  await loadNotes();
+                }}
+                onShow={show}
+                focused={focusedThread}
+                onFocus={setFocusedThread}
+                nameOf={nameOf}
+                getToken={getToken}
               />
-            ))}
-          {side === "changes" && (
-            <ChangesPanel
-              documentId={documentId}
-              engine={engine}
-              doc={doc}
-              external={external}
-              comparison={comparison}
-              requests={requests}
-              commit={editor.commit}
-              replaceAll={editor.replaceAll}
-              onDismissExternal={() => {
-                editor.dismissExternal();
-                if (!requests.length) setSide("structure");
-              }}
-              onAnswered={() => void loadNotes()}
-              onShow={(id) => {
-                setSelected(id);
-                canvas.current?.reveal(id);
-              }}
-              canEdit={editable}
-              canComment={canComment}
-              getToken={getToken}
-            />
-          )}
-          {side === "document" && (
-            <DocumentPanel doc={doc} layout={layout} families={families} commit={editor.commit} preview={editor.preview} readOnly={!editable} />
-          )}
-          {side === "notes" && (
-            <NotesPanel
-              notes={openNotes.filter((n) => n.code !== "review-request")}
-              nameOf={(id) => {
-                const c = doc.components.find((x) => x.id === id);
-                return c ? displayName(c, t) : id;
-              }}
-              loading={notesLoading}
-              canComment={canComment}
-              annotating={annotating}
-              onToggleAnnotate={() => setAnnotating(!annotating)}
-              pendingRect={pendingRect}
-              pendingComponent={!pendingRect && annotating ? selected : null}
-              onCreate={async (message) => {
-                const anchor = pendingRect ? { rect: pendingRect } : { component: selected ?? undefined };
-                const note = await apiCreateLayoutAnnotation(documentId, message, anchor, getToken);
-                setNotes((list) => [...list, note]);
-                setPendingRect(null);
-                setAnnotating(false);
-                void loadNotes();
-              }}
-              onCancelPending={() => setPendingRect(null)}
-              onResolve={async (note) => {
-                await apiUpdateLayoutNote(note.id, "resolved", getToken);
-                setNotes((list) => list.filter((n) => n.id !== note.id));
-              }}
-              onResolveAll={async (list) => {
-                await Promise.all(list.map((note) => apiUpdateLayoutNote(note.id, "resolved", getToken)));
-                const done = new Set(list.map((n) => n.id));
-                setNotes((all) => all.filter((n) => !done.has(n.id)));
-              }}
-              onShow={(id) => {
-                select(id);
-                canvas.current?.reveal(id);
-              }}
-            />
-          )}
-        </div>
-      </aside>
+            )}
+            {side === "history" && (
+              <HistoryPanel
+                documentId={documentId}
+                engine={engine}
+                doc={doc}
+                revision={editor.revision}
+                external={external}
+                comparison={comparison}
+                commit={editor.commit}
+                replaceAll={editor.replaceAll}
+                onDismissExternal={editor.dismissExternal}
+                onShow={show}
+                viewing={viewing}
+                onView={setViewing}
+                notices={notices}
+                onDismissNotices={(list) => {
+                  void Promise.all(list.map((n) => apiUpdateLayoutNote(n.id, "resolved", getToken))).then(() => loadNotes());
+                }}
+                nameOf={nameOf}
+                canEdit={canEdit}
+                surfaceId={activeSurface}
+                getToken={getToken}
+              />
+            )}
+          </div>
+        </aside>
+      )}
+
+      <nav className="df-side-rail" aria-label={t("layout.editor.panel")}>
+        {(Object.keys(TAB_ICON) as SideTab[]).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className="df-side-rail__item"
+            aria-pressed={side === tab && panelOpen}
+            title={t(`layout.side.${tab}`)}
+            onClick={() => openSide(tab)}
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              {tab === "page" && deck ? "slideshow" : TAB_ICON[tab]}
+            </span>
+            <span className="df-side-rail__label">{t(`layout.side.${tab}.short`)}</span>
+            {(badges[tab] ?? 0) > 0 && <span className="df-side-rail__badge">{badges[tab]}</span>}
+            {tab === "design" && draft && <span className="df-side-rail__dot" aria-label={t("layout.design.draft")} />}
+          </button>
+        ))}
+      </nav>
+
+      {presenting && <PresentMode html={output.page} pages={layout.pages.length} width={layout.pages[0]?.width ?? 1280} height={layout.pages[0]?.height ?? 720} start={visiblePage} onClose={() => setPresenting(false)} />}
     </div>
   );
 }
@@ -540,181 +668,8 @@ function AddMenu({ onPick, onClose }: { onPick: (type: ComponentType) => void; o
 
 function surfaceName(surface: Surface, t: (key: string, vars?: Record<string, string | number>) => string): string {
   if (surface.kind === "continuous") return t("layout.surfaceName.continuous");
-  const size = typeof surface.size === "string" ? surface.size : `${Math.round(surface.size.width)}×${Math.round(surface.size.height)}`;
+  const size = typeof surface.size === "string" ? (surface.size === "Slide" ? t("layout.page.size.Slide") : surface.size) : `${Math.round(surface.size.width)}×${Math.round(surface.size.height)}`;
   return t("layout.surfaceName.page", { size });
-}
-
-/**
- * With nothing selected: the document as people read it (pages, then blocks side
- * by side, each named by its own words) plus any problem. Picking one selects it on
- * the page; it is also the keyboard path to every block.
- */
-function StructurePanel({
-  doc,
-  layout,
-  problems,
-  health,
-  map,
-  onPick,
-}: {
-  doc: LayoutDocument;
-  layout: LayoutResult;
-  problems: Diagnostic[];
-  health: ReactNode;
-  map: () => string;
-  onPick: (id: string) => void;
-}) {
-  const { t } = useI18n();
-  const byId = new Map(doc.components.map((c) => [c.id, c] as const));
-  const rows = rowsOf(layout);
-  const unplaced = doc.components.filter((c) => !layout.components[c.id]);
-
-  const item = (id: string, nested: boolean) => {
-    const c = byId.get(id);
-    const g = layout.components[id];
-    if (!c) return null;
-    return (
-      <button
-        key={id}
-        type="button"
-        className="df-row"
-        onClick={() => onPick(id)}
-        title={id}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: nested ? "6px 8px 6px 30px" : "6px 8px",
-          background: "transparent",
-          border: 0,
-          color: "var(--color-text)",
-          textAlign: "left",
-          cursor: "pointer",
-          borderRadius: "var(--radius-xs)",
-          minWidth: 0,
-        }}
-      >
-        <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 16, color: "var(--color-faint)" }}>
-          {TYPE_ICON[c.type]}
-        </span>
-        <span style={{ ...textStyle.bodySm, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName(c, t)}</span>
-        {g && <span style={{ ...textStyle.caption, color: "var(--color-faint)", whiteSpace: "nowrap" }}>{widthLabel(g.box, layout, t)}</span>}
-        {g && g.shifted > 0 && (
-          <Pill compact tone="warn" dot={false}>
-            ↓
-          </Pill>
-        )}
-      </button>
-    );
-  };
-
-  const pages = [...new Set(rows.map((r) => r.page))];
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {problems.length > 0 && (
-        <section
-          style={{ display: "flex", flexDirection: "column", gap: 10, padding: 12, borderRadius: "var(--radius-sm)", background: "var(--color-warn-wash)", border: "1px solid var(--color-warn-line)" }}
-        >
-          <span style={{ ...textStyle.group, color: "var(--color-text)" }}>{t("layout.problemsCount", { count: problems.length })}</span>
-          {problems.map((d, i) => {
-            const c = d.component ? byId.get(d.component) : undefined;
-            return (
-              <DiagnosticRow
-                key={i}
-                diagnostic={d}
-                name={c ? displayName(c, t) : undefined}
-                onPick={c && layout.components[c.id] ? () => onPick(c.id) : undefined}
-              />
-            );
-          })}
-        </section>
-      )}
-      {health}
-      {doc.components.length === 0 ? (
-        <span style={{ ...textStyle.caption, color: "var(--color-dim)" }}>{t("layout.structure.empty")}</span>
-      ) : (
-        <nav aria-label={t("layout.side.structure")} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          {pages.map((page, pi) => (
-            <div key={page} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={{ ...textStyle.caption, fontWeight: 600, color: "var(--color-faint)", padding: pi === 0 ? "0 8px 4px" : "12px 8px 4px" }}>
-                {t("layout.structure.page", { n: page })}
-              </span>
-              {rows
-                .filter((row) => row.page === page)
-                .map((row) =>
-                  row.ids.length === 1 ? (
-                    item(row.ids[0] as string, false)
-                  ) : (
-                    <div key={row.ids.join("|")} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      <span style={{ ...textStyle.caption, color: "var(--color-dim)", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px 2px" }}>
-                        <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 16, color: "var(--color-faint)" }}>
-                          view_column
-                        </span>
-                        {t("layout.structure.row", { count: row.ids.length })}
-                      </span>
-                      {row.ids.map((id) => item(id, true))}
-                    </div>
-                  ),
-                )}
-            </div>
-          ))}
-          {unplaced.length > 0 && (
-            <>
-              <span style={{ ...textStyle.caption, fontWeight: 600, color: "var(--color-faint)", padding: "12px 8px 4px" }}>{t("layout.editor.unplacedShort")}</span>
-              {unplaced.map((c) => item(c.id, false))}
-            </>
-          )}
-        </nav>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 10, borderTop: "1px solid var(--color-outline)" }}>
-        <CopyMapButton text={map} />
-        <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.agentHint")}</span>
-      </div>
-    </div>
-  );
-}
-
-function DiagnosticRow({ diagnostic: d, name, onPick }: { diagnostic: Diagnostic; name?: string; onPick?: () => void }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: d.severity === "error" ? "var(--color-error)" : "var(--color-warn)", flexShrink: 0 }} />
-        {onPick ? (
-          <button type="button" className="df-row" onClick={onPick} style={{ ...textStyle.caption, fontWeight: 600, color: "var(--color-text)", background: "transparent", border: 0, padding: 0, cursor: "pointer" }}>
-            {name ?? d.component}
-          </button>
-        ) : (
-          name && <span style={{ ...textStyle.caption, fontWeight: 600, color: "var(--color-text)" }}>{name}</span>
-        )}
-      </div>
-      <span style={{ ...textStyle.caption, color: "var(--color-dim)" }} title={d.code}>
-        {d.message}
-      </span>
-    </div>
-  );
-}
-
-function CopyMapButton({ text }: { text: () => string }) {
-  const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(timer);
-  }, [copied]);
-  return (
-    <Button
-      variant="ghost"
-      icon={copied ? "check" : "content_copy"}
-      iconPosition="start"
-      onClick={() => {
-        void navigator.clipboard.writeText(text()).then(() => setCopied(true));
-      }}
-    >
-      {copied ? t("layout.copied") : t("layout.copyForAgent")}
-    </Button>
-  );
 }
 
 function Centered({ children }: { children: ReactNode }) {

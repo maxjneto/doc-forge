@@ -70,6 +70,7 @@ const docSeeds: DocSeed[] = [
   { id: "doc-run-hooks", title: "Postmortem 30/09 — fila de webhooks parada", folder: "f-run", updated: 60 * 24 * 2, published: 60 * 24 * 8, unpublished: true, agent: "Cursor" },
   { id: "doc-roadmap", title: "Roadmap Q4", folder: null, updated: 60 * 3, published: 60 * 24 * 12, unpublished: true },
   { id: "doc-layout-q3", title: "Relatório do 3º trimestre", folder: null, updated: 25, agent: "Claude Code — laptop", layout: true },
+  { id: "doc-layout-deck", title: "Plano de crescimento 2027 (slides)", folder: null, updated: 40, agent: "Claude Code — laptop", layout: true },
   { id: "doc-notes", title: "Notas soltas de entrevistas com usuários", folder: null, updated: 60 * 24 * 9 },
   { id: "doc-old", title: "Proposta de pricing (v1)", folder: null, updated: 60 * 24 * 40, archived: 60 * 24 * 20 },
 ];

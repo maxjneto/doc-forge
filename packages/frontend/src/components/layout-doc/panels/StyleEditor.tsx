@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   PROP_TOKEN_GROUP,
   type ApplyResult,
@@ -11,8 +11,9 @@ import {
 } from "@docforge/layout";
 import { Button, IconButton, Input, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
-import { Row, SectionTitle, Select } from "./fields";
+import { NumberField, Row, SectionTitle, Select } from "./fields";
 import { tokenName } from "../names";
+import { ColorPicker } from "../ColorPicker";
 
 /** The properties people reach for first; the rest wait behind "All properties". */
 const GROUPS: { key: string; props: StyleProp[] }[] = [
@@ -60,6 +61,8 @@ const resolveColor = (tokens: Tokens, v: string) => (v.startsWith("$color.") ? (
  */
 export function ValueControl({ prop, written, value, tokens, families, onChange }: ValueControlProps) {
   const { t, locale } = useI18n();
+  const [picking, setPicking] = useState(false);
+  const custom = useRef<HTMLButtonElement>(null);
   const group = PROP_TOKEN_GROUP[prop];
   const current = typeof written === "string" || typeof written === "number" || typeof written === "boolean" ? written : value;
 
@@ -92,11 +95,26 @@ export function ValueControl({ prop, written, value, tokens, families, onChange 
     return (
       <div role="group" aria-label={t("layout.style.prop.borderWidth")} className="df-seg">
         {[0, 1, 2, 3].map((w) => (
-          <button key={w} type="button" aria-pressed={Number(value) === w} onClick={() => onChange(w)}>
-            {w === 0 ? t("layout.style.none") : `${w}px`}
+          <button key={w} type="button" aria-pressed={Number(value) === w} onClick={() => onChange(w)} title={w === 0 ? t("layout.style.none") : `${w}px`}>
+            {w === 0 ? t("layout.style.none") : <span className="df-border-sample" style={{ borderTopWidth: w }} aria-hidden />}
           </button>
         ))}
       </div>
+    );
+  }
+  if (prop === "radius") {
+    const isToken = typeof current === "string" && current.startsWith("$radius.");
+    return (
+      <Row gap={6} style={{ alignItems: "center" }}>
+        <div role="group" aria-label={t("layout.style.prop.radius")} className="df-seg" style={{ flex: 1 }}>
+          {Object.entries(tokens.radius).map(([k, v]) => (
+            <button key={k} type="button" aria-pressed={current === `$radius.${k}`} title={`${tokenName("radius", k, t)} · ${v}px`} onClick={() => onChange(`$radius.${k}`)}>
+              <span className="df-radius-sample" style={{ borderTopLeftRadius: Math.min(Number(v), 10) }} aria-hidden />
+            </button>
+          ))}
+        </div>
+        <NumberField label={t("layout.style.customValue")} min={0} value={Number(value)} onCommit={(n) => onChange(n)} style={{ width: 60, opacity: isToken ? 0.6 : 1 }} />
+      </Row>
     );
   }
   if (group === "color") {
@@ -119,12 +137,30 @@ export function ValueControl({ prop, written, value, tokens, families, onChange 
             />
           );
         })}
-        <label className="df-swatch df-swatch--custom" title={t("layout.style.pickColor")} aria-pressed={typeof current === "string" && !current.startsWith("$")}>
-          <input type="color" aria-label={t("layout.style.pickColor")} value={hex} onChange={(e) => onChange(e.target.value)} />
+        <button
+          ref={custom}
+          type="button"
+          className="df-swatch df-swatch--custom"
+          title={t("layout.style.pickColor")}
+          aria-label={t("layout.style.pickColor")}
+          aria-haspopup="dialog"
+          aria-pressed={typeof current === "string" && !current.startsWith("$")}
+          style={typeof current === "string" && !current.startsWith("$") ? { background: hex } : undefined}
+          onClick={() => setPicking(!picking)}
+        >
           <span className="material-symbols-outlined" aria-hidden>
             colorize
           </span>
-        </label>
+        </button>
+        {picking && (
+          <ColorPicker
+            anchor={custom.current}
+            value={hex}
+            title={t(`layout.style.prop.${prop}`)}
+            onApply={(c) => onChange(c)}
+            onClose={() => setPicking(false)}
+          />
+        )}
       </div>
     );
   }
@@ -142,7 +178,7 @@ export function ValueControl({ prop, written, value, tokens, families, onChange 
               </button>
             ))}
           </div>
-          <Input type="number" min={6} aria-label={t("layout.style.customValue")} value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} style={{ width: 60 }} />
+          <NumberField label={t("layout.style.customValue")} min={6} value={Number(value)} onCommit={(n) => onChange(n)} style={{ width: 60 }} />
         </Row>
       );
     }
@@ -160,11 +196,11 @@ export function ValueControl({ prop, written, value, tokens, families, onChange 
           options={[...Object.entries(scale).map(([k, v]) => ({ value: `$${group}.${k}`, label: scaleLabel(group, k, v) })), { value: "custom", label: t("layout.style.custom") }]}
           style={{ flex: 1 }}
         />
-        <Input type="number" min={0} step={group === "lineHeight" ? 0.1 : 1} aria-label={t("layout.style.customValue")} value={Number(value)} onChange={(e) => onChange(Number(e.target.value))} style={{ width: 64 }} />
+        <NumberField label={t("layout.style.customValue")} min={0} step={group === "lineHeight" ? 0.1 : 1} value={Number(value)} onCommit={(n) => onChange(n)} style={{ width: 64 }} />
       </Row>
     );
   }
-  return <Input aria-label={prop} value={String(current ?? "")} onChange={(e) => onChange(e.target.value)} />;
+  return <Input aria-label={prop} defaultValue={String(current ?? "")} onBlur={(e) => e.target.value !== String(current ?? "") && onChange(e.target.value)} />;
 }
 
 type Scope = { kind: "own" } | { kind: "type" } | { kind: "label"; name: string };

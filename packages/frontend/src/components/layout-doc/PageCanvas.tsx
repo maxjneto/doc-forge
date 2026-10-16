@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import type { ApplyResult, ComponentGeometry, Engine, LayoutDocument, LayoutResult, PageLayout, UnitBox } from "@docforge/layout";
-import type { LayoutNote, LayoutRect } from "@/utils/api";
+import type { LayoutRect } from "@/utils/api";
+import type { Thread } from "./history";
 import { useI18n } from "@/i18n";
 import { displayName, isAlignedRow, rowRebuildOp, rowsOf, widthLabel } from "./names";
 import { SelectionBar } from "./SelectionBar";
@@ -40,6 +41,12 @@ interface Target {
   y: number;
   w: number;
   h?: number;
+  /**
+   * The fields the gesture changed. A resize writes only these: writing the drawn
+   * position too would pin a box that was pushed down at the spot it was pushed to,
+   * which reorders the layout and makes it jump.
+   */
+  only?: ("x" | "w" | "h")[];
 }
 
 type Gesture =
@@ -53,8 +60,10 @@ type Gesture =
       grabX: number;
       grabY: number;
       moved: boolean;
+      /** Rows the content needs: a box never gets shorter than this (the layout would grow it back). */
+      minH: number;
     }
-  | { kind: "annotate"; page: number; ux: number; uy: number };
+  | { kind: "annotate"; page: number; ux: number; uy: number; startX: number; startY: number; component: string | null };
 
 /** Dragging a block along the row it belongs to: a new order, where it would go, and what to say. */
 interface Reorder {
@@ -72,12 +81,20 @@ interface DragView {
   ok: boolean;
   annotate: LayoutRect | null;
   reorder?: Reorder | null;
+  /** The kind of gesture, for the chip (resizing shows the size). */
+  kind?: DragKind;
+  /** The height asked for was below what the content needs. */
+  clamped?: boolean;
 }
+
+const IDLE: DragView = { id: null, target: null, preview: null, ok: true, annotate: null };
 
 export interface PageCanvasHandle {
   print: () => void;
   /** Scroll so this component is in view. */
   reveal: (id: string) => void;
+  /** Scroll to the top of a page (slide). */
+  goToPage: (page: number) => void;
 }
 
 interface PageCanvasProps {
@@ -93,7 +110,17 @@ interface PageCanvasProps {
   preview: (ops: unknown[]) => ApplyResult;
   annotating: boolean;
   onAnnotate: (rect: LayoutRect) => void;
-  notes: LayoutNote[];
+  /** While commenting, a click on a block anchors the comment to it. */
+  onAnnotateComponent?: (id: string) => void;
+  /** Open comment threads, drawn as numbered pins on the page. */
+  threads: Thread[];
+  /** The thread whose anchor is marked on the page. */
+  focusedThread?: string | null;
+  onPinClick?: (threadId: string) => void;
+  /** "Comment" on the selected block's bar. */
+  onCommentBlock?: (id: string) => void;
+  /** The page in the middle of the view, as the person scrolls. */
+  onVisiblePage?: (page: number) => void;
   /** Components to mark with a number (an agent's changes under review). */
   highlights?: Map<string, number>;
   zoom: number;
@@ -113,15 +140,39 @@ const sameBox = (a: UnitBox, b: UnitBox) => a.page === b.page && a.x === b.x && 
  * sends, previewed with the engine while dragging, and committed on release.
  */
 export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function PageCanvas(props, ref) {
-  const { engine, content, surfaceId, layout, html, editable, selected, onSelect, commit, preview, annotating, onAnnotate, notes, highlights, zoom, announce, onOpenContent } =
-    props;
+  const {
+    engine,
+    content,
+    surfaceId,
+    layout,
+    html,
+    editable,
+    selected,
+    onSelect,
+    commit,
+    preview,
+    annotating,
+    onAnnotate,
+    onAnnotateComponent,
+    threads,
+    focusedThread,
+    onPinClick,
+    onCommentBlock,
+    onVisiblePage,
+    highlights,
+    zoom,
+    announce,
+    onOpenContent,
+  } = props;
   const { t } = useI18n();
   const layer = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const frames = useRef<[HTMLIFrameElement | null, HTMLIFrameElement | null]>([null, null]);
   const gesture = useRef<Gesture | null>(null);
+  /** The block under a pointer-down while commenting (a click comments on it). */
+  const annotateOn = useRef<string | null>(null);
   const raf = useRef<number | null>(null);
-  const [drag, setDrag] = useState<DragView>({ id: null, target: null, preview: null, ok: true, annotate: null });
+  const [drag, setDrag] = useState<DragView>(IDLE);
   /** The text block being edited in place, if any. */
   const [inline, setInline] = useState<string | null>(null);
   /** Edit where it is drawn when the block allows it; otherwise open the content panel. */
@@ -184,7 +235,26 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       const top = (frame.top + frame.page.content.y + g.box.y * unit) * zoom - 80;
       scroller.current.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     },
+    goToPage: (page: number) => {
+      const frame = geometry.frames[page - 1];
+      if (!frame || !scroller.current) return;
+      scroller.current.scrollTo({ top: Math.max(0, (frame.top - PAD / 2) * zoom), behavior: "smooth" });
+    },
   }));
+
+  // Which page is in the middle of the view (the slide rail follows it).
+  const lastVisible = useRef(0);
+  const onScroll = () => {
+    const el = scroller.current;
+    if (!el || !onVisiblePage) return;
+    const middle = (el.scrollTop + el.clientHeight / 2) / zoom;
+    const frame = geometry.frames.find((f) => middle < f.top + f.page.height + PAD / 2) ?? geometry.frames[geometry.frames.length - 1];
+    const page = (frame?.index ?? 0) + 1;
+    if (page !== lastVisible.current) {
+      lastVisible.current = page;
+      onVisiblePage(page);
+    }
+  };
 
   /** Pointer position → page and units (fractional), from the layer's own coordinates. */
   const locate = useCallback(
@@ -204,6 +274,18 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       if (!frame) return null;
       const c = frame.page.content;
       return { page: frame.index + 1, ux: (px - frame.left - c.x) / unit, uy: (py - frame.top - c.y) / unit, rows: frame.page.rows };
+    },
+    [layout.pages, unit, zoom],
+  );
+
+  /** Pointer position → units on a given page, wherever the pointer is (resizing stays on the box's page). */
+  const locateOn = useCallback(
+    (clientX: number, clientY: number, page: number) => {
+      const rect = layer.current?.getBoundingClientRect();
+      const frame = framesOf(layout.pages).frames[page - 1];
+      if (!rect || !frame) return null;
+      const c = frame.page.content;
+      return { page, ux: ((clientX - rect.left) / zoom - frame.left - c.x) / unit, uy: ((clientY - rect.top) / zoom - frame.top - c.y) / unit };
     },
     [layout.pages, unit, zoom],
   );
@@ -234,9 +316,10 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
 
   const targetFor = useCallback(
     (g: Extract<Gesture, { id: string }>, clientX: number, clientY: number, free: boolean): Target | null => {
-      const at = locate(clientX, clientY);
-      if (!at) return null;
       const o = g.origin;
+      // Moving follows the pointer across pages; resizing measures on the box's own page.
+      const at = g.kind === "move" ? locate(clientX, clientY) : locateOn(clientX, clientY, o.page);
+      if (!at) return null;
       const clampX = (x: number, w: number) => Math.max(0, Math.min(cols - w, x));
       switch (g.kind) {
         case "move": {
@@ -246,28 +329,65 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
         }
         case "resize-r": {
           const end = Math.max(o.x + 1, Math.min(cols, snapEnd(Math.round(at.ux), free)));
-          return { page: o.page, x: o.x, y: o.y, w: end - o.x };
+          return { page: o.page, x: o.x, y: o.y, w: end - o.x, only: ["w"] };
         }
         case "resize-l": {
           const end = o.x + o.w;
           const x = Math.max(0, Math.min(end - 1, snapEnd(Math.round(at.ux), free)));
-          return { page: o.page, x, y: o.y, w: end - x };
+          return { page: o.page, x, y: o.y, w: end - x, only: ["x", "w"] };
         }
         case "resize-b":
         case "resize-rb": {
-          const h = Math.max(1, Math.round(at.uy - o.y));
+          const h = Math.max(g.minH, Math.round(at.uy - o.y));
           const w = g.kind === "resize-rb" ? Math.max(1, Math.min(cols, snapEnd(Math.round(at.ux), free)) - o.x) : o.w;
-          return { page: o.page, x: o.x, y: o.y, w, h };
+          return { page: o.page, x: o.x, y: o.y, w, h, only: g.kind === "resize-rb" ? ["w", "h"] : ["h"] };
         }
       }
     },
-    [cols, locate, snapEnd, snapX],
+    [cols, locate, locateOn, snapEnd, snapX],
   );
+
+  /** Asked for less height than the content needs (the box stays at the minimum). */
+  const isClamped = useCallback(
+    (g: Extract<Gesture, { id: string }>, clientY: number) => {
+      if (g.kind !== "resize-b" && g.kind !== "resize-rb") return false;
+      const at = locateOn(0, clientY, g.origin.page);
+      return !!at && Math.round(at.uy - g.origin.y) < g.minH;
+    },
+    [locateOn],
+  );
+
+  /** Stop a gesture without applying it (Escape, a lost pointer). */
+  const cancelGesture = useCallback(() => {
+    gesture.current = null;
+    if (raf.current !== null) cancelAnimationFrame(raf.current);
+    raf.current = null;
+    setDrag(IDLE);
+  }, []);
+  const gestureActive = drag.id !== null || drag.annotate !== null;
+  useEffect(() => {
+    if (!gestureActive) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelGesture();
+        announce(t("layout.editor.dragCancelled"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("blur", cancelGesture);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", cancelGesture);
+    };
+  }, [gestureActive, cancelGesture, announce, t]);
 
   const placeOp = (id: string, target: Target) => ({
     op: "place",
     component: id,
-    at: { page: target.page, x: target.x, y: target.y, w: target.w, ...(target.h !== undefined ? { h: target.h } : {}) },
+    at: target.only
+      ? Object.fromEntries(target.only.filter((k) => target[k] !== undefined).map((k) => [k, target[k]]))
+      : { page: target.page, x: target.x, y: target.y, w: target.w, ...(target.h !== undefined ? { h: target.h } : {}) },
   });
 
   const describeResult = useCallback(
@@ -347,27 +467,40 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       const target = targetFor(current, clientX, clientY, altKey);
       if (!target) return;
       const result = preview([placeOp(current.id, target)]);
-      setDrag({ id: current.id, target, preview: result.ok && result.doc ? engine.layout(result.doc, surfaceId) : null, ok: result.ok, annotate: null, reorder: null });
+      setDrag({
+        id: current.id,
+        target,
+        preview: result.ok && result.doc ? engine.layout(result.doc, surfaceId) : null,
+        ok: result.ok,
+        annotate: null,
+        reorder: null,
+        kind: current.kind,
+        clamped: isClamped(current, clientY),
+      });
     });
   };
 
   const endGesture = (e: PointerEvent) => {
     const g = gesture.current;
     gesture.current = null;
+    layer.current?.releasePointerCapture?.(e.pointerId);
     if (raf.current !== null) cancelAnimationFrame(raf.current);
     raf.current = null;
     if (!g) return;
     if (g.kind === "annotate") {
       const rect = drag.annotate;
-      setDrag({ id: null, target: null, preview: null, ok: true, annotate: null });
-      if (rect) onAnnotate(rect);
+      setDrag(IDLE);
+      // A click on a block (no drag) comments on the block; a drag comments on the area.
+      const clicked = Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 4;
+      if (clicked && g.component && onAnnotateComponent) onAnnotateComponent(g.component);
+      else if (rect) onAnnotate(rect);
       return;
     }
     if (g.moved && g.kind === "move" && !e.altKey) {
       const at = locate(e.clientX, e.clientY);
       const reorder = at ? reorderFor(g.id, at.page, at.ux, at.uy) : null;
       if (reorder) {
-        setDrag({ id: null, target: null, preview: null, ok: true, annotate: null });
+        setDrag(IDLE);
         if (!reorder.changed) return;
         const op = rowRebuildOp(layout, reorder.order);
         const result = op ? commit([op]) : null;
@@ -377,7 +510,7 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       }
     }
     const target = g.moved ? targetFor(g, e.clientX, e.clientY, e.altKey) : null;
-    setDrag({ id: null, target: null, preview: null, ok: true, annotate: null });
+    setDrag(IDLE);
     if (!target) return;
     const o = g.origin;
     if (target.page === o.page && target.x === o.x && target.y === o.y && target.w === o.w && target.h === undefined) return;
@@ -386,13 +519,21 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
   };
 
   const startBoxGesture = (e: PointerEvent, id: string, kind: DragKind, piece: UnitBox) => {
-    if (!editable || annotating || e.button !== 0) return;
+    if (e.button !== 0) return;
+    if (annotating) {
+      // Commenting: the layer starts the gesture; remember the block in case it is a click.
+      annotateOn.current = id;
+      return;
+    }
+    if (!editable) return;
     e.stopPropagation();
     const g = layout.components[id];
     const at = locate(e.clientX, e.clientY);
     if (!g || !at) return;
     onSelect(id);
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // Captured by the layer, which stays mounted: the handle that started a resize
+    // disappears while dragging, and a capture on it would be lost with it.
+    layer.current?.setPointerCapture?.(e.pointerId);
     gesture.current = {
       kind,
       id,
@@ -400,8 +541,9 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       startY: e.clientY,
       origin: g.box,
       grabX: at.ux - piece.x,
-      grabY: at.uy - piece.y + (piece === g.box ? 0 : 0),
+      grabY: at.uy - piece.y,
       moved: false,
+      minH: g.sizing === "content" ? Math.max(1, Math.ceil(g.needed / unit - 1e-6)) : 1,
     };
   };
 
@@ -409,9 +551,11 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
     if (e.button !== 0) return;
     if (annotating) {
       const at = locate(e.clientX, e.clientY);
+      const component = annotateOn.current;
+      annotateOn.current = null;
       if (!at) return;
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-      gesture.current = { kind: "annotate", page: at.page, ux: at.ux, uy: at.uy };
+      layer.current?.setPointerCapture?.(e.pointerId);
+      gesture.current = { kind: "annotate", page: at.page, ux: at.ux, uy: at.uy, startX: e.clientX, startY: e.clientY, component };
       setDrag((d) => ({ ...d, annotate: { page: at.page, x: Math.floor(at.ux), y: Math.floor(at.uy), w: 1, h: 1 } }));
       return;
     }
@@ -435,17 +579,17 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
         const dir = e.key === "ArrowRight" ? 1 : -1;
         if (e.altKey) {
           const w = Math.max(1, Math.min(cols - o.x, o.w + dir * (big ? 4 : 1)));
-          target = { page: o.page, x: o.x, y: o.y, w };
+          target = { page: o.page, x: o.x, y: o.y, w, only: ["w"] };
         } else {
           const x = big ? nextGuide(o.x, dir) : o.x + dir;
-          target = { page: o.page, x: Math.max(0, Math.min(cols - o.w, x)), y: o.y, w: o.w };
+          target = { page: o.page, x: Math.max(0, Math.min(cols - o.w, x)), y: o.y, w: o.w, only: ["x"] };
         }
         break;
       }
       case "ArrowUp":
       case "ArrowDown": {
         const dir = e.key === "ArrowDown" ? 1 : -1;
-        if (e.altKey) target = { page: o.page, x: o.x, y: o.y, w: o.w, h: Math.max(1, (g.declared.h ?? o.h) + dir * (big ? 5 : 1)) };
+        if (e.altKey) target = { page: o.page, x: o.x, y: o.y, w: o.w, h: Math.max(1, (g.declared.h ?? o.h) + dir * (big ? 5 : 1)), only: ["h"] };
         else target = { page: o.page, x: o.x, y: Math.max(0, o.y + dir * (big ? 5 : 1)), w: o.w };
         break;
       }
@@ -475,18 +619,18 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
     } else announce(result.ok ? describeResult(id, result) : t("layout.editor.refused"));
   };
 
-  // Notes drawn on the page: annotations by area, and a mark on anchored components.
-  const noteMarks = useMemo(() => {
-    const byComponent = new Map<string, number>();
-    const areas: LayoutRect[] = [];
-    for (const n of notes) {
-      // Notices already show on the boxes they moved (dashed outline); only people's annotations get a mark.
-      if (n.kind !== "annotation") continue;
-      if (n.anchor.rect) areas.push(n.anchor.rect);
-      else if (n.anchor.component) byComponent.set(n.anchor.component, (byComponent.get(n.anchor.component) ?? 0) + 1);
+  /** Where each open comment's pin goes: the top-right corner of its block or area. */
+  const pins = useMemo(() => {
+    const out: { id: string; number: number; page: number; x: number; y: number; area: LayoutRect | null; component: string | null; agent: boolean }[] = [];
+    for (const th of threads) {
+      if (!th.number) continue;
+      const { rect, component } = th.root.anchor;
+      const g = component ? layout.components[component] : undefined;
+      if (g) out.push({ id: th.root.id, number: th.number, page: g.box.page, x: g.box.x + g.box.w, y: g.box.y, area: null, component: component ?? null, agent: th.root.forAgent });
+      else if (rect) out.push({ id: th.root.id, number: th.number, page: rect.page ?? 1, x: rect.x + rect.w, y: rect.y, area: rect, component: null, agent: th.root.forAgent });
     }
-    return { byComponent, areas };
-  }, [notes]);
+    return out;
+  }, [threads, layout.components]);
 
   const pagePx = (frame: PageFrame, box: { x: number; y: number; w: number; h: number }): CSSProperties => ({
     left: frame.left + frame.page.content.x + box.x * unit,
@@ -503,7 +647,7 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
   const docFrames = framesOf(layout.pages).frames;
 
   return (
-    <div ref={scroller} style={{ flex: 1, overflow: "auto", background: "var(--color-sink)" }}>
+    <div ref={scroller} onScroll={onScroll} style={{ flex: 1, overflow: "auto", background: "var(--color-sink)" }}>
       <div style={{ width: geometry.width * zoom, height: geometry.height * zoom, margin: "0 auto", position: "relative" }}>
         <div style={{ width: geometry.width, height: geometry.height, transform: `scale(${zoom})`, transformOrigin: "0 0", position: "absolute", left: 0, top: 0 }}>
           {([0, 1] as const).map((slot) => (
@@ -577,11 +721,10 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
               if (!frame) return null;
               const isSelected = selected === id;
               const dragging = drag.id === id;
-              const marks = noteMarks.byComponent.get(id) ?? 0;
               return (
                 <div
                   key={`${id}-${index}`}
-                  className={`df-layout-box${editable ? "" : " df-layout-box--readonly"}`}
+                  className={`df-layout-box${editable ? "" : " df-layout-box--readonly"}${annotating ? " df-layout-box--comment" : ""}`}
                   data-selected={isSelected}
                   data-moved={g.shifted > 0 && index === 0}
                   data-changed={highlights?.has(id) || undefined}
@@ -606,11 +749,6 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
                   {highlights?.has(id) && index === 0 && (
                     <span className="df-change-mark df-change-mark--page" aria-hidden>
                       {highlights.get(id)}
-                    </span>
-                  )}
-                  {marks > 0 && (
-                    <span className="df-layout-chip" style={{ right: -6, top: -10, borderColor: "var(--color-warn-line)", color: "var(--color-warn)" }}>
-                      ✎ {marks}
                     </span>
                   )}
                   {isSelected && index === 0 && !dragging && (
@@ -657,6 +795,7 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
                     layout={layout}
                     commit={commit}
                     onOpenContent={() => editContent(selected)}
+                    onComment={onCommentBlock ? () => onCommentBlock(selected) : undefined}
                     onRemoved={() => onSelect(null)}
                     announce={announce}
                     style={{
@@ -770,7 +909,9 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
                       {index === 0 && (
                         <span className="df-layout-chip" style={{ left: 0, top: -24 }}>
                           {isDragged
-                            ? `${nameOf(g.id)} · ${t("layout.structure.page", { n: piece.page })} · ${widthLabel(piece, layout, t)}`
+                            ? drag.kind && drag.kind !== "move"
+                              ? `${widthLabel(piece, layout, t)} · ${t("layout.editor.heightChip", { px: piece.h * unit })}${drag.clamped ? ` · ${t("layout.editor.minHeight")}` : ""}`
+                              : `${nameOf(g.id)} · ${t("layout.structure.page", { n: piece.page })} · ${widthLabel(piece, layout, t)}`
                             : before && before.box.page !== g.box.page
                               ? `${nameOf(g.id)} ${t("layout.editor.newPageChip", { page: g.box.page })}`
                               : t("layout.editor.pushedChip", { name: nameOf(g.id) })}
@@ -782,20 +923,34 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
               })}
             {drag.target && !drag.ok && <span className="df-layout-chip" style={{ left: 8, top: 4, color: "var(--color-error)" }}>{t("layout.editor.refused")}</span>}
 
-            {/* Annotations by area. */}
-            {noteMarks.areas.map((rect, i) => {
-              const frame = docFrames[(rect.page ?? 1) - 1];
+            {/* The marked comment's anchor, and every open comment as a numbered pin. */}
+            {focusedThread &&
+              (() => {
+                const pin = pins.find((p) => p.id === focusedThread);
+                const frame = pin ? docFrames[pin.page - 1] : undefined;
+                if (!pin || !frame) return null;
+                const box = pin.area ?? (pin.component ? layout.components[pin.component]?.box : undefined);
+                if (!box) return null;
+                return <div className="df-layout-ghost df-pin-focus" style={pagePx(frame, { x: box.x, y: box.y, w: box.w, h: box.h })} />;
+              })()}
+            {pins.map((pin) => {
+              const frame = docFrames[pin.page - 1];
               if (!frame) return null;
+              const at = pagePx(frame, { x: pin.x, y: pin.y, w: 0, h: 0 });
               return (
-                <div
-                  key={`area-${i}`}
-                  className="df-layout-ghost"
-                  style={{ ...pagePx(frame, rect), border: "1px dashed var(--color-warn-line)", background: "var(--color-warn-tint)" }}
+                <button
+                  key={pin.id}
+                  type="button"
+                  className="df-pin"
+                  data-agent={pin.agent || undefined}
+                  data-focused={focusedThread === pin.id || undefined}
+                  aria-label={t("layout.comments.pin", { n: pin.number })}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => onPinClick?.(pin.id)}
+                  style={{ left: Number(at.left) - 10, top: Number(at.top) - 12, transform: `scale(${1 / zoom})` }}
                 >
-                  <span className="df-layout-chip" style={{ right: 0, top: -16, color: "var(--color-warn)" }}>
-                    ✎
-                  </span>
-                </div>
+                  {pin.number}
+                </button>
               );
             })}
             {drag.annotate &&

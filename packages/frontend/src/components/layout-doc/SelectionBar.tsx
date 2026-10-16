@@ -11,6 +11,8 @@ interface SelectionBarProps {
   layout: LayoutResult;
   commit: (ops: unknown[]) => ApplyResult;
   onOpenContent: () => void;
+  /** Start a comment on this block. */
+  onComment?: () => void;
   onRemoved: () => void;
   announce: (message: string) => void;
   style: CSSProperties;
@@ -30,7 +32,7 @@ const WIDTHS: { label: string; of12: number }[] = [
  * page, its place in the row it belongs to, and the row's widths and heights. Every
  * button sends the same ops an agent would (`place` with `cols`, `row`).
  */
-export function SelectionBar({ id, doc, layout, commit, onOpenContent, onRemoved, announce, style }: SelectionBarProps) {
+export function SelectionBar({ id, doc, layout, commit, onOpenContent, onComment, onRemoved, announce, style }: SelectionBarProps) {
   const { t } = useI18n();
   const g = layout.components[id];
   const component = doc.components.find((c) => c.id === id);
@@ -129,6 +131,13 @@ export function SelectionBar({ id, doc, layout, commit, onOpenContent, onRemoved
             edit
           </span>
         </button>
+        {onComment && (
+          <button type="button" className="df-layout-bar__item" title={t("layout.bar.comment")} aria-label={t("layout.bar.comment")} onClick={onComment}>
+            <span className="material-symbols-outlined" aria-hidden>
+              add_comment
+            </span>
+          </button>
+        )}
         <button
           type="button"
           className="df-layout-bar__item"
