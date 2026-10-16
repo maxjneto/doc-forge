@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "lint:tokens": "node scripts/check-tokens.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lock": "npm install --package-lock-only --workspaces=false --no-audit --no-fund"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.6",
@@ -20,7 +21,7 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.7",
-    "@docforge/layout": "file:vendor/docforge-layout-0.3.0.tgz",
+    "@docforge/layout": "file:vendor/docforge-layout-0.4.0.tgz",
     "@lezer/highlight": "^1.2.3",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@types/diff-match-patch": "^1.0.36",

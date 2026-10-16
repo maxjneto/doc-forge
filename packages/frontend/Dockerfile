@@ -1,12 +1,22 @@
+# syntax=docker/dockerfile:1
+
 # --- dev stage (used by docker-compose locally) ---
-FROM node:20-alpine AS dev
+# Node 22, not 20: npm 10.8 (Node 20) detects libc with a networked
+# process.report.getReport(), which reverse-resolves every open registry socket
+# and stalls the install ~6 min under Docker Desktop's DNS. npm 10.9 reads ldd.
+FROM node:22-alpine AS dev
 
 WORKDIR /app
 
-COPY package.json ./
+# The frontend keeps its own lockfile for Docker (the workspace lock at the repo
+# root is outside this build context). Regenerate it with `npm run lock` here.
+COPY package.json package-lock.json ./
 # @docforge/layout is vendored as a tarball (scripts/vendor-layout.sh).
 COPY vendor ./vendor
-RUN npm install
+# The cache mount keeps downloaded tarballs across builds, so re-vendoring the
+# lib (which invalidates this layer) does not download everything again.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit --no-fund
 
 COPY . .
 

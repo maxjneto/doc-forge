@@ -8,8 +8,8 @@
 # It also rewrites the tarball's integrity hash in every lockfile: npm keeps the
 # old hash when the version did not change, and `npm ci` then fails with
 # EINTEGRITY. Afterwards run `npm install --workspaces=false` in
-# packages/layout-service and `npm install` at the root, and commit the tarballs
-# and the lockfiles together.
+# packages/layout-service, `npm run lock` in packages/frontend and `npm install`
+# at the root, and commit the tarballs and the lockfiles together.
 set -eu
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
