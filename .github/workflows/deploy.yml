@@ -41,8 +41,11 @@ jobs:
             set -e
             cd "${{ secrets.VPS_PATH || '/opt/docforge' }}"
             git pull --ff-only
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
+            # The box's .env picks the compose files (COMPOSE_FILE): on a shared VPS it
+            # adds docker-compose.colocated.yml, which keeps DocForge's Caddy off 80/443.
+            grep -q '^COMPOSE_FILE=' .env || export COMPOSE_FILE=docker-compose.prod.yml
+            docker compose pull
+            docker compose up -d
             docker image prune -f
 
       - name: Skipped (no VPS secrets configured)

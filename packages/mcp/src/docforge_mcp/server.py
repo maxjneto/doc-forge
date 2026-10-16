@@ -30,7 +30,7 @@ from docforge_mcp.resources.loader import (
 )
 
 # DNS rebinding protection is handled by Cloudflare in production; disable the
-# built-in check so requests with custom Host headers (mcp.doc-forge.dev) are
+# built-in check so requests with custom Host headers (mcp.docforge.dev) are
 # accepted without needing to be in an allowlist.
 mcp = FastMCP(
     "docforge",

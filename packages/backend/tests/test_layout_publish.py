@@ -200,3 +200,17 @@ async def test_by_id_a_pinned_revision_or_the_current_one(client_factory):
     assert current["revision"] == 3 and _ids(current["content"]) == ["a", "b"]
     assert older["content"]["version"] == 2 and older["notes"] == ["converted to 2"]
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_any_site_can_read_a_published_document(client_factory):
+    """CORS: the app's middleware only allows DocForge's own origin; the public
+    read must still answer other sites (CopaSim's page loading a document)."""
+    async with client_factory() as client:
+        doc_id = (await _create(client))["document_id"]
+        token = (await client.post(f"/api/documents/{doc_id}/layout/publish")).json()["token"]
+        res = await client.get(f"/api/public/{token}/layout?format=3", headers={"Origin": "https://copasim.com"})
+
+    assert res.status_code == 200
+    assert res.headers["access-control-allow-origin"] == "*"
+    assert "etag" in res.headers["access-control-expose-headers"].lower()

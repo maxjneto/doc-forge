@@ -35,7 +35,7 @@ ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG VITE_POSTHOG_KEY
 ARG VITE_POSTHOG_HOST=https://us.i.posthog.com
 # Where agents connect, shown in every setup snippet of the app.
-ARG VITE_MCP_URL=https://mcp.doc-forge.dev/mcp
+ARG VITE_MCP_URL=https://mcp.docforge.dev/mcp
 ENV VITE_API_BASE=$VITE_API_BASE \
     VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY \
     VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY \
