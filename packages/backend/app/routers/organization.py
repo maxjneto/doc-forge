@@ -407,6 +407,22 @@ async def read_public_document(token: str, db: AsyncSession = Depends(get_db)):
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
 
+    if doc.document_mode == "layout":
+        # Only what was published (a snapshot); the reader page draws it with the library.
+        from app.routers.layout import published_layout
+
+        found = await published_layout(db, token)
+        if found is None:
+            raise HTTPException(status_code=404, detail="No published version")
+        _, layout = found
+        return {
+            "title": doc.title,
+            "mode": "layout",
+            "content": layout.published_content,
+            "revision": layout.published_revision,
+            "updated_at": layout.published_at,
+        }
+
     body = await db.execute(
         select(SectionVersion.content, SectionVersion.published_at)
         .join(Section, Section.id == SectionVersion.section_id)
@@ -421,6 +437,7 @@ async def read_public_document(token: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No published version")
     return {
         "title": doc.title,
+        "mode": "markdown",
         "content": published.content,
         "updated_at": published.published_at,
     }

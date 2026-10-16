@@ -77,6 +77,10 @@ async def fake_service(path: str, body: dict) -> dict:
         return {"page": body["page"], "pages": 1, "png": "iVBORw0KGgo=", "width": int(794 * body["scale"]), "height": int(1123 * body["scale"]), "highlight": body.get("highlight")}
     if path == "/review":
         return {"findings": [{"code": "empty-space", "components": [c["id"] for c in body["doc"]["components"]]}], "text": "review text"}
+    if path == "/downgrade":
+        doc = copy.deepcopy(body["doc"])
+        doc["version"] = body["target"]
+        return {"ok": True, "doc": doc, "from": 3, "to": body["target"], "notes": [f"converted to {body['target']}"]}
     if path == "/locate":
         return {"anchors": [{"under": [], "text": f"at {a.get('component') or a.get('rect')}"} for a in body["anchors"]]}
     raise AssertionError(path)
@@ -114,7 +118,7 @@ async def test_create_starts_from_an_empty_starter_document(client_factory):
 
     assert state["revision"] == 1
     assert state["content"]["format"] == "docforge/layout"
-    assert state["content"]["version"] == 2
+    assert state["content"]["version"] == 3
     assert "sections" not in state["content"]
     assert state["content"]["meta"]["title"] == "Quarterly"
     assert state["content"]["components"] == []

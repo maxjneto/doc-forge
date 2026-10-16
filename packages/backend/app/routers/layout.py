@@ -14,10 +14,14 @@ Nothing here saves without a write: previews, measurements and finds are free.
 """
 
 import datetime
+import secrets
+import time
 import uuid
+from collections import deque
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +46,8 @@ from app.schemas.layout import (
     LayoutOpsRequest,
     LayoutPreviewRequest,
     LayoutPreviewResponse,
+    LayoutPublishRequest,
+    LayoutPublishState,
     LayoutReplaceRequest,
     LayoutReviewData,
     LayoutReviewResponse,
@@ -280,18 +286,204 @@ async def create_layout_document(
     )
 
 
+async def _revision_content(db: AsyncSession, layout: DocumentLayout, revision: int) -> tuple[dict, datetime.datetime | None]:
+    """The document as it was at `revision` (the current one comes from the layout row)."""
+    if revision == layout.revision:
+        return layout.content, layout.updated_at
+    row = (
+        await db.execute(
+            select(DocumentLayoutRevision).where(
+                DocumentLayoutRevision.document_id == layout.document_id,
+                DocumentLayoutRevision.revision == revision,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Revision {revision} does not exist (the document is at {layout.revision}).")
+    return row.content, row.created_at
+
+
 @router.get("/documents/{document_id}/layout", response_model=LayoutStateResponse)
 async def get_layout(
+    document_id: uuid.UUID,
+    revision: int | None = Query(default=None, ge=1, description="A past revision; default: the current one."),
+    format: int | None = Query(default=None, description="The format version the reader's library reads; older ones get the document converted down."),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc, layout = await _load(db, document_id, current_user, "read")
+    at = revision or layout.revision
+    content, when = await _revision_content(db, layout, at)
+    content, notes = await layout_service.for_reader(content, format)
+    return LayoutStateResponse(
+        document_id=str(document_id),
+        content=content,
+        revision=at,
+        updated_at=when,
+        title=doc.title,
+        notes=notes,
+    )
+
+
+# ─── Publishing ──────────────────────────────────────────────
+# "Publish" takes a snapshot that the public link serves; edits after it stay
+# private until the next one. Unpublishing clears the snapshot and the token, so
+# every link already shared stops working (revocation is real, not cosmetic).
+
+
+def _publish_state(document_id: uuid.UUID, doc: Document, layout: DocumentLayout) -> LayoutPublishState:
+    published = layout.published_content is not None and bool(doc.public_token)
+    return LayoutPublishState(
+        document_id=str(document_id),
+        published=published,
+        token=doc.public_token if published else None,
+        revision=layout.published_revision if published else None,
+        published_at=layout.published_at if published else None,
+        current_revision=layout.revision,
+    )
+
+
+@router.get("/documents/{document_id}/layout/publish", response_model=LayoutPublishState)
+async def get_layout_publication(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _, layout = await _load(db, document_id, current_user, "read")
-    return LayoutStateResponse(
-        document_id=str(document_id),
-        content=layout.content,
-        revision=layout.revision,
-        updated_at=layout.updated_at,
+    doc, layout = await _load(db, document_id, current_user, "manage")
+    return _publish_state(document_id, doc, layout)
+
+
+@router.post("/documents/{document_id}/layout/publish", response_model=LayoutPublishState)
+async def publish_layout(
+    request: Request,
+    document_id: uuid.UUID,
+    body: LayoutPublishRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Publish a revision (default: the current one). The token is kept across
+    publishes, so a link already shared shows the new version."""
+    doc, layout = await _load(db, document_id, current_user, "manage")
+    revision = (body.revision if body else None) or layout.revision
+    content, _ = await _revision_content(db, layout, revision)
+    if not doc.public_token:
+        doc.public_token = secrets.token_urlsafe(24)
+    now = datetime.datetime.now(datetime.UTC)
+    # Publishing is not an edit: keep updated_at as it was.
+    await db.execute(
+        update(DocumentLayout)
+        .where(DocumentLayout.document_id == document_id)
+        .values(published_content=content, published_revision=revision, published_at=now, updated_at=DocumentLayout.updated_at)
+    )
+    await db_service.log_activity(
+        db, document_id, "layout_published", description=f"Published revision {revision}",
+        api_key_id=getattr(request.state, "api_key_id", None),
+    )
+    await db.commit()
+    await db.refresh(layout)
+    _track(request, current_user.id, document_id, "layout_published", {"revision": revision, "behind": layout.revision - revision})
+    return _publish_state(document_id, doc, layout)
+
+
+@router.delete("/documents/{document_id}/layout/publish", response_model=LayoutPublishState)
+async def unpublish_layout(
+    request: Request,
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc, layout = await _load(db, document_id, current_user, "manage")
+    doc.public_token = None
+    await db.execute(
+        update(DocumentLayout)
+        .where(DocumentLayout.document_id == document_id)
+        .values(published_content=None, published_revision=None, published_at=None, updated_at=DocumentLayout.updated_at)
+    )
+    await db_service.log_activity(
+        db, document_id, "layout_unpublished", description="Unpublished; the public link was revoked",
+        api_key_id=getattr(request.state, "api_key_id", None),
+    )
+    await db.commit()
+    await db.refresh(layout)
+    _track(request, current_user.id, document_id, "layout_unpublished")
+    return _publish_state(document_id, doc, layout)
+
+
+async def published_layout(db: AsyncSession, token: str) -> tuple[Document, DocumentLayout] | None:
+    """The document behind a public token, when it is a published layout document."""
+    row = (
+        await db.execute(
+            select(Document, DocumentLayout)
+            .join(DocumentLayout, DocumentLayout.document_id == Document.id)
+            .where(Document.public_token == token, Document.document_mode == LAYOUT_MODE)
+        )
+    ).first()
+    if row is None or row[1].published_content is None:
+        return None
+    return row[0], row[1]
+
+
+# Public reads, per client IP: generous for a page that loads a few documents,
+# low enough that a loop cannot keep the layout service busy.
+PUBLIC_READS_PER_MINUTE = 120
+_public_reads: dict[str, deque[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    # Behind Caddy the last X-Forwarded-For entry is the address Caddy saw.
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _limit_public_reads(request: Request) -> None:
+    now = time.monotonic()
+    hits = _public_reads.setdefault(_client_ip(request), deque())
+    while hits and now - hits[0] > 60:
+        hits.popleft()
+    if len(hits) >= PUBLIC_READS_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="Too many reads from this address; try again in a minute.", headers={"Retry-After": "60"})
+    hits.append(now)
+    if len(_public_reads) > 10_000:
+        for ip in [ip for ip, q in _public_reads.items() if not q or now - q[-1] > 60]:
+            del _public_reads[ip]
+
+
+@router.get("/public/{token}/layout")
+async def read_public_layout(
+    token: str,
+    request: Request,
+    format: int | None = Query(default=None, description="The format version the reader's library reads."),
+    db: AsyncSession = Depends(get_db),
+):
+    """The published version of a layout document, for @docforge-lib/layout
+    (`fetchPublished`). No authentication: the token is the capability. Any site
+    may read it (CORS *); the ETag lets readers revalidate without downloading."""
+    _limit_public_reads(request)
+    headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "ETag"}
+    found = await published_layout(db, token)
+    if found is None:
+        raise HTTPException(status_code=404, detail="Not found", headers=headers)
+    doc, layout = found
+    target = layout_service.served_format(format)
+    stamp = int(layout.published_at.timestamp()) if layout.published_at else 0
+    etag = f'"{doc.id.hex[:12]}-{layout.published_revision}-{stamp}-f{target}"'
+    headers |= {"ETag": etag, "Cache-Control": "public, max-age=60"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    content, notes = await layout_service.for_reader(layout.published_content, format)
+    capture_event(str(doc.user_id), str(doc.id), "layout_public_read", {"source": "public", "format": target, "downgraded": bool(notes)})
+    return JSONResponse(
+        {
+            "document_id": str(doc.id),
+            "title": doc.title,
+            "revision": layout.published_revision,
+            "published_at": layout.published_at.isoformat() if layout.published_at else None,
+            "content": content,
+            "notes": notes,
+        },
+        headers=headers,
     )
 
 

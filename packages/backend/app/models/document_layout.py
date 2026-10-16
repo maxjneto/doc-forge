@@ -30,5 +30,10 @@ class DocumentLayout(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # What the public link serves: a snapshot taken on "Publish", so later edits
+    # stay private until the next one. Null = not published.
+    published_content: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    published_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     document = relationship("Document", back_populates="layout")

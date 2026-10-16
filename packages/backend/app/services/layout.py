@@ -1,6 +1,6 @@
 """Client for the internal layout service (packages/layout-service).
 
-The backend cannot run @docforge/layout (TypeScript), so measuring, validating
+The backend cannot run @docforge-lib/layout (TypeScript), so measuring, validating
 and applying operations happen in that Node process. This module is the only
 place that talks to it; every failure to reach it becomes a 503 so a caller
 never mistakes "the service is down" for "the document is invalid".
@@ -17,6 +17,10 @@ from loguru import logger
 from app.config import settings
 
 FORMAT = "docforge/layout"
+# The format version the vendored library writes. Readers with an older library
+# ask for theirs (`?format=`) and get the document converted down (`downgrade`).
+FORMAT_VERSION = 3
+OLDEST_SERVED_FORMAT = 2
 
 
 # Type for a 1280 × 720 slide: the document scale read from across a room.
@@ -32,7 +36,7 @@ def starter_document(title: str, fmt: str = "page") -> dict[str, Any]:
     if fmt == "slide":
         return {
             "format": FORMAT,
-            "version": 2,
+            "version": 3,
             "meta": {"title": title},
             "tokens": {"size": dict(SLIDE_SIZES)},
             "surfaces": [{"id": "slides", "kind": "page", "size": "Slide", "margin": 56}],
@@ -40,7 +44,7 @@ def starter_document(title: str, fmt: str = "page") -> dict[str, Any]:
         }
     return {
         "format": FORMAT,
-        "version": 2,
+        "version": 3,
         "meta": {"title": title},
         "surfaces": [
             {"id": "a4", "kind": "page", "size": "A4", "margin": 40},
@@ -167,3 +171,34 @@ async def review(doc: dict[str, Any]) -> dict[str, Any]:
 async def locate(doc: dict[str, Any], anchors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Where each note anchor is now and what is drawn there: [{component?, under, text}]."""
     return (await _call("/locate", {"doc": doc, "anchors": anchors}))["anchors"]
+
+
+async def downgrade(doc: dict[str, Any], target: int) -> dict[str, Any]:
+    """{ok, doc, from, to, notes}: the document in an older format version, and what
+    that format cannot say (one line each)."""
+    return await _call("/downgrade", {"doc": doc, "target": target})
+
+
+def served_format(requested: int | None) -> int:
+    """The format version to answer a reader with: the one it reads, or the current one
+    when it reads newer (or did not say). Older than OLDEST_SERVED_FORMAT is refused."""
+    if requested is None or requested >= FORMAT_VERSION:
+        return FORMAT_VERSION
+    if requested < OLDEST_SERVED_FORMAT:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Format {requested} is not served; the oldest is {OLDEST_SERVED_FORMAT}. Update @docforge-lib/layout.",
+        )
+    return requested
+
+
+async def for_reader(doc: dict[str, Any], requested: int | None) -> tuple[dict[str, Any], list[str]]:
+    """The document in the format the reader's library reads, and what was lost."""
+    target = served_format(requested)
+    if target == FORMAT_VERSION:
+        return doc, []
+    result = await downgrade(doc, target)
+    if not result.get("ok") or result.get("doc") is None:
+        logger.error("[layout] downgrade failed | target={} notes={}", target, result.get("notes"))
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Could not convert the document to the format asked.")
+    return result["doc"], list(result.get("notes") or [])

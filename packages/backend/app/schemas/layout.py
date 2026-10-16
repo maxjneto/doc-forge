@@ -85,6 +85,25 @@ class LayoutStateResponse(BaseModel):
     content: dict[str, Any]
     revision: int
     updated_at: datetime.datetime | None = None
+    title: str | None = None
+    # What converting to an older format (`?format=`) could not keep; empty otherwise.
+    notes: list[str] = []
+
+
+class LayoutPublishRequest(BaseModel):
+    # The revision to publish; default: the current one.
+    revision: int | None = Field(default=None, ge=1)
+
+
+class LayoutPublishState(BaseModel):
+    document_id: str
+    published: bool
+    # The capability in the public link (…/public/<token>); null when not published.
+    token: str | None = None
+    revision: int | None = None
+    published_at: datetime.datetime | None = None
+    # The document's revision now: more than `revision` = edits not published yet.
+    current_revision: int
 
 
 class LayoutWriteResponse(BaseModel):
