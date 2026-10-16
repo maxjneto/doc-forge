@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { renderPageSvg, type ApplyResult, type Engine, type LayoutDocument, type LayoutResult } from "@docforge/layout";
+import { renderPageSvg, type ApplyResult, type Engine, type LayoutDocument, type LayoutResult } from "@docforge-lib/layout";
 import { IconButton } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { newComponentId } from "./defaults";

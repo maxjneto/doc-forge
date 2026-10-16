@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import type { Component, LayoutDocument, ResolvedStyle, TextRole, Tokens } from "@docforge/layout";
+import type { Component, LayoutDocument, ResolvedStyle, TextRole, Tokens } from "@docforge-lib/layout";
 import type { InsertKey } from "./defaults";
 import { componentStyle, textCssString } from "./inlineStyle";
 import { SlashMenu, type SlashMenuHandle } from "./SlashMenu";

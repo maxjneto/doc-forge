@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canEditInline, markdownToHtml, nodeToMarkdown } from "@/components/layout-doc/InlineTextEditor";
-import type { Component } from "@docforge/layout";
+import type { Component } from "@docforge-lib/layout";
 
 const roundTrip = (md: string) => {
   const div = document.createElement("div");

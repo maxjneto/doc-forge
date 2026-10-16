@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ApplyResult, Component, ComponentGeometry, LayoutDocument, LayoutResult, Tokens } from "@docforge/layout";
+import type { ApplyResult, Component, ComponentGeometry, LayoutDocument, LayoutResult, Tokens } from "@docforge-lib/layout";
 import { Button, IconButton, Input, Pill, Switch, Tab, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { TYPE_ICON } from "../defaults";

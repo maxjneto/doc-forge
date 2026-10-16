@@ -8,7 +8,7 @@ import {
   type StyleProp,
   type StyleProps,
   type Tokens,
-} from "@docforge/layout";
+} from "@docforge-lib/layout";
 import { Button, IconButton, Input, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { NumberField, Row, SectionTitle, Select } from "./fields";

@@ -1,4 +1,4 @@
-import type { ApplyResult, Diagnostic, LayoutDocument, LayoutResult, ReviewFinding } from "@docforge/layout";
+import type { ApplyResult, Diagnostic, LayoutDocument, LayoutResult, ReviewFinding } from "@docforge-lib/layout";
 import { textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { displayName } from "../names";

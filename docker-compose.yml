@@ -63,7 +63,7 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
-  # Runs @docforge/layout for the backend (validate, apply ops, map).
+  # Runs @docforge-lib/layout for the backend (validate, apply ops, map).
   layout:
     build:
       context: ./packages/layout-service

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createEngine, type LayoutDocument } from "@docforge/layout";
-import { createNodeRegistry } from "@docforge/layout/node";
+import { createEngine, type LayoutDocument } from "@docforge-lib/layout";
+import { createNodeRegistry } from "@docforge-lib/layout/node";
 import { describeChange } from "@/components/layout-doc/changes";
 import { itemsToText, textToItems } from "@/components/layout-doc/panels/ContentEditor";
 import { translate } from "@/i18n";
@@ -20,7 +20,7 @@ const engine = createEngine({ registry: createNodeRegistry() });
 const getToken = async () => "token";
 const text = (id: string, y: number) => ({ id, type: "text", content: { paragraphs: [id] }, at: { page: 1, x: 0, y, w: 40 } });
 const doc = (components: unknown[]): LayoutDocument =>
-  ({ format: "docforge/layout", version: 2, surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }], components }) as LayoutDocument;
+  ({ format: "docforge/layout", version: 3, surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }], components }) as LayoutDocument;
 const ids = (d: LayoutDocument) => d.components.map((c) => c.id);
 const ok = (revision: number) => ({ ok: true, revision, diagnostics: [], changes: [] });
 

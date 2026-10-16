@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ApplyResult, Comparison, Engine, LayoutDocument } from "@docforge/layout";
+import type { ApplyResult, Comparison, Engine, LayoutDocument } from "@docforge-lib/layout";
 import { Button, IconButton, Input, Pill, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { apiGetLayoutRevision, apiListLayoutRevisions, apiSaveLayoutVersion, apiUpdateLayoutRevision, type LayoutNote, type LayoutRevisionItem } from "@/utils/api";

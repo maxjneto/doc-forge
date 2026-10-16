@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { TokenOverrides } from "@docforge/layout";
+import type { TokenOverrides } from "@docforge-lib/layout";
 import { apiCreateLayoutTheme, apiDeleteLayoutTheme, apiListLayoutThemes, apiUpdateLayoutTheme, type LayoutTheme } from "@/utils/api";
 
 type GetToken = () => Promise<string | null>;

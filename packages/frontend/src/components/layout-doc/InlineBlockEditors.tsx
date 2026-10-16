@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent } from "react";
-import type { Component, ComponentGeometry, LayoutDocument, Tokens } from "@docforge/layout";
+import type { Component, ComponentGeometry, LayoutDocument, Tokens } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
 import { canEditInline } from "./InlineTextEditor";
 import { componentStyle, textCss } from "./inlineStyle";

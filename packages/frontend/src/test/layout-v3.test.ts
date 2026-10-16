@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createEngine, mergeTokens, type LayoutDocument } from "@docforge/layout";
-import { createNodeRegistry } from "@docforge/layout/node";
+import { createEngine, mergeTokens, type LayoutDocument } from "@docforge-lib/layout";
+import { createNodeRegistry } from "@docforge-lib/layout/node";
 import { describeRevision, groupTimeline, threadsOf } from "@/components/layout-doc/history";
 import { newSlideOps } from "@/components/layout-doc/SlideRail";
 import { completeTheme, contrast, currentTheme, draftSize, presetKey, readability, RADIUS_PRESETS, themeOps, withDraft } from "@/components/layout-doc/themes";
@@ -10,7 +10,7 @@ import type { LayoutNote, LayoutRevisionItem, LayoutTheme } from "@/utils/api";
 const engine = createEngine({ registry: createNodeRegistry() });
 const t = (key: string, vars?: Record<string, string | number>) => translate("pt-BR", key, vars);
 const doc = (extra: Partial<LayoutDocument> = {}): LayoutDocument =>
-  ({ format: "docforge/layout", version: 2, surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }], components: [], ...extra }) as LayoutDocument;
+  ({ format: "docforge/layout", version: 3, surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }], components: [], ...extra }) as LayoutDocument;
 
 const theme = (name: string, color: Record<string, string>, key: string | null = null): LayoutTheme => ({ id: key ? `builtin:${key}` : name, key, name, description: null, builtin: Boolean(key), byAgent: false, tokens: { color } });
 

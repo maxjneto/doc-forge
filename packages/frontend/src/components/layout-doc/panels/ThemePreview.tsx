@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { Tokens } from "@docforge/layout";
+import type { Tokens } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
 import { docFont } from "../fonts";
 

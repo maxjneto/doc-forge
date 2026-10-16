@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { mergeTokens, type ApplyResult, type LayoutDocument, type LayoutResult, type TokenOverrides } from "@docforge/layout";
+import { mergeTokens, type ApplyResult, type LayoutDocument, type LayoutResult, type TokenOverrides } from "@docforge-lib/layout";
 import { Button, IconButton, Input, Pill, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import type { LayoutTheme } from "@/utils/api";

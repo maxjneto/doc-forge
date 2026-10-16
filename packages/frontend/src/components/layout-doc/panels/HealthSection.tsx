@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ApplyResult, LayoutDocument, ReviewFinding } from "@docforge/layout";
+import type { ApplyResult, LayoutDocument, ReviewFinding } from "@docforge-lib/layout";
 import { Button, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { displayName } from "../names";

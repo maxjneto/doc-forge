@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
-import type { ApplyResult, ComponentGeometry, Engine, LayoutDocument, LayoutResult, PageLayout, UnitBox } from "@docforge/layout";
+import type { ApplyResult, ComponentGeometry, Engine, LayoutDocument, LayoutResult, PageLayout, UnitBox } from "@docforge-lib/layout";
 import type { LayoutRect } from "@/utils/api";
 import type { Thread } from "./history";
 import { useI18n } from "@/i18n";

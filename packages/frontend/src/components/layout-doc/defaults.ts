@@ -1,4 +1,4 @@
-import type { ComponentType, LayoutDocument } from "@docforge/layout";
+import type { ComponentType, LayoutDocument } from "@docforge-lib/layout";
 
 /** Order of the "Add" menu: the everyday ones first. */
 export const ADDABLE_TYPES: ComponentType[] = ["text", "kpi", "card", "list", "table", "chart", "steps", "timeline", "code", "image", "divider"];

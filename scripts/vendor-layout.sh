@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
-# Pack @docforge/layout from the sibling repo and vendor it into the packages
-# that use it. The lib has no public registry or remote, so the tarball is
-# committed: Docker builds each package from its own folder and needs it there.
+# Pack @docforge-lib/layout from the sibling repo and vendor it into the packages
+# that use it, for changes not yet published to npm. The tarball is committed:
+# Docker builds each package from its own folder and needs it there.
 #
 #   scripts/vendor-layout.sh [path-to-docforge-layout]   (default: ../docforge-layout)
 #
@@ -22,7 +22,7 @@ tarball="$(cd "$lib" && npm pack --silent --pack-destination "$root")"
 for pkg in frontend layout-service; do
   dir="$root/packages/$pkg/vendor"
   mkdir -p "$dir"
-  rm -f "$dir"/docforge-layout-*.tgz
+  rm -f "$dir"/docforge-layout-*.tgz "$dir"/docforge-lib-layout-*.tgz
   cp "$root/$tarball" "$dir/"
   echo "vendored $tarball -> packages/$pkg/vendor/"
 done
@@ -31,7 +31,7 @@ rm "$root/$tarball"
 # npm keeps an installed package whose version did not change, even when the
 # tarball did: drop the installed copies (and Vite's pre-bundle) so the next
 # install really takes the new build.
-rm -rf "$root/node_modules/@docforge/layout"   "$root/packages/frontend/node_modules/@docforge/layout"   "$root/packages/layout-service/node_modules/@docforge/layout"   "$root/packages/frontend/node_modules/.vite"
+rm -rf "$root/node_modules/@docforge-lib/layout"   "$root/packages/frontend/node_modules/@docforge-lib/layout"   "$root/packages/layout-service/node_modules/@docforge-lib/layout"   "$root/packages/frontend/node_modules/.vite"
 
 # Point every lock entry for the vendored tarball at its real hash.
 node - "$root" "$tarball" <<'JS'

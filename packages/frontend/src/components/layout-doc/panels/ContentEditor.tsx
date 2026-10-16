@@ -1,5 +1,5 @@
 import { useEffect, useState, type FocusEvent, type ReactNode } from "react";
-import { TEXT_ROLES, type ApplyResult, type Component } from "@docforge/layout";
+import { TEXT_ROLES, type ApplyResult, type Component } from "@docforge-lib/layout";
 import { Button, Input, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { Field, ItemActions, move, Row, Select, TextArea } from "./fields";

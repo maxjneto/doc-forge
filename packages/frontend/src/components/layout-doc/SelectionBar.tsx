@@ -1,5 +1,5 @@
 import type { CSSProperties, PointerEvent } from "react";
-import type { ApplyResult, LayoutDocument, LayoutResult } from "@docforge/layout";
+import type { ApplyResult, LayoutDocument, LayoutResult } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
 import { TYPE_ICON } from "./defaults";
 import { guideSpan, isAlignedRow, rowRebuildOp, rowsOf } from "./names";

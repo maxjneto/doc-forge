@@ -3,11 +3,11 @@
 // version, so updating the tarball fails here before it fails in the backend.
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { createLayoutServer } from "@docforge/layout/server";
+import { createLayoutServer } from "@docforge-lib/layout/server";
 
 const doc = () => ({
   format: "docforge/layout",
-  version: 2,
+  version: 3,
   meta: { title: "Test" },
   surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }],
   components: [{ id: "t", type: "text", content: { paragraphs: ["Hello"] }, at: { page: 1, x: 0, y: 0, w: 89 } }],
@@ -147,8 +147,20 @@ describe("layout service contract", () => {
     };
     const { body } = await post("/upgrade", { doc: v1 });
     assert.equal(body.ok, true);
-    assert.equal(body.doc.version, 2);
+    assert.equal(body.doc.version, 3);
     assert.ok(Array.isArray(body.notes));
+  });
+
+  it("POST /downgrade -> ok, doc, from, to, notes (public reads for older libraries)", async () => {
+    const deck = { ...doc(), surfaces: [{ id: "deck", kind: "page", size: "Slide", margin: 48 }] };
+    const { body } = await post("/downgrade", { doc: deck, target: 2 });
+    assert.equal(body.ok, true);
+    assert.equal(body.doc.version, 2);
+    assert.deepEqual(body.doc.surfaces[0].size, { width: 1280, height: 720 });
+    assert.equal(body.from, 3);
+    assert.equal(body.to, 2);
+    assert.equal(body.notes.length, 1);
+    assert.equal((await post("/downgrade", { doc: deck })).status, 400);
   });
 
   it("bad requests are 400 (the backend maps them to 422)", async () => {

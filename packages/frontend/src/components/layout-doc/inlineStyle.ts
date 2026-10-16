@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { defaultPresets, resolveStyle, type Component, type LayoutDocument, type ResolvedStyle, type Tokens } from "@docforge/layout";
+import { defaultPresets, resolveStyle, type Component, type LayoutDocument, type ResolvedStyle, type Tokens } from "@docforge-lib/layout";
 
 /**
  * A component's style (or one of its parts: a text role, a KPI label, a table

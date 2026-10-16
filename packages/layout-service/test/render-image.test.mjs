@@ -6,14 +6,14 @@ import { fileURLToPath } from "node:url";
 import { after, before, describe, it } from "node:test";
 
 // The CLI sits next to the server entry in the package's dist/.
-const cli = fileURLToPath(import.meta.resolve("@docforge/layout/server")).replace(/server\.js$/, "cli.js");
+const cli = fileURLToPath(import.meta.resolve("@docforge-lib/layout/server")).replace(/server\.js$/, "cli.js");
 const port = 18000 + Math.floor(Math.random() * 1000);
 const base = `http://127.0.0.1:${port}`;
 let child;
 
 const doc = {
   format: "docforge/layout",
-  version: 2,
+  version: 3,
   surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }],
   components: [
     { id: "t", type: "text", content: { paragraphs: [{ role: "title-1", text: "Relatório" }] }, at: { page: 1, x: 0, y: 0, w: 89 } },

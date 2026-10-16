@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { STYLE_PROPS, type ApplyResult, type LayoutDocument, type LayoutResult, type StyleProp, type StyleProps } from "@docforge/layout";
+import { STYLE_PROPS, type ApplyResult, type LayoutDocument, type LayoutResult, type StyleProp, type StyleProps } from "@docforge-lib/layout";
 import { Button, IconButton, Input, Pill, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { Field, Row, SectionTitle, Select } from "./fields";

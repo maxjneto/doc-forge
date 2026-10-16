@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ApplyResult, LayoutDocument, LayoutResult } from "@docforge/layout";
+import type { ApplyResult, LayoutDocument, LayoutResult } from "@docforge-lib/layout";
 import { Button, Input, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { Field, Row, SectionTitle, Select } from "./fields";

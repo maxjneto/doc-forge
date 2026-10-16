@@ -1,4 +1,4 @@
-import { defaultTokens, mergeTokens, type LayoutDocument, type TokenOverrides, type Tokens } from "@docforge/layout";
+import { defaultTokens, mergeTokens, type LayoutDocument, type TokenOverrides, type Tokens } from "@docforge-lib/layout";
 import type { LayoutTheme } from "@/utils/api";
 
 /**

@@ -1,4 +1,4 @@
-import type { Component, LayoutResult } from "@docforge/layout";
+import type { Component, LayoutResult } from "@docforge-lib/layout";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 type Json = Record<string, unknown>;
@@ -102,7 +102,7 @@ export function widthLabel(box: { x: number; w: number }, layout: LayoutResult, 
 }
 
 /** Blocks drawn side by side, from the layout (the lib computes it; nothing is stored). */
-export { rowsOf, type RowGroup } from "@docforge/layout";
+export { rowsOf, type RowGroup } from "@docforge-lib/layout";
 
 const COLOR_KEYS = ["text", "muted", "primary", "surface", "subtle", "border", "success", "danger", "warning", "highlight"];
 

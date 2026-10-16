@@ -1,11 +1,11 @@
 /**
  * A layout document (components placed on a unit grid, version 2), as an agent built it through MCP
  * with create_layout_document + apply_layout_ops. Rendered in the browser by
- * @docforge/layout.
+ * @docforge-lib/layout.
  */
 export const layoutContent = {
   "format": "docforge/layout",
-  "version": 2,
+  "version": 3,
   "meta": {
     "title": "Relatório do 3º trimestre",
     "locale": "pt-BR"

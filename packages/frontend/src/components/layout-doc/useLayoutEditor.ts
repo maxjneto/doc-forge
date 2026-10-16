@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApplyResult, Engine, LayoutDocument } from "@docforge/layout";
+import type { ApplyResult, Engine, LayoutDocument } from "@docforge-lib/layout";
 import {
   apiApplyLayoutOps,
   apiGetLayout,

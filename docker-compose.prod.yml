@@ -90,7 +90,7 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
-  # Runs @docforge/layout for the backend. Stateless, internal only.
+  # Runs @docforge-lib/layout for the backend. Stateless, internal only.
   layout:
     image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-layout:${IMAGE_TAG:-latest}
     restart: unless-stopped

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createEngine, type Component, type LayoutDocument } from "@docforge/layout";
-import { createNodeRegistry } from "@docforge/layout/node";
+import { createEngine, type Component, type LayoutDocument } from "@docforge-lib/layout";
+import { createNodeRegistry } from "@docforge-lib/layout/node";
 import { insertOps } from "@/components/layout-doc/defaults";
 import { inlineKind } from "@/components/layout-doc/InlineBlockEditors";
 import { isAlignedRow, rowRebuildOp, rowsOf } from "@/components/layout-doc/names";
@@ -10,7 +10,7 @@ const engine = createEngine({ registry: createNodeRegistry() });
 const t = (key: string) => translate("pt-BR", key);
 const base = {
   format: "docforge/layout",
-  version: 2,
+  version: 3,
   surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }],
   components: [{ id: "title", type: "text", content: { paragraphs: ["Q3"] }, at: { page: 1, x: 0, y: 0, w: 89 } }],
 } as unknown as LayoutDocument;

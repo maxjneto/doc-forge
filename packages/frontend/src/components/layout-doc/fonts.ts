@@ -1,21 +1,21 @@
-import { BUNDLED_FONTS, createBrowserRegistry, type BundledFontFile, type FontRegistry } from "@docforge/layout";
-import interBold from "@docforge/layout/fonts/Inter-Bold.ttf?url";
-import interBoldItalic from "@docforge/layout/fonts/Inter-BoldItalic.ttf?url";
-import interItalic from "@docforge/layout/fonts/Inter-Italic.ttf?url";
-import interMedium from "@docforge/layout/fonts/Inter-Medium.ttf?url";
-import interRegular from "@docforge/layout/fonts/Inter-Regular.ttf?url";
-import interSemiBold from "@docforge/layout/fonts/Inter-SemiBold.ttf?url";
-import interSemiBoldItalic from "@docforge/layout/fonts/Inter-SemiBoldItalic.ttf?url";
-import monoRegular from "@docforge/layout/fonts/JetBrainsMono-Regular.ttf?url";
-import monoSemiBold from "@docforge/layout/fonts/JetBrainsMono-SemiBold.ttf?url";
-import serifBold from "@docforge/layout/fonts/SourceSerif4-Bold.ttf?url";
-import serifItalic from "@docforge/layout/fonts/SourceSerif4-Italic.ttf?url";
-import serifRegular from "@docforge/layout/fonts/SourceSerif4-Regular.ttf?url";
-import serifSemiBold from "@docforge/layout/fonts/SourceSerif4-SemiBold.ttf?url";
-import groteskBold from "@docforge/layout/fonts/SpaceGrotesk-Bold.ttf?url";
-import groteskMedium from "@docforge/layout/fonts/SpaceGrotesk-Medium.ttf?url";
-import groteskRegular from "@docforge/layout/fonts/SpaceGrotesk-Regular.ttf?url";
-import groteskSemiBold from "@docforge/layout/fonts/SpaceGrotesk-SemiBold.ttf?url";
+import { BUNDLED_FONTS, createBrowserRegistry, type BundledFontFile, type FontRegistry } from "@docforge-lib/layout";
+import interBold from "@docforge-lib/layout/fonts/Inter-Bold.ttf?url";
+import interBoldItalic from "@docforge-lib/layout/fonts/Inter-BoldItalic.ttf?url";
+import interItalic from "@docforge-lib/layout/fonts/Inter-Italic.ttf?url";
+import interMedium from "@docforge-lib/layout/fonts/Inter-Medium.ttf?url";
+import interRegular from "@docforge-lib/layout/fonts/Inter-Regular.ttf?url";
+import interSemiBold from "@docforge-lib/layout/fonts/Inter-SemiBold.ttf?url";
+import interSemiBoldItalic from "@docforge-lib/layout/fonts/Inter-SemiBoldItalic.ttf?url";
+import monoRegular from "@docforge-lib/layout/fonts/JetBrainsMono-Regular.ttf?url";
+import monoSemiBold from "@docforge-lib/layout/fonts/JetBrainsMono-SemiBold.ttf?url";
+import serifBold from "@docforge-lib/layout/fonts/SourceSerif4-Bold.ttf?url";
+import serifItalic from "@docforge-lib/layout/fonts/SourceSerif4-Italic.ttf?url";
+import serifRegular from "@docforge-lib/layout/fonts/SourceSerif4-Regular.ttf?url";
+import serifSemiBold from "@docforge-lib/layout/fonts/SourceSerif4-SemiBold.ttf?url";
+import groteskBold from "@docforge-lib/layout/fonts/SpaceGrotesk-Bold.ttf?url";
+import groteskMedium from "@docforge-lib/layout/fonts/SpaceGrotesk-Medium.ttf?url";
+import groteskRegular from "@docforge-lib/layout/fonts/SpaceGrotesk-Regular.ttf?url";
+import groteskSemiBold from "@docforge-lib/layout/fonts/SpaceGrotesk-SemiBold.ttf?url";
 
 // Vite renames assets, so the library gets a file → URL map. It measures with
 // these bytes and the rendered page loads the same files through @font-face, so
