@@ -574,7 +574,7 @@ export async function apiUpdateDocumentTitle(
 }
 
 export interface LayoutState {
-  /** The @docforge/layout document, rendered in the browser by the same library. */
+  /** The @docforge-lib/layout document, rendered in the browser by the same library. */
   content: unknown;
   revision: number;
   updatedAt: string | null;
@@ -819,6 +819,51 @@ export async function apiGetLayoutRevision(documentId: string, revision: number,
   if (!res.ok) throw new Error(`Failed to read revision ${revision} (${res.status})`);
   const data = (await res.json()) as { revision: number; content: unknown };
   return { revision: data.revision, content: data.content };
+}
+
+/** What a layout document's public link serves: a snapshot taken on "Publish". */
+export interface LayoutPublication {
+  published: boolean;
+  /** The capability in the public link (`/public/<token>`); null when not published. */
+  token: string | null;
+  revision: number | null;
+  publishedAt: string | null;
+  /** The editor's revision now: more than `revision` = edits not published yet. */
+  currentRevision: number;
+}
+
+function mapPublication(raw: Record<string, unknown>): LayoutPublication {
+  return {
+    published: Boolean(raw.published),
+    token: (raw.token as string | null) ?? null,
+    revision: (raw.revision as number | null) ?? null,
+    publishedAt: (raw.published_at as string | null) ?? null,
+    currentRevision: Number(raw.current_revision),
+  };
+}
+
+export async function apiGetLayoutPublication(documentId: string, getToken: GetToken): Promise<LayoutPublication> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/publish`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to read the publication (${res.status})`);
+  return mapPublication((await res.json()) as Record<string, unknown>);
+}
+
+/** Publish the current revision (or `revision`). The link stays the same across publishes. */
+export async function apiPublishLayout(documentId: string, getToken: GetToken, revision?: number): Promise<LayoutPublication> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/publish`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(revision ? { revision } : {}),
+  });
+  if (!res.ok) throw new Error(`Failed to publish (${res.status})`);
+  return mapPublication((await res.json()) as Record<string, unknown>);
+}
+
+/** Unpublish: the link stops working; publishing again makes a new one. */
+export async function apiUnpublishLayout(documentId: string, getToken: GetToken): Promise<LayoutPublication> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/publish`, { method: "DELETE", headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to unpublish (${res.status})`);
+  return mapPublication((await res.json()) as Record<string, unknown>);
 }
 
 /** Save a version: name the current revision (or `revision`). */

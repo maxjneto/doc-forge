@@ -471,6 +471,7 @@ export function HomePage() {
             documentId={sharing.id}
             documentTitle={sharing.title}
             publishedAt={sharing.publishedAt}
+            layout={sharing.documentMode === "layout"}
             onClose={() => setSharing(null)}
         />
       )}

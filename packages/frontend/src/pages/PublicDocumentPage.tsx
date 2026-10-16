@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DocumentOutline, LanguageSwitcher, MarkdownRenderer } from "@/components/shared";
 import { API_BASE } from "@/utils/api";
@@ -6,22 +6,30 @@ import { parseHeadings } from "@/utils/documentStructure";
 import { scrollToDocumentHeading, useDocumentScrollSpy } from "@/utils/useDocumentScrollSpy";
 import { useI18n } from "@/i18n";
 
+const PublicLayoutView = lazy(() => import("@/components/layout-doc/PublicLayoutView"));
+
+type PublicDocument =
+  | { mode?: "markdown"; title: string; content: string; updated_at: string | null }
+  | { mode: "layout"; title: string; content: unknown; updated_at: string | null };
+
 /**
  * A document read through its public link.
  *
  * No authentication and no chrome: the token is the capability, and whoever
  * holds it is a reader, not a collaborator. Deliberately shows only title and
- * text — never members, versions, suggestions or gate findings.
+ * text — never members, versions, suggestions or gate findings. A page document
+ * shows what its owner published, drawn by @docforge-lib/layout.
  */
 export function PublicDocumentPage() {
   const { t, dateLocale } = useI18n();
   const { token } = useParams<{ token: string }>();
-  const [doc, setDoc] = useState<{ title: string; content: string; updated_at: string | null } | null>(null);
+  const [doc, setDoc] = useState<PublicDocument | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const scrollRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const headings = useMemo(() => parseHeadings(doc?.content ?? ""), [doc?.content]);
+  const markdown = doc && doc.mode !== "layout" ? doc.content : "";
+  const headings = useMemo(() => parseHeadings(markdown), [markdown]);
 
   useDocumentScrollSpy({
     scrollRef,
@@ -114,9 +122,10 @@ export function PublicDocumentPage() {
           </aside>
         )}
         <main ref={scrollRef} style={{ flex: 1, minWidth: 0, overflowY: "auto" }} className="df-scroll-thin">
-          <div ref={contentRef} style={{ maxWidth: 820, margin: "0 auto", padding: "48px 40px 96px" }}>
+          <div ref={contentRef} style={doc?.mode === "layout" ? { maxWidth: 1360, margin: "0 auto", padding: "40px 16px 80px" } : { maxWidth: 820, margin: "0 auto", padding: "48px 40px 96px" }}>
         {doc ? (
           <>
+            {doc.mode !== "layout" && (
             <h1
               style={{
                 fontSize: 28,
@@ -128,12 +137,19 @@ export function PublicDocumentPage() {
             >
               {doc.title}
             </h1>
+            )}
             {doc.updated_at && (
               <div className="df-mono" style={{ marginTop: -18, marginBottom: 28, fontSize: 10, letterSpacing: "var(--tracking-label)", color: "var(--color-faint)" }}>
                 {t("public.publishedOn", { date: new Date(doc.updated_at).toLocaleDateString(dateLocale) }).toUpperCase()}
               </div>
             )}
-            <MarkdownRenderer content={doc.content} variant="editor" headingIds />
+            {doc.mode === "layout" ? (
+              <Suspense fallback={<p style={{ fontSize: 13, color: "var(--color-faint)" }}>{t("common.loading")}</p>}>
+                <PublicLayoutView content={doc.content} title={doc.title} />
+              </Suspense>
+            ) : (
+              <MarkdownRenderer content={doc.content} variant="editor" headingIds />
+            )}
           </>
         ) : (
           <p style={{ fontSize: 13, color: "var(--color-faint)" }}>{t("common.loading")}</p>

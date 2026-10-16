@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { createEngine, type ComponentType, type Engine, type Surface } from "@docforge/layout";
+import { createEngine, type ComponentType, type Engine, type Surface } from "@docforge-lib/layout";
 import { Button, IconButton, Switch, textStyle } from "@/components/ui";
 import {
   apiCreateLayoutAnnotation,
@@ -25,6 +25,7 @@ import { PagePanel } from "./panels/PagePanel";
 import { ReviewPanel } from "./panels/ReviewPanel";
 import { StructurePanel } from "./panels/StructurePanel";
 import { PresentMode } from "./PresentMode";
+import { PublishDialog } from "./PublishDialog";
 import { SlideRail } from "./SlideRail";
 import { threadsOf, type Thread } from "./history";
 import { useLayoutEditor } from "./useLayoutEditor";
@@ -148,6 +149,7 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
   const [viewing, setViewing] = useState<ViewingVersion | null>(null);
   const [visiblePage, setVisiblePage] = useState(1);
   const [presenting, setPresenting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const surfaces = doc.surfaces;
   const activeSurface = surfaceId && surfaces.some((s) => s.id === surfaceId) ? surfaceId : surfaces[0]?.id;
@@ -375,6 +377,19 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
           >
             {t("layout.print")}
           </Button>
+          {role === "owner" && (
+            <Button
+              variant="secondary"
+              icon="public"
+              iconPosition="start"
+              onClick={() => {
+                track("layout_publish_opened");
+                setPublishing(true);
+              }}
+            >
+              {t("layout.publish.button")}
+            </Button>
+          )}
         </div>
         {noticeText && !viewing && (
           <div role="status" className="df-layout-banner df-layout-banner--steel">
@@ -603,6 +618,7 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
         ))}
       </nav>
 
+      {publishing && <PublishDialog documentId={documentId} saving={editor.status === "saving"} onClose={() => setPublishing(false)} />}
       {presenting && <PresentMode html={output.page} pages={layout.pages.length} width={layout.pages[0]?.width ?? 1280} height={layout.pages[0]?.height ?? 720} start={visiblePage} onClose={() => setPresenting(false)} />}
     </div>
   );

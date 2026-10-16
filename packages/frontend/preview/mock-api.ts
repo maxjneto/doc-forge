@@ -5,7 +5,7 @@
  * for testing flows.
  */
 import * as fx from "./fixtures";
-import { createEngine, type Engine } from "@docforge/layout";
+import { createEngine, type Engine } from "@docforge-lib/layout";
 import { loadRegistry } from "../src/components/layout-doc/fonts";
 import { layoutContent } from "./layout";
 import deckContent from "../../backend/app/layout_templates/apresentacao.json";
@@ -32,6 +32,20 @@ const storeOf = (content: unknown): Store => ({
 const layoutStores: Record<string, Store> = { "doc-layout-q3": storeOf(layoutContent), "doc-layout-deck": storeOf(deckContent) };
 const storeFor = (id: string) => layoutStores[id] ?? (layoutStores["doc-layout-q3"] as Store);
 const layoutStore = layoutStores["doc-layout-q3"] as Store;
+
+// What each layout document published (the public link serves this snapshot).
+const published: Record<string, { token: string; revision: number; at: string; content: unknown }> = {};
+const publication = (id: string) => {
+  const entry = published[id];
+  return {
+    document_id: id,
+    published: Boolean(entry),
+    token: entry?.token ?? null,
+    revision: entry?.revision ?? null,
+    published_at: entry?.at ?? null,
+    current_revision: storeFor(id).revision,
+  };
+};
 const savedThemes: Record<string, unknown>[] = [];
 let layoutEngine: Promise<Engine> | null = null;
 const engineFor = () => (layoutEngine ??= loadRegistry().then((registry) => createEngine({ registry })));
@@ -154,6 +168,21 @@ const routes: Route[] = [
     if (r) Object.assign(r, { name: body.name, note: body.note ?? null });
     const { content: _c, ...rest } = r ?? {};
     return rest;
+  }],
+  ["GET", /\/documents\/([^/]+)\/layout\/publish$/, (m) => publication(docFrom(m))],
+  ["POST", /\/documents\/([^/]+)\/layout\/publish$/, (m) => {
+    const id = docFrom(m);
+    const store = storeFor(id);
+    published[id] = { token: published[id]?.token ?? `pub_layout_${id}`, revision: store.revision, at: new Date().toISOString(), content: structuredClone(store.content) };
+    return publication(id);
+  }],
+  ["DELETE", /\/documents\/([^/]+)\/layout\/publish$/, (m) => {
+    delete published[docFrom(m)];
+    return publication(docFrom(m));
+  }],
+  ["GET", /\/public\/(pub_layout_[^/]+)$/, (m) => {
+    const entry = Object.values(published).find((p) => p.token === m[1]);
+    return entry ? { mode: "layout", title: "Relatório Q3", content: entry.content, revision: entry.revision, updated_at: entry.at } : {};
   }],
   ["PUT", /\/documents\/([^/]+)\/layout$/, (m, init) => layoutWrite(storeFor(docFrom(m)), null, bodyOf(init).content)],
   ["GET", /\/documents\/([^/]+)\/layout\/notes$/, (m, _i, url) => listNotes(storeFor(docFrom(m)), url)],
