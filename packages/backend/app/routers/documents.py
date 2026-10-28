@@ -170,7 +170,7 @@ async def export_document(
 ):
     """Export the document's active content as Markdown, PDF or Word.
 
-    Markdown is free; PDF and DOCX are a Pro perk (see product-plan §9 / tiers).
+    Which formats a plan may export comes from its tier (services/tiers.py).
     """
     fmt = format.lower()
     if fmt not in export_service.EXPORT_FORMATS:

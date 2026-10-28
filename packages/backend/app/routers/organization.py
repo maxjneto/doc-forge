@@ -1,7 +1,7 @@
 """Folders and sharing.
 
 Two things that turn DocForge from a list of one user's documents into a place
-documents live in. See docs/product/document-organization.md.
+documents live in.
 """
 
 import secrets

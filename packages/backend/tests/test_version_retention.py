@@ -1,4 +1,4 @@
-"""Tests for Free-plan version retention (product-plan §9.4).
+"""Tests for Free-plan version retention.
 
 create_section_version prunes the oldest inactive versions of a section once
 the Free-plan limit is exceeded — never the active version, never a version

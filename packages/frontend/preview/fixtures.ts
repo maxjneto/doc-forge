@@ -27,7 +27,7 @@ export const me = {
   next_document_creations_reset_at: nextMondayUtc(),
 };
 
-// Numbers follow docs/product/agent-first-document-quotas.md.
+// Numbers follow backend/app/services/tiers.py.
 export const tiers = [
   {
     slug: "free", name: "Free", price_monthly_usd: 0, credits: "5 / week",

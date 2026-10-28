@@ -41,7 +41,7 @@ async def log_activity(
 
 
 async def _prune_old_versions(db: AsyncSession, section_id: uuid.UUID, doc_id: uuid.UUID) -> None:
-    """Free-plan version retention (product-plan §9.4): keep at most N total
+    """Free-plan version retention: keep at most N total
     versions per section (the active one plus the N-1 most recent inactive
     ones), oldest pruned first.
 

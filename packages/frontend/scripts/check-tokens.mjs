@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Design-token guard (docs/product/design-system-consolidation.md §3.1, v2).
+ * Design-token guard (rules in docs/architecture/frontend.md, design system).
  *
  * HARD rules — must stay at zero:
  *

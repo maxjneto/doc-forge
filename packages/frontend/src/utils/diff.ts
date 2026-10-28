@@ -2,9 +2,9 @@
  * Line diff and hunk grouping.
  *
  * Review and version comparison both need the same thing: "what changed, and
- * which section is it in". The document stays one markdown blob (see
- * docs/product/document-surface-revamp.md §2.1) — so the grouping happens at
- * presentation time, over hunks, rather than by slicing storage.
+ * which section is it in". The document stays one markdown blob, so the
+ * grouping happens at presentation time, over hunks, rather than by slicing
+ * storage.
  */
 
 import { parseHeadings, headingAtLine, type Heading } from "./documentStructure";

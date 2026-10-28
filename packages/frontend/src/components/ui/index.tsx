@@ -9,8 +9,7 @@
  * Everything here draws from the ramp in index.css; nothing hardcodes colour.
  * Interactive states (hover, focus, disabled) live in index.css under
  * `.df-btn`, `.df-input`, `.df-icon-btn`, so they work with the keyboard too.
- *
- * See docs/product/design-system-consolidation.md §2.
+ * The rules for using them are in packages/frontend/CLAUDE.md.
  */
 import { useEffect } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, CSSProperties } from "react";

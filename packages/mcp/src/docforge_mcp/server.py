@@ -261,7 +261,6 @@ async def get_document(document_id: str, full: bool = False, *, ctx: Context) ->
     header = (
         f"Title: {doc['title']}\n"
         f"ID: {doc['id']}\n"
-        f"Phase: {doc.get('current_phase')}\n"
     )
     headings = _extract_headings(content)
     if full or not headings:

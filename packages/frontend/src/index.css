@@ -2,7 +2,7 @@
 
 @theme {
   /* ─── DocForge ramp — the single source of truth ──────────────
-     docs/product/design-system-consolidation.md (v2). Rules:
+     docs/architecture/frontend.md (design system). Rules:
      · Only the base colours below are typed as literals. Everything else is
        derived from them (color-mix) or is a named role.
      · Names say when to use a value, never how much of it there is —

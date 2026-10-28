@@ -118,7 +118,7 @@ async def submit_quality_findings(
 ):
     """Agent-run gate: the user's agent audited the document and reports findings.
 
-    Free of charge (BYOA incentive). An empty list asserts the document passed.
+    Free of charge. An empty list asserts the document passed.
     """
     await _get_owned_document(document_id, current_user, db)
 

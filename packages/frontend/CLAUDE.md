@@ -1,8 +1,8 @@
 # Frontend — design rules
 
 The design system lives in `src/index.css` (`@theme` + `:root`) and
-`src/components/ui`. Source of truth for the reasoning:
-`docs/product/design-system-consolidation.md`.
+`src/components/ui`. The reasoning behind it is in
+`docs/architecture/frontend.md` (design system).
 
 `npm run lint:tokens` (runs in CI) enforces most of what follows. Run it
 before finishing any UI change.

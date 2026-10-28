@@ -4,11 +4,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 SSEEventType = Literal[
-    "phase_changed",
     "section_updated",
     "audit_results",
     "document_updated",
-    "error",
     "suggestion_created",
     "suggestion_resolved",
     "feedback_created",
