@@ -71,10 +71,6 @@ If `get_activity` shows a write by someone other than you between your last read
 | `rename_version` | Update a version's name/summary. |
 | `get_activity` | Recent actions on the document. |
 | `get_document_url` | Browser URL to share with the user. |
-| `list_document_types` | Structured types (RFC, …) usable with the pipeline. |
-| `start_pipeline` | Start a structured document pipeline you execute step by step. |
-| `get_next_step` | Current pipeline step: instructions + context. Also resumes interrupted runs. |
-| `submit_step` | Submit the current pipeline step's result. |
 | `get_quality_gate` | Read the quality-gate state and sections to audit. |
 | `submit_quality_findings` | Record findings from an agent-run cross-section audit. |
 | `list_artifacts` / `create_artifact` | Manage diagrams, tables, and decision notes attached to the document. |
@@ -90,10 +86,6 @@ If `get_activity` shows a write by someone other than you between your last read
 | `apply_layout_ops` | Change a layout document (`edit` and `replaceText` fix parts of the content); answers with a short summary of what changed and what moved. |
 | `get_layout_notes` / `resolve_layout_note` | Notices (what the layout moved on its own) and annotations people pinned. |
 | `get_layout_document` | Raw JSON of a layout document. |
-
-## Pipelines (structured documents)
-
-For structured documents (RFC today, more types over time), prefer `start_pipeline` over freehand writing. The server drives a durable state machine: discovery per section (you gather the facts — read the repo, ask your user), an alignment checkpoint the human approves in the browser, sectioned generation (reviewed via suggestions where an existing version exists), and a final audit you perform. When the pipeline completes, the document is handed to the free editor. If your session dies mid-run, call `get_next_step` from any future session to resume exactly where it stopped.
 
 ## Layout documents
 

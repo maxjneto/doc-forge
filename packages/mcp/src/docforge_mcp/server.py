@@ -30,7 +30,7 @@ from docforge_mcp.resources.loader import (
 )
 
 # DNS rebinding protection is handled by Cloudflare in production; disable the
-# built-in check so requests with custom Host headers (mcp.docforge.dev) are
+# built-in check so requests with custom Host headers (mcp.doc-forge.dev) are
 # accepted without needing to be in an allowlist.
 mcp = FastMCP(
     "docforge",
@@ -224,16 +224,15 @@ async def list_documents(*, ctx: Context) -> str:
 
 
 @mcp.tool()
-async def create_document(title: str, context: str = "", *, ctx: Context) -> str:
-    """Create a new DocForge editor document using one weekly document creation.
+async def create_document(title: str, *, ctx: Context) -> str:
+    """Create a new DocForge Markdown document using one weekly document creation.
     Returns the document id, title, and browser URL.
 
     Args:
         title: Document title.
-        context: Optional short description of what this document is for.
     """
     _use_api_key(ctx)
-    doc = await api.create_document(title, context)
+    doc = await api.create_document(title)
     url = api.document_url(doc["id"])
     return (
         f"Document created.\n"
@@ -639,147 +638,6 @@ async def get_document_url(document_id: str) -> str:
         document_id: Document UUID.
     """
     return api.document_url(document_id)
-
-
-# ─── Pipeline (BYOA — you execute, the human checkpoints) ────
-
-@mcp.tool()
-async def list_document_types(*, ctx: Context) -> str:
-    """List structured document types (e.g. RFC) with their section structure.
-    Use a type's slug with start_pipeline to produce that document end-to-end."""
-    _use_api_key(ctx)
-    types = await api.list_document_types()
-    if not types:
-        return "No document types available."
-    lines = []
-    for t in types:
-        sections = ", ".join(
-            s.get("section_key", "?")
-            for s in sorted(t.get("sections", []), key=lambda s: s.get("order", 0))
-        )
-        lines.append(f"- {t['slug']}: {t['name']} — sections: {sections}\n  {t.get('description', '')}")
-    return "\n".join(lines)
-
-
-@mcp.tool()
-async def list_pipelines(*, ctx: Context) -> str:
-    """List the user's custom pipeline definitions (cloned from a baseline and
-    edited). Pass an id to start_pipeline to run one instead of the baseline."""
-    _use_api_key(ctx)
-    definitions = await api.list_pipeline_definitions()
-    if not definitions:
-        return "No custom pipelines. start_pipeline runs the baseline for a document type."
-    lines = []
-    for d in definitions:
-        steps = d.get("steps", [])
-        lines.append(f"- {d['name']} id={d['id']} steps={len(steps)}")
-    return "\n".join(lines)
-
-
-@mcp.tool()
-async def start_pipeline(
-    document_context: str,
-    document_type_slug: str = "rfc",
-    title: str = "",
-    pipeline_definition_id: str = "",
-    *,
-    ctx: Context,
-) -> str:
-    """Start a structured document pipeline that YOU execute step by step.
-    Uses one weekly document creation. The server drives the state machine: call get_next_step for
-    instructions, do the work with your own tools (read the repo, talk to your
-    user), then submit_step. The user approves checkpoints in the browser.
-    The pipeline is durable — if your session dies, any future session resumes
-    exactly where you left off via get_next_step.
-
-    Args:
-        document_context: What this document is about (min 20 chars) — the problem, goal, scope.
-        document_type_slug: Document type from list_document_types (default 'rfc').
-        title: Optional document title.
-        pipeline_definition_id: Optional custom pipeline id (see list_pipelines) to run
-            the user's customized flow instead of the baseline.
-    """
-    _use_api_key(ctx)
-    result = await api.start_pipeline(
-        document_type_slug, title or None, document_context,
-        pipeline_definition_id=pipeline_definition_id or None,
-    )
-    doc_id = result["document_id"]
-    step = result.get("next_step", {})
-    url = api.document_url(doc_id)
-    return (
-        f"Pipeline started.\n"
-        f"Document: {result.get('title')} (id={doc_id})\n"
-        f"URL: {url} — share with the user so they can follow and approve checkpoints.\n\n"
-        f"FIRST STEP ({step.get('phase')}"
-        + (f" / {step.get('section_key')}" if step.get("section_key") else "")
-        + f"):\n{step.get('instructions', '')}"
-    )
-
-
-@mcp.tool()
-async def get_next_step(document_id: str, known_context_hash: str = "", *, ctx: Context) -> str:
-    """Get the current pipeline step: instructions + accumulated context.
-    Also use this to resume a pipeline after an interruption, or to poll after
-    a human checkpoint. Pass known_context_hash (the hash from your last call
-    for this document, if any) to skip resending the context block when
-    nothing has changed since.
-
-    Args:
-        document_id: Document UUID.
-        known_context_hash: The context hash from your previous get_next_step
-            response for this document, if you have one.
-    """
-    _use_api_key(ctx)
-    step = await api.get_next_step(document_id)
-    status = step.get("status")
-    if status in ("completed", "waiting_human"):
-        return f"[{status.upper()}] {step.get('message', '')}"
-    header = (
-        f"STEP {step.get('step_index', 0) + 1}/{step.get('total_steps', '?')} — "
-        f"{step.get('phase')}"
-        + (f" / {step.get('section_key')}" if step.get("section_key") else "")
-    )
-    context_hash = step.get("context_hash", "")
-    if known_context_hash and known_context_hash == context_hash:
-        return (
-            f"{header}\n\n{step.get('instructions', '')}\n\n"
-            f"--- CONTEXT UNCHANGED (hash={context_hash}) ---\n"
-            "Same as your last call for this document — no need to re-read it."
-        )
-    context = step.get("context") or {}
-    return (
-        f"{header}\n\n{step.get('instructions', '')}\n\n"
-        f"--- CONTEXT (hash={context_hash}) ---\n{_json(context)}"
-    )
-
-
-@mcp.tool()
-async def submit_step(document_id: str, payload: dict[str, Any], *, ctx: Context) -> str:
-    """Submit the result of the current pipeline step.
-    The payload shape depends on the step — get_next_step tells you exactly
-    what to send, e.g. {"content": "..."} or {"summaries": {"context": "..."}}
-    or {"findings": []}.
-
-    Args:
-        document_id: Document UUID.
-        payload: Object with the step's payload (shape depends on the current phase).
-    """
-    _use_api_key(ctx)
-    result = await api.submit_step(document_id, payload)
-    status = result.get("status")
-    if status == "completed":
-        return "Step accepted. PIPELINE COMPLETED — the document is finished."
-    if status == "waiting_human":
-        return (
-            "Step accepted. The pipeline is now WAITING FOR HUMAN APPROVAL in the "
-            "browser. Ask your user to review the summaries, then call get_next_step."
-        )
-    header = (
-        f"Step accepted. NEXT: {result.get('phase')}"
-        + (f" / {result.get('section_key')}" if result.get("section_key") else "")
-    )
-    return f"{header}\n\n{result.get('instructions', '')}"
 
 
 # ─── Quality gate (agent-run — free; 'CI for documents') ─────

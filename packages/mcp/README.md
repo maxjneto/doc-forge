@@ -4,9 +4,9 @@ MCP server for DocForge. Lets an AI agent (e.g. Claude Code) read and write to a
 
 ## How it works
 
-1. The agent calls `create_document` for a free-form editor document, or `start_pipeline` for a structured flow → gets a URL → shares it with the user
+1. The agent calls `create_document` for a Markdown document, or `create_layout_document` for pages and slides → gets a URL → shares it with the user
 2. The user opens the URL in their browser
-3. The agent reads local files (via its own file tools), then calls `write_section`, `append_section`, or `patch_section`; for a pipeline it follows `get_next_step` / `submit_step`
+3. The agent reads local files (via its own file tools), then calls `write_section`, `append_section`, or `patch_section` (or `apply_layout_ops` on a layout document)
 4. The user's browser updates via SSE — suggestions, feedback, versions and activity remain visible in the workspace
 5. The agent calls `snapshot_section` to save named checkpoints
 
@@ -89,8 +89,6 @@ For a free-form editor document, the agent will:
 3. Read your source files
 4. Read the current document and write, append, or patch content according to the document's write policy
 5. Review suggestions/feedback and save a named version snapshot when appropriate
-
-For a structured document, ask the agent to use `list_document_types`, `start_pipeline`, `get_next_step`, and `submit_step`. The pipeline includes per-section discovery, a human alignment checkpoint, sequential generation, and a final audit before handing off to the editor.
 
 ---
 

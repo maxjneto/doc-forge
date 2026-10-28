@@ -20,7 +20,7 @@ def get_tiers() -> list[dict]:
                 f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} document creations each week",
                 f"Up to {settings.FREE_MAX_ACTIVE_DOCUMENTS} active documents",
                 "Suggestion review & feedback loop",
-                "Writing guides for agents (ADR, postmortem, RFC)",
+                "Writing guides for agents (ADR, postmortem, runbook, RFC)",
                 "No authenticated exports",
             ],
             "limits": {

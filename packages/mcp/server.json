@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "dev.doc-forge/docforge-mcp",
-  "description": "DocForge MCP server — lets AI agents read, write, and pipeline structured documents (RFCs, ADRs, postmortems, runbooks) as a shared, human-reviewed source of truth. Writes are pending suggestions by default, reviewed as diffs in the browser before they land.",
+  "description": "DocForge MCP server — lets AI agents write Markdown documents and lay out pages and slides that people review and edit. Markdown writes are pending suggestions by default, reviewed as diffs in the browser before they land; layout writes are checked by a layout engine and summarized in text.",
   "version": "0.1.0",
-  "websiteUrl": "https://docforge.dev",
+  "websiteUrl": "https://doc-forge.dev",
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://mcp.docforge.dev/mcp",
+      "url": "https://mcp.doc-forge.dev/mcp",
       "headers": [
         {
           "name": "Authorization",
-          "description": "Bearer token — generate an API key at https://docforge.dev/mcp",
+          "description": "Bearer token — generate an API key at https://doc-forge.dev/mcp",
           "isRequired": true,
           "isSecret": true
         }

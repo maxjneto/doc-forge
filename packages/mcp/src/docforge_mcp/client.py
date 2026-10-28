@@ -92,12 +92,8 @@ async def list_documents() -> list[dict[str, Any]]:
     return data.get("documents", []) if isinstance(data, dict) else data
 
 
-async def create_document(title: str, context: str = "") -> dict[str, Any]:
-    return await _post("/documents", json={
-        "title": title,
-        "document_context": context or None,
-        "mode": "editor",
-    })
+async def create_document(title: str) -> dict[str, Any]:
+    return await _post("/documents", json={"title": title})
 
 
 async def get_document(document_id: str) -> dict[str, Any]:
@@ -192,30 +188,6 @@ async def resolve_feedback(
     })
 
 
-# ─── Document types & pipeline (BYOA) ────────────────────────
-
-async def list_document_types() -> list[dict[str, Any]]:
-    return await _get("/document-types")
-
-
-async def start_pipeline(
-    document_type_slug: str,
-    title: str | None,
-    document_context: str,
-    pipeline_definition_id: str | None = None,
-) -> dict[str, Any]:
-    return await _post("/pipeline/documents", json={
-        "document_type_slug": document_type_slug,
-        "title": title,
-        "document_context": document_context,
-        "pipeline_definition_id": pipeline_definition_id,
-    })
-
-
-async def list_pipeline_definitions() -> list[dict[str, Any]]:
-    return await _get("/pipeline-definitions")
-
-
 # ─── Quality gate ────────────────────────────────────────────
 
 async def get_gate_status(document_id: str) -> dict[str, Any]:
@@ -231,14 +203,6 @@ async def submit_quality_findings(document_id: str, findings: list[dict]) -> Any
         f"/documents/{document_id}/quality-gate/findings",
         json={"findings": findings},
     )
-
-
-async def get_next_step(document_id: str) -> dict[str, Any]:
-    return await _get(f"/documents/{document_id}/pipeline/next-step")
-
-
-async def submit_step(document_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    return await _post(f"/documents/{document_id}/pipeline/submit", json={"payload": payload})
 
 
 def document_url(document_id: str) -> str:

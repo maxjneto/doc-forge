@@ -31,12 +31,11 @@ Lists all your DocForge editor documents.
 
 ## `create_document`
 
-Creates a new editor document using one weekly document creation.
+Creates a new Markdown document using one weekly document creation.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `title` | string | yes | Document title |
-| `context` | string | no | Short description of the document's purpose |
 
 Returns the document ID, title, and browser URL. **Share the URL with the user immediately** so they can open it and follow along.
 
@@ -285,18 +284,6 @@ http://localhost:5173/document/abc123...
 
 ---
 
-## Structured pipelines
-
-| Tool | Purpose |
-|---|---|
-| `list_document_types` | List the available structured document types and their sections. |
-| `list_pipelines` | List custom pipeline definitions available to the user. |
-| `start_pipeline` | Start a durable agent-executed pipeline using one weekly document creation. |
-| `get_next_step` | Read the current step, context, or human-waiting/completed status. |
-| `submit_step` | Submit discovery context, alignment summaries, generated content, or audit findings. |
-
-The baseline pipeline is executed by the agent: discovery per section → alignment checkpoint → sequential generation → audit. The user approves alignment in the browser. After the run completes, the document is handed to the editor.
-
 ## Quality gates and artifacts
 
 | Tool | Purpose |
@@ -347,6 +334,4 @@ Composable mini-playbooks for common workflows.
 5. Use `patch_section` / `append_section` for focused changes; use `write_section` for a deliberate full replacement
 6. `check_suggestions(id)`                    → verify review status
 7. `snapshot_section(id, "Initial draft")`   → preserve a named checkpoint
-
-For a structured document use `list_document_types` → `start_pipeline` → repeated `get_next_step` / `submit_step`. When the response says `WAITING_HUMAN`, ask the user to approve or reject the alignment in the browser before polling again.
 ```
