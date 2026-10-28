@@ -293,6 +293,45 @@ http://localhost:5173/document/abc123...
 | `list_artifacts` | List diagrams, tables, and decision notes attached to a document. |
 | `create_artifact` | Create supporting material and return its `::artefato[key]` anchor directive. |
 
+## Layout documents
+
+Pages and slides made of components on a grid. The agent never sees the page: it reads a text map and gets a summary after every write. Read `docforge://guide/layout` before the first one; it has the shape of every component and operation.
+
+### Building and changing
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `create_layout_document` | `title`, `content?`, `template?`, `format?` | New layout document (one weekly creation). Empty A4 page by default; `template` starts from a finished composition (`relatorio`, `proposta`, `one-pager`, `apresentacao`); `format: "slide"` for an empty 16:9 deck. |
+| `get_layout_map` | `document_id`, `level?`, `components?`, `pages?`, `draw?` | The document as text: level 0 outline, level 1 settings and each page drawn in ASCII, level 2 everything. |
+| `get_layout_document` | `document_id` | Raw JSON and revision, for when exact content is needed. |
+| `apply_layout_ops` | `document_id`, `ops`, `base_revision?`, `pages?`, `map?`, `note?` | Apply operations atomically. Refused only for a malformed op, an unknown id or an invalid result; layout side effects come back in the summary. |
+| `preview_layout` | `document_id`, `ops?`, `content?`, `pages?`, `map?` | What ops (or a whole draft) would produce. Saves nothing. |
+| `measure_component` | `component`, `widths?`, `cols?`, `document_id?` | How tall a component would be at given widths, before placing it. |
+| `calibrate_style` | `document_id`, `variants`, `component?` \| `label?` \| `selector?` | Compare up to 12 style variants on the document before choosing one. |
+| `render_page` | `document_id`, `page?`, `scale?`, `highlight?` | A page as PNG, for agents that can see images. |
+| `review_layout` | `document_id` | What a reader would notice (boxes taller than their content, uneven rows, edges off the guides, a near-empty last page), each with the ops that fix it. |
+| `find_layout` | `document_id`, `text?`, `type?`, `label?`, `page?`, `rect?`, `state?` | Find components by content, type, class, page, area or state (moved, split, warning…). |
+
+### Working with the person
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `get_layout_notes` | `document_id`, `status?`, `kind?`, `component?` | Notices (what the layout did on its own) and annotations people pinned, including requests addressed to the agent. |
+| `request_review` | `document_id`, `summary`, `focus?`, `questions?` | Hand the document to the person: what was done, what to look at, up to 5 questions with options. |
+| `reply_layout_note` | `document_id`, `note_id`, `message` | Answer in a note's thread. |
+| `resolve_layout_note` | `note_id`, `status?`, `note?` | Close, acknowledge or reopen a note. |
+| `save_layout_version` | `document_id`, `name`, `note?` | Name the current revision ("Sent to the client"). |
+| `list_layout_versions` | `document_id`, `all_edits?`, `limit?` | Saved versions, or every write with its author. |
+| `restore_layout_version` | `document_id`, `revision` | Bring back a revision as a new write on top. |
+
+### Themes
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `list_layout_themes` | — | Built-in themes and the ones the person saved. |
+| `apply_layout_theme` | `document_id`, `theme` | Colors, fonts and radii in one write. |
+| `save_layout_theme` | `name`, `tokens?` \| `from_document?`, `description?` | Save a reusable theme. |
+
 ## Resources
 
 Resources are read-only URIs the agent can read without a tool call.

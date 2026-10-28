@@ -1,6 +1,6 @@
 # layout-service
 
-The [`@docforge/layout`](../../../docforge-layout) HTTP server, packaged as an image for
+The [`@docforge-lib/layout`](https://github.com/maxjneto/docforge-layout) HTTP server, packaged as an image for
 the Python backend. There is no code here: the library ships the server
 (`docforge-layout serve`), and this package only pins the version and runs it, with
 `@resvg/resvg-js` installed so `/render-image` can draw pages as PNG without a browser.

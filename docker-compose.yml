@@ -14,6 +14,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+      # The first start runs initdb, which can take longer than the retries allow.
+      start_period: 30s
 
   redis:
     image: redis:7-alpine

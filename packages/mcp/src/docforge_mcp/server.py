@@ -977,7 +977,7 @@ async def apply_layout_ops(
     *,
     ctx: Context,
 ) -> str:
-    """Change a layout document with operations: add, place, update, edit,
+    """Change a layout document with operations: add, place, row, update, edit,
     replaceText, remove, setStyle, setRegion, removeRegion, setTokens, setGrid,
     setSurface, removeSurface, setMeta, page, compact, fit (shapes: docforge://guide/layout).
     Positions: {page, x, y, w, h?} in units, or relative — cols:[a,b] for x/w,

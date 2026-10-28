@@ -61,10 +61,9 @@ navigation uses `.df-nav-item` + `.df-nav-count`. Times are relative
 
 `npm run dev:preview` serves the real app on :5199 with Clerk stubbed and
 the API answered from `preview/fixtures.ts` (the CopaSim document from the
-v4 mocks). Open `/home`, `/document/doc-copasim`, `/mcp`, `/billing`,
-`/customize`, and the guided pipeline at each phase: `/document/doc-pipe-discovery`,
-`/document/doc-pay-rfc` (alignment), `doc-pipe-generation`, `doc-pipe-refinement`,
-`doc-pipe-audit`, `doc-pipe-completed`. Nothing in `preview/` ships in the build.
+v4 mocks). Open `/home`, `/document/doc-copasim` (Markdown with a pending
+suggestion), `/document/doc-layout-q3` (layout report), `/document/doc-layout-deck`
+(slides), `/mcp` and `/billing`. Nothing in `preview/` ships in the build.
 
 Gotcha: never assemble a token name at runtime (`var(--color-${tone}-tint)`).
 Tailwind v4 only emits theme variables it finds spelled out in the source, so
