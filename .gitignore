@@ -44,3 +44,5 @@ docforge-kit-png/
 
 # Claude
 .claude/
+# Deploy bookkeeping on the VPS checkout
+.deployed-tag

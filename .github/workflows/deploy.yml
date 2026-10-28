@@ -1,19 +1,25 @@
 name: Deploy (VPS)
 
-# Deploys by SSHing into the VPS and pulling the freshly built images from GHCR.
-# Runs automatically after "Build & push images (GHCR)" succeeds on main, so the
-# images always exist before the VPS pulls them. The VPS never builds anything.
+# Deploys by SSHing into the VPS and pulling the images "Build & push images
+# (GHCR)" just built for this commit. Runs automatically after that workflow
+# succeeds on main, so the images always exist before the VPS pulls them. The VPS
+# never builds anything.
 #
-# Configure these repo secrets to enable it (the deploy step self-skips when
-# VPS_HOST is empty, so forks and unconfigured repos stay green):
+# Repo secrets (the deploy step self-skips when VPS_HOST is empty, so forks and
+# unconfigured repos stay green):
 #   VPS_HOST     - server hostname or IP
 #   VPS_USER     - SSH user
-#   VPS_SSH_KEY  - private key with access to the server
-#   VPS_PATH     - checkout dir on the server (optional, default /opt/docforge)
+#   VPS_SSH_KEY  - private key with access to the server (one made for deploys)
+#   VPS_PATH     - git checkout of this repo on the server (default $HOME/docforge)
+# Repo variable (optional):
+#   DOCFORGE_URL - public URL checked after the deploy, e.g. https://doc-forge.dev
 #
-# The VPS must be able to pull from GHCR. If the packages are private, run
-# `docker login ghcr.io` once on the box (it persists in ~/.docker/config.json);
-# if they are public, no login is needed.
+# Each deploy pins IMAGE_TAG to the commit's SHA and waits for every container's
+# healthcheck. If one never turns healthy, the previous tag (kept in
+# .deployed-tag on the server) is started again and the job fails.
+#
+# The VPS must be able to pull from GHCR: public packages need nothing, private
+# ones need a `docker login ghcr.io` once on the box.
 
 on:
   workflow_run:
@@ -21,6 +27,14 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (a commit SHA built by build.yml; empty = this commit)"
+        required: false
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -29,6 +43,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     env:
       VPS_HOST: ${{ secrets.VPS_HOST }}
+      TAG: ${{ inputs.tag || github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Deploy over SSH
         if: ${{ env.VPS_HOST != '' }}
@@ -37,17 +52,42 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
           script: |
-            set -e
-            cd "${{ secrets.VPS_PATH || '/opt/docforge' }}"
-            git pull --ff-only
+            set -eu
+            cd "${{ secrets.VPS_PATH || '$HOME/docforge' }}"
+            git fetch --quiet origin main
+            git checkout --quiet ${{ env.TAG }}
             # The box's .env picks the compose files (COMPOSE_FILE): on a shared VPS it
             # adds docker-compose.colocated.yml, which keeps DocForge's Caddy off 80/443.
             grep -q '^COMPOSE_FILE=' .env || export COMPOSE_FILE=docker-compose.prod.yml
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
+            PREVIOUS=$(cat .deployed-tag 2>/dev/null || echo latest)
+            export IMAGE_TAG=${{ env.TAG }}
+            echo "deploying $IMAGE_TAG (previous: $PREVIOUS)"
+            docker compose pull --quiet
+            if docker compose up -d --wait --wait-timeout 180; then
+              echo "$IMAGE_TAG" > .deployed-tag
+              docker image prune -f > /dev/null
+              docker compose ps
+            else
+              docker compose ps
+              docker compose logs --tail 60 backend mcp layout frontend || true
+              echo "::error::containers did not turn healthy; rolling back to $PREVIOUS"
+              git checkout --quiet "$PREVIOUS" 2>/dev/null || true
+              IMAGE_TAG=$PREVIOUS docker compose up -d --wait --wait-timeout 180
+              exit 1
+            fi
+
+      - name: Check the public URL
+        if: ${{ env.VPS_HOST != '' && vars.DOCFORGE_URL != '' }}
+        run: |
+          for i in 1 2 3 4 5 6; do
+            curl -fsS --max-time 10 "${{ vars.DOCFORGE_URL }}/api/health" && exit 0
+            sleep 10
+          done
+          echo "::error::${{ vars.DOCFORGE_URL }}/api/health did not answer"
+          exit 1
 
       - name: Skipped (no VPS secrets configured)
         if: ${{ env.VPS_HOST == '' }}
-        run: echo "VPS_HOST secret not set — skipping deploy. See deploy/README.md."
+        run: echo "VPS_HOST secret not set — skipping deploy. See docs/deploy.md."

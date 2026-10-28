@@ -92,7 +92,10 @@ jobs:
           python-version: '3.11'
       - name: Install
         working-directory: packages/mcp
-        run: pip install -e . ruff
+        run: pip install -e ".[dev]" ruff
       - name: Lint
         working-directory: packages/mcp
-        run: ruff check src/
+        run: ruff check src/ tests/
+      - name: Test
+        working-directory: packages/mcp
+        run: pytest tests -q

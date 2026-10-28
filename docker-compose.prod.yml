@@ -1,4 +1,4 @@
-# DocForge — production stack for a single VPS (replaces Azure Container Apps).
+# DocForge — production stack for a single VPS.
 #
 #   cp deploy/.env.prod.example .env
 #   # edit .env (domain, secrets, keys, IMAGE_OWNER)
@@ -10,7 +10,7 @@
 # .github/workflows/build.yml and pulled from GHCR — the VPS never builds.
 #
 # Caddy terminates TLS (automatic Let's Encrypt) and routes:
-#   https://$DOCFORGE_DOMAIN/api/*  -> backend:8000   (API + SSE + inngest)
+#   https://$DOCFORGE_DOMAIN/api/*  -> backend:8000   (API + SSE)
 #   https://$DOCFORGE_DOMAIN/*      -> frontend:80     (static SPA)
 #   https://$DOCFORGE_MCP_DOMAIN/*  -> mcp:8001        (MCP streamable HTTP)
 #
@@ -18,10 +18,12 @@
 # network, so Postgres is never exposed to the internet. The layout service has
 # no Caddy route at all: only the backend calls it.
 #
-# Single-VPS profile: the guided executor uses Inngest Cloud (managed) and SSE
-# uses in-process queues (single backend replica), so there is no self-hosted
-# Inngest or Redis here. Re-add Redis + set REDIS_URL only if you scale the
+# Single-VPS profile: SSE uses in-process queues (single backend replica), so
+# there is no Redis here. Re-add Redis + set REDIS_URL only if you scale the
 # backend to multiple replicas.
+#
+# Every app container has a healthcheck, so `docker compose ps` (and the deploy
+# workflow, which waits for them) tells a running stack from a healthy one.
 
 services:
   caddy:
@@ -42,13 +44,6 @@ services:
       - backend
       - frontend
       - mcp
-    networks:
-      # `default`: talk to backend/frontend/mcp, same as before.
-      # `edge`: reach the partiu stack (separate compose project, deployed
-      # independently — see ../partiu/deploy/README.md), whose containers
-      # publish no host port and are only reachable on this shared network.
-      - default
-      - edge
 
   postgres:
     image: postgres:16-alpine
@@ -79,8 +74,6 @@ services:
       LAYOUT_SERVICE_URL: http://layout:8002
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-docforge}
       # No REDIS_URL → SSE uses in-process queues (single replica).
-      # No INNGEST_DEV_SERVER_URL → the SDK targets Inngest Cloud in production;
-      # INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY come from .env (env_file above).
       IS_PRODUCTION: "true"
       CORS_ORIGINS: '["https://${DOCFORGE_DOMAIN}"]'
       CLERK_AUTHORIZED_PARTIES: '["https://${DOCFORGE_DOMAIN}"]'
@@ -89,6 +82,12 @@ services:
       STRIPE_CHECKOUT_CANCEL_URL: https://${DOCFORGE_DOMAIN}/billing?checkout=cancel
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   # Runs @docforge-lib/layout for the backend. Stateless, internal only.
   layout:
@@ -105,20 +104,25 @@ services:
       DOCFORGE_FRONTEND_BASE: https://${DOCFORGE_DOMAIN}
       HOST: 0.0.0.0
       PORT: "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   frontend:
     # VITE_* are baked into this image at build time by the GHCR workflow.
     image: ghcr.io/${IMAGE_OWNER:-maxjneto}/doc-forge-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   pgdata:
   caddy_data:
   caddy_config:
-
-networks:
-  # Created once on the VPS with `docker network create edge`. External
-  # because it's shared with the partiu compose project, not owned by this
-  # one — `docker compose down` here must never delete it.
-  edge:
-    external: true

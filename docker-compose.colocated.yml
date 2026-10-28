@@ -15,7 +15,7 @@
 # - Every container gets a memory ceiling and a low CPU weight, so under contention
 #   the other app (CopaSim's simulator has cpu_shares 2048) wins and a runaway
 #   DocForge process is killed instead of the box swapping. Ceilings are ~2-3× what
-#   the stack uses at rest (see docs/product/vps-copasim.md for the measurements).
+#   the stack uses at rest (measured on the CopaSim box, see docs/deploy.md).
 
 services:
   caddy:
@@ -61,3 +61,9 @@ services:
       default: {}
       edge:
         aliases: [docforge-frontend]
+
+networks:
+  # Created once per VPS with `docker network create edge`. External because the
+  # host's Caddy shares it: `docker compose down` here must never delete it.
+  edge:
+    external: true

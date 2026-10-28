@@ -216,10 +216,10 @@
         "eyebrow": "DOCFORGE",
         "title": "Revisão humana no mesmo modelo",
         "text": "O que o agente monta, a pessoa abre e edita.",
-        "footer": "docforge.dev →"
+        "footer": "doc-forge.dev →"
       },
       "props": {
-        "href": "https://docforge.dev"
+        "href": "https://doc-forge.dev"
       }
     },
     {
