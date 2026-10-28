@@ -14,7 +14,7 @@ from app.models.user import User
 
 
 async def _new_document(client, title: str = "Doc") -> str:
-    res = await client.post("/api/documents", json={"title": title, "mode": "editor"})
+    res = await client.post("/api/documents", json={"title": title})
     assert res.status_code == 201, res.text
     return res.json()["id"]
 

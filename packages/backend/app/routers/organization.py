@@ -348,7 +348,6 @@ async def shared_with_me(
             {
                 "id": str(doc.id),
                 "title": doc.title,
-                "current_phase": doc.current_phase,
                 "document_mode": doc.document_mode,
                 "role": role,
                 "created_at": doc.created_at,

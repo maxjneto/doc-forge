@@ -1,22 +1,17 @@
 import time
 
-import inngest.fast_api
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.config import settings
-from app.inngest_client import inngest_client
 from app.logging_config import setup_logging
 from app.routers import (
     artifacts,
     billing,
-    document_types,
     documents,
     layout,
     organization,
-    pipeline,
-    pipeline_definitions,
     quality_gate,
     sections,
     suggestions,
@@ -24,7 +19,6 @@ from app.routers import (
 )
 from app.routers import users as users_router
 from app.services.observability import capture_account_event
-from app.workflows.registry import ALL_FUNCTIONS
 
 setup_logging()
 
@@ -78,21 +72,17 @@ async def log_requests(request: Request, call_next):
 app.include_router(documents.router, prefix="/api")
 app.include_router(sections.router, prefix="/api")
 app.include_router(suggestions.router, prefix="/api")
-app.include_router(pipeline.router, prefix="/api")
-app.include_router(pipeline_definitions.router, prefix="/api")
 app.include_router(quality_gate.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
 app.include_router(users_router.router, prefix="/api")
-app.include_router(document_types.router, prefix="/api")
 app.include_router(artifacts.router, prefix="/api")
 app.include_router(organization.router, prefix="/api")
 app.include_router(layout.router, prefix="/api")
 app.include_router(telemetry.router, prefix="/api")
 
-inngest.fast_api.serve(app, inngest_client, ALL_FUNCTIONS)
-
-
+# Served at both paths: /health for container checks inside the network, /api/health
+# for checks from outside, since the proxy only forwards /api/* to the backend.
 @app.get("/health")
+@app.get("/api/health")
 async def health():
-    logger.debug("Health check")
     return {"status": "ok"}

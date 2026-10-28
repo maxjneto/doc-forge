@@ -60,7 +60,10 @@ class LayoutNote(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    __table_args__ = (Index("idx_layout_notes_document_status", "document_id", "status"),)
+    __table_args__ = (
+        Index("idx_layout_notes_document_status", "document_id", "status"),
+        Index("idx_layout_notes_parent", "parent_id"),
+    )
 
 
 class DocumentLayoutRevision(Base):

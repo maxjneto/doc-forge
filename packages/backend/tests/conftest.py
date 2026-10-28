@@ -2,11 +2,8 @@
 
 import os
 
-# Must be set before any `app.*` import: the OpenAI client is instantiated at
-# module import time and raises on an empty API key. Keeps the suite
-# self-contained — no .env file required locally or in CI.
-os.environ.setdefault("AZURE_OPENAI_API_KEY", "test-key")
-os.environ.setdefault("AZURE_OPENAI_ENDPOINT", "https://test.openai.azure.com/")
+# Set before any `app.*` import, so a developer's local .env cannot turn analytics on
+# for the suite. Keeps it self-contained — no .env file required locally or in CI.
 os.environ.setdefault("POSTHOG_ENABLED", "false")
 
 # Force Stripe OFF for the suite regardless of a developer's local .env. Tests
@@ -29,7 +26,6 @@ from app.auth import get_current_user, get_current_user_optional
 from app.database import get_db
 from app.main import app
 from app.models.base import Base
-from app.models.document_type import DocumentType, SectionDefinition
 from app.models.user import User
 
 # ─── In-memory SQLite async engine for tests ─────────────────
@@ -39,71 +35,13 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-# Mirrors migrations 006 + 024 — the built-in guided-mode document types.
-# Prompts aren't seeded here: guided/pipeline tests mock the AI layer, and the
-# prompt loader falls back to prompts/documents.yaml for anything unseeded.
-RFC_SECTIONS = [
-    ("context", "Context", 1, "Describes the problem, its impact, and why action is needed now."),
-    ("proposal", "Proposal", 2, "Presents the chosen solution, key design decisions, and architecture."),
-    ("implementation", "Implementation", 3, "Details the technical implementation plan, component changes, and rollout strategy."),
-    ("risks", "Risks", 4, "Identifies risks, trade-offs, open questions, and mitigation strategies."),
-]
-
-BUILTIN_TYPES = [
-    ("rfc", "RFC", "Request for Comments — technical design proposal.", RFC_SECTIONS),
-    ("adr", "ADR", "Architecture Decision Record.", [
-        ("context", "Context", 1, "Forces driving the decision."),
-        ("decision", "Decision", 2, "The decision that was made."),
-        ("consequences", "Consequences", 3, "Resulting trade-offs."),
-        ("alternatives", "Alternatives", 4, "Options considered and rejected."),
-    ]),
-    ("postmortem", "Postmortem", "Blameless incident postmortem.", [
-        ("summary", "Summary", 1, "What happened and current status."),
-        ("impact", "Impact", 2, "Who/what was affected and for how long."),
-        ("timeline", "Timeline", 3, "Chronological record of the incident."),
-        ("root_cause", "Root Cause", 4, "Underlying and contributing causes."),
-        ("action_items", "Action Items", 5, "Preventive and corrective actions."),
-    ]),
-    ("runbook", "Runbook", "Operational runbook.", [
-        ("overview", "Overview", 1, "What the runbook does and when to use it."),
-        ("prerequisites", "Prerequisites", 2, "Access, tools, and preconditions."),
-        ("procedure", "Procedure", 3, "Ordered steps to perform the operation."),
-        ("verification", "Verification", 4, "How to confirm success."),
-        ("rollback", "Rollback", 5, "How to undo and troubleshoot."),
-    ]),
-]
-
-
-async def _seed_document_types() -> None:
-    async with TestSession() as session:
-        for slug, name, description, sections in BUILTIN_TYPES:
-            doc_type = DocumentType(
-                slug=slug,
-                name=name,
-                description=description,
-                is_active=True,
-            )
-            session.add(doc_type)
-            await session.flush()
-            for key, display, order, role in sections:
-                session.add(SectionDefinition(
-                    document_type_id=doc_type.id,
-                    section_key=key,
-                    display_name=display,
-                    order=order,
-                    role_description=role,
-                ))
-        await session.commit()
-
-
 @pytest.fixture(autouse=True)
 async def setup_db():
-    """Create tables before each test, seed document types, drop after."""
+    """Create tables before each test, drop them after."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Drop the PostgreSQL-only partial unique index (unsupported by SQLite)
         await conn.execute(text("DROP INDEX IF EXISTS idx_one_active_version"))
-    await _seed_document_types()
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

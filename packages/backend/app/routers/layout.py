@@ -237,9 +237,7 @@ async def create_layout_document(
     try:
         doc = Document(
             title=title,
-            document_context="",
             user_id=user_id,
-            current_phase="editing",
             document_mode=LAYOUT_MODE,
         )
         db.add(doc)

@@ -42,29 +42,12 @@ code { font-family: Courier, monospace; font-size: 9pt; }
 """
 
 
-def build_markdown(title: str | None, sections: list[tuple[str, str | None]]) -> str:
-    """Assemble a full-document Markdown string.
-
-    `sections` is an ordered list of (heading, content). Empty sections are kept
-    with a placeholder so the export mirrors the document's structure.
-    """
-    parts: list[str] = []
-    if title:
-        parts.append(f"# {title.strip()}")
-    for heading, content in sections:
-        parts.append(f"## {heading}")
-        body = (content or "").strip()
-        parts.append(body if body else "_(empty)_")
-    return "\n\n".join(parts).strip() + "\n"
-
-
 def build_freeform_markdown(content: str | None) -> str:
-    """Assemble Markdown for a free-editor document.
+    """Assemble Markdown for export.
 
-    Free-editor documents are a single body of Markdown the user (or an MCP
-    agent) writes directly, headings included — unlike guided documents, there
-    is no per-section heading to synthesize and no separate title to prepend,
-    or the doc's own heading would show up twice.
+    A document is a single body of Markdown the user (or an MCP agent) writes
+    directly, headings included — there is no separate title to prepend, or the
+    document's own heading would show up twice.
     """
     body = (content or "").strip()
     return (body if body else "_(empty)_") + "\n"

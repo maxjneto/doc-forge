@@ -1,9 +1,7 @@
 """Credit periods and self-healing weekly allowance refreshes.
 
-The Inngest cron remains useful as an eager batch refresh, but correctness does
-not depend on it: every authenticated request refreshes an expired allowance
-atomically. This prevents users from remaining at zero when the scheduler is
-unavailable or misconfigured in production.
+There is no scheduler: every authenticated request refreshes an expired
+allowance atomically, so an account never stays at zero past Monday.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -87,7 +85,7 @@ async def consume_document_creation(db: AsyncSession, user: User) -> User:
     """Atomically consume one weekly document-creation allowance.
 
     The historical ``users.credits`` column now represents document creations.
-    Keeping the decrement in one service prevents editor, MCP and pipeline
+    Keeping the decrement in one service prevents the editor, layout and MCP
     routes from drifting apart.
     """
     user = await refresh_credits_if_due(db, user)

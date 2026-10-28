@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,3 +28,5 @@ class AuditFinding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     document = relationship("Document", back_populates="audit_findings")
+
+    __table_args__ = (Index("idx_audit_findings_document_id", "document_id"),)

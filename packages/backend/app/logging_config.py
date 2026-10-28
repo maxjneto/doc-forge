@@ -6,20 +6,10 @@ from loguru import logger
 NOISY_LOGGER_MIN_LEVELS: dict[str, int] = {
     "httpcore": logging.WARNING,
     "httpx": logging.WARNING,
-    "inngest._internal.comm_lib": logging.WARNING,
-    "inngest._internal.comm_lib.handler": logging.WARNING,
 }
 
 
 def _should_drop(name: str, level_no: int, message: str) -> bool:
-    # Inngest's dev server calls this endpoint frequently, which buries workflow logs.
-    if name.startswith("uvicorn") and "/api/inngest" in message:
-        return True
-
-    # Explicitly suppress noisy comm-lib sync chatter in development.
-    if name.startswith("inngest._internal.comm_lib") and level_no < logging.WARNING:
-        return True
-
     for logger_name, min_level in NOISY_LOGGER_MIN_LEVELS.items():
         if name == logger_name or name.startswith(f"{logger_name}."):
             return level_no < min_level
@@ -81,7 +71,7 @@ def setup_logging(level: str = "DEBUG") -> None:
         diagnose=True,
     )
 
-    # Redirect every stdlib logger (uvicorn, sqlalchemy, inngest, …) through loguru
+    # Redirect every stdlib logger (uvicorn, sqlalchemy, …) through loguru
     logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
 
     for logger_name, min_level in NOISY_LOGGER_MIN_LEVELS.items():
@@ -93,7 +83,6 @@ def setup_logging(level: str = "DEBUG") -> None:
         "uvicorn.access",
         "fastapi",
         "sqlalchemy.engine",
-        "inngest",
     ):
         log = logging.getLogger(name)
         log.handlers = [_InterceptHandler()]

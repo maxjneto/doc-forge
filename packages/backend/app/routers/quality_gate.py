@@ -1,27 +1,21 @@
-"""Quality gates — 'CI for documents' (P4 / M5).
+"""Quality gates — 'CI for documents'.
 
-Two execution routes, per the pricing principle (credits only where DocForge
-pays tokens):
-- server-run: DocForge calls the audit AI — consumes QUALITY_GATE_COST credits;
-- agent-run: the user's agent audits with its own model and submits findings
-  here for free (the docforge://recipes/quality-gate recipe explains how).
-
-Findings feed the same AuditFinding badge/panel, and — when the document opts
-in via require_gate_on_accept — block suggestion acceptance until open
-high-severity findings are resolved or dismissed.
+The person's agent audits the document with its own model and submits findings
+here (the docforge://recipes/quality-gate recipe explains how); DocForge never
+calls a model itself. Findings feed the gate panel and — when the document opts
+in via require_gate_on_accept — block suggestion acceptance and publishing until
+open high-severity findings are resolved or dismissed.
 """
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from loguru import logger
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
-from app.config import settings
 from app.database import get_db
 from app.models import AuditFinding, Document, Section
 from app.models.user import User
@@ -112,72 +106,6 @@ def _validate_findings(findings: list, section_keys: set[str]) -> list[dict]:
             "category": category[:40] if category else None,
         })
     return cleaned
-
-
-@router.post("/documents/{document_id}/quality-gate/run", response_model=list[AuditFindingResponse])
-async def run_quality_gate(
-    document_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Server-run gate: DocForge audits the document with AI. Consumes credits."""
-    doc = await _get_owned_document(document_id, current_user, db)
-    if not settings.HOSTED_QUALITY_GATE_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail="Hosted quality gates are not currently available. Run the gate with your agent and submit its findings.",
-        )
-
-    cost = settings.HOSTED_QUALITY_GATE_COST
-    result = await db.execute(
-        update(User)
-        .where(User.id == current_user.id, User.credits >= cost)
-        .values(credits=User.credits - cost)
-    )
-    if result.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="No credits remaining for a server-run gate. "
-            "Your agent can run the gate for free — see docforge://recipes/quality-gate.",
-        )
-    await db.commit()
-
-    from app.phases.audit.ai import run_audit
-
-    try:
-        audit_result = await run_audit(
-            str(document_id),
-            document_type_id=str(doc.document_type_id) if doc.document_type_id else None,
-            posthog_distinct_id=str(current_user.id),
-        )
-    except Exception as e:
-        logger.error("[quality-gate] server run failed | doc_id={} err={}", document_id, e)
-        # Refund — the user paid for a result they didn't get
-        await db.execute(
-            update(User).where(User.id == current_user.id).values(credits=User.credits + cost)
-        )
-        await db.commit()
-        raise HTTPException(status_code=502, detail="Audit run failed; credit refunded.")
-
-    problems = audit_result.get("problems", []) if audit_result.get("has_problems") else []
-    findings = [
-        {
-            "section_type": p.get("section"),
-            "description": p.get("issue"),
-            "severity": p.get("severity", "low"),
-        }
-        for p in problems
-        if p.get("section") and p.get("issue")
-    ]
-    await db_service.log_activity(
-        db, document_id, "quality_gate_run",
-        description=f"Server-run quality gate: {len(findings)} finding(s)",
-    )
-    rows = await _replace_open_findings(db, document_id, findings)
-    capture_event(str(current_user.id), str(document_id), "quality_gate_run", {
-        "route": "server", "findings": len(rows),
-    })
-    return [AuditFindingResponse.model_validate(r) for r in rows]
 
 
 @router.post("/documents/{document_id}/quality-gate/findings", response_model=list[AuditFindingResponse])
