@@ -416,9 +416,8 @@ const TOOL_NAMES = [
   "get_user_info", "list_documents", "create_document", "get_document", "get_section",
   "write_section", "append_section", "patch_section", "check_suggestions", "get_pending_feedback",
   "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
-  "rename_version", "get_activity", "get_document_url", "list_document_types", "start_pipeline",
-  "get_next_step", "submit_step", "get_quality_gate", "submit_quality_findings", "list_artifacts",
-  "create_artifact",
+  "rename_version", "get_activity", "get_document_url", "get_quality_gate", "submit_quality_findings",
+  "list_artifacts", "create_artifact",
 ];
 
 const RESOURCES: { uri: string; key: string }[] = [

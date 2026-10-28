@@ -102,7 +102,7 @@ export function NewDocumentDialog({ onClose, remaining, weeklyLimit }: NewDocume
         navigate(`/document/${id}`);
         return;
       }
-      const doc = await apiCreateDocument(title.trim(), "", getToken, undefined, undefined, "editor");
+      const doc = await apiCreateDocument(title.trim(), getToken);
       posthog.capture("document_created", { mode: "editor" });
       onClose();
       navigate(`/document/${doc.id}`);

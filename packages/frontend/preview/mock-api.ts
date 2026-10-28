@@ -10,10 +10,6 @@ import { loadRegistry } from "../src/components/layout-doc/fonts";
 import { layoutContent } from "./layout";
 import deckContent from "../../backend/app/layout_templates/apresentacao.json";
 import { builtinThemes, themeFonts } from "./themes";
-import { guidedChat, guidedDetail, guidedDocuments, guidedFindings, guidedFolder, guidedVersions } from "./guided";
-
-const allDocuments = [...fx.documents, ...guidedDocuments];
-const detailFor = (id: string) => guidedDetail(id, fx.documents.find((d) => d.id === id)) ?? fx.documentDetail(id);
 
 type Handler = (match: RegExpMatchArray, init: RequestInit | undefined, url: URL) => unknown;
 
@@ -140,10 +136,10 @@ const routes: Route[] = [
   ["POST", /\/users\/api-keys$/, (_m, init) => ({ ...fx.apiKeys[0], id: "k-new", name: bodyOf(init).name, key: "df_live_preview_0000000000000000", created_at: fx.ago(0) })],
   ["PATCH", /\/users\/api-keys\/([^/]+)$/, (m, init) => ({ ...fx.apiKeys.find((k) => k.id === m[1]), ...bodyOf(init) })],
 
-  ["GET", /\/documents$/, () => ({ documents: allDocuments })],
+  ["GET", /\/documents$/, () => ({ documents: fx.documents })],
   ["POST", /\/documents$/, () => fx.documents[0]],
   ["GET", /\/shared-documents$/, () => ({ documents: fx.sharedDocuments })],
-  ["GET", /\/documents\/([^/]+)$/, (m) => detailFor(docFrom(m))],
+  ["GET", /\/documents\/([^/]+)$/, (m) => fx.documentDetail(docFrom(m))],
   ["PATCH", /\/documents\/([^/]+)$/, (m, init) => ({ ...fx.documentDetail(docFrom(m)).document, ...bodyOf(init) })],
   // "Creating" a layout document opens one of the two the preview keeps (slides → the deck).
   ["POST", /\/layout-documents$/, (_m, init) => {
@@ -239,7 +235,7 @@ const routes: Route[] = [
   }],
   ["GET", /\/documents\/([^/]+)\/feedback$/, () => ({ feedback: [] })],
   ["GET", /\/documents\/([^/]+)\/quality-gate$/, () => fx.gate],
-  ["GET", /\/documents\/([^/]+)\/audit-findings$/, (m) => (docFrom(m).startsWith("doc-pipe") ? guidedFindings(docFrom(m)) : fx.gate.findings)],
+  ["GET", /\/documents\/([^/]+)\/audit-findings$/, () => fx.gate.findings],
   ["GET", /\/documents\/([^/]+)\/artifacts$/, (m) => ({ artifacts: fx.artifacts(docFrom(m)) })],
   ["GET", /\/documents\/([^/]+)\/members$/, () => fx.members],
   ["GET", /\/documents\/([^/]+)\/public-link$/, () => ({ token: "pub_preview", enabled: true })],
@@ -247,19 +243,14 @@ const routes: Route[] = [
   ["POST", /\/documents\/([^/]+)\/publish$/, () => ({ label: "v5" })],
   ["POST", /\/documents\/([^/]+)\/(archive|restore)$/, (m) => ({ ...fx.documentDetail(docFrom(m)).document, archived_at: m[2] === "archive" ? fx.ago(0) : null })],
 
-  ["GET", /\/sections\/([^/]+)\/versions$/, (m) => (m[1].startsWith("sec-doc-pipe") ? guidedVersions(m[1]) : fx.versions(m[1]))],
+  ["GET", /\/sections\/([^/]+)\/versions$/, (m) => fx.versions(m[1])],
   ["POST", /\/sections\/([^/]+)\/versions\/snapshot$/, (m) => fx.versions(m[1])[4]],
   ["PATCH", /\/sections\/([^/]+)\/content$/, (m) => fx.versions(m[1])[4]],
-  ["GET", /\/sections\/([^/]+)\/chat$/, (m) => (m[1].startsWith("sec-doc-pipe-refinement") ? guidedChat(m[1]) : [])],
   ["POST", /\/suggestions\/([^/]+)\/(accept|reject|triage)$/, (m) => ({ ...fx.suggestions("doc-copasim")[0], status: m[2] === "reject" ? "rejected" : "accepted", resolved_at: fx.ago(0) })],
 
-  ["GET", /\/folders$/, () => ({ folders: [...fx.folders, guidedFolder] })],
+  ["GET", /\/folders$/, () => ({ folders: fx.folders })],
   ["POST", /\/folders$/, (_m, init) => ({ id: `f-${Date.now()}`, name: bodyOf(init).name, parent_id: bodyOf(init).parent_id ?? null })],
   ["PATCH", /\/folders\/([^/]+)$/, (m, init) => ({ ...fx.folders.find((f) => f.id === m[1]), ...bodyOf(init) })],
-
-  ["GET", /\/document-types$/, () => fx.documentTypes],
-  ["GET", /\/document-types\/([^/]+)$/, (m) => fx.documentTypes.find((d) => d.slug === m[1]) ?? fx.documentTypes[0]],
-  ["GET", /\/pipeline-definitions$/, () => fx.pipelineDefinitions],
 ];
 
 /** Open SSE streams: silent like an idle document, until the preview pretends an agent wrote. */

@@ -1,27 +1,16 @@
 // ─── Document ────────────────────────────────────────────────
 
-export type Phase =
-  | "discovery"
-  | "alignment"
-  | "generation"
-  | "refinement"
-  | "audit"
-  | "completed"
-  | "editing";
+/** "editor": one Markdown body; "layout": a @docforge-lib/layout document. */
+export type DocumentMode = "editor" | "layout";
 
-export type GuidedSectionType = "context" | "proposal" | "implementation" | "risks";
-export type SectionType = GuidedSectionType | "body";
-
-export type SectionStatus = "pending" | "drafting" | "refining" | "finalized";
+/** Markdown documents keep their whole text in one "body" section. */
+export type SectionType = "body";
 
 export interface Document {
   id: string;
   title: string;
-  currentPhase: Phase;
-  documentMode: "guided" | "editor" | "pipeline" | "layout";
+  documentMode: DocumentMode;
   agentWritePolicy?: "suggest" | "direct";
-  globalContext: string | null;
-  userPreferences: string | null;
   createdAt: string;
   updatedAt: string;
   hasApiKeyActivity?: boolean;
@@ -40,11 +29,7 @@ export interface Section {
   id: string;
   documentId: string;
   sectionType: SectionType;
-  status: SectionStatus;
-  summary: string | null;
   activeVersionContent?: string | null;
-  versionCount?: number;
-  currentVersionIndex?: number;
 }
 
 export interface SectionVersion {
@@ -58,99 +43,6 @@ export interface SectionVersion {
   isPublished?: boolean;
   publishedAt?: string | null;
   createdAt: string;
-}
-
-// ─── Chat ────────────────────────────────────────────────────
-
-export type MessageRole = "user" | "agent";
-
-export interface ChatMessage {
-  id: string;
-  documentId: string;
-  sectionId: string;
-  role: MessageRole;
-  content: string;
-  createdAt: string;
-}
-
-// ─── Phase 4 Actions ─────────────────────────────────────────
-
-export type SectionActionType =
-  | "ask_question"
-  | "request_edit"
-  | "finalize";
-
-export interface SectionAction {
-  actionType: SectionActionType;
-  sectionId: string;
-  message?: string;
-  prompt?: string;
-}
-
-// ─── Document Types ───────────────────────────────────────────
-
-export interface SectionDefinition {
-  id: string;
-  sectionKey: string;
-  displayName: string;
-  order: number;
-  roleDescription: string;
-}
-
-export interface DocumentType {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  isActive: boolean;
-  isCustom: boolean;
-  sections: SectionDefinition[];
-}
-
-// ─── Customization (M4 — pipelines, prompts, document types) ─
-
-export interface PipelineStep {
-  phase: string;
-  section_key?: string | null;
-  prompt?: string;
-  checkpoint?: "human";
-}
-
-export interface PipelineDefinition {
-  id: string;
-  name: string;
-  baseDocumentTypeId: string | null;
-  steps: PipelineStep[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PromptTemplate {
-  id: string;
-  documentTypeId: string;
-  phase: string;
-  sectionKey: string | null;
-  promptText: string;
-}
-
-// ─── Discovery (Phase 1) ─────────────────────────────────────
-
-export interface DiscoveryQuestion {
-  id: string;
-  documentId: string;
-  question: string;
-  answer: string | null;
-  skipped: boolean;
-  sectionKey: string | null;
-}
-
-// ─── Alignment (Phase 2) ─────────────────────────────────────
-
-export interface AlignmentSummary {
-  sectionType: SectionType;
-  summary: string;
-  approved: boolean;
-  rejectionReason?: string;
 }
 
 // ─── API Keys ────────────────────────────────────────────────
@@ -244,13 +136,7 @@ export interface FeedbackItem {
   resolvedAt: string | null;
 }
 
-// ─── Audit (Phase 5) ─────────────────────────────────────────
-
-export interface AuditProblem {
-  section: string;
-  issue: string;
-  severity: string;
-}
+// ─── Quality gate ────────────────────────────────────────────
 
 export interface AuditFinding {
   id: string;

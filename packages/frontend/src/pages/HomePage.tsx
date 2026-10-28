@@ -134,7 +134,7 @@ export function HomePage() {
 
   const libraryCounts = useMemo(() => ({
     all: documents.filter((doc) => !doc.archivedAt).length,
-    drafts: documents.filter((doc) => !doc.archivedAt && doc.documentMode !== "guided" && (!doc.publishedAt || doc.hasUnpublishedChanges)).length,
+    drafts: documents.filter((doc) => !doc.archivedAt && (!doc.publishedAt || doc.hasUnpublishedChanges)).length,
     published: documents.filter((doc) => !doc.archivedAt && Boolean(doc.publishedAt)).length,
   }), [documents]);
 
@@ -162,7 +162,7 @@ export function HomePage() {
     return documents.filter((d) => {
       if (showingArchived !== Boolean(d.archivedAt)) return false;
       if (libraryView === "all" && d.folderId !== folderId) return false;
-      if (libraryView === "drafts" && (d.documentMode === "guided" || (d.publishedAt && !d.hasUnpublishedChanges))) return false;
+      if (libraryView === "drafts" && d.publishedAt && !d.hasUnpublishedChanges) return false;
       if (libraryView === "published" && !d.publishedAt) return false;
       if (q && !d.title.toLowerCase().includes(q)) return false;
       return true;

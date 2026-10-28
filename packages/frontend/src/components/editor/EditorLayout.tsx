@@ -10,7 +10,6 @@ import { EditorNavPanel } from "./EditorNavPanel";
 import { EditorCenterPanel, type EditorMode, type EditorCenterHandle } from "./EditorCenterPanel";
 import { EditorActivityRail } from "./EditorActivityRail";
 import { EditorSidebarTabs } from "./EditorSidebarTabs";
-import { EditorCompletionBanner } from "./EditorCompletionBanner";
 import { EditorDocumentBar } from "./EditorDocumentBar";
 import type { HunkDecision } from "./EditorDiffView";
 
@@ -18,10 +17,6 @@ interface EditorLayoutProps {
   documentId: string;
   sections: Section[];
   sseTick: number;
-  /** True right after a BYOA pipeline hands off audit→editing (A-lite) —
-   * shows EditorCompletionBanner once. */
-  justCompleted?: boolean;
-  onCompletionBannerDismissed?: () => void;
   documentTitle?: string;
   isMcpManaged?: boolean;
   publishedAt?: string | null;
@@ -34,8 +29,6 @@ export function EditorLayout({
   documentId,
   sections,
   sseTick,
-  justCompleted = false,
-  onCompletionBannerDismissed,
   documentTitle = "Documento",
   isMcpManaged = false,
   publishedAt = null,
@@ -253,9 +246,6 @@ export function EditorLayout({
             onPublished?.();
           }}
         />
-        {justCompleted && onCompletionBannerDismissed && (
-          <EditorCompletionBanner onDismiss={onCompletionBannerDismissed} />
-        )}
         <EditorCenterPanel
           ref={centerRef}
           content={content}

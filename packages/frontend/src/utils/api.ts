@@ -2,20 +2,13 @@ import type {
   Document,
   Section,
   SectionVersion,
-  ChatMessage,
-  DiscoveryQuestion,
   AuditFinding,
-  DocumentType,
-  SectionDefinition,
   ApiKey,
   ApiKeyCreateResponse,
   DocumentActivity,
   MyActivityEvent,
   Suggestion,
   FeedbackItem,
-  PipelineDefinition,
-  PipelineStep,
-  PromptTemplate,
   Artifact,
   Folder,
   DocumentMember,
@@ -32,11 +25,8 @@ export function mapDocument(raw: Record<string, unknown>): Document {
   return {
     id: String(raw.id),
     title: raw.title as string,
-    currentPhase: raw.current_phase as Document["currentPhase"],
     documentMode: (raw.document_mode as Document["documentMode"]) ?? "editor",
     agentWritePolicy: (raw.agent_write_policy as Document["agentWritePolicy"]) ?? "suggest",
-    globalContext: (raw.global_context as string) ?? null,
-    userPreferences: (raw.user_preferences as string) ?? null,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
     hasApiKeyActivity: Boolean(raw.has_api_key_activity),
@@ -57,11 +47,7 @@ export function mapSection(
     id: String(raw.id),
     documentId: documentId ?? String(raw.document_id ?? ""),
     sectionType: raw.section_type as Section["sectionType"],
-    status: raw.status as Section["status"],
-    summary: (raw.summary as string) ?? null,
     activeVersionContent: (raw.active_version_content as string) ?? null,
-    versionCount: raw.version_count != null ? Number(raw.version_count) : undefined,
-    currentVersionIndex: raw.current_version_index != null ? Number(raw.current_version_index) : undefined,
   };
 }
 
@@ -79,31 +65,6 @@ export function mapVersion(raw: Record<string, unknown>): SectionVersion {
     isPublished: Boolean(raw.is_published),
     publishedAt: (raw.published_at as string | null) ?? null,
     createdAt: raw.created_at as string,
-  };
-}
-
-export function mapChatMessage(raw: Record<string, unknown>): ChatMessage {
-  return {
-    id: String(raw.id),
-    documentId: String(raw.document_id),
-    sectionId: String(raw.section_id),
-    role: raw.role as ChatMessage["role"],
-    content: raw.content as string,
-    createdAt: raw.created_at as string,
-  };
-}
-
-export function mapDiscoveryQuestion(
-  raw: Record<string, unknown>,
-  documentId?: string
-): DiscoveryQuestion {
-  return {
-    id: String(raw.id),
-    documentId: documentId ?? String(raw.document_id ?? ""),
-    question: raw.question as string,
-    answer: (raw.answer as string) ?? null,
-    skipped: raw.skipped as boolean,
-    sectionKey: (raw.section_key as string) ?? null,
   };
 }
 
@@ -256,24 +217,12 @@ export async function apiExportDocument(
   URL.revokeObjectURL(url);
 }
 
-export async function apiCreateDocument(
-  title: string,
-  documentContext: string,
-  getToken: GetToken,
-  userPreferences?: string,
-  documentTypeSlug?: string,
-  mode?: "guided" | "editor",
-): Promise<Document> {
+/** A Markdown document. Layout documents are created with apiCreateLayoutDocument. */
+export async function apiCreateDocument(title: string, getToken: GetToken): Promise<Document> {
   const res = await fetch(`${API_BASE}/documents`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: title || null,
-      document_context: documentContext || null,
-      user_preferences: userPreferences ?? null,
-      document_type_slug: documentTypeSlug ?? null,
-      mode: mode ?? "editor",
-    }),
+    body: JSON.stringify({ title: title || null }),
   });
   if (res.status === 429) throw new Error("WEEKLY_DOCUMENT_LIMIT_REACHED");
   if (!res.ok) throw new Error("Failed to create document");
@@ -294,36 +243,6 @@ export async function apiUpdateSectionContent(
   return mapVersion(await res.json());
 }
 
-export async function apiAnswerQuestion(
-  documentId: string,
-  question: string,
-  answer: string | null,
-  getToken: GetToken,
-) {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/answer`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ question, answer }),
-  });
-  if (!res.ok) throw new Error("Failed to answer question");
-  return res.json();
-}
-
-export async function apiSendEvent(
-  documentId: string,
-  eventType: string,
-  data: Record<string, unknown>,
-  getToken: GetToken,
-) {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/events`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ event_type: eventType, data }),
-  });
-  if (!res.ok) throw new Error("Failed to send event");
-  return res.json();
-}
-
 export async function apiFetchVersions(
   sectionId: string,
   getToken: GetToken,
@@ -334,18 +253,6 @@ export async function apiFetchVersions(
   if (!res.ok) throw new Error("Failed to fetch versions");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapVersion);
-}
-
-export async function apiFetchMessages(
-  sectionId: string,
-  getToken: GetToken,
-): Promise<ChatMessage[]> {
-  const res = await fetch(`${API_BASE}/sections/${sectionId}/chat`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch messages");
-  const data = await res.json();
-  return (data as Record<string, unknown>[]).map(mapChatMessage);
 }
 
 export async function apiRestoreVersion(
@@ -373,18 +280,6 @@ function mapAuditFinding(raw: Record<string, unknown>): AuditFinding {
     dismissed: raw.dismissed as boolean,
     createdAt: raw.created_at as string,
   };
-}
-
-export async function apiFetchAuditFindings(
-  documentId: string,
-  getToken: GetToken,
-): Promise<AuditFinding[]> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/audit-findings`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch audit findings");
-  const data = await res.json();
-  return (data as Record<string, unknown>[]).map(mapAuditFinding);
 }
 
 export async function apiDismissAuditFinding(
@@ -427,136 +322,6 @@ export async function apiUpdateSectionVersion(
   });
   if (!res.ok) throw new Error("Failed to update version");
   return mapVersion(await res.json());
-}
-
-function mapSectionDefinition(raw: Record<string, unknown>): SectionDefinition {
-  return {
-    id: String(raw.id),
-    sectionKey: raw.section_key as string,
-    displayName: raw.display_name as string,
-    order: raw.order as number,
-    roleDescription: raw.role_description as string,
-  };
-}
-
-function mapDocumentType(raw: Record<string, unknown>): DocumentType {
-  return {
-    id: String(raw.id),
-    slug: raw.slug as string,
-    name: raw.name as string,
-    description: raw.description as string,
-    isActive: raw.is_active as boolean,
-    isCustom: Boolean(raw.is_custom),
-    sections: ((raw.sections as Record<string, unknown>[]) ?? []).map(mapSectionDefinition),
-  };
-}
-
-export async function apiCreateDocumentType(
-  payload: {
-    name: string;
-    description: string;
-    sections: { section_key: string; display_name: string; order: number; role_description: string }[];
-  },
-  getToken: GetToken,
-): Promise<DocumentType> {
-  const res = await fetch(`${API_BASE}/document-types`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to create document type");
-  }
-  return mapDocumentType(await res.json());
-}
-
-export async function apiUpsertPrompt(
-  slug: string,
-  payload: { phase: string; section_key: string | null; prompt_text: string },
-  getToken: GetToken,
-): Promise<PromptTemplate> {
-  const res = await fetch(`${API_BASE}/document-types/${slug}/prompts`, {
-    method: "PUT",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to save prompt");
-  }
-  const data = (await res.json()) as Record<string, unknown>;
-  return {
-    id: String(data.id),
-    documentTypeId: String(data.document_type_id),
-    phase: data.phase as string,
-    sectionKey: (data.section_key as string) ?? null,
-    promptText: data.prompt_text as string,
-  };
-}
-
-// ─── Pipeline definitions (M4 — clone/edit the BYOA pipeline) ─
-
-function mapPipelineDefinition(raw: Record<string, unknown>): PipelineDefinition {
-  return {
-    id: String(raw.id),
-    name: raw.name as string,
-    baseDocumentTypeId: raw.base_document_type_id ? String(raw.base_document_type_id) : null,
-    steps: (raw.steps as PipelineStep[]) ?? [],
-    createdAt: raw.created_at as string,
-    updatedAt: raw.updated_at as string,
-  };
-}
-
-export async function apiListPipelineDefinitions(getToken: GetToken): Promise<PipelineDefinition[]> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch pipeline definitions");
-  const data = (await res.json()) as Record<string, unknown>[];
-  return data.map(mapPipelineDefinition);
-}
-
-export async function apiClonePipelineDefinition(
-  documentTypeSlug: string,
-  name: string | null,
-  getToken: GetToken,
-): Promise<PipelineDefinition> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions/clone`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ document_type_slug: documentTypeSlug, name }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to clone pipeline");
-  }
-  return mapPipelineDefinition(await res.json());
-}
-
-export async function apiUpdatePipelineDefinition(
-  id: string,
-  patch: { name?: string; steps?: PipelineStep[] },
-  getToken: GetToken,
-): Promise<PipelineDefinition> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions/${id}`, {
-    method: "PATCH",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to update pipeline");
-  }
-  return mapPipelineDefinition(await res.json());
-}
-
-export async function apiDeletePipelineDefinition(id: string, getToken: GetToken): Promise<void> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions/${id}`, {
-    method: "DELETE",
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok && res.status !== 204) throw new Error("Failed to delete pipeline");
 }
 
 export async function apiUpdateDocumentTitle(
@@ -977,39 +742,6 @@ export async function apiUpdateLayoutNote(
   return mapLayoutNote((await res.json()) as Record<string, unknown>);
 }
 
-export async function apiListDocumentTypes(getToken: GetToken): Promise<DocumentType[]> {
-  const res = await fetch(`${API_BASE}/document-types`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch document types");
-  const data = await res.json();
-  return (data as Record<string, unknown>[]).map(mapDocumentType);
-}
-
-export async function apiGetDocumentType(slug: string, getToken: GetToken): Promise<DocumentType> {
-  const res = await fetch(`${API_BASE}/document-types/${slug}`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch document type");
-  return mapDocumentType(await res.json());
-}
-
-export async function apiGenerateSectionSummary(
-  payload: { document_type_name: string; document_type_description: string; section_display_name: string },
-  getToken: GetToken,
-): Promise<string> {
-  const res = await fetch(`${API_BASE}/document-types/generate-section-summary`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to generate section summary");
-  }
-  return ((await res.json()) as { role_description: string }).role_description;
-}
-
 function mapApiKey(raw: Record<string, unknown>): ApiKey {
   return {
     id: String(raw.id),
@@ -1206,20 +938,6 @@ export async function apiRejectSuggestion(
   return mapSuggestion(await res.json());
 }
 
-export async function apiFetchFeedback(
-  documentId: string,
-  getToken: GetToken,
-  status?: "open" | "addressed" | "resolved",
-): Promise<FeedbackItem[]> {
-  const qs = status ? `?status=${status}` : "";
-  const res = await fetch(`${API_BASE}/documents/${documentId}/feedback${qs}`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch feedback");
-  const data = (await res.json()) as { feedback: Record<string, unknown>[] };
-  return data.feedback.map(mapFeedback);
-}
-
 export async function apiCreateFeedback(
   documentId: string,
   content: string,
@@ -1274,62 +992,6 @@ export async function apiSetRequireGateOnAccept(
   if (!res.ok) throw new Error("Failed to update quality gate setting");
 }
 
-export async function apiApprovePipelineAlignment(
-  documentId: string,
-  getToken: GetToken,
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/approve`, {
-    method: "POST",
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to approve pipeline checkpoint");
-}
-
-export async function apiRejectPipelineAlignment(
-  documentId: string,
-  comment: string,
-  getToken: GetToken,
-  sectionKey?: string,
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/reject`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ comment, section_key: sectionKey ?? null }),
-  });
-  if (!res.ok) throw new Error("Failed to reject pipeline checkpoint");
-}
-
-export async function apiUpdateAgentWritePolicy(
-  documentId: string,
-  policy: "suggest" | "direct",
-  getToken: GetToken,
-): Promise<Document> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}`, {
-    method: "PATCH",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ agent_write_policy: policy }),
-  });
-  if (!res.ok) throw new Error("Failed to update write policy");
-  return mapDocument(await res.json());
-}
-
-export async function apiUpdateCompletedDocument(
-  documentId: string,
-  sections: Array<{
-    section_type: Section["sectionType"];
-    content: string;
-  }>,
-  getToken: GetToken,
-) {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/completed-content`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ sections }),
-  });
-  if (!res.ok) throw new Error("Failed to save completed document");
-  return res.json();
-}
-
 // ─── Artifacts ────────────────────────────────────────────────
 
 function mapArtifact(raw: Record<string, unknown>): Artifact {
@@ -1359,14 +1021,6 @@ export async function apiFetchArtifacts(
   if (!res.ok) throw new Error("Failed to fetch artifacts");
   const data = await res.json();
   return (data.artifacts as Record<string, unknown>[]).map(mapArtifact);
-}
-
-export async function apiDeleteArtifact(artifactId: string, getToken: GetToken): Promise<void> {
-  const res = await fetch(`${API_BASE}/artifacts/${artifactId}`, {
-    method: "DELETE",
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to delete artifact");
 }
 
 /**
