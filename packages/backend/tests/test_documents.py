@@ -1,7 +1,6 @@
 """Tests for document creation and credit system."""
 
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -17,11 +16,11 @@ async def test_create_document_success(client_factory):
     user = User(id="user_credits", email="c@test.com", name="C", credits=3)
 
     async with client_factory(user) as client:
-        res = await client.post("/api/documents", json={"title": "My RFC", "mode": "editor"})
+        res = await client.post("/api/documents", json={"title": "My RFC"})
     assert res.status_code == 201
     data = res.json()
     assert data["title"] == "My RFC"
-    assert data["current_phase"] == "editing"
+    assert data["document_mode"] == "editor"
 
 
 @pytest.mark.asyncio
@@ -30,7 +29,7 @@ async def test_create_document_no_credits_rejected(client_factory):
     user = User(id="user_broke", email="broke@test.com", name="Broke", credits=0)
 
     async with client_factory(user) as client:
-        res = await client.post("/api/documents", json={"title": "Denied", "mode": "editor"})
+        res = await client.post("/api/documents", json={"title": "Denied"})
     assert res.status_code == 429
     assert res.json()["detail"]["code"] == "WEEKLY_DOCUMENT_LIMIT_REACHED"
 
@@ -42,7 +41,7 @@ async def test_credit_deduction_is_atomic(client_factory):
     user = User(id="user_atomic", email="atom@test.com", name="Atom", credits=starting)
 
     async with client_factory(user) as client:
-        res = await client.post("/api/documents", json={"title": "First", "mode": "editor"})
+        res = await client.post("/api/documents", json={"title": "First"})
         assert res.status_code == 201
 
     # Verify credit was deducted in the DB
@@ -60,26 +59,10 @@ async def test_editor_document_requires_weekly_creation(client_factory):
     async with client_factory(user) as client:
         res = await client.post(
             "/api/documents",
-            json={"title": "Free editor", "mode": "editor"},
+            json={"title": "Free editor"},
         )
 
     assert res.status_code == 429, res.text
-
-
-@pytest.mark.asyncio
-async def test_guided_document_creation_is_disabled(client_factory):
-    """Hosted guided creation remains code-owned but is not a public flow."""
-    user = User(id="user_evt", email="evt@test.com", name="Evt", credits=5)
-
-    async with client_factory(user) as client:
-        with patch("app.routers.documents.inngest_client") as mock_inngest:
-            mock_inngest.send = AsyncMock()
-            res = await client.post(
-                "/api/documents",
-                json={"title": "Event test", "document_context": "Test context for the Inngest event dispatch check", "mode": "guided"},
-            )
-            assert res.status_code == 410
-            mock_inngest.send.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -97,7 +80,7 @@ async def test_publish_marks_the_active_version_and_gate_can_block_it(client_fac
 
     user = User(id="u_pub1", email="p1@test.com", name="P", credits=5)
     async with client_factory(user) as client:
-        res = await client.post("/api/documents", json={"title": "Doc", "mode": "editor"})
+        res = await client.post("/api/documents", json={"title": "Doc"})
         doc_id = res.json()["id"]
         detail = await client.get(f"/api/documents/{doc_id}")
         section_id = next(

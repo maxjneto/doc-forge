@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { Document, Phase } from "@/types";
+import type { Document } from "@/types";
 import { consumeDocumentDragClick, startDocumentPointerDrag } from "./documentPointerDrag";
 import { IconButton, Pill, type PillTone } from "@/components/ui";
 import { useI18n } from "@/i18n";
@@ -8,25 +8,12 @@ import { fullDate, relativeTime } from "@/utils/time";
 /** Columns shared by every row of the library table, and its header. */
 export const LIBRARY_GRID = "minmax(0,1fr) 196px 176px 96px 128px";
 
-const PHASE_LABEL_KEY: Record<Phase, string> = {
-  discovery: "phase.discovery",
-  alignment: "phase.alignment",
-  generation: "phase.generation",
-  refinement: "phase.refinement",
-  audit: "phase.audit",
-  completed: "phase.forged",
-  editing: "phase.editor",
-};
-
 /**
  * The document's state as one pill (colour grammar R2/R5): steel = published
  * and frozen, heat = something in progress, ghost = a plain draft.
  */
 function statusOf(doc: Document, t: (key: string, vars?: Record<string, string | number>) => string): { tone: PillTone; label: string; dot?: boolean } {
   if (doc.archivedAt) return { tone: "ghost", label: t("dashboard.archived") };
-  if (doc.documentMode === "guided" && doc.currentPhase !== "completed" && doc.currentPhase !== "editing") {
-    return { tone: "heat", label: t("dashboard.pipelinePhase", { phase: t(PHASE_LABEL_KEY[doc.currentPhase]) }) };
-  }
   if (doc.publishedAt && doc.hasUnpublishedChanges) return { tone: "heat", label: t("dashboard.unpublishedChanges") };
   if (doc.publishedAt) return { tone: "steel", label: t("common.published") };
   return { tone: "ghost", label: t("common.draft") };
@@ -109,7 +96,7 @@ export function DocTableRow({
           aria-hidden
           style={{ fontSize: 20, color: doc.archivedAt ? "var(--color-mute)" : "var(--color-faint)", flexShrink: 0 }}
         >
-          {doc.documentMode === "guided" ? "account_tree" : "description"}
+          {doc.documentMode === "layout" ? "dashboard" : "description"}
         </span>
         <div style={{ minWidth: 0, flex: 1 }}>
           {renaming ? (

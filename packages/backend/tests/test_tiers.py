@@ -1,6 +1,5 @@
 """Tests for the tiers single source of truth and Free plan limit enforcement."""
 
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -30,10 +29,10 @@ async def test_free_plan_document_limit_enforced(client_factory):
     )
     async with client_factory(user) as client:
         for i in range(settings.FREE_MAX_ACTIVE_DOCUMENTS):
-            res = await client.post("/api/documents", json={"title": f"Doc {i}", "mode": "editor"})
+            res = await client.post("/api/documents", json={"title": f"Doc {i}"})
             assert res.status_code == 201, res.text
 
-        res = await client.post("/api/documents", json={"title": "Over limit", "mode": "editor"})
+        res = await client.post("/api/documents", json={"title": "Over limit"})
         assert res.status_code == 403
         assert "limit" in res.json()["detail"].lower()
 
@@ -47,11 +46,11 @@ async def test_archiving_frees_an_active_document_slot(client_factory):
     async with client_factory(user) as client:
         ids = []
         for i in range(settings.FREE_MAX_ACTIVE_DOCUMENTS):
-            res = await client.post("/api/documents", json={"title": f"Doc {i}", "mode": "editor"})
+            res = await client.post("/api/documents", json={"title": f"Doc {i}"})
             assert res.status_code == 201, res.text
             ids.append(res.json()["id"])
         assert (await client.post(f"/api/documents/{ids[0]}/archive")).status_code == 200
-        res = await client.post("/api/documents", json={"title": "Replacement", "mode": "editor"})
+        res = await client.post("/api/documents", json={"title": "Replacement"})
         assert res.status_code == 201, res.text
         archived = await client.get("/api/documents?include_archived=true")
         assert any(doc["id"] == ids[0] and doc["archived_at"] for doc in archived.json()["documents"])
@@ -85,13 +84,11 @@ async def test_pro_plan_bypasses_limits(client_factory):
         credits=settings.FREE_MAX_ACTIVE_DOCUMENTS + 5, plan="pro",
     )
     async with client_factory(user) as client:
-        with patch("app.routers.documents.inngest_client") as mock_inngest:
-            mock_inngest.send = AsyncMock()
-            for i in range(settings.FREE_MAX_ACTIVE_DOCUMENTS + 1):
-                res = await client.post(
-                    "/api/documents", json={"title": f"Doc {i}", "mode": "editor"}
-                )
-                assert res.status_code == 201, res.text
+        for i in range(settings.FREE_MAX_ACTIVE_DOCUMENTS + 1):
+            res = await client.post(
+                "/api/documents", json={"title": f"Doc {i}"}
+            )
+            assert res.status_code == 201, res.text
 
 
 @pytest.mark.asyncio

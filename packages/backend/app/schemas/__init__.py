@@ -4,13 +4,7 @@ from app.schemas.document import (
     DocumentListResponse,
     DocumentResponse,
 )
-from app.schemas.events import (
-    AnswerQuestionRequest,
-    EventRequest,
-)
 from app.schemas.section import (
-    ChatMessageResponse,
-    SectionResponse,
     SectionVersionResponse,
     VersionRestoreResponse,
 )
@@ -20,10 +14,6 @@ __all__ = [
     "DocumentResponse",
     "DocumentListResponse",
     "DocumentDetailResponse",
-    "SectionResponse",
     "SectionVersionResponse",
-    "ChatMessageResponse",
     "VersionRestoreResponse",
-    "AnswerQuestionRequest",
-    "EventRequest",
 ]

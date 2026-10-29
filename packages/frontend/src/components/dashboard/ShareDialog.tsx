@@ -28,6 +28,8 @@ interface ShareDialogProps {
   documentTitle: string;
   onClose: () => void;
   publishedAt?: string | null;
+  /** A page document: its public link comes from "Publish" in the editor, not from here. */
+  layout?: boolean;
 }
 
 /**
@@ -38,7 +40,7 @@ interface ShareDialogProps {
  * which is why the reasoning panel matters so much for them, since they never
  * watched the agent work.
  */
-export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = null }: ShareDialogProps) {
+export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = null, layout = false }: ShareDialogProps) {
   const { getToken } = useAuth();
   const { t } = useI18n();
   const [members, setMembers] = useState<DocumentMember[]>([]);
@@ -171,66 +173,72 @@ export function ShareDialog({ documentId, documentTitle, onClose, publishedAt = 
             </div>
           )}
 
-          <div
-            style={{
-              borderTop: "1px solid var(--color-outline)",
-              paddingTop: 16,
-              marginBottom: 18,
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, fontSize: 12.5, color: "var(--color-text)" }}>
-                {t("share.publicLink")}
-              </div>
-              <Button
-                variant={publicToken ? "secondary" : "primary"}
-                disabled={!publicToken && !publishedAt}
-                onClick={() => void togglePublic()}
-                title={!publicToken && !publishedAt ? t("share.publishFirst") : undefined}
-              >
-                {publicToken ? t("common.deactivate") : t("common.activate")}
-              </Button>
-            </div>
-            {publicUrl ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <code
-                  className="df-mono"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontSize: 11.5,
-                    padding: "7px 9px",
-                    borderRadius: "var(--radius-sm)",
-                    background: "var(--color-surface-mid)",
-                    border: "1px solid var(--color-outline)",
-                    color: "var(--color-dim)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {publicUrl}
-                </code>
+          {layout ? (
+            <p style={{ borderTop: "1px solid var(--color-outline)", paddingTop: 16, marginBottom: 18, fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.5 }}>
+              {t("share.layoutPublishInEditor")}
+            </p>
+          ) : (
+            <div
+              style={{
+                borderTop: "1px solid var(--color-outline)",
+                paddingTop: 16,
+                marginBottom: 18,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1, fontSize: 12.5, color: "var(--color-text)" }}>
+                  {t("share.publicLink")}
+                </div>
                 <Button
-                  onClick={() => {
-                    void navigator.clipboard.writeText(publicUrl);
-                    setCopied(true);
-                  }}
+                  variant={publicToken ? "secondary" : "primary"}
+                  disabled={!publicToken && !publishedAt}
+                  onClick={() => void togglePublic()}
+                  title={!publicToken && !publishedAt ? t("share.publishFirst") : undefined}
                 >
-                  {copied ? t("share.copied") : t("common.copy")}
+                  {publicToken ? t("common.deactivate") : t("common.activate")}
                 </Button>
               </div>
-            ) : (
-              <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.5 }}>
-                {publishedAt
-                  ? t("share.publicEnabled")
-                  : t("share.publicDisabled")}
-              </div>
-            )}
-          </div>
+              {publicUrl ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <code
+                    className="df-mono"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      fontSize: 11.5,
+                      padding: "7px 9px",
+                      borderRadius: "var(--radius-sm)",
+                      background: "var(--color-surface-mid)",
+                      border: "1px solid var(--color-outline)",
+                      color: "var(--color-dim)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {publicUrl}
+                  </code>
+                  <Button
+                    onClick={() => {
+                      void navigator.clipboard.writeText(publicUrl);
+                      setCopied(true);
+                    }}
+                  >
+                    {copied ? t("share.copied") : t("common.copy")}
+                  </Button>
+                </div>
+              ) : (
+                <div style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.5 }}>
+                  {publishedAt
+                    ? t("share.publicEnabled")
+                    : t("share.publicDisabled")}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Button onClick={onClose}>{t("common.close")}</Button>

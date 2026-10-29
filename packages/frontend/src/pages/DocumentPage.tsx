@@ -1,96 +1,56 @@
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
+import { useCallback, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
-import type { Phase } from "@/types";
 import { useDocument } from "@/hooks/useDocument";
-import { usePhase } from "@/hooks/usePhase";
-import { PhaseTransition } from "@/components/shared/PhaseTransition";
-import { DiscoveryLayout } from "@/components/phases/discovery/DiscoveryLayout";
-import { AlignmentLayout } from "@/components/phases/alignment/AlignmentLayout";
-import { GenerationLayout } from "@/components/phases/generation/GenerationLayout";
-import { CompletedLayout } from "@/components/phases/completed";
-import { WorkspaceLayout } from "@/components/workspace";
-import { EditorLayout } from "@/components/phases/editor/EditorLayout";
-import { AuditLayout } from "@/components/phases/audit/AuditLayout";
-import { ForgeLoader, TopBar } from "@/components/shared";
+import { EditorLayout } from "@/components/editor/EditorLayout";
+import { TopBar } from "@/components/shared";
 import { apiUpdateDocumentTitle } from "@/utils/api";
 import { useI18n } from "@/i18n";
 
+// Layout documents pull in the layout engine and its fonts: load them only when one is opened.
+const LayoutDocumentView = lazy(() => import("@/components/layout-doc/LayoutDocumentView"));
+
 export function DocumentPage() {
-  const { id: urlId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { id: documentId = null } = useParams<{ id: string }>();
   const { getToken } = useAuth();
   const { t } = useI18n();
-  const isNew = urlId === "new";
-  const locationState = location.state as { documentTypeSlug?: string; documentTitle?: string | null } | null;
-  const documentTypeSlug = locationState?.documentTypeSlug ?? "rfc";
-  const documentTitle = locationState?.documentTitle ?? null;
 
-  // For new documents, documentId starts as null until created
-  const [createdDocId, setCreatedDocId] = useState<string | null>(null);
-  const activeDocId = isNew ? createdDocId : (urlId ?? null);
-
-  const { document, sections, discoveryQuestions, auditProblems, loading, refreshNow, sseTick } = useDocument(activeDocId, getToken);
-
-  const currentPhase: Phase = document?.currentPhase ?? "discovery";
-  const { config } = usePhase(currentPhase);
+  const { document, sections, loading, refreshNow, sseTick } = useDocument(documentId, getToken);
 
   // Fire document_opened once when a document is loaded
   useEffect(() => {
-    if (!activeDocId || !document) return;
+    if (!documentId || !document) return;
     posthog.capture("document_opened", {
-      document_id: activeDocId,
-      phase: document.currentPhase,
+      document_id: documentId,
       document_type: document.documentMode,
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDocId]);
-
-  // Track phase transitions for phase_completed and phase_entered
-  const prevPhaseRef = useRef<Phase | null>(null);
-  // True for one render right after a BYOA pipeline hands off audit→editing
-  // (A-lite, docs/product/pipeline-collaboration-implementation.md Fase 2/6)
-  // — drives EditorCompletionBanner. Hosted/guided docs still land on
-  // audit→completed and keep the dedicated CompletedLayout screen instead.
-  const [justCompletedPipeline, setJustCompletedPipeline] = useState(false);
-  useEffect(() => {
-    if (!activeDocId) return;
-    if (prevPhaseRef.current && prevPhaseRef.current !== currentPhase) {
-      posthog.capture("phase_completed", {
-        document_id: activeDocId,
-        from_phase: prevPhaseRef.current,
-        to_phase: currentPhase,
-      });
-      if (prevPhaseRef.current === "audit" && (currentPhase === "completed" || currentPhase === "editing")) {
-        posthog.capture("first_document_completed", { document_id: activeDocId });
-      }
-      if (prevPhaseRef.current === "audit" && currentPhase === "editing") {
-        setJustCompletedPipeline(true);
-      }
-    }
-    posthog.capture("phase_entered", { to_phase: currentPhase, document_id: activeDocId });
-    prevPhaseRef.current = currentPhase;
-  }, [currentPhase, activeDocId]);
+  }, [documentId, Boolean(document)]);
 
   const handleRenameTitle = useCallback(async (title: string) => {
-    if (!activeDocId) return;
-    await apiUpdateDocumentTitle(activeDocId, title, getToken);
+    if (!documentId) return;
+    await apiUpdateDocumentTitle(documentId, title, getToken);
     refreshNow();
-  }, [activeDocId, getToken, refreshNow]);
+  }, [documentId, getToken, refreshNow]);
 
-  const handleDocumentCreated = (docId: string) => {
-    setCreatedDocId(docId);
-    navigate(`/document/${docId}`, { replace: true });
-  };
-
-  if (loading && !document && !isNew) {
+  if (!document || !documentId) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-bg">
         <div className="text-faint text-body animate-pulse">
-          {t("document.loading")}
+          {loading ? t("document.loading") : null}
         </div>
+      </div>
+    );
+  }
+
+  if (document.documentMode === "layout") {
+    return (
+      <div className="h-screen w-full overflow-hidden bg-bg text-text antialiased selection:bg-heat-strong">
+        <TopBar docTitle={document.title} onRenameTitle={handleRenameTitle} />
+        <Suspense fallback={null}>
+          <LayoutDocumentView documentId={documentId} sseTick={sseTick} />
+        </Suspense>
       </div>
     );
   }
@@ -98,86 +58,21 @@ export function DocumentPage() {
   return (
     <div className="h-screen w-full overflow-hidden bg-bg text-text antialiased selection:bg-heat-strong">
       {/* In the editor the document bar carries the title (and its rename); the
-          top bar repeating it was a second copy of the same breadcrumb. */}
-      <TopBar
-        phase={currentPhase}
-        phaseLabel={config?.label}
-        docTitle={currentPhase === "editing" ? undefined : document?.title}
-        onRenameTitle={document && currentPhase !== "editing" ? handleRenameTitle : undefined}
-      />
-      <PhaseTransition phase={currentPhase}>
-        {currentPhase === "discovery" && (
-          <DiscoveryLayout
-            documentId={activeDocId}
-            questions={discoveryQuestions}
-            onDocumentCreated={handleDocumentCreated}
-            documentTypeSlug={documentTypeSlug}
-            documentTitle={documentTitle}
-          />
-        )}
-        {currentPhase === "alignment" && (
-          <AlignmentLayout
-            documentId={activeDocId!}
-            sections={sections}
-            documentMode={document?.documentMode}
-          />
-        )}
-        {currentPhase === "generation" && (
-          <GenerationLayout
-            documentId={activeDocId!}
-            sections={sections}
-          />
-        )}
-        {currentPhase === "refinement" && (
-          sections.every((s) => s.status === "finalized") ? (
-            <div className="h-full pt-[64px] flex items-center justify-center px-6">
-              <ForgeLoader
-                steps={[
-                  { message: t("g.load.s1"), detail: t("g.load.s1d") },
-                  { message: t("g.load.s2"), detail: t("g.load.s2d") },
-                  { message: t("g.load.s3"), detail: t("g.load.s3d") },
-                ]}
-                stepInterval={3500}
-              />
-            </div>
-          ) : (
-            <WorkspaceLayout
-              documentId={activeDocId!}
-              sections={sections}
-            />
-          )
-        )}
-        {currentPhase === "audit" && (
-          <AuditLayout
-            documentId={activeDocId!}
-            currentPhase={currentPhase}
-            sections={sections}
-            auditProblems={auditProblems}
-          />
-        )}
-        {currentPhase === "completed" && (
-          <CompletedLayout
-            documentId={activeDocId!}
-            sections={sections}
-            onSaved={refreshNow}
-          />
-        )}
-        {currentPhase === "editing" && (
-          <EditorLayout
-            documentTitle={document?.title ?? "Documento"}
-            isMcpManaged={Boolean(document?.hasApiKeyActivity)}
-            publishedAt={document?.publishedAt}
-            hasUnpublishedChanges={document?.hasUnpublishedChanges}
-            onPublished={refreshNow}
-            onRenameTitle={document ? handleRenameTitle : undefined}
-            documentId={activeDocId!}
-            sections={sections}
-            sseTick={sseTick}
-            justCompleted={justCompletedPipeline}
-            onCompletionBannerDismissed={() => setJustCompletedPipeline(false)}
-          />
-        )}
-      </PhaseTransition>
+          top bar repeating it would be a second copy of the same breadcrumb. */}
+      <TopBar />
+      <div className="animate-fade-in h-full w-full">
+        <EditorLayout
+          documentTitle={document.title}
+          isMcpManaged={Boolean(document.hasApiKeyActivity)}
+          publishedAt={document.publishedAt}
+          hasUnpublishedChanges={document.hasUnpublishedChanges}
+          onPublished={refreshNow}
+          onRenameTitle={handleRenameTitle}
+          documentId={documentId}
+          sections={sections}
+          sseTick={sseTick}
+        />
+      </div>
     </div>
   );
 }

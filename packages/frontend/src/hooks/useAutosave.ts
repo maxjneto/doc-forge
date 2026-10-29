@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { apiUpdateSectionContent } from "@/utils/api";
-import type { SaveState } from "@/components/phases/editor/EditorStatusBar";
+import type { SaveState } from "@/components/editor/EditorStatusBar";
 
 const DEBOUNCE_MS = 1200;
 

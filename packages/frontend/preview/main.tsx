@@ -1,7 +1,7 @@
 /**
  * Design preview entry: every screen of the app, signed in, against fixture
  * data. Run with `npm run dev:preview` and open any route (/home,
- * /document/doc-copasim, /mcp, /billing, /customize…).
+ * /document/doc-copasim, /mcp, /billing…).
  */
 import { installMockApi } from "./mock-api";
 

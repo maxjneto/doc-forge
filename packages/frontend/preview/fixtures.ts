@@ -27,7 +27,7 @@ export const me = {
   next_document_creations_reset_at: nextMondayUtc(),
 };
 
-// Numbers follow docs/product/agent-first-document-quotas.md.
+// Numbers follow backend/app/services/tiers.py.
 export const tiers = [
   {
     slug: "free", name: "Free", price_monthly_usd: 0, credits: "5 / week",
@@ -39,7 +39,7 @@ export const tiers = [
   {
     slug: "pro", name: "Pro", price_monthly_usd: 12, credits: "50 / week",
     description: "For people who write with agents every day.",
-    features: ["50 document creations per week", "200 active documents", "10 connected agents", "Custom pipelines, types and prompts", "Markdown, PDF and DOCX export"],
+    features: ["50 document creations per week", "200 active documents", "10 connected agents", "Markdown, PDF and DOCX export"],
     limits: { max_active_documents: 200, max_api_keys: 10, weekly_document_creations: 50, export_formats: ["md", "pdf", "docx"] },
     cta: "Upgrade to Pro", highlight: true, available: true,
   },
@@ -56,18 +56,21 @@ export const folders = [
 
 type DocSeed = {
   id: string; title: string; folder: string | null; updated: number;
-  published?: number; unpublished?: boolean; agent?: string | null; archived?: number; guided?: boolean; phase?: string;
+  published?: number; unpublished?: boolean; agent?: string | null; archived?: number;
+  layout?: boolean;
 };
 
 const docSeeds: DocSeed[] = [
   { id: "doc-copasim", title: "CopaSim — Salas e Partidas", folder: "f-arch", updated: 6, published: 60 * 26, unpublished: true, agent: "Claude Code — laptop" },
   { id: "doc-host", title: "Host autoritativo: migração do motor de partidas", folder: "f-arch", updated: 60 * 5, agent: "Codex — CI" },
   { id: "doc-adr7", title: "ADR-07 — por que o host simula", folder: "f-adr", updated: 60 * 30, published: 60 * 30 },
-  { id: "doc-pay-rfc", title: "RFC: buffer assíncrono de pagamentos", folder: "f-pay", updated: 42, agent: "Claude Code — laptop", guided: true, phase: "alignment" },
+  { id: "doc-pay-rfc", title: "RFC: buffer assíncrono de pagamentos", folder: "f-pay", updated: 42, agent: "Claude Code — laptop" },
   { id: "doc-pay-rollback", title: "Plano de rollback do checkout v3", folder: "f-pay", updated: 60 * 50, published: 60 * 49 },
   { id: "doc-run-pg", title: "Runbook: rotação de chaves do Postgres", folder: "f-run", updated: 60 * 24 * 6, published: 60 * 24 * 6 },
   { id: "doc-run-hooks", title: "Postmortem 30/09 — fila de webhooks parada", folder: "f-run", updated: 60 * 24 * 2, published: 60 * 24 * 8, unpublished: true, agent: "Cursor" },
   { id: "doc-roadmap", title: "Roadmap Q4", folder: null, updated: 60 * 3, published: 60 * 24 * 12, unpublished: true },
+  { id: "doc-layout-q3", title: "Relatório do 3º trimestre", folder: null, updated: 25, agent: "Claude Code — laptop", layout: true },
+  { id: "doc-layout-deck", title: "Plano de crescimento 2027 (slides)", folder: null, updated: 40, agent: "Claude Code — laptop", layout: true },
   { id: "doc-notes", title: "Notas soltas de entrevistas com usuários", folder: null, updated: 60 * 24 * 9 },
   { id: "doc-old", title: "Proposta de pricing (v1)", folder: null, updated: 60 * 24 * 40, archived: 60 * 24 * 20 },
 ];
@@ -75,11 +78,8 @@ const docSeeds: DocSeed[] = [
 export const documents = docSeeds.map((d) => ({
   id: d.id,
   title: d.title,
-  current_phase: d.phase ?? "editing",
-  document_mode: d.guided ? "guided" : "editor",
+  document_mode: d.layout ? "layout" : "editor",
   agent_write_policy: "suggest",
-  global_context: null,
-  user_preferences: null,
   created_at: ago(d.updated + 60 * 24 * 3),
   updated_at: ago(d.updated),
   has_api_key_activity: Boolean(d.agent),
@@ -186,6 +186,9 @@ const proposedBody = copasimBody
 export const documentDetail = (id: string) => {
   const doc = documents.find((d) => d.id === id) ?? documents[0];
   const isCopasim = doc.id === "doc-copasim";
+  if (doc.document_mode === "layout") {
+    return { document: doc, sections: [] };
+  }
   return {
     document: doc,
     sections: [
@@ -193,15 +196,9 @@ export const documentDetail = (id: string) => {
         id: `sec-${doc.id}`,
         document_id: doc.id,
         section_type: "body",
-        status: "refining",
-        summary: null,
         active_version_content: isCopasim ? copasimBody : `# ${doc.title}\n\nRascunho inicial.\n\n## Contexto\n\nEscreva aqui.\n`,
-        version_count: isCopasim ? 5 : 1,
-        current_version_index: isCopasim ? 4 : 0,
       },
     ],
-    discovery_questions: [],
-    audit_problems: [],
   };
 };
 
@@ -325,45 +322,3 @@ export const members = {
     { id: "m2", email: "joao@time.dev", role: "commenter", accepted: false },
   ],
 };
-
-// ─── Customize ────────────────────────────────────────────────────
-
-const section = (key: string, name: string, order: number, role: string) => ({ id: `${key}-${order}`, section_key: key, display_name: name, order, role_description: role });
-
-export const documentTypes = [
-  {
-    id: "dt-rfc", slug: "rfc", name: "RFC", description: "Propose a technical change and its trade-offs.", is_active: true, is_custom: false,
-    sections: [
-      section("context", "Context", 1, "Why this change, what problem it solves, constraints."),
-      section("proposal", "Proposal", 2, "The design, with the decisions that matter."),
-      section("implementation", "Implementation", 3, "Rollout plan, migrations, owners."),
-      section("risks", "Risks & Alternatives", 4, "What could go wrong and what was rejected."),
-    ],
-  },
-  {
-    id: "dt-adr", slug: "adr", name: "ADR", description: "Record one architecture decision.", is_active: true, is_custom: false,
-    sections: [section("context", "Context", 1, "Forces at play."), section("decision", "Decision", 2, "What we decided."), section("consequences", "Consequences", 3, "What becomes easier or harder.")],
-  },
-  {
-    id: "dt-pm", slug: "postmortem", name: "Postmortem", description: "Blameless review of an incident.", is_active: true, is_custom: false,
-    sections: [section("summary", "Summary", 1, "What happened."), section("timeline", "Timeline", 2, "Minute by minute."), section("actions", "Action items", 3, "Owners and dates.")],
-  },
-  {
-    id: "dt-run", slug: "runbook", name: "Runbook", description: "Step-by-step operational procedure.", is_active: true, is_custom: true,
-    sections: [section("when", "When to use", 1, "Triggers."), section("steps", "Steps", 2, "Commands in order."), section("verify", "Verify", 3, "How to confirm success.")],
-  },
-];
-
-export const pipelineDefinitions = [
-  {
-    id: "pd-1", name: "RFC com revisão humana", base_document_type_id: "dt-rfc",
-    steps: [
-      { phase: "discovery" },
-      { phase: "alignment", checkpoint: "human" },
-      { phase: "generation", section_key: "context" },
-      { phase: "generation", section_key: "proposal" },
-      { phase: "audit" },
-    ],
-    created_at: ago(60 * 24 * 10), updated_at: ago(60 * 24 * 2),
-  },
-];

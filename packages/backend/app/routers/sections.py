@@ -7,10 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import ChatMessage, Document, Section, SectionVersion
+from app.models import Document, Section, SectionVersion
 from app.models.user import User
 from app.schemas.section import (
-    ChatMessageResponse,
     SectionContentUpdateRequest,
     SectionSnapshotRequest,
     SectionVersionResponse,
@@ -55,22 +54,6 @@ async def get_section_versions(
     )
     versions = result.scalars().all()
     return [SectionVersionResponse.model_validate(v) for v in versions]
-
-
-@router.get("/sections/{section_id}/chat", response_model=list[ChatMessageResponse])
-async def get_section_chat(
-    section_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    await _assert_section_ownership(section_id, current_user, db)
-    result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.section_id == section_id)
-        .order_by(ChatMessage.created_at)
-    )
-    messages = result.scalars().all()
-    return [ChatMessageResponse.model_validate(m) for m in messages]
 
 
 @router.post("/sections/{section_id}/versions/snapshot", response_model=SectionVersionResponse, status_code=201)

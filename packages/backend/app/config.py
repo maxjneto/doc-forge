@@ -10,14 +10,6 @@ load_dotenv(ENV_FILE)
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:5480/docforge"
-    AZURE_OPENAI_ENDPOINT: str = ""
-    AZURE_OPENAI_API_KEY: str = ""
-    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
-    AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
-    AZURE_OPENAI_GUARDRAIL_DEPLOYMENT: str = "gpt-4o-mini"
-    INNGEST_EVENT_KEY: str = ""
-    INNGEST_SIGNING_KEY: str = ""
-    INNGEST_DEV_SERVER_URL: str = "http://127.0.0.1:8288"
     # Optional Redis pub/sub for SSE fan-out across replicas.
     # Empty = in-process delivery only (requires replica=1).
     REDIS_URL: str = ""
@@ -42,16 +34,9 @@ class Settings(BaseSettings):
     PRO_MAX_ACTIVE_DOCUMENTS: int = 200
     PRO_MAX_API_KEYS: int = 10
 
-    # Hosted capabilities stay available for internal/future use, but are not
-    # public product flows. Agent-run quality gates remain available.
-    HOSTED_GUIDED_WORKFLOW_ENABLED: bool = False
-    HOSTED_QUALITY_GATE_ENABLED: bool = False
-    HOSTED_QUALITY_GATE_COST: int = 0
-
-    # AI-assisted section role_description generation (Customize page, custom
-    # document types). Free (no credits) but Pro-only and rate-limited per user.
-    AI_SECTION_SUMMARY_RATE_LIMIT: int = 10
-    AI_SECTION_SUMMARY_WINDOW_HOURS: int = 1
+    # Internal Node service that runs @docforge-lib/layout (packages/layout-service).
+    LAYOUT_SERVICE_URL: str = "http://127.0.0.1:8002"
+    LAYOUT_SERVICE_TIMEOUT_SECONDS: float = 15.0
 
     # Version retention (Free plan): oldest inactive versions beyond this count
     # are pruned when a new one is created. None/0 on paid plans (see tiers.py).
@@ -72,7 +57,6 @@ class Settings(BaseSettings):
     POSTHOG_API_KEY: str = ""
     POSTHOG_HOST: str = "https://us.i.posthog.com"
     POSTHOG_ENABLED: bool = False
-    POSTHOG_REDACT_PROMPTS: bool = True
 
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 

@@ -19,6 +19,25 @@ class DocForgeError(Exception):
     pass
 
 
+def _failure(method: str, path: str, r: httpx.Response) -> DocForgeError:
+    """Prefer the API's own message (and code) over a raw response body."""
+    try:
+        detail: Any = r.json().get("detail")
+    except (ValueError, AttributeError):
+        detail = None
+    prefix = f"{method} {path} failed ({r.status_code})"
+    if isinstance(detail, dict) and detail.get("message"):
+        code = f" [{detail['code']}]" if detail.get("code") else ""
+        problems = "".join(
+            f"\n- [{d.get('severity')}] {d.get('code')}: {d.get('message')}"
+            for d in detail.get("diagnostics") or []
+        )
+        return DocForgeError(f"{prefix}{code}: {detail['message']}{problems}")
+    if isinstance(detail, str):
+        return DocForgeError(f"{prefix}: {detail}")
+    return DocForgeError(f"{prefix}: {r.text}")
+
+
 def _client() -> httpx.AsyncClient:
     key = _api_key_var.get()
     if not key:
@@ -34,7 +53,7 @@ async def _get(path: str, **params: Any) -> Any:
     async with _client() as c:
         r = await c.get(path, params=params or None)
     if not r.is_success:
-        raise DocForgeError(f"GET {path} failed ({r.status_code}): {r.text}")
+        raise _failure("GET", path, r)
     return r.json()
 
 
@@ -42,7 +61,15 @@ async def _post(path: str, json: Any = None) -> Any:
     async with _client() as c:
         r = await c.post(path, json=json)
     if not r.is_success:
-        raise DocForgeError(f"POST {path} failed ({r.status_code}): {r.text}")
+        raise _failure("POST", path, r)
+    return r.json()
+
+
+async def _put(path: str, json: Any) -> Any:
+    async with _client() as c:
+        r = await c.put(path, json=json)
+    if not r.is_success:
+        raise _failure("PUT", path, r)
     return r.json()
 
 
@@ -50,7 +77,7 @@ async def _patch(path: str, json: Any) -> Any:
     async with _client() as c:
         r = await c.patch(path, json=json)
     if not r.is_success:
-        raise DocForgeError(f"PATCH {path} failed ({r.status_code}): {r.text}")
+        raise _failure("PATCH", path, r)
     return r.json()
 
 
@@ -65,12 +92,8 @@ async def list_documents() -> list[dict[str, Any]]:
     return data.get("documents", []) if isinstance(data, dict) else data
 
 
-async def create_document(title: str, context: str = "") -> dict[str, Any]:
-    return await _post("/documents", json={
-        "title": title,
-        "document_context": context or None,
-        "mode": "editor",
-    })
+async def create_document(title: str) -> dict[str, Any]:
+    return await _post("/documents", json={"title": title})
 
 
 async def get_document(document_id: str) -> dict[str, Any]:
@@ -165,30 +188,6 @@ async def resolve_feedback(
     })
 
 
-# ─── Document types & pipeline (BYOA) ────────────────────────
-
-async def list_document_types() -> list[dict[str, Any]]:
-    return await _get("/document-types")
-
-
-async def start_pipeline(
-    document_type_slug: str,
-    title: str | None,
-    document_context: str,
-    pipeline_definition_id: str | None = None,
-) -> dict[str, Any]:
-    return await _post("/pipeline/documents", json={
-        "document_type_slug": document_type_slug,
-        "title": title,
-        "document_context": document_context,
-        "pipeline_definition_id": pipeline_definition_id,
-    })
-
-
-async def list_pipeline_definitions() -> list[dict[str, Any]]:
-    return await _get("/pipeline-definitions")
-
-
 # ─── Quality gate ────────────────────────────────────────────
 
 async def get_gate_status(document_id: str) -> dict[str, Any]:
@@ -206,16 +205,220 @@ async def submit_quality_findings(document_id: str, findings: list[dict]) -> Any
     )
 
 
-async def get_next_step(document_id: str) -> dict[str, Any]:
-    return await _get(f"/documents/{document_id}/pipeline/next-step")
-
-
-async def submit_step(document_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    return await _post(f"/documents/{document_id}/pipeline/submit", json={"payload": payload})
-
-
 def document_url(document_id: str) -> str:
     return f"{FRONTEND_BASE}/document/{document_id}"
+
+
+# ─── Layout documents ─────────────────────────────────────────
+
+async def create_layout_document(
+    title: str, content: dict[str, Any] | None = None, template: str | None = None, fmt: str | None = None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"title": title}
+    if content is not None:
+        body["content"] = content
+    if template:
+        body["template"] = template
+    if fmt:
+        body["format"] = fmt
+    return await _post("/layout-documents", json=body)
+
+
+async def get_layout(document_id: str) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/layout")
+
+
+async def get_layout_map(
+    document_id: str,
+    level: int = 1,
+    components: list[str] | None = None,
+    pages: list[int] | None = None,
+    draw: bool = True,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {"level": level}
+    if components:
+        params["components"] = ",".join(components)
+    if pages:
+        params["pages"] = ",".join(str(p) for p in pages)
+    if not draw:
+        params["draw"] = "false"
+    return await _get(f"/documents/{document_id}/layout/map", **params)
+
+
+async def apply_layout_ops(
+    document_id: str,
+    ops: list[dict[str, Any]],
+    base_revision: int | None = None,
+    pages: list[int] | None = None,
+    note: str | None = None,
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"ops": ops}
+    if base_revision is not None:
+        body["base_revision"] = base_revision
+    if pages:
+        body["pages"] = pages
+    if note:
+        body["note"] = note
+    return await _post(f"/documents/{document_id}/layout/ops", json=body)
+
+
+async def request_layout_review(
+    document_id: str, summary: str, focus: list[str], questions: list[dict[str, Any]]
+) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "message": summary,
+        "code": "review-request",
+        "review": {"focus": focus, "questions": questions},
+    }
+    if focus:
+        body["anchor"] = {"component": focus[0]}
+    return await _post(f"/documents/{document_id}/layout/notes", json=body)
+
+
+async def preview_layout_ops(document_id: str, ops: list[dict[str, Any]], pages: list[int] | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"ops": ops}
+    if pages:
+        body["pages"] = pages
+    return await _post(f"/documents/{document_id}/layout/preview", json=body)
+
+
+async def preview_layout_document(
+    content: dict[str, Any], ops: list[dict[str, Any]] | None = None, pages: list[int] | None = None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"content": content}
+    if ops:
+        body["ops"] = ops
+    if pages:
+        body["pages"] = pages
+    return await _post("/layout/preview", json=body)
+
+
+async def measure_layout_component(
+    component: dict[str, Any],
+    widths: list[int] | None = None,
+    cols: list[list[int]] | None = None,
+    document_id: str | None = None,
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"component": component}
+    if widths:
+        body["widths"] = widths
+    if cols:
+        body["cols"] = cols
+    if document_id:
+        body["document_id"] = document_id
+    return await _post("/layout/measure", json=body)
+
+
+async def render_layout_page(document_id: str, page: int, scale: float, highlight: list[str] | None) -> dict[str, Any]:
+    params: dict[str, Any] = {"page": page, "scale": scale}
+    if highlight:
+        params["highlight"] = ",".join(highlight)
+    return await _get(f"/documents/{document_id}/layout/image", **params)
+
+
+async def report_tool_call(payload: dict[str, Any]) -> None:
+    """Usage telemetry (which tool, how long, how much text the agent got). Best effort:
+    a failure here must never reach the agent."""
+    try:
+        await _post("/telemetry/mcp-tool", json=payload)
+    except Exception:  # noqa: BLE001, S110 — telemetry is never worth an error
+        pass
+
+
+async def review_layout(document_id: str) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/layout/review")
+
+
+async def find_in_layout(
+    document_id: str,
+    text: str | None = None,
+    types: list[str] | None = None,
+    label: str | None = None,
+    page: int | None = None,
+    rect: dict[str, int] | None = None,
+    state: str | None = None,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    if text:
+        params["text"] = text
+    if types:
+        params["type"] = ",".join(types)
+    if label:
+        params["label"] = label
+    if page is not None:
+        params["page"] = page
+    if rect:
+        params["rect"] = ",".join(str(rect.get(k, 0)) for k in ("page", "x", "y", "w", "h"))
+    if state:
+        params["state"] = state
+    return await _get(f"/documents/{document_id}/layout/find", **params)
+
+
+async def calibrate_layout_style(document_id: str, target: dict[str, str], variants: list[dict[str, Any]]) -> dict[str, Any]:
+    return await _post(f"/documents/{document_id}/layout/calibrate", json={**target, "variants": variants})
+
+
+async def list_layout_notes(
+    document_id: str, status: str = "open", kind: str | None = None, component: str | None = None
+) -> dict[str, Any]:
+    params: dict[str, Any] = {"status": status}
+    if kind:
+        params["kind"] = kind
+    if component:
+        params["component"] = component
+    return await _get(f"/documents/{document_id}/layout/notes", **params)
+
+
+async def update_layout_note(note_id: str, status: str, resolution_note: str | None = None) -> dict[str, Any]:
+    return await _patch(f"/layout-notes/{note_id}", {"status": status, "resolution_note": resolution_note})
+
+
+async def reply_layout_note(document_id: str, note_id: str, message: str) -> dict[str, Any]:
+    return await _post(f"/documents/{document_id}/layout/notes", json={"message": message, "parent_id": note_id})
+
+
+async def list_layout_themes() -> dict[str, Any]:
+    return await _get("/layout-themes")
+
+
+async def save_layout_theme(name: str, tokens: dict[str, Any], description: str | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"name": name, "tokens": tokens}
+    if description:
+        body["description"] = description
+    return await _post("/layout-themes", json=body)
+
+
+async def apply_layout_theme(document_id: str, theme: str) -> dict[str, Any]:
+    return await _post(f"/documents/{document_id}/layout/theme", json={"theme": theme})
+
+
+async def save_layout_version(document_id: str, name: str, note: str | None = None, revision: int | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"name": name}
+    if note:
+        body["note"] = note
+    if revision is not None:
+        body["revision"] = revision
+    return await _post(f"/documents/{document_id}/layout/versions", json=body)
+
+
+async def list_layout_revisions(document_id: str, named: bool = False, limit: int = 30) -> dict[str, Any]:
+    params: dict[str, Any] = {"limit": limit}
+    if named:
+        params["named"] = "true"
+    return await _get(f"/documents/{document_id}/layout/revisions", **params)
+
+
+async def get_layout_revision(document_id: str, revision: int) -> dict[str, Any]:
+    return await _get(f"/documents/{document_id}/layout/revisions/{revision}")
+
+
+async def replace_layout(
+    document_id: str, content: dict[str, Any], base_revision: int | None = None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {"content": content}
+    if base_revision is not None:
+        body["base_revision"] = base_revision
+    return await _put(f"/documents/{document_id}/layout", json=body)
 
 
 # ─── Artifacts ────────────────────────────────────────────────────

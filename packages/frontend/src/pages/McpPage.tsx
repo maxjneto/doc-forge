@@ -1,3 +1,4 @@
+import { MCP_URL } from "@/utils/mcpUrl";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { TopBar } from "@/components/shared";
@@ -308,7 +309,7 @@ interface PanelProps {
 }
 
 function ClaudeCodePanel({ copy, copied, t }: PanelProps) {
-  const cmd1 = `claude mcp add --transport http docforge https://mcp.doc-forge.dev/mcp -H "Authorization: Bearer your_api_key_here"`;
+  const cmd1 = `claude mcp add --transport http docforge ${MCP_URL} -H "Authorization: Bearer your_api_key_here"`;
   const cmd2 = `claude mcp list`;
   const cmd3 = `claude "${t("mcp.cc.prompt")}"`;
   return (
@@ -332,8 +333,8 @@ function ClaudeCodePanel({ copy, copied, t }: PanelProps) {
 function CodexPanel({ copy, copied, t }: PanelProps) {
   const posixEnv = `export DOCFORGE_API_KEY=your_api_key_here`;
   const powershellEnv = `$env:DOCFORGE_API_KEY = "your_api_key_here"`;
-  const cmd1 = `codex mcp add docforge --url https://mcp.doc-forge.dev/mcp --bearer-token-env-var DOCFORGE_API_KEY`;
-  const toml = `[mcp_servers.docforge]\nurl = "https://mcp.doc-forge.dev/mcp"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
+  const cmd1 = `codex mcp add docforge --url ${MCP_URL} --bearer-token-env-var DOCFORGE_API_KEY`;
+  const toml = `[mcp_servers.docforge]\nurl = "${MCP_URL}"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
   const verify = `codex mcp get docforge\ncodex mcp list`;
   const smokeTest = `codex "${t("mcp.cx.prompt")}"`;
   return (
@@ -366,7 +367,7 @@ function CodexPanel({ copy, copied, t }: PanelProps) {
 }
 
 function CursorPanel({ copy, copied, t }: PanelProps) {
-  const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "https://mcp.doc-forge.dev/mcp",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
+  const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "${MCP_URL}",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
   const cmd2 = `export DOCFORGE_API_KEY=your_api_key_here`;
   return (
     <>
@@ -386,9 +387,9 @@ function CursorPanel({ copy, copied, t }: PanelProps) {
 }
 
 function GenericPanel({ copy, copied, t }: PanelProps) {
-  const url = `https://mcp.doc-forge.dev/mcp`;
+  const url = MCP_URL;
   const auth = `Authorization: Bearer your_api_key_here`;
-  const transport = `# Streamable HTTP\nurl = "https://mcp.doc-forge.dev/mcp"`;
+  const transport = `# Streamable HTTP\nurl = "${MCP_URL}"`;
   return (
     <>
       <Step num={1} title={t("mcp.gn.s1")}>
@@ -415,9 +416,8 @@ const TOOL_NAMES = [
   "get_user_info", "list_documents", "create_document", "get_document", "get_section",
   "write_section", "append_section", "patch_section", "check_suggestions", "get_pending_feedback",
   "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
-  "rename_version", "get_activity", "get_document_url", "list_document_types", "start_pipeline",
-  "get_next_step", "submit_step", "get_quality_gate", "submit_quality_findings", "list_artifacts",
-  "create_artifact",
+  "rename_version", "get_activity", "get_document_url", "get_quality_gate", "submit_quality_findings",
+  "list_artifacts", "create_artifact",
 ];
 
 const RESOURCES: { uri: string; key: string }[] = [

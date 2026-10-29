@@ -2,20 +2,13 @@ import type {
   Document,
   Section,
   SectionVersion,
-  ChatMessage,
-  DiscoveryQuestion,
   AuditFinding,
-  DocumentType,
-  SectionDefinition,
   ApiKey,
   ApiKeyCreateResponse,
   DocumentActivity,
   MyActivityEvent,
   Suggestion,
   FeedbackItem,
-  PipelineDefinition,
-  PipelineStep,
-  PromptTemplate,
   Artifact,
   Folder,
   DocumentMember,
@@ -32,11 +25,8 @@ export function mapDocument(raw: Record<string, unknown>): Document {
   return {
     id: String(raw.id),
     title: raw.title as string,
-    currentPhase: raw.current_phase as Document["currentPhase"],
     documentMode: (raw.document_mode as Document["documentMode"]) ?? "editor",
     agentWritePolicy: (raw.agent_write_policy as Document["agentWritePolicy"]) ?? "suggest",
-    globalContext: (raw.global_context as string) ?? null,
-    userPreferences: (raw.user_preferences as string) ?? null,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
     hasApiKeyActivity: Boolean(raw.has_api_key_activity),
@@ -57,11 +47,7 @@ export function mapSection(
     id: String(raw.id),
     documentId: documentId ?? String(raw.document_id ?? ""),
     sectionType: raw.section_type as Section["sectionType"],
-    status: raw.status as Section["status"],
-    summary: (raw.summary as string) ?? null,
     activeVersionContent: (raw.active_version_content as string) ?? null,
-    versionCount: raw.version_count != null ? Number(raw.version_count) : undefined,
-    currentVersionIndex: raw.current_version_index != null ? Number(raw.current_version_index) : undefined,
   };
 }
 
@@ -79,31 +65,6 @@ export function mapVersion(raw: Record<string, unknown>): SectionVersion {
     isPublished: Boolean(raw.is_published),
     publishedAt: (raw.published_at as string | null) ?? null,
     createdAt: raw.created_at as string,
-  };
-}
-
-export function mapChatMessage(raw: Record<string, unknown>): ChatMessage {
-  return {
-    id: String(raw.id),
-    documentId: String(raw.document_id),
-    sectionId: String(raw.section_id),
-    role: raw.role as ChatMessage["role"],
-    content: raw.content as string,
-    createdAt: raw.created_at as string,
-  };
-}
-
-export function mapDiscoveryQuestion(
-  raw: Record<string, unknown>,
-  documentId?: string
-): DiscoveryQuestion {
-  return {
-    id: String(raw.id),
-    documentId: documentId ?? String(raw.document_id ?? ""),
-    question: raw.question as string,
-    answer: (raw.answer as string) ?? null,
-    skipped: raw.skipped as boolean,
-    sectionKey: (raw.section_key as string) ?? null,
   };
 }
 
@@ -256,24 +217,12 @@ export async function apiExportDocument(
   URL.revokeObjectURL(url);
 }
 
-export async function apiCreateDocument(
-  title: string,
-  documentContext: string,
-  getToken: GetToken,
-  userPreferences?: string,
-  documentTypeSlug?: string,
-  mode?: "guided" | "editor",
-): Promise<Document> {
+/** A Markdown document. Layout documents are created with apiCreateLayoutDocument. */
+export async function apiCreateDocument(title: string, getToken: GetToken): Promise<Document> {
   const res = await fetch(`${API_BASE}/documents`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: title || null,
-      document_context: documentContext || null,
-      user_preferences: userPreferences ?? null,
-      document_type_slug: documentTypeSlug ?? null,
-      mode: mode ?? "editor",
-    }),
+    body: JSON.stringify({ title: title || null }),
   });
   if (res.status === 429) throw new Error("WEEKLY_DOCUMENT_LIMIT_REACHED");
   if (!res.ok) throw new Error("Failed to create document");
@@ -294,36 +243,6 @@ export async function apiUpdateSectionContent(
   return mapVersion(await res.json());
 }
 
-export async function apiAnswerQuestion(
-  documentId: string,
-  question: string,
-  answer: string | null,
-  getToken: GetToken,
-) {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/answer`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ question, answer }),
-  });
-  if (!res.ok) throw new Error("Failed to answer question");
-  return res.json();
-}
-
-export async function apiSendEvent(
-  documentId: string,
-  eventType: string,
-  data: Record<string, unknown>,
-  getToken: GetToken,
-) {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/events`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ event_type: eventType, data }),
-  });
-  if (!res.ok) throw new Error("Failed to send event");
-  return res.json();
-}
-
 export async function apiFetchVersions(
   sectionId: string,
   getToken: GetToken,
@@ -334,18 +253,6 @@ export async function apiFetchVersions(
   if (!res.ok) throw new Error("Failed to fetch versions");
   const data = await res.json();
   return (data as Record<string, unknown>[]).map(mapVersion);
-}
-
-export async function apiFetchMessages(
-  sectionId: string,
-  getToken: GetToken,
-): Promise<ChatMessage[]> {
-  const res = await fetch(`${API_BASE}/sections/${sectionId}/chat`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch messages");
-  const data = await res.json();
-  return (data as Record<string, unknown>[]).map(mapChatMessage);
 }
 
 export async function apiRestoreVersion(
@@ -373,18 +280,6 @@ function mapAuditFinding(raw: Record<string, unknown>): AuditFinding {
     dismissed: raw.dismissed as boolean,
     createdAt: raw.created_at as string,
   };
-}
-
-export async function apiFetchAuditFindings(
-  documentId: string,
-  getToken: GetToken,
-): Promise<AuditFinding[]> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/audit-findings`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch audit findings");
-  const data = await res.json();
-  return (data as Record<string, unknown>[]).map(mapAuditFinding);
 }
 
 export async function apiDismissAuditFinding(
@@ -429,136 +324,6 @@ export async function apiUpdateSectionVersion(
   return mapVersion(await res.json());
 }
 
-function mapSectionDefinition(raw: Record<string, unknown>): SectionDefinition {
-  return {
-    id: String(raw.id),
-    sectionKey: raw.section_key as string,
-    displayName: raw.display_name as string,
-    order: raw.order as number,
-    roleDescription: raw.role_description as string,
-  };
-}
-
-function mapDocumentType(raw: Record<string, unknown>): DocumentType {
-  return {
-    id: String(raw.id),
-    slug: raw.slug as string,
-    name: raw.name as string,
-    description: raw.description as string,
-    isActive: raw.is_active as boolean,
-    isCustom: Boolean(raw.is_custom),
-    sections: ((raw.sections as Record<string, unknown>[]) ?? []).map(mapSectionDefinition),
-  };
-}
-
-export async function apiCreateDocumentType(
-  payload: {
-    name: string;
-    description: string;
-    sections: { section_key: string; display_name: string; order: number; role_description: string }[];
-  },
-  getToken: GetToken,
-): Promise<DocumentType> {
-  const res = await fetch(`${API_BASE}/document-types`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to create document type");
-  }
-  return mapDocumentType(await res.json());
-}
-
-export async function apiUpsertPrompt(
-  slug: string,
-  payload: { phase: string; section_key: string | null; prompt_text: string },
-  getToken: GetToken,
-): Promise<PromptTemplate> {
-  const res = await fetch(`${API_BASE}/document-types/${slug}/prompts`, {
-    method: "PUT",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to save prompt");
-  }
-  const data = (await res.json()) as Record<string, unknown>;
-  return {
-    id: String(data.id),
-    documentTypeId: String(data.document_type_id),
-    phase: data.phase as string,
-    sectionKey: (data.section_key as string) ?? null,
-    promptText: data.prompt_text as string,
-  };
-}
-
-// ─── Pipeline definitions (M4 — clone/edit the BYOA pipeline) ─
-
-function mapPipelineDefinition(raw: Record<string, unknown>): PipelineDefinition {
-  return {
-    id: String(raw.id),
-    name: raw.name as string,
-    baseDocumentTypeId: raw.base_document_type_id ? String(raw.base_document_type_id) : null,
-    steps: (raw.steps as PipelineStep[]) ?? [],
-    createdAt: raw.created_at as string,
-    updatedAt: raw.updated_at as string,
-  };
-}
-
-export async function apiListPipelineDefinitions(getToken: GetToken): Promise<PipelineDefinition[]> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch pipeline definitions");
-  const data = (await res.json()) as Record<string, unknown>[];
-  return data.map(mapPipelineDefinition);
-}
-
-export async function apiClonePipelineDefinition(
-  documentTypeSlug: string,
-  name: string | null,
-  getToken: GetToken,
-): Promise<PipelineDefinition> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions/clone`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ document_type_slug: documentTypeSlug, name }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to clone pipeline");
-  }
-  return mapPipelineDefinition(await res.json());
-}
-
-export async function apiUpdatePipelineDefinition(
-  id: string,
-  patch: { name?: string; steps?: PipelineStep[] },
-  getToken: GetToken,
-): Promise<PipelineDefinition> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions/${id}`, {
-    method: "PATCH",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to update pipeline");
-  }
-  return mapPipelineDefinition(await res.json());
-}
-
-export async function apiDeletePipelineDefinition(id: string, getToken: GetToken): Promise<void> {
-  const res = await fetch(`${API_BASE}/pipeline-definitions/${id}`, {
-    method: "DELETE",
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok && res.status !== 204) throw new Error("Failed to delete pipeline");
-}
-
 export async function apiUpdateDocumentTitle(
   documentId: string,
   title: string,
@@ -573,37 +338,408 @@ export async function apiUpdateDocumentTitle(
   return mapDocument(await res.json());
 }
 
-export async function apiListDocumentTypes(getToken: GetToken): Promise<DocumentType[]> {
-  const res = await fetch(`${API_BASE}/document-types`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch document types");
-  const data = await res.json();
-  return (data as Record<string, unknown>[]).map(mapDocumentType);
+export interface LayoutState {
+  /** The @docforge-lib/layout document, rendered in the browser by the same library. */
+  content: unknown;
+  revision: number;
+  updatedAt: string | null;
 }
 
-export async function apiGetDocumentType(slug: string, getToken: GetToken): Promise<DocumentType> {
-  const res = await fetch(`${API_BASE}/document-types/${slug}`, {
+export async function apiGetLayout(documentId: string, getToken: GetToken): Promise<LayoutState> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout`, {
     headers: await authHeaders(getToken),
   });
-  if (!res.ok) throw new Error("Failed to fetch document type");
-  return mapDocumentType(await res.json());
+  if (!res.ok) throw new Error(`Failed to load layout (${res.status})`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  return {
+    content: raw.content,
+    revision: Number(raw.revision),
+    updatedAt: (raw.updated_at as string | null) ?? null,
+  };
 }
 
-export async function apiGenerateSectionSummary(
-  payload: { document_type_name: string; document_type_description: string; section_display_name: string },
+/** A layout write the server refused because someone wrote first (HTTP 409). */
+export class LayoutConflictError extends Error {
+  constructor(readonly revision: number | null) {
+    super("The layout document changed on the server.");
+  }
+}
+
+export interface LayoutWriteResult {
+  ok: boolean;
+  revision: number;
+  diagnostics: { severity: string; code: string; message: string; component?: string }[];
+  changes: { code: string; severity: string; component?: string; message: string; recovery: boolean; data: Record<string, unknown> }[];
+}
+
+async function layoutWrite(res: Response): Promise<LayoutWriteResult> {
+  if (res.status === 409) {
+    const detail = ((await res.json().catch(() => ({}))) as { detail?: { revision?: number } }).detail;
+    throw new LayoutConflictError(typeof detail?.revision === "number" ? detail.revision : null);
+  }
+  if (!res.ok) throw new Error(`Layout write failed (${res.status})`);
+  const raw = (await res.json()) as Record<string, unknown>;
+  return {
+    ok: Boolean(raw.ok),
+    revision: Number(raw.revision),
+    diagnostics: (raw.diagnostics as LayoutWriteResult["diagnostics"]) ?? [],
+    changes: (raw.changes as LayoutWriteResult["changes"]) ?? [],
+  };
+}
+
+export async function apiApplyLayoutOps(
+  documentId: string,
+  ops: unknown[],
+  baseRevision: number,
   getToken: GetToken,
-): Promise<string> {
-  const res = await fetch(`${API_BASE}/document-types/generate-section-summary`, {
+): Promise<LayoutWriteResult> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/ops`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ops, base_revision: baseRevision, draw: false, pages: [1] }),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { detail?: string }).detail ?? "Failed to generate section summary");
-  }
-  return ((await res.json()) as { role_description: string }).role_description;
+  return layoutWrite(res);
+}
+
+export async function apiReplaceLayout(
+  documentId: string,
+  content: unknown,
+  baseRevision: number,
+  getToken: GetToken,
+): Promise<LayoutWriteResult> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout`, {
+    method: "PUT",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ content, base_revision: baseRevision }),
+  });
+  return layoutWrite(res);
+}
+
+export interface LayoutRect {
+  page?: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface LayoutNote {
+  id: string;
+  kind: "notice" | "annotation";
+  code: string | null;
+  severity: "info" | "warning";
+  anchor: { component?: string; rect?: LayoutRect };
+  message: string;
+  /** The change behind a notice (before/after boxes, pushedBy…), to say it in the person's language. */
+  data: Record<string, unknown> | null;
+  revision: number;
+  byAgent: boolean;
+  authorUserId: string | null;
+  status: "open" | "acknowledged" | "resolved";
+  resolutionNote: string | null;
+  createdAt: string | null;
+  /** Where the anchor is now, resolved by the server against the current layout. */
+  where: string | null;
+  /** A reply: the thread's root note. Replies have no status of their own. */
+  parentId: string | null;
+  /** A request for the agent to act on (thread roots only). */
+  forAgent: boolean;
+}
+
+function mapLayoutNote(raw: Record<string, unknown>): LayoutNote {
+  return {
+    id: String(raw.id),
+    kind: raw.kind as LayoutNote["kind"],
+    code: (raw.code as string | null) ?? null,
+    severity: (raw.severity as LayoutNote["severity"]) ?? "info",
+    anchor: (raw.anchor as LayoutNote["anchor"]) ?? {},
+    message: String(raw.message ?? ""),
+    data: (raw.data as Record<string, unknown> | null) ?? null,
+    revision: Number(raw.revision),
+    byAgent: Boolean(raw.by_agent),
+    authorUserId: (raw.author_user_id as string | null) ?? null,
+    status: raw.status as LayoutNote["status"],
+    resolutionNote: (raw.resolution_note as string | null) ?? null,
+    createdAt: (raw.created_at as string | null) ?? null,
+    where: (raw.where as string | null) ?? null,
+    parentId: (raw.parent_id as string | null) ?? null,
+    forAgent: Boolean(raw.for_agent),
+  };
+}
+
+export async function apiListLayoutNotes(
+  documentId: string,
+  getToken: GetToken,
+  status: "open" | "resolved" | "all" = "open",
+  kind?: "notice" | "annotation",
+): Promise<LayoutNote[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/notes?status=${status}${kind ? `&kind=${kind}` : ""}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error(`Failed to load layout notes (${res.status})`);
+  const raw = (await res.json()) as { notes: Record<string, unknown>[] };
+  return raw.notes.map(mapLayoutNote);
+}
+
+export async function apiCreateLayoutAnnotation(
+  documentId: string,
+  message: string,
+  anchor: LayoutNote["anchor"],
+  getToken: GetToken,
+  options: { forAgent?: boolean } = {},
+): Promise<LayoutNote> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/notes`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ message, anchor, for_agent: Boolean(options.forAgent) }),
+  });
+  if (!res.ok) throw new Error(`Failed to create the annotation (${res.status})`);
+  return mapLayoutNote((await res.json()) as Record<string, unknown>);
+}
+
+/** A reply in a note's thread (answering a resolved thread opens it again). */
+export async function apiReplyLayoutNote(documentId: string, parentId: string, message: string, getToken: GetToken): Promise<LayoutNote> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/notes`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ message, parent_id: parentId }),
+  });
+  if (!res.ok) throw new Error(`Failed to reply (${res.status})`);
+  return mapLayoutNote((await res.json()) as Record<string, unknown>);
+}
+
+export type LayoutTemplateSlug = "relatorio" | "proposta" | "one-pager" | "apresentacao";
+export type LayoutFormat = "page" | "slide";
+
+/** Create a layout document: empty (A4 page or 16:9 slides) or from a curated template. Returns the new document's id. */
+export async function apiCreateLayoutDocument(
+  title: string,
+  template: LayoutTemplateSlug | null,
+  getToken: GetToken,
+  format: LayoutFormat | null = null,
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/layout-documents`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ ...(title ? { title } : {}), ...(template ? { template } : {}), ...(!template && format ? { format } : {}) }),
+  });
+  if (res.status === 403 || res.status === 429) throw new Error("WEEKLY_DOCUMENT_LIMIT_REACHED");
+  if (!res.ok) throw new Error(`Failed to create the layout document (${res.status})`);
+  return String(((await res.json()) as { document_id: string }).document_id);
+}
+
+/** The person's answers to an agent's review request (stored as an annotation the agent reads back). */
+export async function apiAnswerLayoutReview(
+  documentId: string,
+  request: LayoutNote,
+  answers: Record<string, string>,
+  message: string,
+  getToken: GetToken,
+): Promise<LayoutNote> {
+  const focus = (request.data?.focus as string[] | undefined)?.[0];
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/notes`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ message, code: "review-answer", answers, request_id: request.id, ...(focus ? { anchor: { component: focus } } : {}) }),
+  });
+  if (!res.ok) throw new Error(`Failed to send the answers (${res.status})`);
+  return mapLayoutNote((await res.json()) as Record<string, unknown>);
+}
+
+export interface LayoutRevisionItem {
+  revision: number;
+  description: string | null;
+  opsCount: number | null;
+  byAgent: boolean;
+  createdAt: string | null;
+  /** A saved version: the name (and note) someone gave this revision. */
+  name: string | null;
+  note: string | null;
+  /** What the write did, from its ops: counts by op and the components it named. */
+  summary: { ops: Record<string, number>; components: string[] } | null;
+}
+
+function mapRevision(r: Record<string, unknown>): LayoutRevisionItem {
+  return {
+    revision: Number(r.revision),
+    description: (r.description as string | null) ?? null,
+    opsCount: (r.ops_count as number | null) ?? null,
+    byAgent: Boolean(r.by_agent),
+    createdAt: (r.created_at as string | null) ?? null,
+    name: (r.name as string | null) ?? null,
+    note: (r.note as string | null) ?? null,
+    summary: (r.summary as LayoutRevisionItem["summary"]) ?? null,
+  };
+}
+
+export async function apiListLayoutRevisions(documentId: string, getToken: GetToken, limit = 30): Promise<LayoutRevisionItem[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/revisions?limit=${limit}`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to list revisions (${res.status})`);
+  const data = (await res.json()) as { revisions: Record<string, unknown>[] };
+  return data.revisions.map(mapRevision);
+}
+
+export async function apiGetLayoutRevision(documentId: string, revision: number, getToken: GetToken): Promise<{ revision: number; content: unknown }> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/revisions/${revision}`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to read revision ${revision} (${res.status})`);
+  const data = (await res.json()) as { revision: number; content: unknown };
+  return { revision: data.revision, content: data.content };
+}
+
+/** What a layout document's public link serves: a snapshot taken on "Publish". */
+export interface LayoutPublication {
+  published: boolean;
+  /** The capability in the public link (`/public/<token>`); null when not published. */
+  token: string | null;
+  revision: number | null;
+  publishedAt: string | null;
+  /** The editor's revision now: more than `revision` = edits not published yet. */
+  currentRevision: number;
+}
+
+function mapPublication(raw: Record<string, unknown>): LayoutPublication {
+  return {
+    published: Boolean(raw.published),
+    token: (raw.token as string | null) ?? null,
+    revision: (raw.revision as number | null) ?? null,
+    publishedAt: (raw.published_at as string | null) ?? null,
+    currentRevision: Number(raw.current_revision),
+  };
+}
+
+export async function apiGetLayoutPublication(documentId: string, getToken: GetToken): Promise<LayoutPublication> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/publish`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to read the publication (${res.status})`);
+  return mapPublication((await res.json()) as Record<string, unknown>);
+}
+
+/** Publish the current revision (or `revision`). The link stays the same across publishes. */
+export async function apiPublishLayout(documentId: string, getToken: GetToken, revision?: number): Promise<LayoutPublication> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/publish`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(revision ? { revision } : {}),
+  });
+  if (!res.ok) throw new Error(`Failed to publish (${res.status})`);
+  return mapPublication((await res.json()) as Record<string, unknown>);
+}
+
+/** Unpublish: the link stops working; publishing again makes a new one. */
+export async function apiUnpublishLayout(documentId: string, getToken: GetToken): Promise<LayoutPublication> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/publish`, { method: "DELETE", headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to unpublish (${res.status})`);
+  return mapPublication((await res.json()) as Record<string, unknown>);
+}
+
+/** Save a version: name the current revision (or `revision`). */
+export async function apiSaveLayoutVersion(
+  documentId: string,
+  name: string,
+  note: string | null,
+  getToken: GetToken,
+  revision?: number,
+): Promise<LayoutRevisionItem> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/versions`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ name, note, ...(revision ? { revision } : {}) }),
+  });
+  if (!res.ok) throw new Error(`Failed to save the version (${res.status})`);
+  return mapRevision((await res.json()) as Record<string, unknown>);
+}
+
+/** Rename a saved version or change its note; `name: null` takes it off the saved list. */
+export async function apiUpdateLayoutRevision(
+  documentId: string,
+  revision: number,
+  patch: { name?: string | null; note?: string | null },
+  getToken: GetToken,
+): Promise<LayoutRevisionItem> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/layout/revisions/${revision}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`Failed to update the version (${res.status})`);
+  return mapRevision((await res.json()) as Record<string, unknown>);
+}
+
+/** A theme for layout documents: a name and partial design tokens. Built-in ones have a `key`. */
+export interface LayoutTheme {
+  id: string;
+  key: string | null;
+  name: string;
+  description: string | null;
+  builtin: boolean;
+  byAgent: boolean;
+  tokens: Record<string, Record<string, string | number>>;
+}
+
+function mapTheme(raw: Record<string, unknown>): LayoutTheme {
+  return {
+    id: String(raw.id),
+    key: (raw.key as string | null) ?? null,
+    name: String(raw.name ?? ""),
+    description: (raw.description as string | null) ?? null,
+    builtin: Boolean(raw.builtin),
+    byAgent: Boolean(raw.by_agent),
+    tokens: (raw.tokens as LayoutTheme["tokens"]) ?? {},
+  };
+}
+
+export async function apiListLayoutThemes(getToken: GetToken): Promise<{ themes: LayoutTheme[]; fonts: string[] }> {
+  const res = await fetch(`${API_BASE}/layout-themes`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error(`Failed to list themes (${res.status})`);
+  const data = (await res.json()) as { themes: Record<string, unknown>[]; fonts: string[] };
+  return { themes: data.themes.map(mapTheme), fonts: data.fonts ?? [] };
+}
+
+export async function apiCreateLayoutTheme(name: string, tokens: LayoutTheme["tokens"], getToken: GetToken, description?: string): Promise<LayoutTheme> {
+  const res = await fetch(`${API_BASE}/layout-themes`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ name, tokens, ...(description ? { description } : {}) }),
+  });
+  if (!res.ok) throw new Error(`Failed to save the theme (${res.status})`);
+  return mapTheme((await res.json()) as Record<string, unknown>);
+}
+
+export async function apiUpdateLayoutTheme(
+  id: string,
+  patch: { name?: string; tokens?: LayoutTheme["tokens"]; description?: string | null },
+  getToken: GetToken,
+): Promise<LayoutTheme> {
+  const res = await fetch(`${API_BASE}/layout-themes/${id}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`Failed to update the theme (${res.status})`);
+  return mapTheme((await res.json()) as Record<string, unknown>);
+}
+
+export async function apiDeleteLayoutTheme(id: string, getToken: GetToken): Promise<void> {
+  const res = await fetch(`${API_BASE}/layout-themes/${id}`, { method: "DELETE", headers: await authHeaders(getToken) });
+  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete the theme (${res.status})`);
+}
+
+export async function apiUpdateLayoutNote(
+  noteId: string,
+  status: LayoutNote["status"] | null,
+  getToken: GetToken,
+  resolutionNote?: string,
+  options: { forAgent?: boolean } = {},
+): Promise<LayoutNote> {
+  const res = await fetch(`${API_BASE}/layout-notes/${noteId}`, {
+    method: "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...(status ? { status, resolution_note: resolutionNote ?? null } : {}),
+      ...(options.forAgent !== undefined ? { for_agent: options.forAgent } : {}),
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to update the note (${res.status})`);
+  return mapLayoutNote((await res.json()) as Record<string, unknown>);
 }
 
 function mapApiKey(raw: Record<string, unknown>): ApiKey {
@@ -802,20 +938,6 @@ export async function apiRejectSuggestion(
   return mapSuggestion(await res.json());
 }
 
-export async function apiFetchFeedback(
-  documentId: string,
-  getToken: GetToken,
-  status?: "open" | "addressed" | "resolved",
-): Promise<FeedbackItem[]> {
-  const qs = status ? `?status=${status}` : "";
-  const res = await fetch(`${API_BASE}/documents/${documentId}/feedback${qs}`, {
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to fetch feedback");
-  const data = (await res.json()) as { feedback: Record<string, unknown>[] };
-  return data.feedback.map(mapFeedback);
-}
-
 export async function apiCreateFeedback(
   documentId: string,
   content: string,
@@ -870,62 +992,6 @@ export async function apiSetRequireGateOnAccept(
   if (!res.ok) throw new Error("Failed to update quality gate setting");
 }
 
-export async function apiApprovePipelineAlignment(
-  documentId: string,
-  getToken: GetToken,
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/approve`, {
-    method: "POST",
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to approve pipeline checkpoint");
-}
-
-export async function apiRejectPipelineAlignment(
-  documentId: string,
-  comment: string,
-  getToken: GetToken,
-  sectionKey?: string,
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/pipeline/reject`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ comment, section_key: sectionKey ?? null }),
-  });
-  if (!res.ok) throw new Error("Failed to reject pipeline checkpoint");
-}
-
-export async function apiUpdateAgentWritePolicy(
-  documentId: string,
-  policy: "suggest" | "direct",
-  getToken: GetToken,
-): Promise<Document> {
-  const res = await fetch(`${API_BASE}/documents/${documentId}`, {
-    method: "PATCH",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ agent_write_policy: policy }),
-  });
-  if (!res.ok) throw new Error("Failed to update write policy");
-  return mapDocument(await res.json());
-}
-
-export async function apiUpdateCompletedDocument(
-  documentId: string,
-  sections: Array<{
-    section_type: Section["sectionType"];
-    content: string;
-  }>,
-  getToken: GetToken,
-) {
-  const res = await fetch(`${API_BASE}/documents/${documentId}/completed-content`, {
-    method: "POST",
-    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ sections }),
-  });
-  if (!res.ok) throw new Error("Failed to save completed document");
-  return res.json();
-}
-
 // ─── Artifacts ────────────────────────────────────────────────
 
 function mapArtifact(raw: Record<string, unknown>): Artifact {
@@ -955,14 +1021,6 @@ export async function apiFetchArtifacts(
   if (!res.ok) throw new Error("Failed to fetch artifacts");
   const data = await res.json();
   return (data.artifacts as Record<string, unknown>[]).map(mapArtifact);
-}
-
-export async function apiDeleteArtifact(artifactId: string, getToken: GetToken): Promise<void> {
-  const res = await fetch(`${API_BASE}/artifacts/${artifactId}`, {
-    method: "DELETE",
-    headers: await authHeaders(getToken),
-  });
-  if (!res.ok) throw new Error("Failed to delete artifact");
 }
 
 /**

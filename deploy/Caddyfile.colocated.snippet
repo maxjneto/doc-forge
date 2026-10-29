@@ -1,0 +1,28 @@
+# DocForge site blocks for a Caddy that DocForge does not own (the CopaSim box).
+# Paste them at the end of that Caddyfile (on the CopaSim VPS: ~/monorepo/Caddyfile.unico,
+# which its deploy script preserves), check the two hostnames, and make sure that
+# Caddy's container is on the `edge` network (see docs/deploy.md).
+# Then reload: docker exec copasim-caddy caddy reload --config /etc/caddy/Caddyfile
+
+doc-forge.dev {
+	encode gzip zstd
+
+	# The API and its SSE streams live under /api on the backend.
+	handle /api/* {
+		reverse_proxy docforge-backend:8000 {
+			# SSE: don't buffer streamed responses.
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy docforge-frontend:80
+	}
+}
+
+mcp.doc-forge.dev {
+	encode gzip zstd
+	reverse_proxy docforge-mcp:8001 {
+		flush_interval -1
+	}
+}

@@ -1,1 +1,0 @@
-export { DiscoveryLayout } from "./DiscoveryLayout";

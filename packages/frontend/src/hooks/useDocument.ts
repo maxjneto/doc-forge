@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import type { Document, Section, DiscoveryQuestion, AuditProblem } from "@/types";
-import { API_BASE, mapDocument, mapSection, mapDiscoveryQuestion } from "@/utils/api";
+import type { Document, Section } from "@/types";
+import { API_BASE, mapDocument, mapSection } from "@/utils/api";
 
 type GetToken = () => Promise<string | null>;
 
 interface DocumentState {
   document: Document | null;
   sections: Section[];
-  discoveryQuestions: DiscoveryQuestion[];
-  auditProblems: AuditProblem[];
   loading: boolean;
   error: string | null;
   sseTick: number;
@@ -21,8 +19,6 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
   const [state, setState] = useState<DocumentState>({
     document: null,
     sections: [],
-    discoveryQuestions: [],
-    auditProblems: [],
     loading: false,
     error: null,
     sseTick: 0,
@@ -48,14 +44,6 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
               mapSection(s, docId)
             )
           : prev.sections,
-        discoveryQuestions: data.discovery_questions
-          ? (data.discovery_questions as Record<string, unknown>[]).map((q) =>
-              mapDiscoveryQuestion(q, docId)
-            )
-          : prev.discoveryQuestions,
-        auditProblems: Array.isArray(data.audit_problems)
-          ? (data.audit_problems as AuditProblem[])
-          : [],
         loading: false,
         error: null,
       }));
@@ -113,20 +101,6 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
             if (!ev.data || ev.event === "ping") return;
             fetchDocumentRef.current();
             setState((prev) => ({ ...prev, sseTick: prev.sseTick + 1 }));
-            try {
-              const parsed = JSON.parse(ev.data) as {
-                type: string;
-                payload: Record<string, unknown>;
-              };
-              if (
-                parsed.type === "phase_changed" &&
-                parsed.payload.phase === "completed"
-              ) {
-                ctrl.abort();
-              }
-            } catch {
-              // ignore malformed events
-            }
           },
           onerror: () => {
             // Throw to stop fetchEventSource's own retry — we handle backoff ourselves

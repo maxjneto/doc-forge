@@ -61,7 +61,7 @@ def agent_client_factory():
 
 
 async def _create_editor_document(client) -> tuple[str, str]:
-    res = await client.post("/api/documents", json={"title": "Doc", "mode": "editor"})
+    res = await client.post("/api/documents", json={"title": "Doc"})
     assert res.status_code == 201, res.text
     doc_id = res.json()["id"]
     detail = await client.get(f"/api/documents/{doc_id}")

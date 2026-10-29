@@ -15,7 +15,3 @@ You are writing an RFC: a proposal that earns agreement by making the problem un
 - Prefer tables/diagrams over paragraphs for anything enumerable.
 - Every number needs a source; every "should be easy" needs a reason.
 - Scope honestly: name what is explicitly out of scope, or reviewers will review it anyway.
-
-## In DocForge
-
-Prefer `start_pipeline(document_type_slug="rfc")` over freehand writing — the pipeline walks you through discovery, an alignment checkpoint with the human, sectioned generation, and an audit pass.

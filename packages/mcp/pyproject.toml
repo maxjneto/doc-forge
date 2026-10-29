@@ -16,6 +16,9 @@ dependencies = [
     "starlette>=0.40",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
 [project.scripts]
 docforge-mcp-server = "docforge_mcp.server:serve"  # Streamable HTTP
 

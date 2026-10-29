@@ -3,7 +3,7 @@ import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { HomePage, DocumentPage, LoadingPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, CustomizePage, PublicDocumentPage } from "./pages";
+import { HomePage, DocumentPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, PublicDocumentPage } from "./pages";
 import { ProtectedRoute } from "./components/shared";
 import CookieConsentBanner from "./components/shared/CookieConsentBanner";
 import { useClerkPosthogIdentity } from "./hooks/useClerkPosthogIdentity";
@@ -45,9 +45,7 @@ function AppInner() {
           <Route path="/home" element={<HomePage />} />
           <Route path="/mcp" element={<McpPage />} />
           <Route path="/billing" element={<BillingPage />} />
-          <Route path="/customize" element={<CustomizePage />} />
           <Route path="/document/:id" element={<DocumentPage />} />
-          <Route path="/loading/forge" element={<LoadingPage />} />
         </Route>
       </Routes>
     </>

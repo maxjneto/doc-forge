@@ -1,9 +1,8 @@
 /**
  * Deriving structure from a markdown document.
  *
- * The document is a single blob of markdown — that is deliberate, and the
- * reason is in docs/product/document-surface-revamp.md §2.1: writing is not
- * sectional, structure emerges from the text rather than preceding it.
+ * The document is a single blob of markdown — that is deliberate: writing is
+ * not sectional, structure emerges from the text rather than preceding it.
  *
  * So a "section" here is a **view**, computed at read time from the headings.
  * Nothing in this module is persisted. It exists so review, diff and the table

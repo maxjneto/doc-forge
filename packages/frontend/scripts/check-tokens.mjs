@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Design-token guard (docs/product/design-system-consolidation.md §3.1, v2).
+ * Design-token guard (rules in docs/architecture/frontend.md, design system).
  *
  * HARD rules — must stay at zero:
  *
@@ -34,6 +34,8 @@ const BASELINE = 0;
 const ALLOW = [
   // mermaid theme config has to hand hex to a third-party library
   "components/shared/MarkdownRenderer.tsx",
+  // palettes of the printed layout document (its own tokens), not app colours
+  "components/layout-doc/themes.ts",
 ];
 
 /** The type scale (index.css `--text-*`). Larger numbers are hero/display art. */

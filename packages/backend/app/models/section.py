@@ -13,16 +13,13 @@ class Section(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    # Markdown documents keep their whole text in one "body" section.
     section_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    discovery_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     document = relationship("Document", back_populates="sections")
     versions = relationship("SectionVersion", back_populates="section", cascade="all, delete-orphan")
-    chat_messages = relationship("ChatMessage", back_populates="section", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("document_id", "section_type", name="uq_document_section_type"),

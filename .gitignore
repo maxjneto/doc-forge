@@ -38,9 +38,13 @@ htmlcov/
 *.db
 *.sqlite3
 
-# Docs
-docs/
-docforge-kit-png/
+# Internal notes and plans (docs/ is the public documentation)
+/notes/
+
+# Cost evaluation harness and its runs (kept local; see notes/product/eval-custo-documentos.md)
+/eval/
 
 # Claude
 .claude/
+# Deploy bookkeeping on the VPS checkout
+.deployed-tag

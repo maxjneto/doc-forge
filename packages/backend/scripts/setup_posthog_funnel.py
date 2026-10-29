@@ -1,7 +1,6 @@
-"""One-time setup: create the DocForge activation funnel in PostHog (M3 —
-product-plan §9 funnel: MCP connect → first doc → first suggestion reviewed
-→ conversion; also the roadmap's suggested north star, "documents with
-agent writing reviewed by a human, per week").
+"""One-time setup: create the DocForge activation funnel in PostHog (MCP
+connect → first doc → first suggestion reviewed → conversion; the north star
+is "documents with agent writing reviewed by a human, per week").
 
 This is a script, not app code — it calls PostHog's Insights REST API once
 to create a saved Funnel insight, wired to events already emitted by the

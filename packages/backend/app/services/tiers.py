@@ -20,7 +20,7 @@ def get_tiers() -> list[dict]:
                 f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} document creations each week",
                 f"Up to {settings.FREE_MAX_ACTIVE_DOCUMENTS} active documents",
                 "Suggestion review & feedback loop",
-                "Curated writing guides (ADR, postmortem, runbook, RFC)",
+                "Writing guides for agents (ADR, postmortem, runbook, RFC)",
                 "No authenticated exports",
             ],
             "limits": {
@@ -47,7 +47,6 @@ def get_tiers() -> list[dict]:
                 f"{settings.PRO_WEEKLY_DOCUMENT_CREDITS} document creations each week",
                 f"Up to {settings.PRO_MAX_API_KEYS} connected agents",
                 f"Up to {settings.PRO_MAX_ACTIVE_DOCUMENTS} active documents",
-                "Custom pipelines, document types & prompts",
                 "Full version history",
                 "Markdown, PDF & DOCX export",
             ],
@@ -72,10 +71,9 @@ def get_tiers() -> list[dict]:
                 "Everything in Pro, per seat",
                 "Shared workspaces",
                 "Org-wide standards served via MCP",
-                "Quality gates as policy per document type",
+                "Quality gates as team policy",
                 "Per-agent audit trail (compliance)",
                 "SSO",
-                "Confluence & Linear export",
             ],
             "limits": {
                 "max_active_documents": None,

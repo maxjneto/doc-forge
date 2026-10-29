@@ -14,8 +14,7 @@ class Artifact(Base):
     The apparatus *around* the text: a diagram that explains a flow, a table
     comparing options, a decision note recording why a paragraph says what it
     says. Agents used to produce this in the terminal, where it was lost,
-    because DocForge only accepted "document content" — see
-    docs/product/document-surface-revamp.md §5 Fase 4.
+    because DocForge only accepted "document content".
 
     Anchoring is explicit, not inferred: the document carries a
     `::artefato[key]` directive, so the anchor lives in the markdown, survives

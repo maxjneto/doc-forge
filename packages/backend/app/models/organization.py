@@ -48,8 +48,8 @@ class DocumentMember(Base):
 
     `principal_type` is 'user' today. It exists so that sharing with a whole
     workspace later is a new value rather than a new table — the decision
-    between per-document sharing and workspaces is still open
-    (docs/product/document-organization.md §4), and this keeps both reachable.
+    between per-document sharing and workspaces is still open, and this keeps
+    both reachable.
     """
 
     __tablename__ = "document_members"
