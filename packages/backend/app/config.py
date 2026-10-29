@@ -24,15 +24,21 @@ class Settings(BaseSettings):
     # code changes. The database column retains its historical `credits` name
     # for a backwards-compatible migration, but its product meaning is one
     # document creation per unit.
-    FREE_WEEKLY_DOCUMENT_CREDITS: int = 5
-    PRO_WEEKLY_DOCUMENT_CREDITS: int = 50
+    FREE_WEEKLY_DOCUMENT_CREDITS: int = 15
+    PRO_WEEKLY_DOCUMENT_CREDITS: int = 100
 
-    # Free tier limits (enforced in the backend; served via GET /api/tiers).
-    # Calibrated generous on purpose — the MCP funnel is the growth engine.
-    FREE_MAX_ACTIVE_DOCUMENTS: int = 10
-    FREE_MAX_API_KEYS: int = 1
-    PRO_MAX_ACTIVE_DOCUMENTS: int = 200
+    # Plan limits (enforced in the backend; served via GET /api/tiers). Free is
+    # generous on purpose: everything DocForge does is in it, Pro only lifts the
+    # limits of people who use it every day.
+    FREE_MAX_ACTIVE_DOCUMENTS: int = 30
+    FREE_MAX_API_KEYS: int = 2
+    PRO_MAX_ACTIVE_DOCUMENTS: int = 1000
     PRO_MAX_API_KEYS: int = 10
+
+    # The Pro price shown on the pricing page, in PRICE_CURRENCY (ISO 4217).
+    # What is charged is the Stripe price (STRIPE_PRICE_ID_PRO); keep the two in step.
+    PRICE_CURRENCY: str = "BRL"
+    PRO_PRICE_MONTHLY: float = 19
 
     # Internal Node service that runs @docforge-lib/layout (packages/layout-service).
     LAYOUT_SERVICE_URL: str = "http://127.0.0.1:8002"
@@ -40,7 +46,7 @@ class Settings(BaseSettings):
 
     # Version retention (Free plan): oldest inactive versions beyond this count
     # are pruned when a new one is created. None/0 on paid plans (see tiers.py).
-    FREE_MAX_VERSIONS_PER_SECTION: int = 20
+    FREE_MAX_VERSIONS_PER_SECTION: int = 50
 
     # Stripe billing — disabled by default; set STRIPE_ENABLED=true with real
     # test-mode (or live) keys to activate checkout/portal/webhooks.

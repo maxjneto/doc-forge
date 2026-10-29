@@ -418,6 +418,11 @@ const TOOL_NAMES = [
   "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
   "rename_version", "get_activity", "get_document_url", "get_quality_gate", "submit_quality_findings",
   "list_artifacts", "create_artifact",
+  // Layout documents
+  "create_layout_document", "get_layout_map", "get_layout_document", "apply_layout_ops", "preview_layout",
+  "measure_component", "calibrate_style", "render_page", "review_layout", "find_layout",
+  "get_layout_notes", "request_review", "resolve_layout_note", "reply_layout_note", "save_layout_version",
+  "list_layout_versions", "restore_layout_version", "list_layout_themes", "apply_layout_theme", "save_layout_theme",
 ];
 
 const RESOURCES: { uri: string; key: string }[] = [
@@ -425,8 +430,10 @@ const RESOURCES: { uri: string; key: string }[] = [
   { uri: "docforge://document/{id}", key: "document" },
   { uri: "docforge://document/{id}/versions", key: "versions" },
   { uri: "docforge://guide/system-prompt", key: "guide" },
+  { uri: "docforge://guide/layout", key: "layoutGuide" },
   { uri: "docforge://recipes", key: "recipes" },
   { uri: "docforge://recipes/{slug}", key: "recipe" },
+  { uri: "docforge://writing/{type}", key: "writing" },
 ];
 
 function CapabilitiesCard({ t }: { t: T }) {

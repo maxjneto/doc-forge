@@ -38,7 +38,7 @@ async def _seed_document(user_id: str, title: str = "My RFC", content: str = _CO
 
 
 @pytest.mark.asyncio
-async def test_markdown_export_requires_pro(client_factory):
+async def test_markdown_export_as_written(client_factory):
     doc_id = await _seed_document("u_exp_md")
     async with client_factory(User(id="u_exp_md", email="e@t.com", name="T", credits=5, plan="pro")) as client:
         res = await client.get(f"/api/documents/{doc_id}/export?format=md")
@@ -71,21 +71,21 @@ async def test_binary_export_for_pro(client_factory, fmt, mime, magic):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("fmt", ["pdf", "docx"])
-async def test_binary_export_blocked_for_free(client_factory, fmt):
-    doc_id = await _seed_document("u_exp_free")
-    async with client_factory(User(id="u_exp_free", email="f@t.com", name="F", credits=5, plan="free")) as client:
+@pytest.mark.parametrize("fmt", ["md", "pdf"])
+async def test_free_exports_markdown_and_pdf(client_factory, fmt):
+    doc_id = await _seed_document(f"u_exp_free_{fmt}")
+    async with client_factory(User(id=f"u_exp_free_{fmt}", email=f"free-{fmt}@t.com", name="F", credits=5, plan="free")) as client:
         res = await client.get(f"/api/documents/{doc_id}/export?format={fmt}")
-    assert res.status_code == 403
-    assert "pro" in res.json()["detail"].lower()
+    assert res.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_markdown_export_is_blocked_for_free(client_factory):
-    doc_id = await _seed_document("u_exp_free_md")
-    async with client_factory(User(id="u_exp_free_md", email="free-md@t.com", name="F", credits=5, plan="free")) as client:
-        res = await client.get(f"/api/documents/{doc_id}/export?format=md")
+async def test_word_export_is_pro(client_factory):
+    doc_id = await _seed_document("u_exp_free")
+    async with client_factory(User(id="u_exp_free", email="f@t.com", name="F", credits=5, plan="free")) as client:
+        res = await client.get(f"/api/documents/{doc_id}/export?format=docx")
     assert res.status_code == 403
+    assert "pro" in res.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

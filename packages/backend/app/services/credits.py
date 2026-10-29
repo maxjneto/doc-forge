@@ -33,7 +33,7 @@ def weekly_document_allowance(plan: str) -> int:
     """Return the number of new documents an account may create per week."""
     return (
         settings.PRO_WEEKLY_DOCUMENT_CREDITS
-        if plan == "pro"
+        if plan and plan != "free"
         else settings.FREE_WEEKLY_DOCUMENT_CREDITS
     )
 

@@ -20,11 +20,11 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
 
   return (
     <nav
+      className="df-marketing-nav"
       style={{
         height: 60,
         display: "flex",
         alignItems: "center",
-        padding: "0 40px",
         borderBottom: "1px solid var(--color-outline)",
         position: "sticky",
         top: 0,
@@ -34,14 +34,16 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
       }}
     >
       <BrandMark />
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 24 }}>
-        <NavLinkItem to="/how-it-works" active={active === "how-it-works"}>{t("nav.howItWorks")}</NavLinkItem>
-        <NavLinkItem to="/pricing" active={active === "pricing"}>{t("nav.pricing")}</NavLinkItem>
+      <div className="df-marketing-nav__right" style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+        <span className="df-marketing-nav__links" style={{ display: "contents" }}>
+          <NavLinkItem to="/how-it-works" active={active === "how-it-works"}>{t("nav.howItWorks")}</NavLinkItem>
+          <NavLinkItem to="/pricing" active={active === "pricing"}>{t("nav.pricing")}</NavLinkItem>
+        </span>
         <LanguageSwitcher compact />
         <button
           onClick={handleCta}
+          className="df-marketing-nav__cta"
           style={{
-            padding: "8px 16px",
             borderRadius: "var(--radius-sm)",
             background: "var(--color-heat)",
             color: "var(--color-on-heat)",
@@ -50,6 +52,7 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
             border: "none",
             cursor: "pointer",
             letterSpacing: "0.02em",
+            whiteSpace: "nowrap",
             boxShadow: "0 0 0 1px var(--color-heat-strong), 0 4px 14px var(--color-heat-strong)",
           }}
         >
