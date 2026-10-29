@@ -13,7 +13,7 @@ Each new document uses one weekly document creation. Editing and working in exis
 ```
 Name: Max
 Email: max@example.com
-Document creations remaining: 12 (weekly allowance: 20)
+Document creations remaining: 12 (weekly allowance: 15)
 ```
 
 ---
@@ -138,7 +138,7 @@ Lists your suggestions on a document with review status (`pending` / `accepted` 
 
 ## `get_pending_feedback`
 
-Reads open human feedback on a document: standalone comments plus rejection comments from suggestions. **Call before writing** and address the items.
+Reads open human feedback on a document: comment threads people left on the text (with the passage and heading they point at, and the replies so far) plus rejection comments from suggestions. Requests marked `[for you]` come first. **Call before writing** and address the items.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -149,6 +149,17 @@ Open feedback items:
 - id=91af... 2026-07-18 14:02 [from a rejected suggestion]
   Wrong: the timeout is 30s, see config.py
 ```
+
+---
+
+## `reply_feedback`
+
+Answers in a comment thread: a question back, or what you changed. The person sees it under their comment. Replying does not close the thread.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `feedback_id` | string | yes | Feedback UUID (from `get_pending_feedback`) |
+| `message` | string | yes | Your answer |
 
 ---
 

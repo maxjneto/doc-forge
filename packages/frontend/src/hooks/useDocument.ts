@@ -10,10 +10,21 @@ interface DocumentState {
   sections: Section[];
   loading: boolean;
   error: string | null;
+  /** Moves on every change to the document (content, review, comments…). */
   sseTick: number;
+  /** Moves when someone opens or closes the document. */
+  presenceTick: number;
 }
 
 const MAX_RETRY_DELAY = 30000;
+
+function eventType(data: string): string | null {
+  try {
+    return (JSON.parse(data) as { type?: string }).type ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function useDocument(documentId: string | null, getToken?: GetToken) {
   const [state, setState] = useState<DocumentState>({
@@ -22,6 +33,7 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
     loading: false,
     error: null,
     sseTick: 0,
+    presenceTick: 0,
   });
 
   const fetchDocument = useCallback(async () => {
@@ -99,6 +111,12 @@ export function useDocument(documentId: string | null, getToken?: GetToken) {
           },
           onmessage: (ev) => {
             if (!ev.data || ev.event === "ping") return;
+            // Someone arriving or leaving changes nothing in the document: refresh
+            // who is here and leave the editors alone.
+            if (eventType(ev.data) === "presence_changed") {
+              setState((prev) => ({ ...prev, presenceTick: prev.presenceTick + 1 }));
+              return;
+            }
             fetchDocumentRef.current();
             setState((prev) => ({ ...prev, sseTick: prev.sseTick + 1 }));
           },

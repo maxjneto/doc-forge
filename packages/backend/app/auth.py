@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.services import actor
 from app.services.credits import (
     credit_period_start,
     refresh_credits_if_due,
@@ -153,6 +154,7 @@ async def get_current_user(
         api_key_id = result.scalar_one_or_none()
         request.state.api_key_id = api_key_id
         request.state.user_id = user.id
+        actor.bind(user.id)
         logger.debug("[auth] API key auth succeeded | user={} key_id={}", user.id, api_key_id)
         return await refresh_credits_if_due(db, user)
 
@@ -202,4 +204,5 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
+    actor.bind(user.id)
     return await refresh_credits_if_due(db, user)

@@ -30,6 +30,9 @@ export function describeRevision(r: LayoutRevisionItem, t: T, nameOf: (id: strin
 export interface TimelineGroup {
   key: string;
   byAgent: boolean;
+  /** Who wrote this group: the person's or the agent's name, when the server knows it. */
+  authorName: string | null;
+  harness: string | null;
   /** Newest first, as the server lists them. */
   items: LayoutRevisionItem[];
   from: string | null;
@@ -37,8 +40,9 @@ export interface TimelineGroup {
 }
 
 /**
- * Consecutive writes by the same writer (an agent, or a person) close in time become
- * one group: a person's forty nudges read as one session, not forty lines.
+ * Consecutive writes by the same writer (a given agent, or a given person) close in
+ * time become one group: a person's forty nudges read as one session, not forty
+ * lines, and two people taking turns stay two people.
  */
 export function groupTimeline(revisions: LayoutRevisionItem[], gapMinutes = 15): TimelineGroup[] {
   const groups: TimelineGroup[] = [];
@@ -48,11 +52,12 @@ export function groupTimeline(revisions: LayoutRevisionItem[], gapMinutes = 15):
     const prev = last?.items[last.items.length - 1];
     const close = prev && Math.abs(time(prev) - time(r)) <= gapMinutes * 60_000;
     // An agent's writes each carry their own "why": they stay separate lines inside the group.
-    if (last && prev && last.byAgent === r.byAgent && (close || Number.isNaN(time(r)))) {
+    const sameWriter = last && last.byAgent === r.byAgent && last.authorName === r.authorName;
+    if (last && prev && sameWriter && (close || Number.isNaN(time(r)))) {
       last.items.push(r);
       last.from = r.createdAt ?? last.from;
     } else {
-      groups.push({ key: `g${r.revision}`, byAgent: r.byAgent, items: [r], from: r.createdAt, to: r.createdAt });
+      groups.push({ key: `g${r.revision}`, byAgent: r.byAgent, authorName: r.authorName, harness: r.harness, items: [r], from: r.createdAt, to: r.createdAt });
     }
   }
   return groups;

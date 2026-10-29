@@ -68,6 +68,8 @@ const rev = (revision: number, minutesAgo: number, extra: Partial<LayoutRevision
   description: `${1} layout operation`,
   opsCount: 1,
   byAgent: false,
+  authorName: null,
+  harness: null,
   createdAt: new Date(Date.UTC(2026, 9, 15, 12, 0) - minutesAgo * 60_000).toISOString(),
   name: null,
   note: null,
@@ -87,6 +89,20 @@ describe("timeline", () => {
 
   it("splits a person's edits far apart in time", () => {
     expect(groupTimeline([rev(2, 0), rev(1, 120)])).toHaveLength(2);
+  });
+
+  it("keeps two people (or two agents) taking turns apart", () => {
+    const groups = groupTimeline([
+      rev(4, 0, { authorName: "Ana" }),
+      rev(3, 1, { authorName: "Bruno" }),
+      rev(2, 2, { authorName: "Bruno" }),
+      rev(1, 3, { byAgent: true, authorName: "Claude Code" }),
+    ]);
+    expect(groups.map((g) => [g.authorName, g.items.length])).toEqual([
+      ["Ana", 1],
+      ["Bruno", 2],
+      ["Claude Code", 1],
+    ]);
   });
 
   it("describes a write by its note, else by what its ops did, in the person's words", () => {
@@ -110,6 +126,8 @@ const note = (id: string, extra: Partial<LayoutNote> = {}): LayoutNote => ({
   revision: 1,
   byAgent: false,
   authorUserId: null,
+  authorName: null,
+  harness: null,
   status: "open",
   resolutionNote: null,
   createdAt: `2026-10-15T12:0${id.length}:00Z`,

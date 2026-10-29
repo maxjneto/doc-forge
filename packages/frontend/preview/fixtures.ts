@@ -21,8 +21,8 @@ export const me = {
   email: "max@doc-forge.dev",
   name: "Max Aragão",
   plan: "pro",
-  document_creations_remaining: 37,
-  weekly_document_creations: 50,
+  document_creations_remaining: 74,
+  weekly_document_creations: 100,
   document_creations_reset_at: ago(60 * 24 * 3),
   next_document_creations_reset_at: nextMondayUtc(),
 };
@@ -30,17 +30,17 @@ export const me = {
 // Numbers follow backend/app/services/tiers.py.
 export const tiers = [
   {
-    slug: "free", name: "Free", price_monthly_usd: 0, credits: "5 / week",
-    description: "Write in the editor and connect one agent.",
-    features: ["5 document creations per week", "10 active documents", "1 connected agent", "20 versions per section"],
-    limits: { max_active_documents: 10, max_api_keys: 1, weekly_document_creations: 5, export_formats: [] },
-    cta: "Start free", highlight: false, available: true,
+    slug: "free", name: "Free", price_monthly: 0, currency: "BRL", credits: "15 new documents / week",
+    description: "Everything DocForge does, for one person and their agents.",
+    features: ["Markdown documents and layout pages and slides", "15 new documents each week", "Up to 30 active documents", "2 connected agents (MCP)"],
+    limits: { max_active_documents: 30, max_api_keys: 2, weekly_document_creations: 15, max_versions_per_section: 50, export_formats: ["md", "pdf"] },
+    cta: "Start for free", highlight: false, available: true,
   },
   {
-    slug: "pro", name: "Pro", price_monthly_usd: 12, credits: "50 / week",
+    slug: "pro", name: "Pro", price_monthly: 19, currency: "BRL", credits: "100 new documents / week",
     description: "For people who write with agents every day.",
-    features: ["50 document creations per week", "200 active documents", "10 connected agents", "Markdown, PDF and DOCX export"],
-    limits: { max_active_documents: 200, max_api_keys: 10, weekly_document_creations: 50, export_formats: ["md", "pdf", "docx"] },
+    features: ["Everything in Free", "100 new documents each week", "Up to 1000 active documents", "10 connected agents (MCP)"],
+    limits: { max_active_documents: 1000, max_api_keys: 10, weekly_document_creations: 100, max_versions_per_section: null, export_formats: ["md", "pdf", "docx"] },
     cta: "Upgrade to Pro", highlight: true, available: true,
   },
 ];
@@ -291,11 +291,25 @@ export const artifacts = (docId: string) => [
 ];
 
 const event = (id: string, action: string, actor: string, isAgent: boolean, harness: string | null, minutes: number, description: string | null, bytes: number | null = null) => ({
-  id, action_type: action, description, actor_name: actor, is_agent: isAgent, harness, bytes_delta: bytes, version_id: null, created_at: ago(minutes),
+  id,
+  action_type: action,
+  description,
+  actor_id: isAgent ? `key:${actor}` : `user:${actor}`,
+  actor_name: actor,
+  is_agent: isAgent,
+  is_me: !isAgent && actor === "Max Aragão",
+  on_behalf_of: isAgent ? (actor === "Codex — CI" ? "Ana Souza" : "Max Aragão") : null,
+  harness,
+  bytes_delta: bytes,
+  version_id: null,
+  created_at: ago(minutes),
 });
 
 export const activity = [
-  event("a1", "suggestion_created", "Claude Code — laptop", true, "claude_code", 120, "Propôs a v5: estado pós-migração"),
+  event("a1", "suggestion_created", "Claude Code — laptop", true, "claude_code", 4, "Propôs a v5: estado pós-migração"),
+  event("a0", "feedback_replied", "Claude Code — laptop", true, "claude_code", 3, "Conferi o timeout"),
+  event("a7", "feedback_created", "Ana Souza", false, null, 12, "Comentou em §6"),
+  event("a8", "write", "Ana Souza", false, null, 15, "Editou §4", 96),
   event("a2", "write", "Max Aragão", false, null, 6, "Editou §5.2", 214),
   event("a3", "suggestion_accepted", "Max Aragão", false, null, 60 * 19, "Aceitou: define matchCycle"),
   event("a4", "snapshot", "Max Aragão", false, null, 60 * 26, "v4 — publicada"),
@@ -313,6 +327,55 @@ export const apiKeys = [
   { id: "k1", name: "Claude Code — laptop", harness: "claude_code", created_at: ago(60 * 24 * 30), last_used_at: ago(6), revoked_at: null },
   { id: "k2", name: "Codex — CI", harness: "codex", created_at: ago(60 * 24 * 12), last_used_at: ago(60 * 5), revoked_at: null },
   { id: "k3", name: "Cursor", harness: "cursor", created_at: ago(60 * 24 * 9), last_used_at: ago(60 * 24 * 2), revoked_at: null },
+];
+
+/** Who is on the document now: Ana has it open, two agents wrote in the last minutes. */
+export const presence = {
+  people: [
+    { id: "u-max", name: "Max Aragão", is_me: true, since: ago(20) },
+    { id: "u-ana", name: "Ana Souza", is_me: false, since: ago(8) },
+  ],
+  agents: [
+    { id: "k1", name: "Claude Code — laptop", harness: "claude_code", on_behalf_of: "Max Aragão", last_seen: ago(3) },
+    { id: "k2", name: "Codex — CI", harness: "codex", on_behalf_of: "Ana Souza", last_seen: ago(7) },
+  ],
+};
+
+const comment = (id: string, content: string, who: { name: string; agent?: boolean; harness?: string; mine?: boolean }, minutes: number, extra: Record<string, unknown> = {}) => ({
+  id,
+  document_id: "doc-copasim",
+  section_id: null,
+  suggestion_id: null,
+  parent_id: null,
+  anchor: null,
+  for_agent: false,
+  content,
+  status: "open",
+  resolution_note: null,
+  created_at: ago(minutes),
+  resolved_at: null,
+  author_name: who.name,
+  by_agent: Boolean(who.agent),
+  harness: who.harness ?? null,
+  is_mine: Boolean(who.mine),
+  ...extra,
+});
+
+/** Comment threads on the Markdown document: a request for the agent, answered; a question between people. */
+export const feedback: Record<string, unknown>[] = [
+  comment("c1", "O watchdog é 30 s mesmo? No config.py está 45.", { name: "Ana Souza" }, 12, {
+    anchor: { quote: "o primeiro jogador a reivindicar a sala em até 30 segundos vira o novo host", heading: "6. O host assume: claim e watchdog" },
+    for_agent: true,
+  }),
+  comment("c1r", "Conferi: o config.py diz 45 s desde o commit 8f2c. Ajusto o texto na próxima proposta.", { name: "Claude Code — laptop", agent: true, harness: "claude_code" }, 3, { parent_id: "c1" }),
+  comment("c2", "Vale um diagrama do ciclo da rodada aqui?", { name: "Max Aragão", mine: true }, 40, {
+    anchor: { heading: "7. O ciclo da rodada" },
+  }),
+  comment("c3", "Faltou citar o snapshot persistido.", { name: "Max Aragão", mine: true }, 60 * 20, {
+    status: "resolved",
+    resolution_note: "Incluído na v4",
+    anchor: { quote: "o host serializa o `RoomState`", heading: "5.2 Como o estado chega até os outros jogadores" },
+  }),
 ];
 
 export const members = {

@@ -15,6 +15,7 @@ from app.models import (
 from app.models.document_activity import DocumentActivity
 from app.models.user import User
 from app.schemas.sse import SSEEvent
+from app.services import actor as acting
 from app.services import sse as sse_service
 
 
@@ -30,6 +31,8 @@ async def log_activity(
     entry = DocumentActivity(
         id=uuid.uuid4(),
         document_id=document_id,
+        # The person behind the request (an agent acts for the key's owner).
+        user_id=acting.current_user_id(),
         api_key_id=api_key_id,
         action_type=action_type,
         description=description,
@@ -475,21 +478,33 @@ async def create_feedback(
     section_id: uuid.UUID | None = None,
     author_user_id: str | None = None,
     suggestion_id: uuid.UUID | None = None,
+    anchor: dict | None = None,
+    for_agent: bool = False,
+    parent_id: uuid.UUID | None = None,
+    api_key_id: uuid.UUID | None = None,
 ) -> Feedback:
-    """INTERNAL: caller must validate document ownership before invoking."""
+    """A comment, or a reply in a comment's thread (`parent_id`).
+
+    INTERNAL: caller must validate document access before invoking.
+    """
     feedback = Feedback(
         document_id=doc_id,
         section_id=section_id,
         suggestion_id=suggestion_id,
         author_user_id=author_user_id,
+        api_key_id=api_key_id,
+        parent_id=parent_id,
+        anchor=anchor or None,
+        for_agent=for_agent and parent_id is None,
         content=content,
         status="open",
     )
     db.add(feedback)
     await db.flush()
     await log_activity(
-        db, doc_id, "feedback_created",
-        description=f"You left feedback: {content[:200]}",
+        db, doc_id, "feedback_replied" if parent_id else "feedback_created",
+        description=content[:200],
+        api_key_id=api_key_id,
     )
     await db.commit()
     await db.refresh(feedback)
@@ -510,15 +525,53 @@ async def list_feedback(
     doc_id: uuid.UUID,
     status: str | None = None,
 ) -> list[Feedback]:
+    """Comment threads, oldest first: the roots with `status`, and their replies.
+
+    A reply has no status of its own, so the filter applies to roots and the
+    replies follow the thread they belong to.
+    """
     query = (
         select(Feedback)
-        .where(Feedback.document_id == doc_id)
+        .where(Feedback.document_id == doc_id, Feedback.parent_id.is_(None))
         .order_by(Feedback.created_at)
     )
     if status:
         query = query.where(Feedback.status == status)
-    result = await db.execute(query)
-    return list(result.scalars().all())
+    roots = list((await db.execute(query)).scalars().all())
+    if not roots:
+        return []
+    replies = await db.execute(
+        select(Feedback)
+        .where(Feedback.parent_id.in_([r.id for r in roots]))
+        .order_by(Feedback.created_at)
+    )
+    return roots + list(replies.scalars().all())
+
+
+async def update_feedback(
+    db: AsyncSession,
+    feedback: Feedback,
+    *,
+    reopen: bool = False,
+    for_agent: bool | None = None,
+) -> Feedback:
+    """Reopen a thread or (un)address it to the agent.
+
+    INTERNAL: caller must validate document access before invoking.
+    """
+    if reopen and feedback.status != "open":
+        feedback.status = "open"
+        feedback.resolved_at = None
+        feedback.resolution_note = None
+    if for_agent is not None:
+        feedback.for_agent = for_agent
+    await db.commit()
+    await db.refresh(feedback)
+    sse_service.publish(str(feedback.document_id), SSEEvent(
+        type="feedback_resolved",
+        payload={"doc_id": str(feedback.document_id), "feedback_id": str(feedback.id), "status": feedback.status},
+    ))
+    return feedback
 
 
 async def resolve_feedback(

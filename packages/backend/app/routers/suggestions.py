@@ -13,14 +13,17 @@ from app.models.user import User
 from app.schemas.suggestion import (
     FeedbackCreateRequest,
     FeedbackListResponse,
+    FeedbackReplyRequest,
     FeedbackResolveRequest,
     FeedbackResponse,
+    FeedbackUpdateRequest,
     SuggestionCreateRequest,
     SuggestionListResponse,
     SuggestionRejectRequest,
     SuggestionResponse,
     SuggestionTriageRequest,
 )
+from app.services import access, actor
 from app.services import db as db_service
 from app.services.hunks import apply_hunks, diff_hunks
 from app.services.observability import capture_event
@@ -32,26 +35,40 @@ async def _assert_document_ownership(
     document_id: uuid.UUID,
     current_user: User,
     db: AsyncSession,
+    capability: access.Capability = "write",
 ) -> Document:
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return doc
+    return await access.require(db, document_id, current_user, capability)
 
 
 async def _assert_suggestion_ownership(
     suggestion_id: uuid.UUID,
     current_user: User,
     db: AsyncSession,
+    capability: access.Capability = "write",
 ) -> Suggestion:
     suggestion = await db_service.get_suggestion(db, suggestion_id)
     if not suggestion:
         raise HTTPException(status_code=404, detail="Suggestion not found")
-    await _assert_document_ownership(suggestion.document_id, current_user, db)
+    await _assert_document_ownership(suggestion.document_id, current_user, db, capability)
     return suggestion
+
+
+async def _feedback_responses(db: AsyncSession, items: list[Feedback], me: str) -> list[FeedbackResponse]:
+    """Feedback with its author named: the person, or the agent whose key wrote it."""
+    people, agents = await actor.names_for(
+        db, {f.author_user_id for f in items if f.author_user_id}, {f.api_key_id for f in items if f.api_key_id}
+    )
+    out = []
+    for f in items:
+        resp = FeedbackResponse.model_validate(f)
+        agent = agents.get(f.api_key_id) if f.api_key_id else None
+        if agent:
+            resp.author_name, resp.harness, resp.by_agent = agent[0], agent[1], True
+        elif f.author_user_id:
+            resp.author_name = people.get(f.author_user_id)
+            resp.is_mine = f.author_user_id == me
+        out.append(resp)
+    return out
 
 
 async def _to_response(
@@ -93,14 +110,10 @@ async def create_suggestion(
     current_user: User = Depends(get_current_user),
 ):
     """Explicitly propose new content for a section (regardless of document policy)."""
-    result = await db.execute(
-        select(Section)
-        .join(Document, Section.document_id == Document.id)
-        .where(Section.id == section_id, Document.user_id == current_user.id)
-    )
-    section = result.scalar_one_or_none()
+    section = (await db.execute(select(Section).where(Section.id == section_id))).scalar_one_or_none()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+    await _assert_document_ownership(section.document_id, current_user, db)
 
     api_key_id = getattr(request.state, "api_key_id", None)
     created = await db_service.create_suggestion(
@@ -125,7 +138,7 @@ async def list_suggestions(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _assert_document_ownership(document_id, current_user, db)
+    await _assert_document_ownership(document_id, current_user, db, "read")
     suggestions = await db_service.list_suggestions(db, document_id, status=status)
     items = [await _to_response(db, s, include_content=include_content) for s in suggestions]
     return SuggestionListResponse(suggestions=items)
@@ -137,7 +150,7 @@ async def get_suggestion(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    suggestion = await _assert_suggestion_ownership(suggestion_id, current_user, db)
+    suggestion = await _assert_suggestion_ownership(suggestion_id, current_user, db, "read")
     return await _to_response(db, suggestion)
 
 
@@ -321,12 +334,14 @@ async def triage_suggestion(
 
 @router.post("/documents/{document_id}/feedback", response_model=FeedbackResponse, status_code=201)
 async def create_feedback(
+    request: Request,
     document_id: uuid.UUID,
     payload: FeedbackCreateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _assert_document_ownership(document_id, current_user, db)
+    """A comment on the document, optionally on a passage and for the agent."""
+    await _assert_document_ownership(document_id, current_user, db, "comment")
     if payload.section_id is not None:
         result = await db.execute(
             select(Section).where(
@@ -336,12 +351,16 @@ async def create_feedback(
         if not result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Section not found in this document")
 
+    api_key_id = getattr(request.state, "api_key_id", None)
     feedback = await db_service.create_feedback(
         db, document_id, payload.content,
         section_id=payload.section_id,
-        author_user_id=current_user.id,
+        author_user_id=None if api_key_id else current_user.id,
+        api_key_id=api_key_id,
+        anchor=payload.anchor.model_dump(exclude_none=True) if payload.anchor else None,
+        for_agent=payload.for_agent,
     )
-    return FeedbackResponse.model_validate(feedback)
+    return (await _feedback_responses(db, [feedback], current_user.id))[0]
 
 
 @router.get("/documents/{document_id}/feedback", response_model=FeedbackListResponse)
@@ -351,9 +370,60 @@ async def list_feedback(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _assert_document_ownership(document_id, current_user, db)
+    """Comment threads: roots with `status`, followed by their replies (`parent_id`)."""
+    await _assert_document_ownership(document_id, current_user, db, "read")
     items = await db_service.list_feedback(db, document_id, status=status)
-    return FeedbackListResponse(feedback=[FeedbackResponse.model_validate(f) for f in items])
+    return FeedbackListResponse(feedback=await _feedback_responses(db, items, current_user.id))
+
+
+async def _thread_root(feedback_id: uuid.UUID, current_user: User, db: AsyncSession) -> Feedback:
+    feedback = await db_service.get_feedback(db, feedback_id)
+    if not feedback:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    await _assert_document_ownership(feedback.document_id, current_user, db, "comment")
+    if feedback.parent_id is not None:
+        # Replies have no state of their own; the thread is managed at its root.
+        root = await db_service.get_feedback(db, feedback.parent_id)
+        if root:
+            return root
+    return feedback
+
+
+@router.post("/feedback/{feedback_id}/replies", response_model=FeedbackResponse, status_code=201)
+async def reply_feedback(
+    request: Request,
+    feedback_id: uuid.UUID,
+    payload: FeedbackReplyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Answer in a comment's thread: a person in the browser, or an agent via MCP."""
+    root = await _thread_root(feedback_id, current_user, db)
+    api_key_id = getattr(request.state, "api_key_id", None)
+    reply = await db_service.create_feedback(
+        db, root.document_id, payload.content,
+        section_id=root.section_id,
+        author_user_id=None if api_key_id else current_user.id,
+        api_key_id=api_key_id,
+        parent_id=root.id,
+    )
+    if api_key_id:
+        capture_event(str(current_user.id), str(root.document_id), "mcp_feedback_replied", {})
+    return (await _feedback_responses(db, [reply], current_user.id))[0]
+
+
+@router.patch("/feedback/{feedback_id}", response_model=FeedbackResponse)
+async def update_feedback(
+    feedback_id: uuid.UUID,
+    payload: FeedbackUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    root = await _thread_root(feedback_id, current_user, db)
+    root = await db_service.update_feedback(
+        db, root, reopen=payload.status == "open", for_agent=payload.for_agent
+    )
+    return (await _feedback_responses(db, [root], current_user.id))[0]
 
 
 @router.post("/feedback/{feedback_id}/resolve", response_model=FeedbackResponse)
@@ -364,10 +434,7 @@ async def resolve_feedback(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    feedback = await db_service.get_feedback(db, feedback_id)
-    if not feedback:
-        raise HTTPException(status_code=404, detail="Feedback not found")
-    await _assert_document_ownership(feedback.document_id, current_user, db)
+    feedback = await _thread_root(feedback_id, current_user, db)
     if feedback.status not in ("open", "addressed"):
         raise HTTPException(status_code=409, detail=f"Feedback is already {feedback.status}")
 
@@ -380,4 +447,4 @@ async def resolve_feedback(
     )
     if api_key_id:
         capture_event(str(current_user.id), str(feedback.document_id), "mcp_feedback_resolved", {})
-    return FeedbackResponse.model_validate(feedback)
+    return (await _feedback_responses(db, [feedback], current_user.id))[0]

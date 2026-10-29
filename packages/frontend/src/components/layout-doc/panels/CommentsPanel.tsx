@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { Button, IconButton, Pill, Switch, textStyle } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { Button, textStyle } from "@/components/ui";
+import { CommentComposer, CommentFilter, CommentThread, type CommentMessage, type CommentThreadData } from "@/components/document";
 import { useI18n } from "@/i18n";
 import { apiAnswerLayoutReview, apiUpdateLayoutNote, type LayoutNote, type LayoutRect } from "@/utils/api";
-import { fullDate, relativeTime } from "@/utils/time";
 import type { Thread } from "../history";
 import { track } from "../track";
 import { TextArea } from "./fields";
@@ -45,26 +45,11 @@ export function CommentsPanel(props: CommentsPanelProps) {
     props;
   const { t } = useI18n();
   const [filter, setFilter] = useState<"open" | "resolved">("open");
-  const [message, setMessage] = useState("");
-  const [forAgent, setForAgent] = useState(false);
-  const [saving, setSaving] = useState(false);
   const list = filter === "open" ? open : (resolved ?? []);
 
   useEffect(() => {
     if (focused) setFilter("open");
   }, [focused]);
-
-  const submit = async () => {
-    if (!message.trim()) return;
-    setSaving(true);
-    try {
-      await onCreate(message.trim(), forAgent);
-      setMessage("");
-      setForAgent(false);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const anchorLabel = pending?.rect
     ? t("layout.notes.areaLabel", { page: pending.rect.page ?? 1, x: pending.rect.x, y: pending.rect.y, w: pending.rect.w, h: pending.rect.h })
@@ -85,204 +70,68 @@ export function CommentsPanel(props: CommentsPanelProps) {
       )}
       {annotating && !pending && <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.comments.newHint")}</span>}
       {pending && (
-        <div className="df-callout df-callout--warn">
-          <span style={{ ...textStyle.caption, color: "var(--color-dim)" }}>{anchorLabel}</span>
-          <TextArea
-            autoFocus
-            rows={3}
-            aria-label={t("layout.notes.message")}
-            placeholder={t("layout.comments.placeholder")}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void submit();
-            }}
-          />
-          <Switch checked={forAgent} onChange={setForAgent} label={t("layout.comments.askAgent")} />
-          {forAgent && <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.comments.askAgentHint")}</span>}
-          <div style={{ display: "flex", gap: 6 }}>
-            <Button variant="primary" disabled={!message.trim() || saving} onClick={() => void submit()}>
-              {saving ? t("common.saving") : t("layout.comments.post")}
-            </Button>
-            <Button variant="ghost" onClick={onCancelPending}>
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </div>
+        <CommentComposer about={<span style={{ ...textStyle.caption, color: "var(--color-dim)" }}>{anchorLabel}</span>} onSubmit={onCreate} onCancel={onCancelPending} />
       )}
 
-      <div role="radiogroup" aria-label={t("layout.comments.filter")} className="df-seg">
-        <button type="button" role="radio" aria-checked={filter === "open"} aria-pressed={filter === "open"} onClick={() => setFilter("open")}>
-          {t("layout.comments.open", { count: open.length })}
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={filter === "resolved"}
-          aria-pressed={filter === "resolved"}
-          onClick={() => {
-            setFilter("resolved");
-            if (!resolved) loadResolved();
-          }}
-        >
-          {t("layout.comments.resolved")}
-        </button>
-      </div>
+      <CommentFilter
+        value={filter}
+        openCount={open.length}
+        onChange={(value) => {
+          setFilter(value);
+          if (value === "resolved" && !resolved) loadResolved();
+        }}
+      />
 
       {list.length === 0 && (
         <span style={{ ...textStyle.caption, color: "var(--color-dim)" }}>
           {filter === "open" ? t("layout.comments.emptyOpen") : resolved ? t("layout.comments.emptyResolved") : t("common.loading")}
         </span>
       )}
-      {list.map((thread) => (
-        <ThreadCard
-          key={thread.root.id}
-          thread={thread}
-          focused={focused === thread.root.id}
-          canComment={canComment}
-          nameOf={nameOf}
-          onShow={onShow}
-          onFocus={onFocus}
-          onReply={(text) => onReply(thread, text)}
-          onStatus={(status) => onStatus(thread, status)}
-          onToggleAgent={(on) => onToggleAgent(thread, on)}
-        />
-      ))}
+      {list.map((thread) => {
+        const anchor = thread.root.anchor.component ? nameOf(thread.root.anchor.component) : thread.root.anchor.rect ? t("layout.comments.area", { page: thread.root.anchor.rect.page ?? 1 }) : null;
+        return (
+          <CommentThread
+            key={thread.root.id}
+            thread={threadData(thread)}
+            focused={focused === thread.root.id}
+            canComment={canComment}
+            onFocus={onFocus}
+            anchor={
+              anchor && (
+                <button type="button" className="df-comment__anchor" onClick={() => thread.root.anchor.component && onShow(thread.root.anchor.component)} disabled={!thread.root.anchor.component}>
+                  <span className="material-symbols-outlined" aria-hidden>
+                    {thread.root.anchor.component ? "my_location" : "crop_free"}
+                  </span>
+                  {anchor}
+                </button>
+              )
+            }
+            onReply={(text) => onReply(thread, text)}
+            onStatus={(status) => onStatus(thread, status)}
+            onToggleAgent={(on) => onToggleAgent(thread, on)}
+          />
+        );
+      })}
     </div>
   );
 }
 
-function Author({ note }: { note: LayoutNote }) {
-  const { t, dateLocale } = useI18n();
-  return (
-    <span className="df-comment__author">
-      <span className="df-comment__avatar" data-agent={note.byAgent || undefined} aria-hidden>
-        <span className="material-symbols-outlined">{note.byAgent ? "smart_toy" : "person"}</span>
-      </span>
-      <b>{note.byAgent ? t("layout.history.agent") : t("layout.history.person")}</b>
-      {note.createdAt && (
-        <span title={fullDate(note.createdAt, dateLocale)} style={{ color: "var(--color-faint)" }}>
-          {relativeTime(note.createdAt, dateLocale)}
-        </span>
-      )}
-    </span>
-  );
-}
+const messageOf = (note: LayoutNote): CommentMessage => ({
+  id: note.id,
+  text: note.message,
+  createdAt: note.createdAt,
+  author: { name: note.authorName, agent: note.byAgent, harness: note.harness },
+});
 
-function ThreadCard({
-  thread,
-  focused,
-  canComment,
-  nameOf,
-  onShow,
-  onFocus,
-  onReply,
-  onStatus,
-  onToggleAgent,
-}: {
-  thread: Thread;
-  focused: boolean;
-  canComment: boolean;
-  nameOf: (id: string) => string;
-  onShow: (id: string) => void;
-  onFocus: (id: string | null) => void;
-  onReply: (message: string) => Promise<void>;
-  onStatus: (status: "resolved" | "open") => Promise<void>;
-  onToggleAgent: (on: boolean) => Promise<void>;
-}) {
-  const { t } = useI18n();
-  const { root, replies, number } = thread;
-  const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
-  const card = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (focused) card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [focused]);
-  const resolvedThread = root.status === "resolved";
-  const send = async () => {
-    if (!reply.trim()) return;
-    setSending(true);
-    try {
-      await onReply(reply.trim());
-      setReply("");
-    } finally {
-      setSending(false);
-    }
+function threadData(thread: Thread): CommentThreadData {
+  return {
+    root: messageOf(thread.root),
+    replies: thread.replies.map(messageOf),
+    forAgent: thread.root.forAgent,
+    resolved: thread.root.status === "resolved",
+    resolutionNote: thread.root.resolutionNote,
+    number: thread.number,
   };
-  const anchor = root.anchor.component ? nameOf(root.anchor.component) : root.anchor.rect ? t("layout.comments.area", { page: root.anchor.rect.page ?? 1 }) : null;
-
-  return (
-    <article
-      ref={card}
-      className="df-comment"
-      data-focused={focused || undefined}
-      data-resolved={resolvedThread || undefined}
-      onMouseEnter={() => onFocus(root.id)}
-      onMouseLeave={() => onFocus(null)}
-    >
-      <header className="df-comment__head">
-        {number > 0 && <span className="df-pin df-pin--static">{number}</span>}
-        <Author note={root} />
-        {root.forAgent && (
-          <Pill compact tone="steel" dot={false}>
-            {t("layout.comments.forAgent")}
-          </Pill>
-        )}
-      </header>
-      {anchor && (
-        <button type="button" className="df-comment__anchor" onClick={() => root.anchor.component && onShow(root.anchor.component)} disabled={!root.anchor.component}>
-          <span className="material-symbols-outlined" aria-hidden>
-            {root.anchor.component ? "my_location" : "crop_free"}
-          </span>
-          {anchor}
-        </button>
-      )}
-      <p className="df-comment__text">{root.message}</p>
-      {replies.map((r) => (
-        <div key={r.id} className="df-comment__reply">
-          <Author note={r} />
-          <p className="df-comment__text">{r.message}</p>
-        </div>
-      ))}
-      {resolvedThread && root.resolutionNote && <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>✓ {root.resolutionNote}</span>}
-      {canComment && (
-        <>
-          <div className="df-comment__composer">
-            <TextArea
-              rows={1}
-              aria-label={t("layout.comments.reply")}
-              placeholder={t("layout.comments.reply")}
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-            />
-            <IconButton icon="send" label={t("layout.comments.send")} disabled={!reply.trim() || sending} onClick={() => void send()} />
-          </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {resolvedThread ? (
-              <Button variant="ghost" icon="undo" iconPosition="start" onClick={() => void onStatus("open")}>
-                {t("layout.comments.reopen")}
-              </Button>
-            ) : (
-              <Button variant="ghost" icon="check" iconPosition="start" onClick={() => void onStatus("resolved")}>
-                {t("layout.notes.resolve")}
-              </Button>
-            )}
-            {!resolvedThread && (
-              <Button variant="ghost" icon="smart_toy" iconPosition="start" aria-pressed={root.forAgent} onClick={() => void onToggleAgent(!root.forAgent)}>
-                {root.forAgent ? t("layout.comments.unaskAgent") : t("layout.comments.askAgentShort")}
-              </Button>
-            )}
-          </div>
-        </>
-      )}
-    </article>
-  );
 }
 
 function ReviewRequest({

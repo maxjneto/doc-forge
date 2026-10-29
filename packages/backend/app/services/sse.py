@@ -108,8 +108,13 @@ def publish(doc_id: str, event: SSEEvent) -> None:
     _deliver_local(doc_id, data)
 
 
-async def event_stream(doc_id: str) -> AsyncGenerator[str, None]:
+async def event_stream(doc_id: str, presence: tuple[str, str] | None = None) -> AsyncGenerator[str, None]:
+    """The stream for one open document. With `presence` (user id, name), the
+    person counts as on the document for as long as the stream stays open."""
+    from app.services import presence as presence_service
+
     q = subscribe(doc_id)
+    connection = presence_service.join(doc_id, *presence) if presence else None
     try:
         while True:
             try:
@@ -121,3 +126,5 @@ async def event_stream(doc_id: str) -> AsyncGenerator[str, None]:
         pass
     finally:
         unsubscribe(doc_id, q)
+        if connection:
+            presence_service.leave(doc_id, connection)

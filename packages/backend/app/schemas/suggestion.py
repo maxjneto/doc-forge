@@ -37,9 +37,30 @@ class SuggestionListResponse(BaseModel):
     suggestions: list[SuggestionResponse]
 
 
+class FeedbackAnchor(BaseModel):
+    """Where in the text a comment points: the passage, and the heading it sat under."""
+
+    quote: str | None = Field(default=None, max_length=1000)
+    heading: str | None = Field(default=None, max_length=300)
+
+
 class FeedbackCreateRequest(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
     section_id: UUID | None = None
+    anchor: FeedbackAnchor | None = None
+    # A request for the agent to act on (agents read these first).
+    for_agent: bool = False
+
+
+class FeedbackReplyRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class FeedbackUpdateRequest(BaseModel):
+    """Reopen a resolved thread, or address it to (or take it away from) the agent."""
+
+    status: Literal["open"] | None = None
+    for_agent: bool | None = None
 
 
 class FeedbackResolveRequest(BaseModel):
@@ -52,11 +73,19 @@ class FeedbackResponse(BaseModel):
     document_id: UUID
     section_id: UUID | None
     suggestion_id: UUID | None
+    parent_id: UUID | None = None
+    anchor: dict | None = None
+    for_agent: bool = False
     content: str
     status: str
     resolution_note: str | None
     created_at: datetime
     resolved_at: datetime | None
+    # Who wrote it: a person by name, an agent by its key's name.
+    author_name: str | None = None
+    by_agent: bool = False
+    harness: str | None = None
+    is_mine: bool = False
 
     model_config = {"from_attributes": True}
 

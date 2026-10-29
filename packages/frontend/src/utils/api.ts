@@ -9,6 +9,7 @@ import type {
   MyActivityEvent,
   Suggestion,
   FeedbackItem,
+  Presence,
   Artifact,
   Folder,
   DocumentMember,
@@ -83,7 +84,9 @@ async function authHeaders(getToken: GetToken, extra?: Record<string, string>) {
 export interface Tier {
   slug: string;
   name: string;
-  priceMonthlyUsd: number | null;
+  priceMonthly: number | null;
+  /** ISO 4217, e.g. "BRL". */
+  currency: string;
   credits: string;
   description: string;
   features: string[];
@@ -91,6 +94,8 @@ export interface Tier {
     maxActiveDocuments: number | null;
     maxApiKeys: number | null;
     weeklyDocumentCreations: number | null;
+    /** null = every version is kept. */
+    maxVersionsPerSection: number | null;
     exportFormats: ExportFormat[];
   };
   cta: string;
@@ -107,7 +112,8 @@ export async function apiFetchTiers(): Promise<Tier[]> {
     return {
       slug: raw.slug as string,
       name: raw.name as string,
-      priceMonthlyUsd: (raw.price_monthly_usd as number) ?? null,
+      priceMonthly: (raw.price_monthly as number) ?? null,
+      currency: (raw.currency as string) ?? "BRL",
       credits: raw.credits as string,
       description: raw.description as string,
       features: (raw.features as string[]) ?? [],
@@ -115,6 +121,7 @@ export async function apiFetchTiers(): Promise<Tier[]> {
         maxActiveDocuments: (limits.max_active_documents as number) ?? null,
         maxApiKeys: (limits.max_api_keys as number) ?? null,
         weeklyDocumentCreations: (limits.weekly_document_creations as number) ?? null,
+        maxVersionsPerSection: (limits.max_versions_per_section as number | null) ?? null,
         exportFormats: (limits.export_formats as ExportFormat[]) ?? [],
       },
       cta: raw.cta as string,
@@ -125,7 +132,7 @@ export async function apiFetchTiers(): Promise<Tier[]> {
 }
 
 export async function apiCreateCheckoutSession(
-  plan: "pro" | "team",
+  plan: "pro",
   getToken: GetToken,
 ): Promise<string> {
   const res = await fetch(`${API_BASE}/billing/checkout`, {
@@ -435,6 +442,9 @@ export interface LayoutNote {
   revision: number;
   byAgent: boolean;
   authorUserId: string | null;
+  /** The person's name, or the agent's key name. */
+  authorName: string | null;
+  harness: string | null;
   status: "open" | "acknowledged" | "resolved";
   resolutionNote: string | null;
   createdAt: string | null;
@@ -458,6 +468,8 @@ function mapLayoutNote(raw: Record<string, unknown>): LayoutNote {
     revision: Number(raw.revision),
     byAgent: Boolean(raw.by_agent),
     authorUserId: (raw.author_user_id as string | null) ?? null,
+    authorName: (raw.author_name as string | null) ?? null,
+    harness: (raw.harness as string | null) ?? null,
     status: raw.status as LayoutNote["status"],
     resolutionNote: (raw.resolution_note as string | null) ?? null,
     createdAt: (raw.created_at as string | null) ?? null,
@@ -551,6 +563,8 @@ export interface LayoutRevisionItem {
   description: string | null;
   opsCount: number | null;
   byAgent: boolean;
+  authorName: string | null;
+  harness: string | null;
   createdAt: string | null;
   /** A saved version: the name (and note) someone gave this revision. */
   name: string | null;
@@ -565,6 +579,8 @@ function mapRevision(r: Record<string, unknown>): LayoutRevisionItem {
     description: (r.description as string | null) ?? null,
     opsCount: (r.ops_count as number | null) ?? null,
     byAgent: Boolean(r.by_agent),
+    authorName: (r.author_name as string | null) ?? null,
+    harness: (r.harness as string | null) ?? null,
     createdAt: (r.created_at as string | null) ?? null,
     name: (r.name as string | null) ?? null,
     note: (r.note as string | null) ?? null,
@@ -758,8 +774,11 @@ function mapDocumentActivity(raw: Record<string, unknown>): DocumentActivity {
     id: String(raw.id),
     actionType: raw.action_type as DocumentActivity["actionType"],
     description: (raw.description as string) ?? null,
+    actorId: String(raw.actor_id ?? raw.actor_name),
     actorName: raw.actor_name as string,
     isAgent: raw.is_agent as boolean,
+    isMe: Boolean(raw.is_me),
+    onBehalfOf: (raw.on_behalf_of as string | null) ?? null,
     harness: (raw.harness as string) ?? null,
     bytesDelta: raw.bytes_delta != null ? Number(raw.bytes_delta) : null,
     versionId: (raw.version_id as string) ?? null,
@@ -883,11 +902,18 @@ function mapFeedback(raw: Record<string, unknown>): FeedbackItem {
     documentId: String(raw.document_id),
     sectionId: raw.section_id ? String(raw.section_id) : null,
     suggestionId: raw.suggestion_id ? String(raw.suggestion_id) : null,
+    parentId: raw.parent_id ? String(raw.parent_id) : null,
+    anchor: (raw.anchor as FeedbackItem["anchor"]) ?? null,
+    forAgent: Boolean(raw.for_agent),
     content: raw.content as string,
     status: raw.status as FeedbackItem["status"],
     resolutionNote: (raw.resolution_note as string) ?? null,
     createdAt: raw.created_at as string,
     resolvedAt: (raw.resolved_at as string) ?? null,
+    authorName: (raw.author_name as string | null) ?? null,
+    byAgent: Boolean(raw.by_agent),
+    harness: (raw.harness as string | null) ?? null,
+    isMine: Boolean(raw.is_mine),
   };
 }
 
@@ -943,14 +969,72 @@ export async function apiCreateFeedback(
   content: string,
   sectionId: string | null,
   getToken: GetToken,
+  options: { anchor?: FeedbackItem["anchor"]; forAgent?: boolean } = {},
 ): Promise<FeedbackItem> {
   const res = await fetch(`${API_BASE}/documents/${documentId}/feedback`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ content, section_id: sectionId }),
+    body: JSON.stringify({ content, section_id: sectionId, anchor: options.anchor ?? null, for_agent: options.forAgent ?? false }),
   });
   if (!res.ok) throw new Error("Failed to create feedback");
   return mapFeedback(await res.json());
+}
+
+/** Comment threads: roots with `status` (all when omitted), then their replies. */
+export async function apiListFeedback(
+  documentId: string,
+  getToken: GetToken,
+  status?: "open" | "resolved",
+): Promise<FeedbackItem[]> {
+  const qs = status ? `?status=${status}` : "";
+  const res = await fetch(`${API_BASE}/documents/${documentId}/feedback${qs}`, {
+    headers: await authHeaders(getToken),
+  });
+  if (!res.ok) throw new Error("Failed to fetch comments");
+  const data = (await res.json()) as { feedback: Record<string, unknown>[] };
+  return data.feedback.map(mapFeedback);
+}
+
+export async function apiReplyFeedback(feedbackId: string, content: string, getToken: GetToken): Promise<FeedbackItem> {
+  const res = await fetch(`${API_BASE}/feedback/${feedbackId}/replies`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("Failed to reply");
+  return mapFeedback(await res.json());
+}
+
+/** Resolve a thread, reopen it, or (un)address it to the agent. */
+export async function apiUpdateFeedback(
+  feedbackId: string,
+  change: { status?: "open" | "resolved"; forAgent?: boolean },
+  getToken: GetToken,
+): Promise<FeedbackItem> {
+  const resolving = change.status === "resolved";
+  const res = await fetch(resolving ? `${API_BASE}/feedback/${feedbackId}/resolve` : `${API_BASE}/feedback/${feedbackId}`, {
+    method: resolving ? "POST" : "PATCH",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(resolving ? { status: "resolved" } : { status: change.status, for_agent: change.forAgent }),
+  });
+  if (!res.ok) throw new Error("Failed to update the comment");
+  return mapFeedback(await res.json());
+}
+
+export async function apiFetchPresence(documentId: string, getToken: GetToken): Promise<Presence> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/presence`, { headers: await authHeaders(getToken) });
+  if (!res.ok) throw new Error("Failed to fetch presence");
+  const raw = (await res.json()) as { people: Record<string, unknown>[]; agents: Record<string, unknown>[] };
+  return {
+    people: raw.people.map((p) => ({ id: String(p.id), name: String(p.name), isMe: Boolean(p.is_me), since: String(p.since) })),
+    agents: raw.agents.map((a) => ({
+      id: String(a.id),
+      name: String(a.name),
+      harness: (a.harness as string | null) ?? null,
+      onBehalfOf: (a.on_behalf_of as string | null) ?? null,
+      lastSeen: String(a.last_seen),
+    })),
+  };
 }
 
 export interface GateStatus {
