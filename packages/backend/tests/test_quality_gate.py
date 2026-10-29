@@ -1,7 +1,6 @@
 """Tests for quality gates (M5): agent-run findings, server-run audit, and the
 blocking gate on suggestion acceptance."""
 
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -11,7 +10,7 @@ from .test_suggestions import agent_client_factory  # noqa: F401  (fixture reuse
 
 
 async def _editor_doc(client) -> tuple[str, str]:
-    res = await client.post("/api/documents", json={"title": "Doc", "mode": "editor"})
+    res = await client.post("/api/documents", json={"title": "Doc"})
     doc_id = res.json()["id"]
     detail = await client.get(f"/api/documents/{doc_id}")
     body = next(s for s in detail.json()["sections"] if s["section_type"] == "body")
@@ -111,38 +110,10 @@ async def test_findings_validation(client_factory):
 
 
 @pytest.mark.asyncio
-async def test_server_run_gate_costs_credits_and_saves_findings(client_factory):
-    user = User(id="u_gate4", email="g4@test.com", name="G", credits=3)
-    async with client_factory(user) as client:
-        doc_id, section_id = await _editor_doc(client)  # editor doc costs 1 → 2 left
-        await client.patch(f"/api/sections/{section_id}/content", json={"content": "some content"})
-
-        with patch("app.phases.audit.ai.run_audit", new=AsyncMock(return_value={
-            "has_problems": True,
-            "problems": [{"section": "body", "issue": "AI-found issue", "severity": "low"}],
-        })):
-            res = await client.post(f"/api/documents/{doc_id}/quality-gate/run")
-        assert res.status_code == 200, res.text
-        assert res.json()[0]["description"] == "AI-found issue"
-
-    # 3 - 1 (editor doc) - 1 (gate) — asserted against the DB, since the auth
-    # override returns an in-memory user object
-    from sqlalchemy import select
-
-    from .conftest import TestSession
-
-    async with TestSession() as session:
-        db_user = (await session.execute(
-            select(User).where(User.id == "u_gate4")
-        )).scalar_one()
-        assert db_user.credits == 1
-
-
-@pytest.mark.asyncio
-async def test_server_run_gate_requires_credits(client_factory):
+async def test_there_is_no_server_run_gate(client_factory):
+    """DocForge never calls a model: the gate is run by the person's agent."""
     user = User(id="u_gate5", email="g5@test.com", name="G", credits=1)
     async with client_factory(user) as client:
-        doc_id, _ = await _editor_doc(client)  # spends the only credit
+        doc_id, _ = await _editor_doc(client)
         res = await client.post(f"/api/documents/{doc_id}/quality-gate/run")
-        assert res.status_code == 402
-        assert "free" in res.json()["detail"].lower()
+        assert res.status_code in (404, 405)

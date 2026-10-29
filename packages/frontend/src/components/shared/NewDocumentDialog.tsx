@@ -1,322 +1,177 @@
-import { useEffect, useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import posthog from "posthog-js";
-import { apiListDocumentTypes, apiCreateDocument } from "@/utils/api";
-import type { DocumentType } from "@/types";
 
-const ICON_MAP: Record<string, string> = {
-  rfc: "rate_review",
-  prd: "list_alt",
-  "tech-spec": "schema",
-  adr: "account_tree",
-  postmortem: "monitor_heart",
-  runbook: "menu_book",
-};
-
-const GUIDED_COST = 3;
-const EDITOR_COST = 1;
-
-type DialogTab = "guided" | "editor";
+import { apiCreateDocument, apiCreateLayoutDocument, type LayoutTemplateSlug } from "@/utils/api";
+import { useI18n } from "@/i18n";
+import { Button, Dialog, Input, textStyle } from "@/components/ui";
 
 interface NewDocumentDialogProps {
   onClose: () => void;
-  credits?: number;
+  remaining?: number;
+  weeklyLimit?: number;
 }
 
-export function NewDocumentDialog({ onClose, credits }: NewDocumentDialogProps) {
+type Kind = "editor" | "layout";
+type Template = LayoutTemplateSlug | "blank" | "blank-slides";
+const TEMPLATES: Template[] = ["relatorio", "proposta", "one-pager", "apresentacao", "blank", "blank-slides"];
+
+/** A sketch of each template's composition, drawn with blocks (no screenshots to keep in sync). */
+const SKETCH: Record<Template, ReactNode> = {
+  relatorio: (
+    <>
+      <i style={{ height: 7, width: "60%" }} />
+      <span className="df-tpl__row">
+        <i />
+        <i />
+        <i />
+      </span>
+      <span className="df-tpl__row" style={{ flex: 1 }}>
+        <i style={{ flex: 1.4 }} />
+        <i className="df-tpl__accent" />
+      </span>
+    </>
+  ),
+  proposta: (
+    <>
+      <i style={{ height: 9, width: "70%" }} />
+      <i style={{ height: 4, width: "45%" }} />
+      <span className="df-tpl__row" style={{ flex: 1 }}>
+        <i />
+        <i />
+      </span>
+      <i className="df-tpl__accent" style={{ height: 12 }} />
+    </>
+  ),
+  "one-pager": (
+    <>
+      <i className="df-tpl__dark" style={{ height: 20 }} />
+      <span className="df-tpl__row" style={{ flex: 1 }}>
+        <i />
+        <i />
+      </span>
+      <i style={{ height: 6, width: "80%" }} />
+    </>
+  ),
+  apresentacao: (
+    <span className="df-tpl__slides">
+      <span className="df-tpl__slide">
+        <i className="df-tpl__accent" style={{ height: 6, width: "70%" }} />
+        <i style={{ height: 3, width: "45%" }} />
+      </span>
+      <span className="df-tpl__slide">
+        <i style={{ height: 4, width: "50%" }} />
+        <span className="df-tpl__row" style={{ flex: 1 }}>
+          <i />
+          <i />
+          <i />
+        </span>
+      </span>
+    </span>
+  ),
+  blank: null,
+  "blank-slides": null,
+};
+
+/**
+ * New document: Markdown in the editor, or a page document (components on a grid)
+ * from a curated template. Agents create both through MCP as well.
+ */
+export function NewDocumentDialog({ onClose, remaining, weeklyLimit }: NewDocumentDialogProps) {
   const navigate = useNavigate();
   const { getToken } = useAuth();
-  const [tab, setTab] = useState<DialogTab>("guided");
-  const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [documentTitle, setDocumentTitle] = useState("");
+  const { t } = useI18n();
+  const [title, setTitle] = useState("");
+  const [kind, setKind] = useState<Kind>("editor");
+  const [template, setTemplate] = useState<Template>("relatorio");
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const blocked = remaining !== undefined && remaining <= 0;
 
-  const canAffordGuided = credits === undefined || credits >= GUIDED_COST;
-  const canAffordEditor = credits === undefined || credits >= EDITOR_COST;
-
-  useEffect(() => {
-    apiListDocumentTypes(getToken)
-      .then((types) => {
-        setDocTypes(types);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
-  }, [getToken]);
-
-  function handleSelectGuided(doc: DocumentType) {
-    if (!canAffordGuided) return;
-    posthog.capture("document_created", { mode: "guided", document_type_slug: doc.slug });
-    onClose();
-    navigate("/document/new", { state: { documentTypeSlug: doc.slug, documentTitle: documentTitle.trim() || null } });
-  }
-
-  async function handleCreateEditor() {
-    if (creating || !canAffordEditor) return;
+  async function create() {
+    if (creating || blocked) return;
     setCreating(true);
-    setCreateError(null);
+    setError(null);
     try {
-      const doc = await apiCreateDocument(
-        documentTitle.trim(),
-        "",
-        getToken,
-        undefined,
-        undefined,
-        "editor",
-      );
+      if (kind === "layout") {
+        const blank = template === "blank" || template === "blank-slides";
+        const id = await apiCreateLayoutDocument(title.trim(), blank ? null : template, getToken, template === "blank-slides" ? "slide" : null);
+        posthog.capture("document_created", { mode: "layout", template });
+        onClose();
+        navigate(`/document/${id}`);
+        return;
+      }
+      const doc = await apiCreateDocument(title.trim(), getToken);
       posthog.capture("document_created", { mode: "editor" });
       onClose();
       navigate(`/document/${doc.id}`);
-    } catch (err) {
+    } catch (reason) {
       setCreating(false);
-      if (err instanceof Error && err.message === "INSUFFICIENT_CREDITS") {
-        setCreateError("Not enough credits. Your weekly credits may have been used up.");
-      } else {
-        setCreateError("Something went wrong. Please try again.");
-      }
+      setError(
+        reason instanceof Error && reason.message === "WEEKLY_DOCUMENT_LIMIT_REACHED"
+          ? "You have used all document creations for this week."
+          : t("newDocument.genericError"),
+      );
     }
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 100,
-        background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "24px",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#121414",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: "0.5rem",
-          padding: "32px",
-          width: "min(1040px, 100%)",
-          boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, letterSpacing: "-0.03em", color: "#e3e2e2" }}>
-              New Document
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(200,198,197,0.4)", padding: "4px", lineHeight: 1 }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>close</span>
+    <Dialog onClose={onClose} title={t("newDocument.title")} subtitle={kind === "layout" ? t("newDocument.layoutSubtitle") : t("newDocument.editorSubtitle")} width={kind === "layout" ? 600 : 480} closable>
+      {remaining !== undefined && (
+        <p className="df-mono" style={{ margin: "0 0 14px", fontSize: 11.5, color: blocked ? "var(--color-error)" : "var(--color-heat-hi)" }}>
+          {remaining} of {weeklyLimit ?? 0} document creations remaining this week
+        </p>
+      )}
+      <div role="radiogroup" aria-label={t("newDocument.kind")} className="df-seg" style={{ marginBottom: 16 }}>
+        {(["editor", "layout"] as const).map((k) => (
+          <button key={k} type="button" role="radio" aria-checked={kind === k} aria-pressed={kind === k} onClick={() => setKind(k)}>
+            {t(`newDocument.kind.${k}`)}
           </button>
-        </div>
-
-        {/* Tab toggle */}
-        <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", padding: "4px", width: "fit-content" }}>
-          {(["guided", "editor"] as DialogTab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              style={{
-                padding: "6px 16px",
-                borderRadius: "6px",
-                fontSize: "12px",
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
-                background: tab === t ? "rgba(255,77,0,0.12)" : "transparent",
-                color: tab === t ? "#FF4D00" : "rgba(200,198,197,0.45)",
-                transition: "all 0.15s",
-              }}
-            >
-              {t === "guided" ? "AI Guided" : "Editor"}
-            </button>
-          ))}
-        </div>
-
-        {/* Title input */}
-        <div style={{ marginBottom: "20px" }}>
-          <label
-            style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(200,198,197,0.45)", marginBottom: "8px" }}
-          >
-            Document title
-          </label>
-          <input
-            type="text"
-            value={documentTitle}
-            onChange={(e) => setDocumentTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && tab === "editor") handleCreateEditor(); }}
-            placeholder={tab === "guided" ? "Auto-generated from context" : "Untitled Document"}
-            maxLength={200}
-            style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: "6px",
-              padding: "10px 14px",
-              fontSize: "13px",
-              color: "#e3e2e2",
-              fontFamily: "inherit",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(255,77,0,0.45)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
-          />
-        </div>
-
-        {/* Body — guided */}
-        {tab === "guided" && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <p style={{ margin: 0, fontSize: "13px", color: "rgba(200,198,197,0.5)" }}>
-                Choose a document type. The AI will guide you through structured discovery and generation.
-              </p>
-              {!canAffordGuided && credits !== undefined && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#e86464", background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.2)", borderRadius: "6px", padding: "4px 10px", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "16px" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>warning</span>
-                  Needs {GUIDED_COST} credits - you have {credits}
-                </span>
-              )}
-            </div>
-            {loading && (
-              <div style={{ color: "rgba(200,198,197,0.4)", fontSize: "13px", textAlign: "center", padding: "32px 0" }}>
-                Loading document types…
-              </div>
-            )}
-            {error && (
-              <div style={{ color: "rgba(200,198,197,0.4)", fontSize: "13px", textAlign: "center", padding: "32px 0" }}>
-                Could not load document types. Please try again.
-              </div>
-            )}
-            {!loading && !error && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-                {docTypes.map((doc) => (
-                  <DocTypeCard key={doc.id} doc={doc} onSelect={handleSelectGuided} disabled={!canAffordGuided} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Body — editor */}
-        {tab === "editor" && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "16px", paddingBottom: "8px" }}>
-            <p style={{ margin: "0 0 28px", fontSize: "13px", color: "rgba(200,198,197,0.5)", lineHeight: 1.6, textAlign: "center", maxWidth: 400 }}>
-              Start with a blank canvas. Write freely in Markdown - headings become your document structure.
-            </p>
-            {!canAffordEditor && credits !== undefined && (
-              <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>warning</span>
-                You need {EDITOR_COST} credit to create an editor document - you have {credits}.
-              </p>
-            )}
-            {createError && (
-              <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#e86464", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>error</span>
-                {createError}
-              </p>
-            )}
-            <button
-              onClick={handleCreateEditor}
-              disabled={creating || !canAffordEditor}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: "8px",
-                padding: "10px 24px", borderRadius: "6px", fontSize: "13px", fontWeight: 600,
-                border: "1px solid rgba(255,77,0,0.5)",
-                background: (creating || !canAffordEditor) ? "rgba(255,77,0,0.06)" : "rgba(255,77,0,0.10)",
-                color: (creating || !canAffordEditor) ? "rgba(255,77,0,0.5)" : "#FF4D00",
-                cursor: (creating || !canAffordEditor) ? "not-allowed" : "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-                {creating ? "hourglass_empty" : "edit_note"}
-              </span>
-              {creating ? "Creating…" : "Create Editor Document"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DocTypeCard({ doc, onSelect, disabled }: { doc: DocumentType; onSelect: (d: DocumentType) => void; disabled?: boolean }) {
-  const icon = ICON_MAP[doc.slug] ?? "description";
-
-  return (
-    <div
-      onClick={() => !disabled && onSelect(doc)}
-      style={{
-        position: "relative",
-        background: "linear-gradient(to bottom, #1a1b1b, #111212)",
-        border: "1px solid rgba(255,77,0,0.25)",
-        borderRadius: "0.375rem",
-        padding: "20px",
-        cursor: disabled ? "not-allowed" : "pointer",
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-        transition: "border-color 0.2s, box-shadow 0.2s, opacity 0.2s",
-        opacity: disabled ? 0.4 : 1,
-      }}
-      onMouseEnter={(e) => {
-        if (disabled) return;
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,77,0,0.6)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 0 16px rgba(255,77,0,0.15)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,77,0,0.25)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-      }}
-    >
-      {/* Icon + label */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: "22px", color: "#FF4D00" }}
-        >
-          {icon}
-        </span>
-        <span style={{
-          fontSize: "13px", fontWeight: 700, letterSpacing: "0.04em",
-          textTransform: "uppercase", color: "#e3e2e2",
-        }}>
-          {doc.name}
-        </span>
-      </div>
-
-      {/* Description */}
-      <p style={{ margin: 0, fontSize: "12px", lineHeight: 1.5, color: "rgba(200,198,197,0.5)" }}>
-        {doc.description}
-      </p>
-
-      {/* Section pills */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "auto" }}>
-        {doc.sections.map((s) => (
-          <span
-            key={s.id}
-            style={{
-              fontSize: "10px", fontWeight: 500, letterSpacing: "0.01em",
-              color: "rgba(200,198,197,0.38)",
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: "3px", padding: "2px 6px",
-            }}
-          >
-            {s.displayName}
-          </span>
         ))}
       </div>
-    </div>
+      <label htmlFor="new-document-title" style={{ ...textStyle.fieldLabel, display: "block", color: "var(--color-dim)", marginBottom: 8 }}>
+        {t("newDocument.documentTitle")}
+      </label>
+      <Input
+        id="new-document-title"
+        autoFocus
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") create();
+        }}
+        placeholder={t("newDocument.untitled")}
+        maxLength={200}
+      />
+      {kind === "layout" && (
+        <>
+          <span style={{ ...textStyle.fieldLabel, display: "block", color: "var(--color-dim)", margin: "16px 0 8px" }}>{t("newDocument.template")}</span>
+          <div role="radiogroup" aria-label={t("newDocument.template")} style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+            {TEMPLATES.map((slug) => (
+              <button key={slug} type="button" role="radio" aria-checked={template === slug} className="df-tpl" onClick={() => setTemplate(slug)}>
+                <span className="df-tpl__sketch" aria-hidden>
+                  {SKETCH[slug] ?? (
+                    <span className="material-symbols-outlined" style={{ margin: "auto", fontSize: 22 }}>
+                      {slug === "blank-slides" ? "slideshow" : "add"}
+                    </span>
+                  )}
+                </span>
+                <span className="df-tpl__name">{t(`newDocument.templates.${slug}`)}</span>
+                <span className="df-tpl__hint">{t(`newDocument.templates.${slug}.hint`)}</span>
+              </button>
+            ))}
+          </div>
+          <p style={{ ...textStyle.caption, color: "var(--color-faint)", margin: "12px 0 0" }}>{t("newDocument.layoutAgentHint")}</p>
+        </>
+      )}
+      {error && <p style={{ color: "var(--color-error)", fontSize: 12.5, margin: "14px 0 0" }}>{error}</p>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22 }}>
+        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" onClick={create} disabled={creating || blocked}>
+          {creating ? t("common.creating") : kind === "layout" ? t("newDocument.createLayout") : t("newDocument.createEditor")}
+        </Button>
+      </div>
+    </Dialog>
   );
 }

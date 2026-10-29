@@ -10,7 +10,7 @@ export function BrandMark({ to = "/" }: { to?: string }) {
       />
       <span
         className="df-mono"
-        style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.10em", color: "#e3e2e2" }}
+        style={{ fontSize: 13, fontWeight: 600, letterSpacing: "var(--tracking-label)", color: "var(--color-text)" }}
       >
         DOCFORGE
       </span>

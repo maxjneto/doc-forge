@@ -1,15 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { mapDocument, mapSection, mapVersion, mapChatMessage } from "@/utils/api";
+import { mapDocument, mapSection, mapVersion } from "@/utils/api";
 
 describe("API response mappers", () => {
   it("mapDocument converts snake_case to camelCase", () => {
     const raw = {
       id: "abc-123",
       title: "My RFC",
-      current_phase: "discovery",
-      document_mode: "guided",
-      global_context: "Some context",
-      user_preferences: null,
+      document_mode: "layout",
       created_at: "2025-01-01T00:00:00Z",
       updated_at: "2025-01-02T00:00:00Z",
       has_api_key_activity: false,
@@ -21,31 +18,40 @@ describe("API response mappers", () => {
     expect(result).toEqual({
       id: "abc-123",
       title: "My RFC",
-      currentPhase: "discovery",
-      documentMode: "guided",
+      documentMode: "layout",
       agentWritePolicy: "suggest",
-      globalContext: "Some context",
-      userPreferences: null,
       createdAt: "2025-01-01T00:00:00Z",
       updatedAt: "2025-01-02T00:00:00Z",
       hasApiKeyActivity: false,
+      archivedAt: null,
+      folderId: null,
       lastApiKeyName: null,
+      publishedVersionId: null,
+      publishedAt: null,
+      hasUnpublishedChanges: false,
     });
+  });
+
+  it("mapDocument reads the folder it is filed under", () => {
+    expect(
+      mapDocument({ id: "d1", folder_id: "f-9", created_at: "", updated_at: "" }).folderId,
+    ).toBe("f-9");
+    // A document at the root has no folder, and null must survive as null
+    // rather than becoming undefined — the filter compares against it.
+    expect(mapDocument({ id: "d1", created_at: "", updated_at: "" }).folderId).toBeNull();
   });
 
   it("mapSection handles optional documentId", () => {
     const raw = {
       id: "sec-1",
       document_id: "doc-1",
-      section_type: "context",
-      status: "pending",
-      summary: null,
+      section_type: "body",
       active_version_content: "Hello world",
     };
 
     const result = mapSection(raw);
     expect(result.documentId).toBe("doc-1");
-    expect(result.sectionType).toBe("context");
+    expect(result.sectionType).toBe("body");
     expect(result.activeVersionContent).toBe("Hello world");
 
     // With explicit documentId override
@@ -68,20 +74,5 @@ describe("API response mappers", () => {
     expect(result.sectionId).toBe("sec-1");
     expect(result.parentVersionId).toBeNull();
     expect(result.isActive).toBe(true);
-  });
-
-  it("mapChatMessage converts role and timestamps", () => {
-    const raw = {
-      id: "msg-1",
-      document_id: "doc-1",
-      section_id: "sec-1",
-      role: "user",
-      content: "Hello",
-      created_at: "2025-01-01T00:00:00Z",
-    };
-
-    const result = mapChatMessage(raw);
-    expect(result.role).toBe("user");
-    expect(result.documentId).toBe("doc-1");
   });
 });

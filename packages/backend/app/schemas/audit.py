@@ -10,6 +10,8 @@ class AuditFindingResponse(BaseModel):
     section_type: str
     description: str
     severity: str
+    quote: str | None = None
+    category: str | None = None
     dismissed: bool
     created_at: datetime
 

@@ -1,10 +1,23 @@
+# syntax=docker/dockerfile:1
+
 # --- dev stage (used by docker-compose locally) ---
-FROM node:20-alpine AS dev
+# Node 22, not 20: npm 10.8 (Node 20) detects libc with a networked
+# process.report.getReport(), which reverse-resolves every open registry socket
+# and stalls the install ~6 min under Docker Desktop's DNS. npm 10.9 reads ldd.
+FROM node:22-alpine AS dev
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+# The frontend keeps its own lockfile for Docker (the workspace lock at the repo
+# root is outside this build context). Regenerate it with `npm run lock` here.
+COPY package.json package-lock.json ./
+# vendor/ only holds a tarball while trying an unreleased build of
+# @docforge-lib/layout (scripts/vendor-layout.sh); normally it comes from npm.
+COPY vendor ./vendor
+# The cache mount keeps downloaded tarballs across builds, so re-vendoring the
+# lib (which invalidates this layer) does not download everything again.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit --no-fund
 
 COPY . .
 
@@ -22,10 +35,13 @@ ARG VITE_API_BASE=/api
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG VITE_POSTHOG_KEY
 ARG VITE_POSTHOG_HOST=https://us.i.posthog.com
+# Where agents connect, shown in every setup snippet of the app.
+ARG VITE_MCP_URL=https://mcp.doc-forge.dev/mcp
 ENV VITE_API_BASE=$VITE_API_BASE \
     VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY \
     VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY \
-    VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST
+    VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST \
+    VITE_MCP_URL=$VITE_MCP_URL
 
 RUN npm run build
 

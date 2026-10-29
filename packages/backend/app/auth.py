@@ -16,6 +16,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.services.credits import (
+    credit_period_start,
+    refresh_credits_if_due,
+    weekly_document_allowance,
+)
 
 security = HTTPBearer(auto_error=False)
 
@@ -110,7 +115,7 @@ async def _get_user_by_api_key(raw_key: str, db: AsyncSession) -> User | None:
     result = await db.execute(select(User).where(User.id == api_key.user_id))
     user = result.scalar_one_or_none()
     if is_first_use and user is not None:
-        # Funnel step 1 (product-plan §9): the moment an agent's key is used
+        # Funnel step 1: the moment an agent's key is used
         # for the first time — fired once per key, not per request, to keep
         # PostHog volume sane.
         from app.services.observability import capture_account_event
@@ -120,27 +125,6 @@ async def _get_user_by_api_key(raw_key: str, db: AsyncSession) -> User | None:
 
 
 # ─── Dependency ──────────────────────────────────────────────
-
-async def get_current_user_optional(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    db: AsyncSession = Depends(get_db),
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-) -> Optional["User"]:
-    """Like get_current_user, but anonymous access yields None instead of 401.
-
-    Used by endpoints that are public but enrich their response for
-    authenticated callers (e.g. listing global + own custom document types).
-    """
-    if not x_api_key and credentials is None:
-        request.state.api_key_id = None
-        return None
-    try:
-        return await get_current_user(request, credentials, db, x_api_key)
-    except HTTPException:
-        request.state.api_key_id = None
-        return None
-
 
 async def get_current_user(
     request: Request,
@@ -168,8 +152,9 @@ async def get_current_user(
         )
         api_key_id = result.scalar_one_or_none()
         request.state.api_key_id = api_key_id
+        request.state.user_id = user.id
         logger.debug("[auth] API key auth succeeded | user={} key_id={}", user.id, api_key_id)
-        return user
+        return await refresh_credits_if_due(db, user)
 
     # JWT path
     if credentials is None:
@@ -200,7 +185,13 @@ async def get_current_user(
     # Atomic upsert — avoids race condition when concurrent requests create the same user
     stmt = (
         insert(User)
-        .values(id=user_id, email=email, name=name or "", credits=settings.WEEKLY_CREDITS)
+        .values(
+            id=user_id,
+            email=email,
+            name=name or "",
+            credits=weekly_document_allowance("free"),
+            credits_reset_at=credit_period_start(),
+        )
         .on_conflict_do_update(
             index_elements=["id"],
             set_={"email": email, "name": name or ""},
@@ -211,4 +202,4 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one()
-    return user
+    return await refresh_credits_if_due(db, user)

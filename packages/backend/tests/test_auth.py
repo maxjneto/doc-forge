@@ -1,6 +1,5 @@
 """Tests for authentication and authorization."""
 
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -41,14 +40,12 @@ async def test_user_cannot_access_other_users_documents(client_factory):
 
     # Create document as user A
     async with client_factory(user_a) as client:
-        with patch("app.routers.documents.inngest_client") as mock_inngest:
-            mock_inngest.send = AsyncMock()
-            res = await client.post(
-                "/api/documents",
-                json={"title": "A's doc", "document_context": "Test context for the auth isolation scenario"},
-            )
-            assert res.status_code == 201
-            doc_id = res.json()["id"]
+        res = await client.post(
+            "/api/documents",
+            json={"title": "A's doc"},
+        )
+        assert res.status_code == 201
+        doc_id = res.json()["id"]
 
     # Try to access as user B
     async with client_factory(user_b) as client:
@@ -64,13 +61,11 @@ async def test_list_documents_only_returns_own(client_factory):
 
     # Create doc as user A
     async with client_factory(user_a) as client:
-        with patch("app.routers.documents.inngest_client") as mock_inngest:
-            mock_inngest.send = AsyncMock()
-            res = await client.post(
-                "/api/documents",
-                json={"title": "A's doc", "document_context": "Test context for listing documents by user"},
-            )
-            assert res.status_code == 201
+        res = await client.post(
+            "/api/documents",
+            json={"title": "A's doc"},
+        )
+        assert res.status_code == 201
 
     # List as user B — should be empty
     async with client_factory(user_b) as client:

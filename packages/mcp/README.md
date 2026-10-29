@@ -4,17 +4,17 @@ MCP server for DocForge. Lets an AI agent (e.g. Claude Code) read and write to a
 
 ## How it works
 
-1. The agent calls `create_document` → gets a URL → shares it with the user
+1. The agent calls `create_document` for a Markdown document, or `create_layout_document` for pages and slides → gets a URL → shares it with the user
 2. The user opens the URL in their browser
-3. The agent reads local files (via its own file tools), then calls `write_section`
-4. The user's browser updates instantly via SSE — no copy-pasting required
+3. The agent reads local files (via its own file tools), then calls `write_section`, `append_section`, or `patch_section` (or `apply_layout_ops` on a layout document)
+4. The user's browser updates via SSE — suggestions, feedback, versions and activity remain visible in the workspace
 5. The agent calls `snapshot_section` to save named checkpoints
 
 ---
 
 ## Transport
 
-Streamable HTTP only. Deploy `docforge-mcp-server` once; users connect via URL and an `X-API-Key` header.
+The hosted server uses Streamable HTTP. Users connect via the URL and an `Authorization: Bearer <token>` header. The token is created in the DocForge MCP page and is shown only once.
 
 ---
 
@@ -50,7 +50,7 @@ CMD ["docforge-mcp-server"]
 
 ### User config (Claude Code)
 
-Each user generates their own API key in DocForge (top-bar → **API Keys**), then adds to `~/.claude.json`:
+Each user generates a named API token in DocForge (**DocForge MCP** → **API tokens**), then configures the hosted MCP URL in their client:
 
 ```json
 {
@@ -59,7 +59,7 @@ Each user generates their own API key in DocForge (top-bar → **API Keys**), th
       "type": "http",
       "url": "https://mcp.yourdomain.com/mcp",
       "headers": {
-        "X-API-Key": "their-key-here"
+        "Authorization": "Bearer their-token-here"
       }
     }
   }
@@ -72,7 +72,7 @@ No env vars, no local install — just a URL and their key.
 
 ## Generating an API key
 
-Open DocForge in your browser → top-bar → **API Keys** → Generate. Give it a descriptive name like `Claude Code — work laptop`. The key is shown once — copy it.
+Open DocForge in your browser → **DocForge MCP** → **API tokens** → Generate. Give it a descriptive name like `Claude Code — work laptop`. The token is shown once — copy it before leaving the page.
 
 ---
 
@@ -83,12 +83,12 @@ Read the files in ./src and generate a technical specification in DocForge.
 Show me the URL as soon as you create it so I can follow along.
 ```
 
-The agent will:
-1. Check your credits with `get_user_info`
+For a free-form editor document, the agent will:
+1. Confirm your account and weekly document creations with `get_user_info`
 2. Create a document and show you the URL
 3. Read your source files
-4. Stream content into DocForge section by section
-5. Save a version snapshot when done
+4. Read the current document and write, append, or patch content according to the document's write policy
+5. Review suggestions/feedback and save a named version snapshot when appropriate
 
 ---
 

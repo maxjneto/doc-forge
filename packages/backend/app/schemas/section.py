@@ -13,6 +13,8 @@ class SectionVersionResponse(BaseModel):
     change_summary: str | None
     content: str
     is_active: bool
+    is_published: bool = False
+    published_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -35,28 +37,6 @@ class SectionContentUpdateRequest(BaseModel):
 class SectionSnapshotRequest(BaseModel):
     version_name: str | None = None
     change_summary: str | None = None
-
-
-class SectionResponse(BaseModel):
-    id: UUID
-    document_id: UUID
-    section_type: str
-    status: str
-    summary: str | None
-    versions: list[SectionVersionResponse]
-
-    model_config = {"from_attributes": True}
-
-
-class ChatMessageResponse(BaseModel):
-    id: UUID
-    document_id: UUID
-    section_id: UUID
-    role: str
-    content: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class VersionRestoreResponse(BaseModel):

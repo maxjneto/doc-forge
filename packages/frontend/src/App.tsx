@@ -3,10 +3,11 @@ import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { HomePage, DocumentPage, LoadingPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, CustomizePage } from "./pages";
+import { HomePage, DocumentPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, PublicDocumentPage } from "./pages";
 import { ProtectedRoute } from "./components/shared";
 import CookieConsentBanner from "./components/shared/CookieConsentBanner";
 import { useClerkPosthogIdentity } from "./hooks/useClerkPosthogIdentity";
+import { I18nProvider } from "./i18n";
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
@@ -37,13 +38,14 @@ function AppInner() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/legal/:doc" element={<LegalPage />} />
+        {/* Public read-only view — outside ProtectedRoute on purpose: the
+            token in the URL is the capability, not a session. */}
+        <Route path="/public/:token" element={<PublicDocumentPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/home" element={<HomePage />} />
           <Route path="/mcp" element={<McpPage />} />
           <Route path="/billing" element={<BillingPage />} />
-          <Route path="/customize" element={<CustomizePage />} />
           <Route path="/document/:id" element={<DocumentPage />} />
-          <Route path="/loading/forge" element={<LoadingPage />} />
         </Route>
       </Routes>
     </>
@@ -54,9 +56,11 @@ export default function App() {
   return (
     <PostHogProvider client={posthog}>
       <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <BrowserRouter>
-          <AppInner />
-        </BrowserRouter>
+        <I18nProvider>
+          <BrowserRouter>
+            <AppInner />
+          </BrowserRouter>
+        </I18nProvider>
       </ClerkProvider>
     </PostHogProvider>
   );

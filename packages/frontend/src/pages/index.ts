@@ -1,10 +1,9 @@
 export { LandingPage } from "./LandingPage";
 export { HomePage } from "./HomePage";
 export { DocumentPage } from "./DocumentPage";
-export { LoadingPage } from "./LoadingPage";
 export { LegalPage } from "./LegalPage";
 export { HowItWorksPage } from "./HowItWorksPage";
 export { PricingPage } from "./PricingPage";
 export { McpPage } from "./McpPage";
 export { BillingPage } from "./BillingPage";
-export { CustomizePage } from "./CustomizePage";
+export { PublicDocumentPage } from "./PublicDocumentPage";

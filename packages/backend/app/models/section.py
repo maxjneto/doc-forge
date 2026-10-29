@@ -13,16 +13,13 @@ class Section(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    # Markdown documents keep their whole text in one "body" section.
     section_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    discovery_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     document = relationship("Document", back_populates="sections")
     versions = relationship("SectionVersion", back_populates="section", cascade="all, delete-orphan")
-    chat_messages = relationship("ChatMessage", back_populates="section", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("document_id", "section_type", name="uq_document_section_type"),
@@ -39,6 +36,11 @@ class SectionVersion(Base):
     change_summary: Mapped[str | None] = mapped_column(String(500), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # The last snapshot someone deliberately signed off on. The active version
+    # is the working draft; this is what "v4" means when the editor title reads
+    # "v4 → v5 draft". Nothing is published by default.
+    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Python-side default (not just server_default): version retention pruning
     # and ordering rely on strict creation order, and DB clock resolution
     # (SQLite's CURRENT_TIMESTAMP is second-granular) isn't fine enough for
@@ -52,4 +54,11 @@ class SectionVersion(Base):
 
     __table_args__ = (
         Index("idx_one_active_version", "section_id", unique=True, postgresql_where=(is_active.is_(True))),
+        Index(
+            "idx_one_published_version",
+            "section_id",
+            unique=True,
+            postgresql_where=(is_published.is_(True)),
+            sqlite_where=(is_published.is_(True)),
+        ),
     )

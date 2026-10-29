@@ -1,22 +1,33 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { TopBar, AppFooter } from "@/components/shared";
+import { TopBar } from "@/components/shared";
 import {
-  apiFetchTiers,
-  apiFetchMe,
-  apiCreateCheckoutSession,
   apiCreatePortalSession,
+  apiFetchMe,
+  apiFetchTiers,
+  apiListApiKeys,
+  apiListDocuments,
+  type CurrentUser,
   type Tier,
 } from "@/utils/api";
+import { useI18n } from "@/i18n";
+import { Button, Card, Eyebrow, Meter, Page, PageHeader, textStyle } from "@/components/ui";
+
+interface UsageState {
+  user: CurrentUser;
+  documents: number;
+  agents: number;
+}
 
 export function BillingPage() {
   const { getToken } = useAuth();
+  const { t, dateLocale } = useI18n();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  // Tiers come from GET /api/tiers — the same source the backend enforces.
   const [tiers, setTiers] = useState<Tier[]>([]);
-  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
-  const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [usage, setUsage] = useState<UsageState | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const checkoutStatus = searchParams.get("checkout");
 
@@ -27,358 +38,165 @@ export function BillingPage() {
 
   useEffect(() => {
     let cancelled = false;
-    apiFetchTiers()
-      .then((t) => { if (!cancelled) setTiers(t); })
-      .catch(() => {});
-    apiFetchMe(getToken)
-      .then((me) => { if (!cancelled) setCurrentPlan(me.plan); })
-      .catch(() => {});
+    Promise.all([
+      apiFetchTiers(),
+      apiFetchMe(getToken),
+      apiListDocuments(getToken),
+      apiListApiKeys(getToken),
+    ])
+      .then(([tierList, user, documents, keys]) => {
+        if (cancelled) return;
+        setTiers(tierList);
+        setUsage({
+          user,
+          documents: documents.length,
+          agents: keys.filter((key) => !key.revokedAt).length,
+        });
+      })
+      .catch((reason) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "Failed to load account usage");
+      });
     return () => { cancelled = true; };
   }, [getToken]);
 
-  // Clear the ?checkout= param once shown so a refresh doesn't re-show the banner.
   useEffect(() => {
     if (!checkoutStatus) return;
-    const t = setTimeout(() => {
+    const timeout = setTimeout(() => {
       searchParams.delete("checkout");
       setSearchParams(searchParams, { replace: true });
     }, 6000);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timeout);
   }, [checkoutStatus, searchParams, setSearchParams]);
 
-  async function handleUpgrade(planSlug: string) {
-    if (busyPlan) return;
-    setError(null);
-    setBusyPlan(planSlug);
-    try {
-      const url = await apiCreateCheckoutSession(planSlug as "pro" | "team", getToken);
-      window.location.href = url;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start checkout");
-      setBusyPlan(null);
-    }
-  }
+  const currentTier = useMemo(
+    () => tiers.find((tier) => tier.slug === usage?.user.plan) ?? null,
+    [tiers, usage?.user.plan],
+  );
 
   async function handleManageBilling() {
-    if (busyPlan) return;
+    if (busy) return;
+    setBusy(true);
     setError(null);
-    setBusyPlan("manage");
     try {
-      const url = await apiCreatePortalSession(getToken);
-      window.location.href = url;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to open billing portal");
-      setBusyPlan(null);
+      window.location.href = await apiCreatePortalSession(getToken);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Failed to open billing portal");
+      setBusy(false);
     }
   }
 
+  const nextReset = usage?.user.next_document_creations_reset_at
+    ? new Date(usage.user.next_document_creations_reset_at).toLocaleString(dateLocale, {
+        weekday: "long",
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })
+    : null;
+
   return (
-    <div
-      className="hide-scrollbar"
-      style={{
-        background: "#050608",
-        color: "var(--df-on-surface, #e3e2e2)",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: "'Inter', sans-serif",
-        position: "relative",
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
       <TopBar dashboardNav />
 
-      <div
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          pointerEvents: "none",
-          background:
-            "radial-gradient(ellipse 800px 600px at 50% 20%, rgba(255,77,0,0.08), transparent 60%)",
-          zIndex: 0,
-        }}
-      />
+      <Page>
+        {checkoutStatus === "success" && <Banner tone="ok">{t("billing.checkoutSuccess")}</Banner>}
+        {checkoutStatus === "cancel" && <Banner tone="warn">{t("billing.checkoutCancel")}</Banner>}
+        {error && <Banner tone="error">{error}</Banner>}
 
-      <main
-        style={{
-          flex: 1,
-          position: "relative",
-          zIndex: 10,
-          paddingTop: 136,
-          paddingBottom: 96,
-          paddingLeft: 56,
-          paddingRight: 56,
-          maxWidth: 1020,
-          margin: "0 auto",
-          width: "100%",
-        }}
-      >
-        {checkoutStatus === "success" && (
-          <div
-            style={{
-              marginBottom: 24, padding: "12px 18px", borderRadius: 8,
-              background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.25)",
-              color: "#7fd99a", fontSize: 13, textAlign: "center",
-            }}
-          >
-            Subscription active — thanks! It may take a few seconds to reflect below.
+        <PageHeader
+          eyebrow={t("billing.account")}
+          title={usage ? t("billing.currentPlan", { plan: currentTier?.name ?? usage.user.plan }) : t("common.loading")}
+          lead={t("billing.description")}
+        />
+
+        <section style={{ marginBottom: 32 }}>
+          <Eyebrow style={{ marginBottom: 12 }}>{t("billing.usage")}</Eyebrow>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <UsageCard
+              icon="bolt"
+              label={t("dashboard.creationsLabel")}
+              value={usage ? t("dashboard.creationsValue", { left: usage.user.document_creations_remaining, total: usage.user.weekly_document_creations }) : t("common.loading")}
+              detail={nextReset ? t("billing.nextReset", { date: nextReset }) : undefined}
+              current={usage ? usage.user.weekly_document_creations - usage.user.document_creations_remaining : undefined}
+              limit={usage?.user.weekly_document_creations}
+            />
+            <UsageCard
+              icon="description"
+              label={t("billing.documents")}
+              value={usage ? formatLimit(usage.documents, currentTier?.limits.maxActiveDocuments, t("billing.unlimited")) : t("common.loading")}
+              current={usage?.documents}
+              limit={currentTier?.limits.maxActiveDocuments}
+            />
+            <UsageCard
+              icon="smart_toy"
+              label={t("billing.agents")}
+              value={usage ? formatLimit(usage.agents, currentTier?.limits.maxApiKeys, t("billing.unlimited")) : t("common.loading")}
+              current={usage?.agents}
+              limit={currentTier?.limits.maxApiKeys}
+            />
           </div>
-        )}
-        {checkoutStatus === "cancel" && (
-          <div
-            style={{
-              marginBottom: 24, padding: "12px 18px", borderRadius: 8,
-              background: "rgba(255,196,0,0.08)", border: "1px solid rgba(255,196,0,0.25)",
-              color: "#ffd25e", fontSize: 13, textAlign: "center",
-            }}
-          >
-            Checkout canceled — no changes were made.
+        </section>
+
+        <Card tone="heat" padded={false} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, padding: 22, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ ...textStyle.title, margin: "0 0 4px" }}>{t("billing.upgradeTitle")}</h2>
+            <p style={{ margin: 0, color: "var(--color-dim)", fontSize: 13, lineHeight: 1.55 }}>{t("billing.upgradeBody")}</p>
           </div>
-        )}
-        {error && (
-          <div
-            style={{
-              marginBottom: 24, padding: "12px 18px", borderRadius: 8,
-              background: "rgba(232,100,100,0.08)", border: "1px solid rgba(232,100,100,0.25)",
-              color: "#e88", fontSize: 13, textAlign: "center",
-            }}
-          >
-            {error}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {usage?.user.plan !== "free" && (
+              <Button onClick={handleManageBilling} disabled={busy}>
+                {busy ? t("common.loading") : t("billing.manage")}
+              </Button>
+            )}
+            <Button variant="primary" icon="arrow_forward" onClick={() => navigate("/pricing")}>
+              {t("billing.compare")}
+            </Button>
           </div>
-        )}
-
-        <div style={{ marginBottom: 56, textAlign: "center" }}>
-          <span className="df-pill df-pill-ghost" style={{ marginBottom: 20, display: "inline-block" }}>
-            Pricing
-          </span>
-          <h1
-            style={{
-              fontSize: "clamp(28px, 3.5vw, 44px)",
-              fontWeight: 600,
-              letterSpacing: "-0.03em",
-              margin: "0 0 16px",
-              color: "#e3e2e2",
-            }}
-          >
-            Simple, credit-based pricing.
-          </h1>
-          <p
-            style={{
-              fontSize: 15,
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
-              maxWidth: 480,
-              lineHeight: 1.6,
-              margin: "0 auto",
-            }}
-          >
-            Each document consumes one credit. Credits reset weekly. No seats, no overage surprises.
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 16,
-          }}
-        >
-          {tiers.map((tier) => (
-            <div
-              key={tier.name}
-              style={{
-                padding: "28px 24px",
-                background: tier.highlight ? "rgba(255,77,0,0.04)" : "rgba(13,14,15,0.6)",
-                border: `1px solid ${tier.highlight ? "rgba(255,77,0,0.25)" : "var(--df-outline, rgba(255,255,255,0.06))"}`,
-                borderRadius: 10,
-                display: "flex",
-                flexDirection: "column",
-                gap: 20,
-                position: "relative",
-              }}
-            >
-              {tier.highlight && (
-                <span
-                  className="df-pill df-pill-heat"
-                  style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)" }}
-                >
-                  Best option
-                </span>
-              )}
-
-              <div>
-                <span
-                  className="df-mono"
-                  style={{
-                    display: "block",
-                    fontSize: 10,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    color: tier.highlight ? "var(--df-amber-300, #ff8d4a)" : "var(--df-faint, rgba(227,226,226,0.38))",
-                    marginBottom: 6,
-                  }}
-                >
-                  {tier.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 600,
-                    color: "#e3e2e2",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {tier.credits}
-                </span>
-              </div>
-
-              <p style={{ fontSize: 13, color: "var(--df-dim, rgba(227,226,226,0.62))", lineHeight: 1.55, margin: 0 }}>
-                {tier.description}
-              </p>
-
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                {tier.features.map((f) => (
-                  <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 14, color: "var(--df-amber-300, #ff8d4a)", flexShrink: 0, fontVariationSettings: "'FILL' 1" }}
-                    >
-                      check_circle
-                    </span>
-                    <span style={{ color: "var(--df-dim, rgba(227,226,226,0.62))" }}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div style={{ marginTop: "auto" }}>
-                <TierCta
-                  tier={tier}
-                  isCurrentPlan={currentPlan === tier.slug}
-                  busy={busyPlan === tier.slug || (tier.slug !== "free" && currentPlan === tier.slug && busyPlan === "manage")}
-                  onUpgrade={() => handleUpgrade(tier.slug)}
-                  onManage={handleManageBilling}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p
-          className="df-mono"
-          style={{
-            textAlign: "center",
-            marginTop: 40,
-            fontSize: 10,
-            letterSpacing: "0.12em",
-            color: "var(--df-mute, rgba(227,226,226,0.18))",
-          }}
-        >
-          Pricing details subject to change during beta. All credits reset on Sunday at midnight UTC.
-        </p>
-      </main>
-
-      <AppFooter />
+        </Card>
+      </Page>
     </div>
   );
 }
 
-// ─── Tier CTA button ──────────────────────────────────────────
-
-const baseCtaStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "9px 18px",
-  borderRadius: 6,
-  fontSize: 12,
-  fontWeight: 600,
-  textDecoration: "none",
-  letterSpacing: "0.02em",
-  width: "100%",
-  fontFamily: "inherit",
-  cursor: "pointer",
-};
-
-interface TierCtaProps {
-  tier: Tier;
-  isCurrentPlan: boolean;
-  busy: boolean;
-  onUpgrade: () => void;
-  onManage: () => void;
+function formatLimit(current: number, limit: number | null | undefined, unlimited: string) {
+  return limit == null ? `${current} · ${unlimited}` : `${current} / ${limit}`;
 }
 
-function TierCta({ tier, isCurrentPlan, busy, onUpgrade, onManage }: TierCtaProps) {
-  // Free tier (or no billing yet): the pre-existing "get started" link.
-  if (tier.slug === "free") {
-    return (
-      <Link
-        to="/home"
-        style={{
-          ...baseCtaStyle,
-          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-          color: "var(--df-dim, rgba(227,226,226,0.62))",
-          background: "transparent",
-        }}
-      >
-        {tier.cta}
-      </Link>
-    );
-  }
-
-  if (isCurrentPlan) {
-    return (
-      <button
-        onClick={onManage}
-        disabled={busy}
-        style={{
-          ...baseCtaStyle,
-          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-          color: "var(--df-dim, rgba(227,226,226,0.62))",
-          background: "transparent",
-          opacity: busy ? 0.6 : 1,
-          cursor: busy ? "wait" : "pointer",
-        }}
-      >
-        {busy ? "Opening…" : "Manage billing"}
-      </button>
-    );
-  }
-
-  if (!tier.available) {
-    return (
-      <span
-        style={{
-          ...baseCtaStyle,
-          border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-          color: "var(--df-mute, rgba(227,226,226,0.38))",
-          background: "transparent",
-          opacity: 0.6,
-          cursor: "not-allowed",
-        }}
-      >
-        {tier.cta}
-      </span>
-    );
-  }
-
+function UsageCard({
+  icon,
+  label,
+  value,
+  detail,
+  current,
+  limit,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  detail?: string;
+  current?: number;
+  limit?: number | null;
+}) {
   return (
-    <button
-      onClick={onUpgrade}
-      disabled={busy}
-      className={tier.highlight ? "forge-btn" : ""}
-      style={
-        tier.highlight
-          ? { ...baseCtaStyle, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }
-          : {
-              ...baseCtaStyle,
-              border: "1px solid var(--df-outline-md, rgba(255,255,255,0.10))",
-              color: "var(--df-dim, rgba(227,226,226,0.62))",
-              background: "transparent",
-              opacity: busy ? 0.6 : 1,
-              cursor: busy ? "wait" : "pointer",
-            }
-      }
-    >
-      {busy ? "Redirecting…" : tier.cta}
-    </button>
+    <Card style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, minHeight: 140 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-faint)", fontSize: 12.5 }}>
+        <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 17, color: "var(--color-faint)" }}>{icon}</span>
+        {label}
+      </div>
+      <strong style={{ ...textStyle.title, fontVariantNumeric: "tabular-nums" }}>{value}</strong>
+      {limit != null && current !== undefined && <Meter value={current} max={limit} />}
+      {detail && <span style={{ fontSize: 11.5, color: "var(--color-faint)", lineHeight: 1.45 }}>{detail}</span>}
+    </Card>
   );
+}
+
+function Banner({ children, tone }: { children: ReactNode; tone: "ok" | "warn" | "error" }) {
+  const colors = {
+    ok: ["var(--color-ok)", "var(--color-ok-wash)", "var(--color-ok-line)"],
+    warn: ["var(--color-warn)", "var(--color-warn-wash)", "var(--color-warn-line)"],
+    error: ["var(--color-error)", "var(--color-error-wash)", "var(--color-error-line)"],
+  }[tone];
+  return <div role="status" style={{ marginBottom: 24, padding: "12px 18px", borderRadius: "var(--radius-md)", color: colors[0], background: colors[1], border: `1px solid ${colors[2]}`, fontSize: 13 }}>{children}</div>;
 }

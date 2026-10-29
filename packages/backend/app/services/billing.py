@@ -3,8 +3,7 @@
 Disabled by default (STRIPE_ENABLED=false): every entry point raises a clear
 409 rather than crashing on missing keys, matching the POSTHOG_ENABLED
 pattern elsewhere in this codebase. Flip it on with real (test-mode or live)
-keys from the Stripe dashboard when price points are decided (product-plan
-§9.5 — Stripe enters when the first Pro feature is sellable, not before).
+keys from the Stripe dashboard once the prices exist.
 """
 
 from __future__ import annotations
@@ -169,7 +168,7 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
         user.stripe_subscription_id = None
     await db.commit()
 
-    # Funnel step: conversion (product-plan §9 funnel — MCP connect → first
+    # Funnel step: conversion (MCP connect → first
     # doc → first suggestion reviewed → conversion). Free-to-paid transition
     # is the actual money event; downgrades are logged but not double-counted
     # as a distinct funnel step.

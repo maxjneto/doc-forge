@@ -1,6 +1,6 @@
 name: Build & push images (GHCR)
 
-# Builds the three app images on GitHub's runners (not on the VPS) and pushes
+# Builds the four app images on GitHub's runners (not on the VPS) and pushes
 # them to the GitHub Container Registry. The 1-core VPS then only *pulls* these
 # images — it never compiles anything (the Vite build in particular would be
 # slow/OOM-prone on a small box).
@@ -9,6 +9,7 @@ name: Build & push images (GHCR)
 #   ghcr.io/<owner>/doc-forge-backend
 #   ghcr.io/<owner>/doc-forge-frontend
 #   ghcr.io/<owner>/doc-forge-mcp
+#   ghcr.io/<owner>/doc-forge-layout
 #
 # Set these as repo *secrets* so the frontend bundle is built with the right
 # keys (they are baked at build time — VITE_* are inlined by Vite):
@@ -16,6 +17,7 @@ name: Build & push images (GHCR)
 #   VITE_POSTHOG_KEY             (optional)
 # And optionally this repo *variable*:
 #   VITE_POSTHOG_HOST            (defaults to https://us.i.posthog.com)
+#   VITE_MCP_URL                 (where agents connect; defaults to https://mcp.doc-forge.dev/mcp)
 
 on:
   push:
@@ -38,6 +40,8 @@ jobs:
             context: packages/frontend
           - service: mcp
             context: packages/mcp
+          - service: layout
+            context: packages/layout-service
     steps:
       - uses: actions/checkout@v4
 
@@ -65,5 +69,6 @@ jobs:
             VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
             VITE_POSTHOG_KEY=${{ secrets.VITE_POSTHOG_KEY }}
             VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST || 'https://us.i.posthog.com' }}
+            VITE_MCP_URL=${{ vars.VITE_MCP_URL || 'https://mcp.doc-forge.dev/mcp' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

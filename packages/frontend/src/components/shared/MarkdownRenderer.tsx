@@ -3,6 +3,7 @@ import mermaid from "mermaid";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/utils/cn";
+import { parseHeadings } from "@/utils/documentStructure";
 
 type MarkdownVariant = "chat" | "editor";
 
@@ -11,13 +12,6 @@ interface MarkdownRendererProps {
   variant?: MarkdownVariant;
   className?: string;
   headingIds?: boolean;
-}
-
-function headingSlug(text: string): string {
-  return String(text)
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
 }
 
 let mermaidInitialized = false;
@@ -30,16 +24,23 @@ function ensureMermaidInitialized() {
   mermaid.initialize({
     startOnLoad: false,
     theme: "dark",
+    // Mermaid needs literal colours, so these mirror the ramp in index.css
+    // by value: surface-mid nodes, steel borders (an artifact is steel),
+    // faint lines, text. Keep them in step if the ramp changes.
     themeVariables: {
-      primaryColor: "#6750a4",
-      primaryTextColor: "#e6e0e9",
-      primaryBorderColor: "#cfbcff",
-      lineColor: "#948e9c",
-      secondaryColor: "#4d4465",
-      tertiaryColor: "#2b292f",
-      background: "#141218",
-      mainBkg: "#211f24",
-      nodeBorder: "#cfbcff",
+      fontFamily: "Inter, sans-serif",
+      primaryColor: "#1d1f21",
+      primaryTextColor: "#e3e2e2",
+      primaryBorderColor: "#8aa0b8",
+      lineColor: "#6b6f73",
+      secondaryColor: "#262829",
+      tertiaryColor: "#121414",
+      background: "#121414",
+      mainBkg: "#1d1f21",
+      nodeBorder: "#8aa0b8",
+      clusterBkg: "#121414",
+      clusterBorder: "#262829",
+      edgeLabelBackground: "#121414",
     },
   });
 
@@ -95,7 +96,7 @@ function MermaidBlock({ code }: { code: string }) {
       } catch {
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = `
-            <div class="text-error/80 text-xs p-3 border border-error/20 rounded bg-error-container/10">
+            <div class="text-error text-body-sm p-3 border border-error-line rounded-xs bg-error-wash">
               Failed to render Mermaid diagram
             </div>
           `;
@@ -125,17 +126,26 @@ export function MarkdownRenderer({
   headingIds = false,
 }: MarkdownRendererProps) {
   const isEditor = variant === "editor";
+  const headingSlugs = headingIds ? parseHeadings(content).map((heading) => heading.slug) : [];
+  let headingIndex = 0;
+  const getHeadingId = () => headingSlugs[headingIndex++];
 
   return (
-    <article className={cn("w-full markdown-preview", className)}>
+    <article
+      className={cn(
+        "w-full markdown-preview text-[var(--color-text)]",
+        isEditor ? "text-[14px] leading-7" : "text-[13px] leading-6",
+        className,
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
             <h1
-              id={headingIds ? headingSlug(String(children)) : undefined}
+              id={getHeadingId()}
               className={cn(
-                "font-semibold tracking-tight text-on-surface",
+                "font-semibold tracking-tight text-[var(--color-text)]",
                 isEditor ? "text-2xl mb-6 mt-8 first:mt-0" : "text-base mb-2 mt-3 first:mt-0"
               )}
             >
@@ -144,10 +154,10 @@ export function MarkdownRenderer({
           ),
           h2: ({ children }) => (
             <h2
-              id={headingIds ? headingSlug(String(children)) : undefined}
+              id={getHeadingId()}
               className={cn(
-                "font-semibold tracking-tight text-on-surface",
-                isEditor ? "text-lg mt-10 mb-4" : "text-sm mb-2 mt-3 first:mt-0"
+                "font-semibold tracking-tight text-[var(--color-text)]",
+                isEditor ? "text-lg mt-10 mb-4" : "text-body mb-2 mt-3 first:mt-0"
               )}
             >
               {children}
@@ -155,10 +165,10 @@ export function MarkdownRenderer({
           ),
           h3: ({ children }) => (
             <h3
-              id={headingIds ? headingSlug(String(children)) : undefined}
+              id={getHeadingId()}
               className={cn(
-                "font-semibold tracking-tight text-on-surface",
-                isEditor ? "text-base mt-8 mb-3" : "text-sm mb-2 mt-3 first:mt-0"
+                "font-semibold tracking-tight text-[var(--color-text)]",
+                isEditor ? "text-base mt-8 mb-3" : "text-body mb-2 mt-3 first:mt-0"
               )}
             >
               {children}
@@ -166,10 +176,10 @@ export function MarkdownRenderer({
           ),
           h4: ({ children }) => (
             <h4
-              id={headingIds ? headingSlug(String(children)) : undefined}
+              id={getHeadingId()}
               className={cn(
-                "font-medium tracking-tight text-on-surface",
-                isEditor ? "text-sm mt-6 mb-2" : "text-sm mb-1 mt-2 first:mt-0"
+                "font-medium tracking-tight text-[var(--color-text)]",
+                isEditor ? "text-body mt-6 mb-2" : "text-body mb-1 mt-2 first:mt-0"
               )}
             >
               {children}
@@ -177,10 +187,10 @@ export function MarkdownRenderer({
           ),
           h5: ({ children }) => (
             <h5
-              id={headingIds ? headingSlug(String(children)) : undefined}
+              id={getHeadingId()}
               className={cn(
-                "font-medium tracking-tight text-on-surface/80",
-                isEditor ? "text-xs mt-4 mb-1" : "text-xs mb-1 mt-2 first:mt-0"
+                "font-medium tracking-tight text-[var(--color-dim)]",
+                isEditor ? "text-body-sm mt-4 mb-1" : "text-body-sm mb-1 mt-2 first:mt-0"
               )}
             >
               {children}
@@ -189,22 +199,22 @@ export function MarkdownRenderer({
           p: ({ children }) => (
             <p
               className={cn(
-                "text-on-surface-variant leading-relaxed",
-                isEditor ? "text-on-surface-variant/90 mb-3" : "mb-2 last:mb-0"
+                "text-[var(--color-text)] leading-7",
+                isEditor ? "mb-4" : "mb-2 last:mb-0"
               )}
             >
               {children}
             </p>
           ),
           ul: ({ children }) => (
-            <ul className={cn("list-disc pl-5 mb-3 space-y-1", isEditor ? "text-on-surface-variant/80" : "")}>{children}</ul>
+            <ul className="list-disc pl-5 mb-4 space-y-1 text-[var(--color-text)] marker:text-[var(--color-faint)]">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className={cn("list-decimal pl-5 mb-3 space-y-1", isEditor ? "text-on-surface-variant/80" : "")}>{children}</ol>
+            <ol className="list-decimal pl-5 mb-4 space-y-1 text-[var(--color-text)] marker:text-[var(--color-faint)]">{children}</ol>
           ),
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-primary/30 pl-3 italic text-on-surface-variant/80 mb-3">
+            <blockquote className="border-l-2 border-[var(--color-steel-line)] pl-4 py-0.5 italic text-[var(--color-dim)] mb-4">
               {children}
             </blockquote>
           ),
@@ -213,23 +223,23 @@ export function MarkdownRenderer({
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="underline decoration-primary/60 underline-offset-2 hover:text-primary"
+              className="text-[var(--color-steel-hi)] underline decoration-[var(--color-steel-line)] underline-offset-2 transition-colors hover:text-[var(--color-text)]"
             >
               {children}
             </a>
           ),
           table: ({ children }) => (
             <div className="overflow-x-auto mb-3">
-              <table className="w-full border-collapse text-sm">{children}</table>
+              <table className="w-full border-collapse text-[13px]">{children}</table>
             </div>
           ),
           th: ({ children }) => (
-            <th className="text-left border border-outline-variant/30 bg-surface-container-high/40 px-2 py-1 font-semibold text-on-surface">
+            <th className="text-left border border-[var(--color-outline-md)] bg-[var(--color-surface-high)] px-3 py-2 font-semibold text-[var(--color-text)]">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="border border-outline-variant/20 px-2 py-1 text-on-surface-variant/90">
+            <td className="border border-[var(--color-outline)] px-3 py-2 text-[var(--color-dim)]">
               {children}
             </td>
           ),
@@ -248,9 +258,9 @@ export function MarkdownRenderer({
             return (
               <pre
                 className={cn(
-                  "font-mono text-[12px] border border-outline-variant/20 rounded-md overflow-x-auto mb-3",
+                  "font-mono text-[12px] border border-[var(--color-outline-md)] rounded-md overflow-x-auto mb-4",
                   isEditor
-                    ? "bg-surface-container-high/30 p-6 border-l border-primary/50 rounded-r-lg"
+                    ? "bg-[var(--color-surface-mid)] p-5 border-l-2 border-l-[var(--color-steel)] rounded-r-md"
                     : "bg-black/30 px-3 py-2"
                 )}
               >
@@ -271,14 +281,14 @@ export function MarkdownRenderer({
 
             if (isBlockLike) {
               return (
-                <code className={cn("font-mono text-[12px]", isEditor ? "text-primary-fixed-dim/90" : "text-on-surface-variant/80")}>
+                <code className={cn("font-mono text-[12px]", isEditor ? "text-[var(--color-steel-hi)]" : "text-[var(--color-dim)]")}>
                   {normalizedCode}
                 </code>
               );
             }
 
             return (
-              <code className="font-mono text-[12px] bg-black/25 px-1 py-0.5 rounded">
+              <code className="font-mono text-[12px] text-[var(--color-steel-hi)] bg-[var(--color-steel-wash)] border border-[var(--color-steel-line)] px-1.5 py-0.5 rounded-xs">
                 {children}
               </code>
             );

@@ -1,10 +1,9 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.types import JSON
 
 from app.models.base import Base
 
@@ -14,32 +13,41 @@ class Document(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[str] = mapped_column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    document_type_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_types.id", ondelete="SET NULL"), nullable=True
+    folder_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    current_phase: Mapped[str] = mapped_column(String(30), nullable=False, default="discovery")
-    document_context: Mapped[str] = mapped_column(Text, nullable=False)
-    global_context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    user_preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
-    audit_problems: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    document_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="guided")
+    # "editor": one Markdown body (sections → versions); "layout": a
+    # @docforge-lib/layout JSON document (document_layouts).
+    document_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="editor")
     # How agent (API-key) writes are handled: "suggest" turns them into pending
     # suggestions for human review; "direct" writes straight to the document.
     agent_write_policy: Mapped[str] = mapped_column(String(20), nullable=False, default="suggest")
     # Quality gate: when True, accepting a suggestion is blocked while the
     # document has open high-severity audit findings (dismiss or resolve first).
     require_gate_on_accept: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Capability token for the read-only public link. Null = not public.
+    # Holding the token grants read, so it is unguessable and revoked by
+    # clearing the column.
+    public_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    # Archived documents remain intact but do not consume an active-document
+    # slot or appear in the default library listing.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     sections = relationship("Section", back_populates="document", cascade="all, delete-orphan")
-    discovery_questions = relationship("DiscoveryQuestion", back_populates="document", cascade="all, delete-orphan")
-    chat_messages = relationship("ChatMessage", back_populates="document", cascade="all, delete-orphan")
     audit_findings = relationship("AuditFinding", back_populates="document", cascade="all, delete-orphan")
-    contract = relationship("DocumentContract", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    # Only set for document_mode="layout".
+    layout = relationship("DocumentLayout", back_populates="document", uselist=False, cascade="all, delete-orphan")
     suggestions = relationship("Suggestion", back_populates="document", cascade="all, delete-orphan")
+    artifacts = relationship("Artifact", back_populates="document", cascade="all, delete-orphan")
+    members = relationship("DocumentMember", back_populates="document", cascade="all, delete-orphan")
     feedback_items = relationship("Feedback", back_populates="document", cascade="all, delete-orphan")
-    document_type = relationship("DocumentType")
     user = relationship("User", back_populates="documents")
+
+    __table_args__ = (
+        Index("idx_documents_user_id", "user_id"),
+        # The library listing and the active-document limit filter on both.
+        Index("ix_documents_user_active", "user_id", "archived_at"),
+    )

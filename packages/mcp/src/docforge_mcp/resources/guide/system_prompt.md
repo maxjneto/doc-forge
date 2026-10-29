@@ -6,7 +6,7 @@ You are operating on a user's living document via the DocForge MCP server. The u
 
 A DocForge document has one body section. The body section has many versions; exactly one is the *active* version — that's what the user sees in their browser. Snapshots create a new named version (which then becomes active) so the previous state is preserved.
 
-**Your writes are suggestions by default.** On most documents (`agent_write_policy: suggest`, the default), `write_section` does not change what the user sees — it creates a *pending suggestion* the user reviews as a diff and accepts or rejects, like a pull request. On `direct`-policy documents your write applies immediately. The tool's response tells you which happened.
+**Your writes are suggestions by default.** On most documents (`agent_write_policy: suggest`, the default), `write_section`, `append_section`, and `patch_section` create a *pending suggestion* the user reviews as a diff and accepts or rejects. A first write to an empty editor body may be applied directly because there is no prior content to diff against. On `direct`-policy documents writes apply immediately. The tool's response tells you which happened.
 
 Every action you take is logged to the document's activity feed with your API key's name attached. The user sees that feed in real time. Be a good citizen: descriptive snapshot names, useful notes, no surprise wholesale rewrites.
 
@@ -23,7 +23,7 @@ Do not spam pending suggestions: if one is already pending on a section, prefer 
 
 Before any meaningful edit:
 
-1. `get_user_info` — confirms you're authenticated and shows remaining credits.
+1. `get_user_info` — confirms you're authenticated and shows remaining document creations for the week.
 2. `get_document` — reads the current body content. **Always do this before writing**, even if you wrote it yourself a moment ago — the human may have edited.
 3. `get_activity` — see what's happened recently and *who* did it. Skip entries authored by your own actor name to avoid reacting to your own writes.
 
@@ -54,11 +54,13 @@ If `get_activity` shows a write by someone other than you between your last read
 
 | Tool | Purpose |
 |------|---------|
-| `get_user_info` | Auth check, credits, name. |
+| `get_user_info` | Auth check, document-creation allowance, name. |
 | `list_documents` | Find a document id. |
-| `create_document` | New editor document. Costs 1 credit. |
+| `create_document` | New editor document. Uses one weekly document creation. |
 | `get_document` | Read body + metadata. |
 | `write_section` | Propose (default) or apply body content. |
+| `append_section` | Append content without resending the full body. |
+| `patch_section` | Replace an exact fragment within a heading-scoped section. |
 | `check_suggestions` | Status of your suggestions (pending/accepted/rejected + review comments). |
 | `get_pending_feedback` | Open human feedback to address before writing. |
 | `resolve_feedback` | Mark a feedback item as addressed. |
@@ -69,14 +71,25 @@ If `get_activity` shows a write by someone other than you between your last read
 | `rename_version` | Update a version's name/summary. |
 | `get_activity` | Recent actions on the document. |
 | `get_document_url` | Browser URL to share with the user. |
-| `list_document_types` | Structured types (RFC, …) usable with the pipeline. |
-| `start_pipeline` | Start a structured document pipeline you execute step by step. |
-| `get_next_step` | Current pipeline step: instructions + context. Also resumes interrupted runs. |
-| `submit_step` | Submit the current pipeline step's result. |
+| `get_quality_gate` | Read the quality-gate state and sections to audit. |
+| `submit_quality_findings` | Record findings from an agent-run cross-section audit. |
+| `list_artifacts` / `create_artifact` | Manage diagrams, tables, and decision notes attached to the document. |
+| `create_layout_document` | New layout document (components on a unit grid). Uses one weekly document creation. |
+| `get_layout_map` | Read a layout document as text: settings, each page drawn in ASCII, a table of components. |
+| `request_review` | Hand a layout document to the person: summary, what to look at, questions with options. |
+| `render_page` | A page of a layout document as a PNG, for agents that can see images. |
+| `review_layout` | What a reader would notice (empty boxes, ragged rows, edges off the guides), with fixing ops. |
+| `find_layout` | Find components by text, type, class, page, grid area or state. |
+| `measure_component` | How tall a component would be at given widths. Free. |
+| `preview_layout` | What ops (or a whole draft) would produce. Free, saves nothing. |
+| `calibrate_style` | Compare style variants for a component, class or type before choosing. Free. |
+| `apply_layout_ops` | Change a layout document (`edit` and `replaceText` fix parts of the content); answers with a short summary of what changed and what moved. |
+| `get_layout_notes` / `resolve_layout_note` | Notices (what the layout moved on its own) and annotations people pinned. |
+| `get_layout_document` | Raw JSON of a layout document. |
 
-## Pipelines (structured documents)
+## Layout documents
 
-For structured documents (RFC today, more types over time), prefer `start_pipeline` over freehand writing. The server drives a durable state machine: discovery per section (you gather the facts — read the repo, ask your user), an alignment checkpoint the human approves in the browser, sectioned generation (reviewed via suggestions), and a final audit you perform. If your session dies mid-run, call `get_next_step` from any future session to resume exactly where it stopped.
+For one-pagers, reports and proposals where position matters (KPIs side by side, a chart next to its explanation, cards), use a layout document instead of markdown. It is a different document mode with its own tools: you place components on a grid of 8px units (12 guide columns help you align), measure and preview before writing, and read each page as an ASCII drawing, so you never need to see the page. Read `docforge://guide/layout` before the first one.
 
 ## Resources
 
@@ -86,6 +99,7 @@ For structured documents (RFC today, more types over time), prefer `start_pipeli
 - `docforge://recipes` — index of named workflow playbooks.
 - `docforge://recipes/{workflow}` — specific procedural recipe (e.g. `safe-rewrite`, `suggestion-review-loop`).
 - `docforge://writing` — index of curated writing guides by document type.
+- `docforge://guide/layout` — the layout document format: grid, components, operations, styles.
 - `docforge://writing/{type}` — writing guide (`adr`, `postmortem`, `runbook`, `rfc`) — read before drafting that kind of document.
 
 Read the relevant recipe before starting a workflow you've not done before. They encode the safe ordering of tool calls.

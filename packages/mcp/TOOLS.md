@@ -6,14 +6,14 @@ All tools accept and return plain text. Document IDs are UUIDs. The server resol
 
 ## `get_user_info`
 
-Returns the authenticated user's name, email, credit balance, and weekly allowance.
+Returns the authenticated user's name, email, remaining document creations, and weekly allowance.
 
-**Call before `create_document`** to confirm the user has at least 1 credit.
+Each new document uses one weekly document creation. Editing and working in existing documents does not.
 
 ```
 Name: Max
 Email: max@example.com
-Credits: 12 (weekly allowance: 20)
+Document creations remaining: 12 (weekly allowance: 20)
 ```
 
 ---
@@ -31,12 +31,11 @@ Lists all your DocForge editor documents.
 
 ## `create_document`
 
-Creates a new editor document. Costs 1 credit.
+Creates a new Markdown document using one weekly document creation.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `title` | string | yes | Document title |
-| `context` | string | no | Short description of the document's purpose |
 
 Returns the document ID, title, and browser URL. **Share the URL with the user immediately** so they can open it and follow along.
 
@@ -73,6 +72,28 @@ Content (1842 chars):
 ```
 
 ---
+
+## `append_section`
+
+Appends content to the end of the body without requiring the agent to resend the whole document. It follows the same suggestion/direct-write policy as `write_section`.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `content` | string | yes | Markdown to append |
+| `note` | string | no | Review note |
+
+## `patch_section`
+
+Replaces an exact text fragment scoped to a Markdown heading. Use it for a focused change instead of rewriting the whole body.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+| `anchor` | string | yes | Exact heading that scopes the edit |
+| `old_text` | string | yes | Exact text to replace once |
+| `new_text` | string | yes | Replacement text |
+| `note` | string | no | Review note |
 
 ## `write_section`
 
@@ -263,6 +284,54 @@ http://localhost:5173/document/abc123...
 
 ---
 
+## Quality gates and artifacts
+
+| Tool | Purpose |
+|---|---|
+| `get_quality_gate` | Read gate settings, current findings, and the sections to audit. |
+| `submit_quality_findings` | Record the agent's cross-section audit; high findings can block suggestion acceptance when enabled. |
+| `list_artifacts` | List diagrams, tables, and decision notes attached to a document. |
+| `create_artifact` | Create supporting material and return its `::artefato[key]` anchor directive. |
+
+## Layout documents
+
+Pages and slides made of components on a grid. The agent never sees the page: it reads a text map and gets a summary after every write. Read `docforge://guide/layout` before the first one; it has the shape of every component and operation.
+
+### Building and changing
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `create_layout_document` | `title`, `content?`, `template?`, `format?` | New layout document (one weekly creation). Empty A4 page by default; `template` starts from a finished composition (`relatorio`, `proposta`, `one-pager`, `apresentacao`); `format: "slide"` for an empty 16:9 deck. |
+| `get_layout_map` | `document_id`, `level?`, `components?`, `pages?`, `draw?` | The document as text: level 0 outline, level 1 settings and each page drawn in ASCII, level 2 everything. |
+| `get_layout_document` | `document_id` | Raw JSON and revision, for when exact content is needed. |
+| `apply_layout_ops` | `document_id`, `ops`, `base_revision?`, `pages?`, `map?`, `note?` | Apply operations atomically. Refused only for a malformed op, an unknown id or an invalid result; layout side effects come back in the summary. |
+| `preview_layout` | `document_id`, `ops?`, `content?`, `pages?`, `map?` | What ops (or a whole draft) would produce. Saves nothing. |
+| `measure_component` | `component`, `widths?`, `cols?`, `document_id?` | How tall a component would be at given widths, before placing it. |
+| `calibrate_style` | `document_id`, `variants`, `component?` \| `label?` \| `selector?` | Compare up to 12 style variants on the document before choosing one. |
+| `render_page` | `document_id`, `page?`, `scale?`, `highlight?` | A page as PNG, for agents that can see images. |
+| `review_layout` | `document_id` | What a reader would notice (boxes taller than their content, uneven rows, edges off the guides, a near-empty last page), each with the ops that fix it. |
+| `find_layout` | `document_id`, `text?`, `type?`, `label?`, `page?`, `rect?`, `state?` | Find components by content, type, class, page, area or state (moved, split, warning…). |
+
+### Working with the person
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `get_layout_notes` | `document_id`, `status?`, `kind?`, `component?` | Notices (what the layout did on its own) and annotations people pinned, including requests addressed to the agent. |
+| `request_review` | `document_id`, `summary`, `focus?`, `questions?` | Hand the document to the person: what was done, what to look at, up to 5 questions with options. |
+| `reply_layout_note` | `document_id`, `note_id`, `message` | Answer in a note's thread. |
+| `resolve_layout_note` | `note_id`, `status?`, `note?` | Close, acknowledge or reopen a note. |
+| `save_layout_version` | `document_id`, `name`, `note?` | Name the current revision ("Sent to the client"). |
+| `list_layout_versions` | `document_id`, `all_edits?`, `limit?` | Saved versions, or every write with its author. |
+| `restore_layout_version` | `document_id`, `revision` | Bring back a revision as a new write on top. |
+
+### Themes
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `list_layout_themes` | — | Built-in themes and the ones the person saved. |
+| `apply_layout_theme` | `document_id`, `theme` | Colors, fonts and radii in one write. |
+| `save_layout_theme` | `name`, `tokens?` \| `from_document?`, `description?` | Save a reusable theme. |
+
 ## Resources
 
 Resources are read-only URIs the agent can read without a tool call.
@@ -297,12 +366,11 @@ Composable mini-playbooks for common workflows.
 ## Recommended workflow
 
 ```
-1. get_user_info()                          → confirm ≥1 credit
-2. create_document("My Spec")               → get id + show URL to user
-3. [read local files via file tools]
-4. write_section(id, content, note="...")   → user sees it appear in browser
-5. snapshot_section(id, "Initial draft")    → preserve checkpoint
-6. get_document(id)                         → read current content before refining
-7. write_section(id, refined_content)       → user sees update
-8. snapshot_section(id, "Final")
+1. `get_user_info()`                         → confirm remaining weekly document creations
+2. `create_document("My Spec")`              → get id + show URL to user
+3. `get_pending_feedback(id)` and `get_document(id)` → read before editing
+4. Read local files with the agent's own tools
+5. Use `patch_section` / `append_section` for focused changes; use `write_section` for a deliberate full replacement
+6. `check_suggestions(id)`                    → verify review status
+7. `snapshot_section(id, "Initial draft")`   → preserve a named checkpoint
 ```

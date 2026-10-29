@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
@@ -57,6 +57,9 @@ jobs:
       - name: Type check
         working-directory: packages/frontend
         run: npx tsc --noEmit
+      - name: Design tokens
+        working-directory: packages/frontend
+        run: npm run lint:tokens
       - name: Test
         working-directory: packages/frontend
         run: npm run test
@@ -65,6 +68,20 @@ jobs:
         env:
           VITE_API_BASE: /api
         run: npm run build
+
+  layout-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        working-directory: packages/layout-service
+        run: npm ci --workspaces=false
+      - name: Test
+        working-directory: packages/layout-service
+        run: npm test
 
   mcp:
     runs-on: ubuntu-latest
@@ -75,7 +92,10 @@ jobs:
           python-version: '3.11'
       - name: Install
         working-directory: packages/mcp
-        run: pip install -e . ruff
+        run: pip install -e ".[dev]" ruff==0.17.3
       - name: Lint
         working-directory: packages/mcp
-        run: ruff check src/
+        run: ruff check src/ tests/
+      - name: Test
+        working-directory: packages/mcp
+        run: pytest tests -q

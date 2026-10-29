@@ -65,7 +65,7 @@ def agent_client_factory():
 
 async def _create_editor_document(client) -> tuple[str, str]:
     """Create an editor document; returns (document_id, body_section_id)."""
-    res = await client.post("/api/documents", json={"title": "Doc", "mode": "editor"})
+    res = await client.post("/api/documents", json={"title": "Doc"})
     assert res.status_code == 201, res.text
     doc_id = res.json()["id"]
     detail = await client.get(f"/api/documents/{doc_id}")
@@ -262,3 +262,86 @@ async def test_user_feedback_comment_anchored_to_section(client_factory, agent_c
     async with agent_client_factory(user) as agent:
         res = await agent.get(f"/api/documents/{doc_id}/feedback", params={"status": "open"})
         assert len(res.json()["feedback"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_triage_accepts_only_the_chosen_changes(client_factory, agent_client_factory):
+    """Partial acceptance: the reviewer keeps change #1 and turns down #2.
+
+    The resulting document is neither the base nor what the agent proposed, so
+    it becomes its own version — and the rejected change comes back as
+    feedback the agent can read.
+    """
+    user = User(id="u_triage1", email="t1@test.com", name="T", credits=5)
+    base = "# Doc\n\n## Um\n\nlinha a\n\n## Dois\n\nlinha c\n"
+
+    async with client_factory(user) as human:
+        doc_id, section_id = await _create_editor_document(human)
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": base})
+
+    async with agent_client_factory(user) as agent:
+        await agent.patch(
+            f"/api/sections/{section_id}/content",
+            json={"content": base.replace("linha a", "X").replace("linha c", "Y"), "note": "duas"},
+        )
+
+    async with client_factory(user) as human:
+        listed = await human.get(f"/api/documents/{doc_id}/suggestions?status=pending")
+        suggestion_id = listed.json()["suggestions"][0]["id"]
+
+        res = await human.post(
+            f"/api/suggestions/{suggestion_id}/triage",
+            json={"accepted_indexes": [1], "comment": "a segunda muda o sentido"},
+        )
+        assert res.status_code == 200, res.text
+
+        detail = await human.get(f"/api/documents/{doc_id}")
+        body = next(s for s in detail.json()["sections"] if s["section_type"] == "body")
+        content = body["active_version_content"]
+        assert "X" in content          # accepted
+        assert "Y" not in content      # rejected
+        assert "linha c" in content    # original kept where rejected
+
+        feedback = await human.get(f"/api/documents/{doc_id}/feedback")
+        assert any("a segunda muda o sentido" in f["content"] for f in feedback.json()["feedback"])
+
+
+@pytest.mark.asyncio
+async def test_triage_with_no_indexes_is_a_rejection(client_factory, agent_client_factory):
+    user = User(id="u_triage2", email="t2@test.com", name="T", credits=5)
+    async with client_factory(user) as human:
+        doc_id, section_id = await _create_editor_document(human)
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": "original\n"})
+    async with agent_client_factory(user) as agent:
+        await agent.patch(f"/api/sections/{section_id}/content", json={"content": "proposto\n"})
+    async with client_factory(user) as human:
+        listed = await human.get(f"/api/documents/{doc_id}/suggestions?status=pending")
+        suggestion_id = listed.json()["suggestions"][0]["id"]
+        res = await human.post(
+            f"/api/suggestions/{suggestion_id}/triage", json={"accepted_indexes": []}
+        )
+        assert res.status_code == 200
+        assert res.json()["status"] == "rejected"
+
+        detail = await human.get(f"/api/documents/{doc_id}")
+        body = next(s for s in detail.json()["sections"] if s["section_type"] == "body")
+        assert body["active_version_content"] == "original\n"
+
+
+@pytest.mark.asyncio
+async def test_triage_rejects_indexes_that_no_longer_exist(client_factory, agent_client_factory):
+    """The document moved under the reviewer — better to reload than to apply
+    a change number that now means something else."""
+    user = User(id="u_triage3", email="t3@test.com", name="T", credits=5)
+    async with client_factory(user) as human:
+        doc_id, section_id = await _create_editor_document(human)
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": "a\n"})
+    async with agent_client_factory(user) as agent:
+        await agent.patch(f"/api/sections/{section_id}/content", json={"content": "b\n"})
+    async with client_factory(user) as human:
+        listed = await human.get(f"/api/documents/{doc_id}/suggestions?status=pending")
+        suggestion_id = listed.json()["suggestions"][0]["id"]
+        res = await human.post(
+            f"/api/suggestions/{suggestion_id}/triage", json={"accepted_indexes": [1, 7]}
+        )
+        assert res.status_code == 409

@@ -10,14 +10,6 @@ load_dotenv(ENV_FILE)
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:5480/docforge"
-    AZURE_OPENAI_ENDPOINT: str = ""
-    AZURE_OPENAI_API_KEY: str = ""
-    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
-    AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
-    AZURE_OPENAI_GUARDRAIL_DEPLOYMENT: str = "gpt-4o-mini"
-    INNGEST_EVENT_KEY: str = ""
-    INNGEST_SIGNING_KEY: str = ""
-    INNGEST_DEV_SERVER_URL: str = "http://127.0.0.1:8288"
     # Optional Redis pub/sub for SSE fan-out across replicas.
     # Empty = in-process delivery only (requires replica=1).
     REDIS_URL: str = ""
@@ -28,24 +20,23 @@ class Settings(BaseSettings):
     # is the equivalent claim — set to your frontend origin(s) in production.
     CLERK_AUTHORIZED_PARTIES: list[str] = ["http://localhost:5173"]
 
-    # Credit system — override via env vars to reconfigure without code changes
-    WEEKLY_CREDITS: int = 5
-    GUIDED_DOCUMENT_COST: int = 3
-    EDITOR_DOCUMENT_COST: int = 1
+    # Document creation quotas — override via env vars to reconfigure without
+    # code changes. The database column retains its historical `credits` name
+    # for a backwards-compatible migration, but its product meaning is one
+    # document creation per unit.
+    FREE_WEEKLY_DOCUMENT_CREDITS: int = 5
+    PRO_WEEKLY_DOCUMENT_CREDITS: int = 50
 
     # Free tier limits (enforced in the backend; served via GET /api/tiers).
     # Calibrated generous on purpose — the MCP funnel is the growth engine.
     FREE_MAX_ACTIVE_DOCUMENTS: int = 10
     FREE_MAX_API_KEYS: int = 1
+    PRO_MAX_ACTIVE_DOCUMENTS: int = 200
+    PRO_MAX_API_KEYS: int = 10
 
-    # Quality gate: server-run audits consume credits (the DocForge-pays-tokens
-    # rule); agent-run submissions are free — pro-BYOA incentive.
-    QUALITY_GATE_COST: int = 1
-
-    # AI-assisted section role_description generation (Customize page, custom
-    # document types). Free (no credits) but Pro-only and rate-limited per user.
-    AI_SECTION_SUMMARY_RATE_LIMIT: int = 10
-    AI_SECTION_SUMMARY_WINDOW_HOURS: int = 1
+    # Internal Node service that runs @docforge-lib/layout (packages/layout-service).
+    LAYOUT_SERVICE_URL: str = "http://127.0.0.1:8002"
+    LAYOUT_SERVICE_TIMEOUT_SECONDS: float = 15.0
 
     # Version retention (Free plan): oldest inactive versions beyond this count
     # are pruned when a new one is created. None/0 on paid plans (see tiers.py).
@@ -66,7 +57,6 @@ class Settings(BaseSettings):
     POSTHOG_API_KEY: str = ""
     POSTHOG_HOST: str = "https://us.i.posthog.com"
     POSTHOG_ENABLED: bool = False
-    POSTHOG_REDACT_PROMPTS: bool = True
 
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 
