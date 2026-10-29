@@ -325,7 +325,7 @@ async def report_tool_call(payload: dict[str, Any]) -> None:
     a failure here must never reach the agent."""
     try:
         await _post("/telemetry/mcp-tool", json=payload)
-    except Exception:  # noqa: BLE001 — telemetry is never worth an error
+    except Exception:  # noqa: BLE001, S110 — telemetry is never worth an error
         pass
 
 

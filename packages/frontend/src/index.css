@@ -828,3 +828,16 @@ textarea.font-mono,
 .df-menu__item:disabled { opacity: 0.5; cursor: default; }
 .df-menu__hint { display: block; margin-top: 1px; font-size: 10px; color: var(--color-faint); }
 .df-menu__error { padding: 8px; font-size: 11.5px; line-height: 1.4; color: var(--color-error); }
+
+/* ─── Marketing navigation ────────────────────────────────────
+   On a phone the text links give way to the brand, the language and the call
+   to action; the pages they lead to are linked from the page itself. */
+.df-marketing-nav { padding: 0 40px; }
+.df-marketing-nav__right { gap: 24px; padding-left: 16px; }
+.df-marketing-nav__cta { padding: 8px 16px; }
+@media (max-width: 640px) {
+  .df-marketing-nav { padding: 0 16px; }
+  .df-marketing-nav__right { gap: 10px; }
+  .df-marketing-nav__cta { padding: 7px 11px; }
+  .df-marketing-nav__links { display: none !important; }
+}

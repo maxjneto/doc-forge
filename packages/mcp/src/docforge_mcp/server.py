@@ -908,7 +908,7 @@ async def create_layout_document(
     title: str,
     content: dict[str, Any] | str | None = None,
     template: str = "",
-    format: str = "",  # noqa: A002 (the parameter agents see)
+    format: str = "",  # the parameter agents see, shadowing the builtin on purpose
     *,
     ctx: Context,
 ) -> str:
@@ -1018,8 +1018,10 @@ async def apply_layout_ops(
     ctx: Context,
 ) -> str:
     """Change a layout document with operations: add, place, row, update, edit,
-    replaceText, remove, setStyle, setRegion, removeRegion, setTokens, setGrid,
+    replaceText, move, remove, setStyle, setRegion, removeRegion, setTokens, setGrid,
     setSurface, removeSurface, setMeta, page, compact, fit (shapes: docforge://guide/layout).
+    To change a finished document, send only what changes: edit then fit to stay
+    within N pages, move to reorder sections — never rebuild the layout.
     Positions: {page, x, y, w, h?} in units, or relative — cols:[a,b] for x/w,
     below:"id" or end:true for y.
     To change a word, a paragraph or a cell, use edit (by path, e.g.

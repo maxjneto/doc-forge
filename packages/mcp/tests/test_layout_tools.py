@@ -77,7 +77,7 @@ async def _scenario():
     try:
         await srv.mcp.call_tool("create_layout_document", {"title": "x", "template": "nope"})
         raise AssertionError("bad template accepted")
-    except Exception as e:  # FastMCP wraps tool errors
+    except Exception as e:  # noqa: BLE001 — FastMCP wraps tool errors in its own type
         assert "template" in str(e), e
     print("create_layout_document rejects unknown templates")
 

@@ -13,7 +13,7 @@ Each new document uses one weekly document creation. Editing and working in exis
 ```
 Name: Max
 Email: max@example.com
-Document creations remaining: 12 (weekly allowance: 20)
+Document creations remaining: 12 (weekly allowance: 15)
 ```
 
 ---

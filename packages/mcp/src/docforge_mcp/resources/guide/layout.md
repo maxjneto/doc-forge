@@ -111,6 +111,7 @@ page 1/2 · 5 boxes · 17 free rows at the bottom
 {"op": "replaceText", "find": "T2", "replace": "Q2", "components": ["id"], "matchCase": false}
 {"op": "row", "below": "title", "h": 16, "items": [{"id": "kpi-a", "type": "kpi", "content": {...}}, {...}, {...}]}
 {"op": "row", "below": "kpi-a", "widths": [2, 1], "align": "top", "items": ["analysis", "chart"]}
+{"op": "move", "component": "steps-title", "through": "steps", "before": "intro"}
 {"op": "remove", "component": "id"}
 {"op": "setStyle", "layer": "document", "selector": "text.title-1", "style": {...}}
 {"op": "setStyle", "layer": "label", "label": "highlight", "style": {...}}
@@ -121,7 +122,8 @@ page 1/2 · 5 boxes · 17 free rows at the bottom
 {"op": "setMeta", "meta": {"title": "Q3", "locale": "pt-BR", "theme": "Executivo"}}
 {"op": "page", "action": "insert" | "duplicate" | "remove" | "move", "page": 2, "to": 4}
 {"op": "compact", "acrossPages": true}
-{"op": "fit", "pages": 2, "strategies": ["compact", "spacing", "type"], "minScale": 0.85}
+{"op": "fit", "pages": 2}
+{"op": "fit", "pages": 2, "strategies": ["compact", "heights", "spacing", "type"], "minScale": 0.9}
 ```
 
 **Positions in `add` and `place`:**
@@ -137,7 +139,8 @@ page 1/2 · 5 boxes · 17 free rows at the bottom
 - `replaceText` replaces words in every text of the document (or only in `components`); finding nothing refuses the call.
 - `setGrid` with a new `unit` converts every position so nothing changes size. Changing guides moves nothing.
 - `compact` moves components up into the empty space above them (only some with `components`, one `page`, or back across a page break with `acrossPages`).
-- `fit` makes the document fit `pages` (default: the page limit) with the strategies you allow, mildest first: `compact`, `spacing` (tighter gaps and padding), `type` (text sizes down to `minScale`). It says what it did, or that it could not — and then changes nothing. Try it in `preview_layout` first.
+- `move` takes a block — `component`, or every component from it `through` another (their tops between the two, rows whole) — to just `before` or `after` a component, on any page. What was below the block moves up into its place, and the target and what is below it move down to make room; columns beside the block stay. Reordering sections never needs a `place` per component.
+- `fit` makes the document fit `pages` (default: the page limit), mildest first. Without `strategies` it only compacts and lowers minimum heights to what the content needs, so the page keeps its look; `spacing` (down to 75%, boxes never touching) and `type` (text sizes down to `minScale`, default 0.9) run only when you name them. It says what it did, or that it could not — and then changes nothing, naming what to try next.
 - `page` works on whole pages (slides) by declared position: `insert` adds an empty one after `page` (0 = before the first), `duplicate` copies `page` right after it (copies get new ids, `<id>-2`), `remove` deletes it and what is on it, `move` puts it at `to`.
 - A call is refused (nothing saved) only for a malformed op, an id that does not exist, or an invalid document.
 - Pass `base_revision` (from the last response) when several writers may be working on the same document.
@@ -165,6 +168,15 @@ A page surface with `"size": "Slide"` (1280 × 720 px, 16:9) is a deck: one slid
 - Each slide is self-contained: a `title-1` at the top (one per slide is right here), then one idea — a row of KPIs, a chart beside two or three short paragraphs, steps or a timeline. Keep text short; split a crowded slide in two with `page` `duplicate` and remove half from each.
 - Place every component with its slide's `at.page`; nothing should be pushed to the next slide (check the summary for `moved-page`).
 - The person presents from the editor (full screen, one slide at a time) or exports a PDF.
+
+## Changing a finished document
+
+Positions stay as they are written, so a change to an existing document is a few ops in one call, never a new layout. Do not `place` or re-`add` components that are already fine.
+
+- **Make it fit N pages:** shorten the text with `edit` (and `remove` what can go), then end the same call with `{"op": "fit", "pages": N}`. Shortening leaves empty rows under the box; `fit` moves what is below up into them and trims boxes taller than their content. If it still does not fit, shorten more before naming `spacing` or `type`.
+- **Reorder sections:** one `move` with `component` + `through` (the section's first and last components) and `before` or `after` the target.
+- **Add something in the middle:** `add` it `below` the component it follows; what it runs into is pushed down. End with `fit` if the page count must not grow.
+- **Undo:** `restore_layout_version` brings back any earlier revision as a new write.
 
 ## A good way to build one
 

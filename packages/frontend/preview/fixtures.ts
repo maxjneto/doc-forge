@@ -21,8 +21,8 @@ export const me = {
   email: "max@doc-forge.dev",
   name: "Max Aragão",
   plan: "pro",
-  document_creations_remaining: 37,
-  weekly_document_creations: 50,
+  document_creations_remaining: 74,
+  weekly_document_creations: 100,
   document_creations_reset_at: ago(60 * 24 * 3),
   next_document_creations_reset_at: nextMondayUtc(),
 };
@@ -30,17 +30,17 @@ export const me = {
 // Numbers follow backend/app/services/tiers.py.
 export const tiers = [
   {
-    slug: "free", name: "Free", price_monthly_usd: 0, credits: "5 / week",
-    description: "Write in the editor and connect one agent.",
-    features: ["5 document creations per week", "10 active documents", "1 connected agent", "20 versions per section"],
-    limits: { max_active_documents: 10, max_api_keys: 1, weekly_document_creations: 5, export_formats: [] },
-    cta: "Start free", highlight: false, available: true,
+    slug: "free", name: "Free", price_monthly: 0, currency: "BRL", credits: "15 new documents / week",
+    description: "Everything DocForge does, for one person and their agents.",
+    features: ["Markdown documents and layout pages and slides", "15 new documents each week", "Up to 30 active documents", "2 connected agents (MCP)"],
+    limits: { max_active_documents: 30, max_api_keys: 2, weekly_document_creations: 15, max_versions_per_section: 50, export_formats: ["md", "pdf"] },
+    cta: "Start for free", highlight: false, available: true,
   },
   {
-    slug: "pro", name: "Pro", price_monthly_usd: 12, credits: "50 / week",
+    slug: "pro", name: "Pro", price_monthly: 19, currency: "BRL", credits: "100 new documents / week",
     description: "For people who write with agents every day.",
-    features: ["50 document creations per week", "200 active documents", "10 connected agents", "Markdown, PDF and DOCX export"],
-    limits: { max_active_documents: 200, max_api_keys: 10, weekly_document_creations: 50, export_formats: ["md", "pdf", "docx"] },
+    features: ["Everything in Free", "100 new documents each week", "Up to 1000 active documents", "10 connected agents (MCP)"],
+    limits: { max_active_documents: 1000, max_api_keys: 10, weekly_document_creations: 100, max_versions_per_section: null, export_formats: ["md", "pdf", "docx"] },
     cta: "Upgrade to Pro", highlight: true, available: true,
   },
 ];

@@ -27,10 +27,12 @@ Stateless and unauthenticated: it is only on the internal network (no published
 port in production, no proxy route). The backend owns storage, auth and revisions.
 
 ```sh
-npm install --workspaces=false   # standalone install, uses vendor/*.tgz
+npm install --workspaces=false   # standalone install
 npm test                         # contract the backend relies on
 npm start                        # port 8002
 ```
 
-To update the library, run `scripts/vendor-layout.sh` from the repo root, then
-`npm install --workspaces=false` here and `npm install` at the root.
+To update the library, change the version of `@docforge-lib/layout` in `package.json`
+(here and in `packages/frontend`), then `npm install --workspaces=false` here, `npm run lock`
+in `packages/frontend` and `npm install` at the root. To try an unreleased build first, see
+`scripts/vendor-layout.sh`.
