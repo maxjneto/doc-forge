@@ -868,7 +868,7 @@ async def create_layout_document(
     title: str,
     content: dict[str, Any] | str | None = None,
     template: str = "",
-    format: str = "",  # noqa: A002 (the parameter agents see)
+    format: str = "",  # the parameter agents see, shadowing the builtin on purpose
     *,
     ctx: Context,
 ) -> str:

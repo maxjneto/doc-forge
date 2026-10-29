@@ -92,7 +92,7 @@ jobs:
           python-version: '3.11'
       - name: Install
         working-directory: packages/mcp
-        run: pip install -e ".[dev]" ruff
+        run: pip install -e ".[dev]" ruff==0.17.3
       - name: Lint
         working-directory: packages/mcp
         run: ruff check src/ tests/
