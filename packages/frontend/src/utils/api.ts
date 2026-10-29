@@ -83,7 +83,9 @@ async function authHeaders(getToken: GetToken, extra?: Record<string, string>) {
 export interface Tier {
   slug: string;
   name: string;
-  priceMonthlyUsd: number | null;
+  priceMonthly: number | null;
+  /** ISO 4217, e.g. "BRL". */
+  currency: string;
   credits: string;
   description: string;
   features: string[];
@@ -109,7 +111,8 @@ export async function apiFetchTiers(): Promise<Tier[]> {
     return {
       slug: raw.slug as string,
       name: raw.name as string,
-      priceMonthlyUsd: (raw.price_monthly_usd as number) ?? null,
+      priceMonthly: (raw.price_monthly as number) ?? null,
+      currency: (raw.currency as string) ?? "BRL",
       credits: raw.credits as string,
       description: raw.description as string,
       features: (raw.features as string[]) ?? [],

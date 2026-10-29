@@ -35,9 +35,10 @@ class Settings(BaseSettings):
     PRO_MAX_ACTIVE_DOCUMENTS: int = 1000
     PRO_MAX_API_KEYS: int = 10
 
-    # The Pro price shown on the pricing page. What is charged is the Stripe
-    # price (STRIPE_PRICE_ID_PRO); keep the two in step.
-    PRO_PRICE_MONTHLY_USD: float = 4
+    # The Pro price shown on the pricing page, in PRICE_CURRENCY (ISO 4217).
+    # What is charged is the Stripe price (STRIPE_PRICE_ID_PRO); keep the two in step.
+    PRICE_CURRENCY: str = "BRL"
+    PRO_PRICE_MONTHLY: float = 19
 
     # Internal Node service that runs @docforge-lib/layout (packages/layout-service).
     LAYOUT_SERVICE_URL: str = "http://127.0.0.1:8002"

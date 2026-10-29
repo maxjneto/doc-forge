@@ -30,14 +30,14 @@ export const me = {
 // Numbers follow backend/app/services/tiers.py.
 export const tiers = [
   {
-    slug: "free", name: "Free", price_monthly_usd: 0, credits: "15 new documents / week",
+    slug: "free", name: "Free", price_monthly: 0, currency: "BRL", credits: "15 new documents / week",
     description: "Everything DocForge does, for one person and their agents.",
     features: ["Markdown documents and layout pages and slides", "15 new documents each week", "Up to 30 active documents", "2 connected agents (MCP)"],
     limits: { max_active_documents: 30, max_api_keys: 2, weekly_document_creations: 15, max_versions_per_section: 50, export_formats: ["md", "pdf"] },
     cta: "Start for free", highlight: false, available: true,
   },
   {
-    slug: "pro", name: "Pro", price_monthly_usd: 4, credits: "100 new documents / week",
+    slug: "pro", name: "Pro", price_monthly: 19, currency: "BRL", credits: "100 new documents / week",
     description: "For people who write with agents every day.",
     features: ["Everything in Free", "100 new documents each week", "Up to 1000 active documents", "10 connected agents (MCP)"],
     limits: { max_active_documents: 1000, max_api_keys: 10, weekly_document_creations: 100, max_versions_per_section: null, export_formats: ["md", "pdf", "docx"] },

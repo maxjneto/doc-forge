@@ -112,4 +112,5 @@ def test_paid_plans_not_listed_get_pro_limits():
 async def test_pro_price_is_served(client_factory):
     async with client_factory() as client:
         pro = next(t for t in (await client.get("/api/tiers")).json()["tiers"] if t["slug"] == "pro")
-    assert pro["price_monthly_usd"] == settings.PRO_PRICE_MONTHLY_USD
+    assert pro["price_monthly"] == settings.PRO_PRICE_MONTHLY
+    assert pro["currency"] == "BRL"

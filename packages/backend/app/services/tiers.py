@@ -10,7 +10,8 @@ def get_tiers() -> list[dict]:
         {
             "slug": "free",
             "name": "Free",
-            "price_monthly_usd": 0,
+            "price_monthly": 0,
+            "currency": settings.PRICE_CURRENCY,
             "credits": f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} new documents / week",
             "description": "Everything DocForge does, for one person and their agents.",
             "features": [
@@ -37,7 +38,8 @@ def get_tiers() -> list[dict]:
         {
             "slug": "pro",
             "name": "Pro",
-            "price_monthly_usd": settings.PRO_PRICE_MONTHLY_USD,
+            "price_monthly": settings.PRO_PRICE_MONTHLY,
+            "currency": settings.PRICE_CURRENCY,
             "credits": f"{settings.PRO_WEEKLY_DOCUMENT_CREDITS} new documents / week",
             "description": "For people who write with agents every day.",
             "features": [

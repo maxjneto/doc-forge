@@ -49,7 +49,7 @@ const COPY = {
     openBody: "@docforge-lib/layout measures, paginates and renders documents in Node and in the browser, without a headless browser. MIT licensed.",
     openGithub: "View on GitHub",
     priceTitle: "Everything DocForge does is in the free plan.",
-    priceBody: "Pro lifts the limits for people who write with agents every day — for US$ 4 a month.",
+    priceBody: "Pro lifts the limits for people who write with agents every day — for R$ 19 a month.",
     priceCta: "See plans",
   },
   "pt-BR": {
@@ -90,7 +90,7 @@ const COPY = {
     openBody: "@docforge-lib/layout mede, pagina e desenha documentos no Node e no navegador, sem navegador headless. Licença MIT.",
     openGithub: "Ver no GitHub",
     priceTitle: "Tudo o que o DocForge faz está no plano gratuito.",
-    priceBody: "O Pro tira os limites de quem escreve com agentes todo dia — por US$ 4 por mês.",
+    priceBody: "O Pro tira os limites de quem escreve com agentes todo dia — por R$ 19 por mês.",
     priceCta: "Ver planos",
   },
 } as const;

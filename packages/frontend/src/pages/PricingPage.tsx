@@ -128,6 +128,8 @@ export function PricingPage() {
   }, []);
 
   const number = (n: number | null) => (n === null ? "∞" : n.toLocaleString(locale));
+  const money = (tier: Tier) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: tier.currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(tier.priceMonthly ?? 0);
   const formats = (list: string[]) => {
     const names = list.map((f) => FORMAT_NAMES[f] ?? f);
     return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} ${copy.and} ${names[names.length - 1]}`;
@@ -175,7 +177,7 @@ export function PricingPage() {
             {free && (
               <PlanCard
                 name={copy.free}
-                price="US$ 0"
+                price={money(free)}
                 perMonth={copy.perMonth}
                 what={copy.freeWhat}
                 lines={[...copy.both, ...limitsOf(free)]}
@@ -187,7 +189,7 @@ export function PricingPage() {
                 highlight
                 badge={copy.popular}
                 name="Pro"
-                price={`US$ ${number(pro.priceMonthlyUsd)}`}
+                price={money(pro)}
                 perMonth={copy.perMonth}
                 what={copy.proWhat}
                 lines={[copy.everything, ...limitsOf(pro)]}
