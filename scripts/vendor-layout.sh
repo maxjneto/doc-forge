@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 # Pack @docforge-lib/layout from the sibling repo and vendor it into the packages
-# that use it, for changes not yet published to npm. The tarball is committed:
-# Docker builds each package from its own folder and needs it there.
+# that use it, to try changes not yet published to npm. It also points their
+# package.json at the tarball. To go back to a release, set the dependency to
+# "~<version>" again, delete vendor/*.tgz and reinstall.
 #
 #   scripts/vendor-layout.sh [path-to-docforge-layout]   (default: ../docforge-layout)
 #
@@ -24,6 +25,7 @@ for pkg in frontend layout-service; do
   mkdir -p "$dir"
   rm -f "$dir"/docforge-layout-*.tgz "$dir"/docforge-lib-layout-*.tgz
   cp "$root/$tarball" "$dir/"
+  (cd "$root/packages/$pkg" && npm pkg set "dependencies.@docforge-lib/layout=file:vendor/$tarball")
   echo "vendored $tarball -> packages/$pkg/vendor/"
 done
 rm "$root/$tarball"

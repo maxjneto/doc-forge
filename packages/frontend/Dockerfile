@@ -11,7 +11,8 @@ WORKDIR /app
 # The frontend keeps its own lockfile for Docker (the workspace lock at the repo
 # root is outside this build context). Regenerate it with `npm run lock` here.
 COPY package.json package-lock.json ./
-# @docforge-lib/layout is vendored as a tarball (scripts/vendor-layout.sh).
+# vendor/ only holds a tarball while trying an unreleased build of
+# @docforge-lib/layout (scripts/vendor-layout.sh); normally it comes from npm.
 COPY vendor ./vendor
 # The cache mount keeps downloaded tarballs across builds, so re-vendoring the
 # lib (which invalidates this layer) does not download everything again.

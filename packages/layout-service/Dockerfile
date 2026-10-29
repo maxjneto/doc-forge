@@ -2,7 +2,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# The lib is vendored as a tarball (scripts/vendor-layout.sh) and ships the server
+# The lib comes from npm (or vendor/, for an unreleased build) and ships the server
 # itself (`docforge-layout serve`), so this image is just Node + the package.
 # @resvg/resvg-js (prebuilt musl binary) draws page PNGs for /render-image.
 COPY package.json package-lock.json ./
