@@ -38,6 +38,17 @@ scripts/check-tokens.mjs   the design-token guard (runs in CI)
 - `useDocument(id)` loads a document and keeps it fresh: it opens the SSE stream (`/documents/{id}/stream`, with the token in a header via `fetch-event-source`), refetches on every event, reconnects with exponential backoff, and resyncs after a reconnect in case events were missed.
 - There is no global store. Each screen owns its state; the editors keep their own.
 
+## The document shell
+
+Both kinds of document open in the same shell (`components/document/`), so a person moving between a Markdown spec and a layout report finds things in the same places:
+
+- **`DocumentBar`**: Documents / title (renamed in place), the state as pills (draft, in review, published, the viewer's role, "agent via MCP"), who else is here, and the document's actions — export, present, and publish as the view's one primary.
+- **`DocumentSidebar`**: an icon rail and the 340px panel it opens, on the right. Picking the open tab again closes the panel.
+- **`DocumentStatusBar`**: whether the work is saved, which agents wrote in the last minutes, and facts about the document (words and sections, or pages and revision).
+- **Who acted**: `ActorAvatar` / `ActorLabel` name every person and agent the same way (agents in steel, with their client's logo); `ActivityPanel` is the feed both editors show; `CommentThread` is the conversation both editors use (reply, resolve, ask the agent).
+- **Presence** (`usePresence`, `PresenceStack`): people with the document open (their event stream is the signal) and agents that wrote in the last ten minutes. `useDocument` keeps presence events apart from content events, so someone arriving does not make the editors refetch.
+- **Roles**: `DocumentPage` reads the viewer's role once and gives both editors `canEdit` / `canComment`. A viewer gets the Markdown preview with a read-only source and no publish; a commenter can also comment.
+
 ## The Markdown editor
 
 `components/editor/` — the person writes in CodeMirror (source) or reads the preview; headings become the navigation on the left.
@@ -45,7 +56,8 @@ scripts/check-tokens.mjs   the design-token guard (runs in CI)
 - **Autosave** (`useAutosave`): the text is saved after a short pause, and the status bar says when.
 - **Review** (`EditorSuggestionPanel`, `EditorDiffView`): an agent's pending suggestion is shown as a diff against the current text, change by change (↑/↓ or j/k to move, a word-level diff inside each change). The person accepts, rejects, or triages: keeps some changes and drops others. The grouping into changes comes from `utils/diff.ts`, which the backend mirrors to apply the chosen hunks.
 - **Structure** is derived, not stored (`utils/documentStructure.ts`): sections come from headings, with line ranges; a comment or finding is anchored by quote, then heading, then the document as a whole, so it survives edits around it.
-- **Side panels**: versions (snapshots, restore, publish), the quality gate (findings underlined in the text), artifacts (cards where `::artefato[key]` appears), activity (people and agents, with the agent's harness).
+- **Side panels** (the shared rail): structure (the headings), changes to review, the quality gate (findings underlined in the text), comments, artifacts (cards where `::artefato[key]` appears), history (snapshots, restore) and activity.
+- **Comments** are threads anchored to a passage and the heading it was under (`EditorCommentsPanel`): select text, press Comment, optionally ask the agent. Agents read them with `get_pending_feedback` and answer with `reply_feedback`.
 
 ## The layout editor
 
@@ -54,7 +66,7 @@ scripts/check-tokens.mjs   the design-token guard (runs in CI)
 - **The library runs in the browser.** `fonts.ts` loads the bundled fonts into a registry (`createBrowserRegistry`), and `createEngine` lays the document out locally, so measurements, the map and every side effect match the server exactly.
 - **Pages are drawn by the library's own HTML**, inside a sandboxed iframe where no script runs (`PageCanvas`). Two iframes alternate, so an edit never flashes white. A selection layer on top uses the layout's coordinates for boxes, handles, drag and drop, and inline editors for text, tables and KPIs.
 - **Every change is an operation** (`useLayoutEditor`): applied locally first, queued, and sent to `/layout/ops` with the revision it was based on. Keyboard nudges coalesce into one write and one undo step. On `409 STALE_REVISION` it reloads, shows what the other writer changed, and reapplies what was still pending.
-- **Panels**: structure (rows, reorder by dragging), component content and style, design (themes, colors, type, spacing), page (size, margins, fit to N pages), review (what a reader would notice, with one-click fixes), comments (pinned to a component or an area, threads, "ask the agent"), history (revisions, named versions, compare, restore).
+- **Panels**: structure (rows, reorder by dragging), component content and style, design (themes, colors, type, spacing), page (size, margins, fit to N pages), review (what a reader would notice, with one-click fixes), comments (pinned to a component or an area, threads, "ask the agent"), history (revisions by name of who wrote them, named versions, compare, restore), activity.
 - **Slides** have a slide rail and a present mode; **publishing** copies the current revision and gives the public link other sites load with the library.
 - The library and its fonts load only when a layout document is opened (`React.lazy`), so the rest of the app does not pay for them.
 

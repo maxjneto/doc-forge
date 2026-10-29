@@ -14,6 +14,8 @@ export interface MarkdownEditorHandle {
   /** Resolve a visual Y coordinate to a document line. */
   lineAtClientY: (clientY: number) => number;
   focus: () => void;
+  /** The text currently selected, for commenting on a passage ("" when none). */
+  selectedText: () => string;
 }
 
 interface MarkdownEditorProps {
@@ -23,6 +25,8 @@ interface MarkdownEditorProps {
   onCaretLine?: (line: number) => void;
   onScrollLine?: (line: number) => void;
   placeholderText?: string;
+  /** People who may read or comment but not edit get the text, not a cursor. */
+  readOnly?: boolean;
 }
 
 /**
@@ -86,7 +90,7 @@ const highlight = HighlightStyle.define([
 ]);
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
-  function MarkdownEditor({ value, onChange, onCaretLine, onScrollLine, placeholderText = "# My document\n\n## Section 1\n\nStart writing…" }, ref) {
+  function MarkdownEditor({ value, onChange, onCaretLine, onScrollLine, placeholderText = "# My document\n\n## Section 1\n\nStart writing…", readOnly = false }, ref) {
     const host = useRef<HTMLDivElement>(null);
     const view = useRef<EditorView | null>(null);
     // Handlers change every render; keep them off the extension list so the
@@ -106,6 +110,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         highlightActiveLine(),
         EditorView.lineWrapping,
         placeholder(placeholderText),
+        EditorState.readOnly.of(readOnly),
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -175,6 +180,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       },
       focus() {
         view.current?.focus();
+      },
+      selectedText() {
+        const editor = view.current;
+        if (!editor) return "";
+        const { from, to } = editor.state.selection.main;
+        return editor.state.sliceDoc(from, to);
       },
     }));
 

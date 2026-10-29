@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { apiPublishDocument } from "@/utils/api";
-import { Button, IconButton, Pill } from "@/components/ui";
+import { apiExportDocument, apiPublishDocument, type ExportFormat } from "@/utils/api";
+import { Button, Pill } from "@/components/ui";
+import { DocumentBar } from "@/components/document";
 import { useI18n } from "@/i18n";
 
 interface EditorDocumentBarProps {
@@ -12,18 +12,22 @@ interface EditorDocumentBarProps {
   pendingChanges: number;
   /** Open blocking gate findings; publishing is refused while any remain. */
   blockingFindings: number;
-  isMcpManaged: boolean;
   publishedAt?: string | null;
   hasUnpublishedChanges?: boolean;
   savePending?: boolean;
+  /** Whether the viewer may publish (editors and the owner). */
+  canPublish: boolean;
+  /** Pills every document shows the same way: the viewer's role, the agent via MCP. */
+  context?: ReactNode;
+  presence?: ReactNode;
   onPublished?: () => void;
   /** When given, the title in the breadcrumb is renamable in place. */
   onRenameTitle?: (title: string) => Promise<void>;
 }
 
 /**
- * The document bar from the v4 mock: breadcrumb, state, and the publish
- * gesture.
+ * The Markdown document's bar: its state and the publish gesture, on the bar
+ * every document shares.
  *
  * `Publicar` is not decoration — the active version is the working draft, and
  * publishing marks the one people are meant to read. The gate can refuse it,
@@ -34,28 +38,21 @@ export function EditorDocumentBar({
   title,
   pendingChanges,
   blockingFindings,
-  isMcpManaged,
   publishedAt = null,
   hasUnpublishedChanges = false,
   savePending = false,
+  canPublish,
+  context,
+  presence,
   onPublished,
   onRenameTitle,
 }: EditorDocumentBarProps) {
-  const navigate = useNavigate();
   const { getToken } = useAuth();
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<string | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(title);
-
-  async function commitRename() {
-    setRenaming(false);
-    const next = titleDraft.trim();
-    if (!next || next === title || !onRenameTitle) return;
-    await onRenameTitle(next);
-  }
+  const [exportOpen, setExportOpen] = useState(false);
 
   const blocked = blockingFindings > 0;
 
@@ -74,141 +71,117 @@ export function EditorDocumentBar({
     }
   }
 
+  const state = blocked ? (
+    <Pill tone="error" dot>
+      {blockingFindings} {t(blockingFindings === 1 ? "editor.blocker" : "editor.blockers")}
+    </Pill>
+  ) : savePending ? (
+    <Pill tone="warn">{t("editor.savingDraft")}</Pill>
+  ) : pendingChanges > 0 ? (
+    <Pill tone="heat">
+      {t("editor.inReview")} · {pendingChanges} {t(pendingChanges === 1 ? "editor.change" : "editor.changes")}
+    </Pill>
+  ) : publishedAt && hasUnpublishedChanges ? (
+    <Pill tone="heat" dot>
+      {t("editor.unpublishedChanges")}
+    </Pill>
+  ) : published ? (
+    // Just published in this session — a loop that closed (R3).
+    <Pill tone="ok" dot>
+      {t("editor.published")} · {published}
+    </Pill>
+  ) : publishedAt ? (
+    // Published as a standing state — frozen, so steel (R2).
+    <Pill tone="steel">{t("editor.published")}</Pill>
+  ) : (
+    <Pill tone="ghost">{t("common.draft")}</Pill>
+  );
+
   return (
-    <div
-      style={{
-        height: 52,
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "0 20px",
-        borderBottom: "1px solid var(--color-outline)",
-        background: "var(--color-chrome)",
-      }}
-    >
-      <button
-        onClick={() => navigate("/")}
-        style={{
-          fontSize: 12.5,
-          color: "var(--color-faint)",
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          padding: 0,
-        }}
-      >
-        {t("editor.documents")}
-      </button>
-      <span style={{ fontSize: 12.5, color: "var(--color-mute)" }}>/</span>
-      {renaming ? (
-        <input
-          autoFocus
-          value={titleDraft}
-          onChange={(e) => setTitleDraft(e.target.value)}
-          onBlur={() => void commitRename()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void commitRename();
-            if (e.key === "Escape") setRenaming(false);
-          }}
-          maxLength={200}
-          aria-label={t("common.rename")}
-          style={{
-            width: 320,
-            padding: "2px 0",
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: "var(--color-text)",
-            background: "transparent",
-            border: 0,
-            borderBottom: "1px solid var(--color-heat-line)",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
-      ) : (
-        <span
-          className={onRenameTitle ? "df-row" : undefined}
-          style={{ display: "inline-flex", alignItems: "center", gap: 2, minWidth: 0, borderRadius: "var(--radius-xs)" }}
-        >
-          <span
-            title={title}
-            style={{
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: "var(--color-text)",
-              maxWidth: 320,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {title}
-          </span>
-          {onRenameTitle && (
-            <span className="df-row-actions">
-              <IconButton
-                icon="edit"
-                label={t("common.rename")}
-                onClick={() => { setTitleDraft(title); setRenaming(true); }}
-                style={{ width: 24, height: 24 }}
-              />
-            </span>
+    <DocumentBar
+      title={title}
+      onRenameTitle={onRenameTitle}
+      status={
+        <>
+          {state}
+          {context}
+        </>
+      }
+      presence={presence}
+      error={error}
+      actions={
+        <>
+          <div className="df-doc-bar__menu">
+            <Button variant="secondary" icon="download" iconPosition="start" aria-haspopup="menu" aria-expanded={exportOpen} onClick={() => setExportOpen((v) => !v)}>
+              {t("editor.export")}
+            </Button>
+            {exportOpen && <ExportMenu documentId={documentId} onClose={() => setExportOpen(false)} />}
+          </div>
+          {canPublish && (
+            <Button
+              variant={blocked ? "secondary" : "primary"}
+              disabled={busy || blocked || savePending}
+              onClick={() => void publish()}
+              title={blocked ? t("editor.resolveBlockers") : savePending ? t("editor.waitForSave") : t("editor.publishHint")}
+            >
+              {busy ? t("editor.publishing") : publishedAt ? t("editor.publishNewVersion") : t("editor.publish")}
+            </Button>
           )}
-        </span>
-      )}
+        </>
+      }
+    />
+  );
+}
 
-      {blocked ? (
-        <Pill tone="error" dot>
-          {blockingFindings} {t(blockingFindings === 1 ? "editor.blocker" : "editor.blockers")}
-        </Pill>
-      ) : savePending ? (
-        <Pill tone="warn">{t("editor.savingDraft")}</Pill>
-      ) : pendingChanges > 0 ? (
-        <Pill tone="heat">
-          {t("editor.inReview")} · {pendingChanges} {t(pendingChanges === 1 ? "editor.change" : "editor.changes")}
-        </Pill>
-      ) : publishedAt && hasUnpublishedChanges ? (
-        <Pill tone="heat" dot>
-          {t("editor.unpublishedChanges")}
-        </Pill>
-      ) : published ? (
-        // Just published in this session — a loop that closed (R3).
-        <Pill tone="ok" dot>
-          {t("editor.published")} · {published}
-        </Pill>
-      ) : publishedAt ? (
-        // Published as a standing state — frozen, so steel (R2).
-        <Pill tone="steel">{t("editor.published")}</Pill>
-      ) : (
-        <Pill tone="ghost">{t("common.draft")}</Pill>
-      )}
+function ExportMenu({ documentId, onClose }: { documentId: string; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
+  const { t } = useI18n();
+  const [busy, setBusy] = useState<ExportFormat | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-      {isMcpManaged && <Pill tone="steel">{t("editor.mcpManaged")}</Pill>}
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
 
-      <span style={{ flex: 1 }} />
+  async function exportAs(format: ExportFormat) {
+    setBusy(format);
+    setError(null);
+    try {
+      // Rendered server-side from the last SAVED version, so unsaved typing is not in it.
+      await apiExportDocument(documentId, format, getToken);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("editor.exportError"));
+    } finally {
+      setBusy(null);
+    }
+  }
 
-      {error && (
-        <span style={{ fontSize: 11.5, color: "var(--color-error)", maxWidth: 380, lineHeight: 1.4 }}>
-          {error}
-        </span>
-      )}
+  const items: { key: ExportFormat; icon: string; label: string; ext: string }[] = [
+    { key: "md", icon: "code", label: "Markdown", ext: ".MD · PRO" },
+    { key: "pdf", icon: "picture_as_pdf", label: "PDF", ext: ".PDF · PRO" },
+    { key: "docx", icon: "description", label: "Word", ext: ".DOCX · PRO" },
+  ];
 
-      <Button
-        variant={blocked ? "secondary" : "primary"}
-        disabled={busy || blocked || savePending}
-        onClick={() => void publish()}
-        title={
-          blocked
-            ? t("editor.resolveBlockers")
-            : savePending
-              ? t("editor.waitForSave")
-            : t("editor.publishHint")
-        }
-      >
-        {busy ? t("editor.publishing") : publishedAt ? t("editor.publishNewVersion") : t("editor.publish")}
-      </Button>
+  return (
+    <div ref={ref} role="menu" className="df-menu" style={{ top: "calc(100% + 6px)", right: 0 }}>
+      {items.map((item) => (
+        <button key={item.key} type="button" role="menuitem" className="df-menu__item" disabled={busy !== null} onClick={() => void exportAs(item.key)}>
+          <span className="material-symbols-outlined" aria-hidden>
+            {item.icon}
+          </span>
+          <span style={{ flex: 1 }}>
+            {item.label}
+            <span className="df-mono df-menu__hint">{busy === item.key ? t("editor.exporting").toUpperCase() : item.ext}</span>
+          </span>
+        </button>
+      ))}
+      {error && <div className="df-menu__error">{error}</div>}
     </div>
   );
 }

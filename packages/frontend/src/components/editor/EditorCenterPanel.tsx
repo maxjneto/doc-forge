@@ -1,7 +1,6 @@
-import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, type ReactNode } from "react";
 import { MarkdownRenderer } from "@/components/shared";
 import { headingAtLine, type Heading } from "@/utils/documentStructure";
-import { EditorStatusBar, type SaveState } from "./EditorStatusBar";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./MarkdownEditor";
 import { EditorDiffView, EditorChangeBar } from "./EditorDiffView";
 import type { Hunk } from "@/utils/diff";
@@ -21,14 +20,18 @@ type EditorMode = "source" | "preview" | "diff";
 export interface EditorCenterHandle {
   /** Scroll to a section — in whichever mode is open, without switching. */
   navigateTo: (slug: string) => void;
+  /** The passage the reader selected, in source or preview ("" when none). */
+  selection: () => string;
 }
 
 interface EditorCenterPanelProps {
   content: string;
   mode: EditorMode;
   headings: Heading[];
-  saveState: SaveState;
-  agentLabel?: string | null;
+  /** Read or comment only: the source opens without a cursor. */
+  readOnly?: boolean;
+  /** Tools at the end of the toolbar (commenting). */
+  tools?: ReactNode;
   /** Pending changes, shown when mode is "diff". */
   hunks?: Hunk[];
   activeHunk?: number;
@@ -57,8 +60,8 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
       content,
       mode,
       headings,
-      saveState,
-      agentLabel,
+      readOnly = false,
+      tools,
       hunks = [],
       activeHunk = 1,
       onHunkSelect,
@@ -135,6 +138,12 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
           }
           sourceRef.current?.goToLine(heading.line);
         },
+        selection() {
+          if (mode === "source") return sourceRef.current?.selectedText() ?? "";
+          const picked = window.getSelection();
+          if (!picked || picked.isCollapsed || !scrollRef.current?.contains(picked.anchorNode)) return "";
+          return picked.toString();
+        },
       }),
       [headings, mode],
     );
@@ -149,53 +158,29 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
           background: "var(--color-hover)",
         }}
       >
-        {/* Toolbar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "12px 24px",
-            borderBottom: "1px solid var(--color-outline)",
-            background: "var(--color-veil)",
-            backdropFilter: "blur(8px)",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "var(--color-hover)",
-              borderRadius: "var(--radius-sm)",
-              padding: 3,
-              border: "1px solid var(--color-outline)",
-            }}
-          >
+        {/* Toolbar: how to look at the text, then the tools — the same strip the layout editor has. */}
+        <div role="toolbar" aria-label={t("doc.toolbar")} className="df-doc-toolbar">
+          <div role="radiogroup" aria-label={t("doc.view")} className="df-seg" style={{ flex: "0 0 auto" }}>
             {(hunks.length > 0
               ? (["source", "preview", "diff"] as EditorMode[])
               : (["source", "preview"] as EditorMode[])
             ).map((m) => (
               <button
                 key={m}
+                type="button"
+                role="radio"
+                aria-checked={mode === m}
+                aria-pressed={mode === m}
                 onClick={() => onModeChange(m)}
-                style={{
-                  padding: "5px 14px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  border: "none",
-                  cursor: "pointer",
-                  background: mode === m ? "var(--color-surface-high)" : "transparent",
-                  color: mode === m ? "var(--color-text)" : "var(--color-faint)",
-                  transition: "all 0.15s",
-                }}
+                style={{ padding: "5px 14px" }}
               >
                 {t(m === "source" ? "editor.source" : m === "preview" ? "editor.preview" : "editor.diff")}
                 {m === "diff" && hunks.length > 0 ? ` ${hunks.length}` : ""}
               </button>
             ))}
           </div>
+          <div style={{ flex: 1 }} />
+          {tools}
         </div>
 
         {/* `CHANGE n OF m` — only meaningful while reading the diff */}
@@ -346,6 +331,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
                 key={t("editor.markdownPlaceholder")}
                 placeholderText={t("editor.markdownPlaceholder")}
                 ref={sourceRef}
+                readOnly={readOnly}
                 value={content}
                 onChange={onChange}
                 onCaretLine={reportLine}
@@ -356,7 +342,6 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
           )}
         </div>
 
-        <EditorStatusBar saveState={saveState} agentLabel={agentLabel} />
       </section>
     );
   },

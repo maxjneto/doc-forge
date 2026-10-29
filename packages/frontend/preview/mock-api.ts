@@ -23,7 +23,7 @@ const storeOf = (content: unknown): Store => ({
   content: structuredClone(content),
   revision: 3,
   notes: [],
-  revisions: [{ revision: 3, description: "Created", ops_count: null, by_agent: true, created_at: fx.ago(25), content: structuredClone(content), name: null, note: null, summary: null }],
+  revisions: [{ revision: 3, description: "Created", ops_count: null, by_agent: true, author_name: "Claude Code — laptop", harness: "claude_code", created_at: fx.ago(25), content: structuredClone(content), name: null, note: null, summary: null }],
 });
 const layoutStores: Record<string, Store> = { "doc-layout-q3": storeOf(layoutContent), "doc-layout-deck": storeOf(deckContent) };
 const storeFor = (id: string) => layoutStores[id] ?? (layoutStores["doc-layout-q3"] as Store);
@@ -91,6 +91,8 @@ async function layoutWrite(store: Store, ops: unknown[] | null, replace: unknown
     description: who.note ?? (ops ? `${ops.length} layout operation${ops.length === 1 ? "" : "s"}` : "Layout replaced"),
     ops_count: ops?.length ?? null,
     by_agent: Boolean(who.byAgent),
+    author_name: who.byAgent ? "Claude Code — laptop" : "Max Aragão",
+    harness: who.byAgent ? "claude_code" : null,
     created_at: new Date().toISOString(),
     content: structuredClone(result.doc),
     name: null,
@@ -199,6 +201,7 @@ const routes: Route[] = [
       data,
       revision: store.revision,
       by_agent: false,
+      author_name: "Max Aragão",
       status: "open",
       created_at: new Date().toISOString(),
       where: null,
@@ -233,7 +236,37 @@ const routes: Route[] = [
     const all = fx.suggestions(docFrom(m));
     return { suggestions: status ? all.filter((s) => s.status === status) : all };
   }],
-  ["GET", /\/documents\/([^/]+)\/feedback$/, () => ({ feedback: [] })],
+  ["GET", /\/documents\/([^/]+)\/presence$/, () => fx.presence],
+  ["GET", /\/documents\/([^/]+)\/feedback$/, (_m, _i, url) => {
+    const status = url.searchParams.get("status");
+    const roots = fx.feedback.filter((f) => !f.parent_id && (!status || f.status === status));
+    const ids = new Set(roots.map((f) => f.id));
+    return { feedback: [...roots, ...fx.feedback.filter((f) => ids.has(f.parent_id))] };
+  }],
+  ["POST", /\/documents\/([^/]+)\/feedback$/, (m, init) => {
+    const body = bodyOf(init);
+    const item = { id: `c-${Date.now()}`, document_id: docFrom(m), section_id: null, suggestion_id: null, parent_id: null, anchor: body.anchor ?? null, for_agent: Boolean(body.for_agent), content: body.content, status: "open", resolution_note: null, created_at: new Date().toISOString(), resolved_at: null, author_name: "Max Aragão", by_agent: false, harness: null, is_mine: true };
+    fx.feedback.push(item);
+    return item;
+  }],
+  ["POST", /\/feedback\/([^/]+)\/replies$/, (m, init) => {
+    const root = fx.feedback.find((f) => f.id === m[1]);
+    const item = { ...root, id: `c-${Date.now()}`, parent_id: m[1], for_agent: false, anchor: null, content: bodyOf(init).content, created_at: new Date().toISOString(), author_name: "Max Aragão", by_agent: false, harness: null, is_mine: true };
+    fx.feedback.push(item);
+    return item;
+  }],
+  ["POST", /\/feedback\/([^/]+)\/resolve$/, (m) => {
+    const root = fx.feedback.find((f) => f.id === m[1]);
+    if (root) Object.assign(root, { status: "resolved", resolved_at: new Date().toISOString() });
+    return root ?? {};
+  }],
+  ["PATCH", /\/feedback\/([^/]+)$/, (m, init) => {
+    const root = fx.feedback.find((f) => f.id === m[1]);
+    const body = bodyOf(init);
+    if (root && body.status === "open") Object.assign(root, { status: "open", resolved_at: null });
+    if (root && typeof body.for_agent === "boolean") root.for_agent = body.for_agent;
+    return root ?? {};
+  }],
   ["GET", /\/documents\/([^/]+)\/quality-gate$/, () => fx.gate],
   ["GET", /\/documents\/([^/]+)\/audit-findings$/, () => fx.gate.findings],
   ["GET", /\/documents\/([^/]+)\/artifacts$/, (m) => ({ artifacts: fx.artifacts(docFrom(m)) })],

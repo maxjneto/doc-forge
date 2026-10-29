@@ -21,6 +21,7 @@ from app.models import AuditFinding, Document, Section
 from app.models.user import User
 from app.schemas.audit import AuditFindingResponse
 from app.schemas.sse import SSEEvent
+from app.services import access
 from app.services import db as db_service
 from app.services import sse as sse_service
 from app.services.observability import capture_event
@@ -35,15 +36,9 @@ class GateFindingsRequest(BaseModel):
 
 
 async def _get_owned_document(
-    document_id: uuid.UUID, current_user: User, db: AsyncSession
+    document_id: uuid.UUID, current_user: User, db: AsyncSession, capability: access.Capability = "read"
 ) -> Document:
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return doc
+    return await access.require(db, document_id, current_user, capability)
 
 
 async def _replace_open_findings(
@@ -120,7 +115,7 @@ async def submit_quality_findings(
 
     Free of charge. An empty list asserts the document passed.
     """
-    await _get_owned_document(document_id, current_user, db)
+    await _get_owned_document(document_id, current_user, db, "write")
 
     sections_result = await db.execute(
         select(Section).where(Section.document_id == document_id)

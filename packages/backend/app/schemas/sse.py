@@ -13,6 +13,9 @@ SSEEventType = Literal[
     "feedback_resolved",
     "layout_note_changed",
     "layout_version_saved",
+    # Someone opened or closed the document. Carries no change to the content,
+    # so clients refresh who is here and nothing else.
+    "presence_changed",
 ]
 
 

@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, false, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 from app.models.base import Base
 
@@ -55,8 +56,15 @@ class Suggestion(Base):
 class Feedback(Base):
     """Human feedback anchored to a document/section, consumable by agents via MCP.
 
-    Created directly by the user (a comment) or automatically when a
+    Created directly by a person (a comment) or automatically when a
     suggestion is rejected with a comment — closing the human→agent loop.
+
+    Comments are conversations, the same shape as layout notes: a reply has
+    `parent_id` and no status of its own (the root carries it). `anchor` is
+    `{quote?, heading?}`: the text the comment is about and the heading it sat
+    under, resolved against the current text on every read so it survives edits
+    around it. `for_agent` marks a root as a request for the agent, which agents
+    read first. An agent's reply carries `api_key_id`.
     """
 
     __tablename__ = "feedback"
@@ -74,6 +82,14 @@ class Feedback(Base):
     author_user_id: Mapped[str | None] = mapped_column(
         String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
+    )
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("feedback.id", ondelete="CASCADE"), nullable=True
+    )
+    anchor: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    for_agent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     content: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -86,4 +102,5 @@ class Feedback(Base):
 
     __table_args__ = (
         Index("idx_feedback_document_status", "document_id", "status"),
+        Index("idx_feedback_parent", "parent_id"),
     )

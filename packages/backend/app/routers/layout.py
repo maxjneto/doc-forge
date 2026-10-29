@@ -65,7 +65,7 @@ from app.schemas.layout import (
     LayoutWriteResponse,
 )
 from app.schemas.sse import SSEEvent
-from app.services import access, layout_templates, layout_themes
+from app.services import access, actor, layout_templates, layout_themes
 from app.services import db as db_service
 from app.services import layout as layout_service
 from app.services import sse as sse_service
@@ -770,7 +770,24 @@ async def replace_layout(
 # ─── Notes (notices and annotations) ─────────────────────────
 
 
-def _note_response(note: LayoutNote, located: dict | None = None) -> LayoutNoteResponse:
+Author = tuple[str | None, str | None]
+
+
+async def _authors(db: AsyncSession, rows: list) -> dict[uuid.UUID, Author]:
+    """(name, harness) for each row's author: the agent's key if it has one, else the person."""
+    people, agents = await actor.names_for(
+        db, {r.author_user_id for r in rows if r.author_user_id}, {r.api_key_id for r in rows if r.api_key_id}
+    )
+    out: dict[uuid.UUID, Author] = {}
+    for r in rows:
+        if r.api_key_id and r.api_key_id in agents:
+            out[r.id] = agents[r.api_key_id]
+        elif r.author_user_id:
+            out[r.id] = (people.get(r.author_user_id), None)
+    return out
+
+
+def _note_response(note: LayoutNote, located: dict | None = None, author: Author | None = None) -> LayoutNoteResponse:
     return LayoutNoteResponse(
         id=str(note.id),
         document_id=str(note.document_id),
@@ -783,6 +800,8 @@ def _note_response(note: LayoutNote, located: dict | None = None) -> LayoutNoteR
         revision=note.revision,
         author_user_id=note.author_user_id,
         by_agent=note.api_key_id is not None,
+        author_name=author[0] if author else None,
+        harness=author[1] if author else None,
         status=note.status,
         resolution_note=note.resolution_note,
         created_at=note.created_at,
@@ -827,10 +846,11 @@ async def list_layout_notes(
             # Notes stay readable without the layout service; only positions are missing.
             if e.status_code != status.HTTP_503_SERVICE_UNAVAILABLE:
                 raise
+    authors = await _authors(db, notes)
     return LayoutNotesResponse(
         document_id=str(document_id),
         revision=layout.revision,
-        notes=[_note_response(n, located[i]) for i, n in enumerate(notes)],
+        notes=[_note_response(n, located[i], authors.get(n.id)) for i, n in enumerate(notes)],
     )
 
 
@@ -908,7 +928,7 @@ async def create_layout_annotation(
             request, current_user.id, document_id, "layout_annotation_created",
             {"anchor": "rect" if "rect" in anchor else "component" if anchor.get("component") else "document", "for_agent": bool(payload.for_agent)},
         )
-    return _note_response(note)
+    return _note_response(note, author=(await _authors(db, [note])).get(note.id))
 
 
 @router.patch("/layout-notes/{note_id}", response_model=LayoutNoteResponse)
@@ -937,7 +957,7 @@ async def update_layout_note(
         request, current_user.id, note.document_id, "layout_note_status",
         {"status": payload.status or note.status, "kind": note.kind, "code": note.code or "", "for_agent": bool(note.for_agent)},
     )
-    return _note_response(note)
+    return _note_response(note, author=(await _authors(db, [note])).get(note.id))
 
 
 # ─── Revisions and saved versions ────────────────────────────
@@ -964,13 +984,15 @@ def _ops_summary(ops: list | None) -> dict[str, Any] | None:
     return {"ops": counts, "components": components[:20]}
 
 
-def _revision_item(r: DocumentLayoutRevision) -> LayoutRevisionItem:
+def _revision_item(r: DocumentLayoutRevision, author: Author | None = None) -> LayoutRevisionItem:
     return LayoutRevisionItem(
         revision=r.revision,
         description=r.description,
         ops_count=len(r.ops) if r.ops is not None else None,
         author_user_id=r.author_user_id,
         by_agent=r.api_key_id is not None,
+        author_name=author[0] if author else None,
+        harness=author[1] if author else None,
         created_at=r.created_at,
         name=r.name,
         note=r.note,
@@ -1005,11 +1027,12 @@ async def list_layout_revisions(
     query = select(DocumentLayoutRevision).where(DocumentLayoutRevision.document_id == document_id)
     if named:
         query = query.where(DocumentLayoutRevision.name.is_not(None))
-    rows = (await db.execute(query.order_by(DocumentLayoutRevision.revision.desc()).limit(limit))).scalars()
+    rows = list((await db.execute(query.order_by(DocumentLayoutRevision.revision.desc()).limit(limit))).scalars())
+    authors = await _authors(db, rows)
     return LayoutRevisionsResponse(
         document_id=str(document_id),
         revision=layout.revision,
-        revisions=[_revision_item(r) for r in rows],
+        revisions=[_revision_item(r, authors.get(r.id)) for r in rows],
     )
 
 
@@ -1054,7 +1077,7 @@ async def save_layout_version(
     await db.commit()
     sse_service.publish(str(document_id), SSEEvent(type="layout_version_saved", payload={"doc_id": str(document_id), "revision": row.revision}))
     _track(request, current_user.id, document_id, "layout_version_saved", {"revision": row.revision, "has_note": bool(row.note), "behind": layout.revision - row.revision})
-    return _revision_item(row)
+    return _revision_item(row, (await _authors(db, [row])).get(row.id))
 
 
 @router.patch("/documents/{document_id}/layout/revisions/{revision}", response_model=LayoutRevisionItem)
@@ -1078,7 +1101,7 @@ async def update_layout_revision(
     await db.refresh(row)
     sse_service.publish(str(document_id), SSEEvent(type="layout_version_saved", payload={"doc_id": str(document_id), "revision": row.revision}))
     _track(request, current_user.id, document_id, "layout_version_updated", {"revision": row.revision, "unsaved": row.name is None})
-    return _revision_item(row)
+    return _revision_item(row, (await _authors(db, [row])).get(row.id))
 
 
 # ─── Themes ──────────────────────────────────────────────────

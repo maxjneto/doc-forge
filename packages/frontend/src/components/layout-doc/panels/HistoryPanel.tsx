@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ApplyResult, Comparison, Engine, LayoutDocument } from "@docforge-lib/layout";
 import { Button, IconButton, Input, Pill, textStyle } from "@/components/ui";
+import { ActorAvatar, useActorName } from "@/components/document";
 import { useI18n } from "@/i18n";
 import { apiGetLayoutRevision, apiListLayoutRevisions, apiSaveLayoutVersion, apiUpdateLayoutRevision, type LayoutNote, type LayoutRevisionItem } from "@/utils/api";
 import { fullDate, relativeTime } from "@/utils/time";
@@ -51,6 +52,7 @@ interface HistoryPanelProps {
 export function HistoryPanel(props: HistoryPanelProps) {
   const { documentId, engine, doc, revision, external, comparison, commit, replaceAll, onDismissExternal, onShow, viewing, onView, notices, onDismissNotices, nameOf, canEdit, surfaceId, getToken } = props;
   const { t, dateLocale: locale } = useI18n();
+  const actorName = useActorName();
   const [revisions, setRevisions] = useState<LayoutRevisionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<{ name: string; note: string } | null>(null);
@@ -319,7 +321,7 @@ export function HistoryPanel(props: HistoryPanelProps) {
                 </span>
                 {r.note && <span className="df-version__note">{r.note}</span>}
                 <span className="df-tl-item__meta">
-                  {r.byAgent ? t("layout.notes.byAgent") : t("layout.notes.byPerson")} · {when(r.createdAt)} · {t("layout.revision", { revision: r.revision })}
+                  {actorName({ name: r.authorName, agent: r.byAgent })} · {when(r.createdAt)} · {t("layout.revision", { revision: r.revision })}
                 </span>
               </button>
               {canEdit && (
@@ -346,10 +348,8 @@ export function HistoryPanel(props: HistoryPanelProps) {
               return (
                 <div key={g.key} className="df-tl-group">
                   <span className="df-tl-group__who" data-agent={g.byAgent || undefined}>
-                    <span className="material-symbols-outlined" aria-hidden>
-                      {g.byAgent ? "smart_toy" : "person"}
-                    </span>
-                    {g.byAgent ? t("layout.history.agent") : t("layout.history.person")}
+                    <ActorAvatar actor={{ name: g.authorName, agent: g.byAgent, harness: g.harness }} size={18} />
+                    {actorName({ name: g.authorName, agent: g.byAgent })}
                   </span>
                   {g.items.map((r) => row(r, false))}
                 </div>
@@ -364,9 +364,8 @@ export function HistoryPanel(props: HistoryPanelProps) {
                   aria-expanded={expanded}
                   onClick={() => setOpenGroups((s) => (s.has(g.key) ? new Set([...s].filter((k) => k !== g.key)) : new Set([...s, g.key])))}
                 >
-                  <span className="material-symbols-outlined" aria-hidden>
-                    person
-                  </span>
+                  <ActorAvatar actor={{ name: g.authorName, agent: false }} size={18} />
+                  {g.authorName ? `${g.authorName} · ` : ""}
                   {t("layout.history.session", { count: g.items.length, when: when(g.to) })}
                   <span className="material-symbols-outlined" aria-hidden style={{ marginLeft: "auto" }}>
                     {expanded ? "expand_less" : "expand_more"}

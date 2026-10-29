@@ -415,7 +415,7 @@ function GenericPanel({ copy, copied, t }: PanelProps) {
 const TOOL_NAMES = [
   "get_user_info", "list_documents", "create_document", "get_document", "get_section",
   "write_section", "append_section", "patch_section", "check_suggestions", "get_pending_feedback",
-  "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
+  "reply_feedback", "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
   "rename_version", "get_activity", "get_document_url", "get_quality_gate", "submit_quality_findings",
   "list_artifacts", "create_artifact",
 ];

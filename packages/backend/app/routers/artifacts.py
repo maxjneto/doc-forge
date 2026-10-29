@@ -27,6 +27,7 @@ from app.schemas.artifact import (
     ArtifactResponse,
     ArtifactUpdateRequest,
 )
+from app.services import access
 from app.services import db as db_service
 
 router = APIRouter(tags=["artifacts"])
@@ -44,14 +45,10 @@ def anchored_keys(body: str) -> set[str]:
     return set(DIRECTIVE_RE.findall(body or ""))
 
 
-async def _document(document_id: uuid.UUID, user: User, db: AsyncSession) -> Document:
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == user.id)
-    )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return doc
+async def _document(
+    document_id: uuid.UUID, user: User, db: AsyncSession, capability: access.Capability = "write"
+) -> Document:
+    return await access.require(db, document_id, user, capability)
 
 
 async def _body_text(document_id: uuid.UUID, db: AsyncSession) -> str:
@@ -101,7 +98,7 @@ async def list_artifacts(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _document(document_id, current_user, db)
+    await _document(document_id, current_user, db, "read")
     body = await _body_text(document_id, db)
     result = await db.execute(
         select(Artifact)

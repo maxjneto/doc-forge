@@ -440,9 +440,11 @@ async def check_suggestions(document_id: str, status: str = "", *, ctx: Context)
 
 @mcp.tool()
 async def get_pending_feedback(document_id: str, *, ctx: Context) -> str:
-    """Read open human feedback on a document (comments and suggestion rejections).
-    Call this BEFORE writing to incorporate what the user asked for. After you
-    address an item, mark it done with resolve_feedback.
+    """Read open human feedback on a document: comment threads people left on the
+    text (with the passage they point at) and comments from rejected suggestions.
+    Requests addressed to you come first. Call this BEFORE writing to incorporate
+    what people asked for; answer in a thread with reply_feedback, and mark an
+    item done with resolve_feedback once the document reflects it.
 
     Args:
         document_id: Document UUID.
@@ -451,13 +453,51 @@ async def get_pending_feedback(document_id: str, *, ctx: Context) -> str:
     items = await api.list_feedback(document_id, status="open")
     if not items:
         return "No open feedback. You're clear to write."
-    lines = []
+    roots = [f for f in items if not f.get("parent_id")]
+    replies: dict[str, list[dict[str, Any]]] = {}
     for f in items:
+        if f.get("parent_id"):
+            replies.setdefault(f["parent_id"], []).append(f)
+    roots.sort(key=lambda f: not f.get("for_agent"))
+
+    def who(f: dict[str, Any]) -> str:
+        name = f.get("author_name") or "someone"
+        return f"{name} (agent)" if f.get("by_agent") else name
+
+    lines = []
+    for f in roots:
         ts = (f.get("created_at") or "")[:16]
-        anchor = f" (section {f['section_id']})" if f.get("section_id") else ""
-        origin = " [from a rejected suggestion]" if f.get("suggestion_id") else ""
-        lines.append(f"- id={f['id']} {ts}{anchor}{origin}\n  {f['content']}")
+        tags = []
+        if f.get("for_agent"):
+            tags.append("[for you]")
+        if f.get("suggestion_id"):
+            tags.append("[from a rejected suggestion]")
+        head = f"- id={f['id']} {ts} {who(f)} {' '.join(tags)}".rstrip()
+        anchor = f.get("anchor") or {}
+        if anchor.get("heading"):
+            head += f"\n  under: {anchor['heading']}"
+        if anchor.get("quote"):
+            head += f'\n  on: "{anchor["quote"]}"'
+        head += f"\n  {f['content']}"
+        for r in replies.get(f["id"], []):
+            head += f"\n    ↳ {who(r)}: {r['content']}"
+        lines.append(head)
     return "Open feedback items:\n" + "\n".join(lines)
+
+
+@mcp.tool()
+async def reply_feedback(feedback_id: str, message: str, *, ctx: Context) -> str:
+    """Answer in a comment thread — a question back, or what you changed. The
+    person sees it under their comment. Replying does not close the thread; use
+    resolve_feedback when it is done.
+
+    Args:
+        feedback_id: Feedback UUID (from get_pending_feedback).
+        message: Your answer.
+    """
+    _use_api_key(ctx)
+    result = await api.reply_feedback(feedback_id, message)
+    return f"Replied in thread {result.get('parent_id') or feedback_id}."
 
 
 @mcp.tool()
