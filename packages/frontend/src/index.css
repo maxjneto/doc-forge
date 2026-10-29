@@ -766,3 +766,16 @@ textarea.font-mono,
 .df-present[data-idle] { cursor: none; }
 .df-tpl__slides { display: flex; flex-direction: column; gap: 5px; height: 100%; }
 .df-tpl__slide { flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 4px; border-radius: var(--radius-xs); border: 1px solid var(--color-outline-md); }
+
+/* ─── Marketing navigation ────────────────────────────────────
+   On a phone the text links give way to the brand, the language and the call
+   to action; the pages they lead to are linked from the page itself. */
+.df-marketing-nav { padding: 0 40px; }
+.df-marketing-nav__right { gap: 24px; padding-left: 16px; }
+.df-marketing-nav__cta { padding: 8px 16px; }
+@media (max-width: 640px) {
+  .df-marketing-nav { padding: 0 16px; }
+  .df-marketing-nav__right { gap: 10px; }
+  .df-marketing-nav__cta { padding: 7px 11px; }
+  .df-marketing-nav__links { display: none !important; }
+}
