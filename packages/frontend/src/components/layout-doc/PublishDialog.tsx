@@ -25,7 +25,18 @@ const codeBox = {
  * decides when readers (and other sites, through @docforge-lib/layout) see the
  * edits. Unpublishing revokes the link.
  */
-export function PublishDialog({ documentId, saving, onClose }: { documentId: string; saving: boolean; onClose: () => void }) {
+export function PublishDialog({
+  documentId,
+  saving,
+  onChange,
+  onClose,
+}: {
+  documentId: string;
+  saving: boolean;
+  /** Publishing changes the document's state pill. */
+  onChange?: (state: LayoutPublication) => void;
+  onClose: () => void;
+}) {
   const { getToken } = useAuth();
   const { t, dateLocale } = useI18n();
   const [state, setState] = useState<LayoutPublication | null>(null);
@@ -43,7 +54,9 @@ export function PublishDialog({ documentId, saving, onClose }: { documentId: str
     setBusy(true);
     setError(null);
     try {
-      setState(await action());
+      const next = await action();
+      setState(next);
+      onChange?.(next);
       setCopied(false);
     } catch {
       setError(t("layout.publish.error"));

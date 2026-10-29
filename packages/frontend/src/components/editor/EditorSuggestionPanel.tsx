@@ -18,9 +18,11 @@ interface SuggestionCardProps {
   suggestion: Suggestion;
   index: number;
   onResolved: () => void;
+  /** Readers and commenters see the proposal but cannot decide on it. */
+  readOnly?: boolean;
 }
 
-function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) {
+function SuggestionCard({ suggestion, index, onResolved, readOnly = false }: SuggestionCardProps) {
   const { getToken } = useAuth();
   const [rejecting, setRejecting] = useState(false);
   const [comment, setComment] = useState("");
@@ -146,6 +148,7 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
         <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "var(--color-error)" }}>{error}</div>
       )}
 
+      {!readOnly && (
       <div style={{ display: "flex", gap: 7 }}>
         {rejecting ? (
           <>
@@ -170,6 +173,7 @@ function SuggestionCard({ suggestion, index, onResolved }: SuggestionCardProps) 
           </>
         )}
       </div>
+      )}
     </Card>
   );
 }
@@ -185,6 +189,7 @@ interface EditorSuggestionPanelProps {
   /** Reports the pending suggestions themselves, so the nav can tally them per section. */
   onPendingChange?: (suggestions: Suggestion[]) => void;
   triage?: TriageState;
+  readOnly?: boolean;
 }
 
 /** Review tab content — full height, single scroll region shared by every
@@ -196,6 +201,7 @@ export function EditorSuggestionPanel({
   onCountChange,
   onPendingChange,
   triage,
+  readOnly = false,
 }: EditorSuggestionPanelProps) {
   const { getToken } = useAuth();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -244,6 +250,7 @@ export function EditorSuggestionPanel({
               key={s.id}
               suggestion={s}
               index={i + 1}
+              readOnly={readOnly}
               onResolved={() => {
                 refetch();
                 onSuggestionResolved();
@@ -257,7 +264,7 @@ export function EditorSuggestionPanel({
       {/* Triage footer — the mock's `↑↓ NAVEGAR · A ACEITAR · R RECUSAR`
           and `Salvar triagem`. Only meaningful once there is something to
           triage; the server applies base + accepted hunks. */}
-      {triage && triage.total > 0 && (
+      {triage && triage.total > 0 && !readOnly && (
         <div
           style={{
             flexShrink: 0,

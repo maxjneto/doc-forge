@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { UserButton } from "@clerk/clerk-react";
 import { ApiKeyPanel } from "@/components/shared/ApiKeyPanel";
@@ -9,39 +9,13 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface TopBarProps {
   credits?: number;
-  /** On a document page: the title, renamed in place when onRenameTitle is given. */
-  docTitle?: string;
-  onRenameTitle?: (title: string) => Promise<void>;
   /** Show the dashboard-style nav row (signed-in pages that are not a document). */
   dashboardNav?: boolean;
 }
 
-export function TopBar({ credits, docTitle, onRenameTitle, dashboardNav }: TopBarProps) {
+export function TopBar({ credits, dashboardNav }: TopBarProps) {
   const { t } = useI18n();
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
   const [showApiKeys, setShowApiKeys] = useState(false);
-  const titleInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editingTitle) {
-      setTitleDraft(docTitle ?? "");
-      setTimeout(() => titleInputRef.current?.select(), 0);
-    }
-  }, [editingTitle, docTitle]);
-
-  const commitTitle = async () => {
-    setEditingTitle(false);
-    const trimmed = titleDraft.trim();
-    if (!trimmed || trimmed === docTitle) return;
-    await onRenameTitle?.(trimmed);
-  };
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") commitTitle();
-    if (e.key === "Escape") setEditingTitle(false);
-  };
-
   return (
     <>
     <header
@@ -144,81 +118,8 @@ export function TopBar({ credits, docTitle, onRenameTitle, dashboardNav }: TopBa
 
         <LanguageSwitcher compact />
 
-        {/* Doc title / credits */}
-        {docTitle ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              border: "1px solid var(--color-outline)",
-              borderRadius: "var(--radius-xs)",
-              padding: "2px 4px 2px 10px",
-              maxWidth: 260,
-            }}
-          >
-            {editingTitle ? (
-              <input
-                ref={titleInputRef}
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                onBlur={commitTitle}
-                onKeyDown={handleTitleKeyDown}
-                maxLength={200}
-                className="df-mono"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "var(--tracking-label)",
-                  textTransform: "uppercase",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: "var(--color-dim)",
-                  width: 180,
-                  fontFamily: "inherit",
-                }}
-              />
-            ) : (
-              <span
-                className="df-mono"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "var(--tracking-label)",
-                  textTransform: "uppercase",
-                  color: "var(--color-dim)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: 200,
-                }}
-              >
-                {docTitle.length > 28 ? docTitle.slice(0, 28) + "…" : docTitle}
-              </span>
-            )}
-            {onRenameTitle && (
-              <button
-                onClick={() => setEditingTitle((v) => !v)}
-                title={t("common.rename")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "3px 5px",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--color-mute)",
-                  borderRadius: "var(--radius-xs)",
-                  transition: "color 0.15s",
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-faint)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-mute)"; }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>edit</span>
-              </button>
-            )}
-          </div>
-        ) : credits !== undefined ? (
+        {/* Credits */}
+        {credits !== undefined ? (
           <span
             className="df-mono"
             style={{

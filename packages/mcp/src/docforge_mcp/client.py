@@ -177,6 +177,10 @@ async def list_feedback(document_id: str, status: str | None = None) -> list[dic
     return data.get("feedback", []) if isinstance(data, dict) else data
 
 
+async def reply_feedback(feedback_id: str, content: str) -> dict[str, Any]:
+    return await _post(f"/feedback/{feedback_id}/replies", json={"content": content})
+
+
 async def resolve_feedback(
     feedback_id: str,
     resolution_note: str | None = None,

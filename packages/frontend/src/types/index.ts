@@ -91,10 +91,19 @@ export interface DocumentActivity {
     | "suggestion_accepted"
     | "suggestion_rejected"
     | "feedback_created"
-    | "feedback_resolved";
+    | "feedback_replied"
+    | "feedback_resolved"
+    | "layout_updated"
+    | "layout_published";
   description: string | null;
+  /** `user:<id>` or `key:<id>`: the same actor across entries. */
+  actorId: string;
   actorName: string;
   isAgent: boolean;
+  /** The entry is the viewer's own (never an agent's). */
+  isMe: boolean;
+  /** For an agent: the person whose key it used. */
+  onBehalfOf: string | null;
   harness: string | null;
   bytesDelta: number | null;
   versionId: string | null;
@@ -129,11 +138,27 @@ export interface FeedbackItem {
   documentId: string;
   sectionId: string | null;
   suggestionId: string | null;
+  /** A reply: the thread's root. Replies have no status of their own. */
+  parentId: string | null;
+  /** The passage a comment is about, and the heading it sat under. */
+  anchor: { quote?: string; heading?: string } | null;
+  /** A request for the agent to act on (thread roots only). */
+  forAgent: boolean;
   content: string;
   status: FeedbackStatus;
   resolutionNote: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  authorName: string | null;
+  byAgent: boolean;
+  harness: string | null;
+  isMine: boolean;
+}
+
+/** Who is on a document now: people with it open, agents that wrote lately. */
+export interface Presence {
+  people: { id: string; name: string; isMe: boolean; since: string }[];
+  agents: { id: string; name: string; harness: string | null; onBehalfOf: string | null; lastSeen: string }[];
 }
 
 // ─── Quality gate ────────────────────────────────────────────

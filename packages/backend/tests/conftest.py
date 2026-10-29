@@ -27,6 +27,7 @@ from app.database import get_db
 from app.main import app
 from app.models.base import Base
 from app.models.user import User
+from app.services import actor
 
 # ─── In-memory SQLite async engine for tests ─────────────────
 
@@ -102,6 +103,7 @@ def client_factory():
 
         async def _override_user():
             await _seed_user(u)
+            actor.bind(u.id)
             return u
 
         app.dependency_overrides[get_db] = _override_get_db

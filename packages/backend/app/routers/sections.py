@@ -17,6 +17,7 @@ from app.schemas.section import (
     VersionRestoreResponse,
 )
 from app.schemas.suggestion import SectionWriteResponse
+from app.services import access
 from app.services.db import create_version_snapshot, restore_version, update_section_content
 from app.services.observability import capture_event
 
@@ -27,15 +28,20 @@ async def _assert_section_ownership(
     section_id: uuid.UUID,
     current_user: User,
     db: AsyncSession,
+    capability: access.Capability = "write",
 ) -> Section:
-    result = await db.execute(
-        select(Section)
-        .join(Document, Section.document_id == Document.id)
-        .where(Section.id == section_id, Document.user_id == current_user.id)
-    )
+    """The section, if the caller's role on its document allows `capability`."""
+    result = await db.execute(select(Section).where(Section.id == section_id))
     section = result.scalar_one_or_none()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+    try:
+        await access.require(db, section.document_id, current_user, capability)
+    except HTTPException as e:
+        # Not seeing the document means not seeing its sections either.
+        if e.status_code == 404:
+            raise HTTPException(status_code=404, detail="Section not found") from e
+        raise
     return section
 
 
@@ -46,7 +52,7 @@ async def get_section_versions(
     current_user: User = Depends(get_current_user),
 ):
     logger.debug("[router] get_section_versions | section_id={}", section_id)
-    await _assert_section_ownership(section_id, current_user, db)
+    await _assert_section_ownership(section_id, current_user, db, "read")
     result = await db.execute(
         select(SectionVersion)
         .where(SectionVersion.section_id == section_id)

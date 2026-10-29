@@ -254,6 +254,9 @@ class LayoutNoteResponse(BaseModel):
     revision: int
     author_user_id: str | None = None
     by_agent: bool = False
+    # The person's name, or the agent's key name (with its harness).
+    author_name: str | None = None
+    harness: str | None = None
     status: str
     resolution_note: str | None = None
     created_at: datetime.datetime | None = None
@@ -278,6 +281,8 @@ class LayoutRevisionItem(BaseModel):
     ops_count: int | None = None
     author_user_id: str | None = None
     by_agent: bool = False
+    author_name: str | None = None
+    harness: str | None = None
     created_at: datetime.datetime | None = None
     # A saved version: the name and note someone gave this revision.
     name: str | None = None

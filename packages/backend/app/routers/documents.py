@@ -27,9 +27,10 @@ from app.schemas.document import (
     DocumentUpdateRequest,
     SectionBriefResponse,
 )
-from app.services import access
+from app.services import access, actor
 from app.services import db as db_service
 from app.services import export as export_service
+from app.services import presence as presence_service
 from app.services import sse as sse_service
 from app.services.observability import capture_event
 
@@ -217,12 +218,10 @@ async def update_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    # Renaming is editing; how agents may write and whether the gate blocks are
+    # the owner's call.
+    settings_change = payload.agent_write_policy is not None or payload.require_gate_on_accept is not None
+    doc = await access.require(db, document_id, current_user, "manage" if settings_change else "write")
     if payload.title is not None:
         doc.title = payload.title
     if payload.agent_write_policy is not None:
@@ -241,14 +240,11 @@ async def stream_document(
     current_user: User = Depends(get_current_user),
 ):
     logger.debug("[router] stream_document | doc_id={} user_id={}", document_id, current_user.id)
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Document not found")
+    await access.require(db, document_id, current_user, "read")
 
+    # An open stream is how a person is "here": presence follows the connection.
     return StreamingResponse(
-        sse_service.event_stream(str(document_id)),
+        sse_service.event_stream(str(document_id), presence=(current_user.id, actor.person_label(current_user.name, current_user.email))),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -372,11 +368,7 @@ async def get_audit_findings(
     current_user: User = Depends(get_current_user),
 ):
     logger.debug("[router] get_audit_findings | doc_id={}", document_id)
-    doc_result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    if not doc_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Document not found")
+    await access.require(db, document_id, current_user, "read")
 
     findings = await db_service.get_audit_findings(db, document_id)
     return [AuditFindingResponse.model_validate(f) for f in findings]
@@ -390,11 +382,7 @@ async def dismiss_audit_finding(
     current_user: User = Depends(get_current_user),
 ):
     logger.info("[router] dismiss_audit_finding | doc_id={} finding_id={}", document_id, finding_id)
-    doc_result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    if not doc_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Document not found")
+    await access.require(db, document_id, current_user, "write")
 
     finding_result = await db.execute(
         select(AuditFinding).where(
@@ -416,37 +404,55 @@ async def get_document_activity(
     current_user: User = Depends(get_current_user),
     limit: int = 50,
 ):
+    """Who did what, newest first, with a name for every actor.
 
-    from app.models.api_key import ApiKey
+    An agent is named by its key (and the person it acts for); a person by their
+    name. Entries written before people were recorded belong to the owner: the
+    document could not be shared back then.
+    """
     from app.models.document_activity import DocumentActivity
 
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    rows = await db.execute(
-        select(DocumentActivity, ApiKey.name, ApiKey.harness)
-        .outerjoin(ApiKey, DocumentActivity.api_key_id == ApiKey.id)
+    doc = await access.require(db, document_id, current_user, "read")
+    rows = list((await db.execute(
+        select(DocumentActivity)
         .where(DocumentActivity.document_id == document_id)
         .order_by(DocumentActivity.created_at.desc())
         .limit(limit)
+    )).scalars())
+    people, agents = await actor.names_for(
+        db, {a.user_id or doc.user_id for a in rows}, {a.api_key_id for a in rows if a.api_key_id}
     )
     entries = []
-    for activity, key_name, key_harness in rows:
+    for activity in rows:
+        person_id = activity.user_id or doc.user_id
+        agent = agents.get(activity.api_key_id) if activity.api_key_id else None
         entries.append({
             "id": str(activity.id),
             "action_type": activity.action_type,
             "description": activity.description,
-            "actor_name": key_name if key_name else "You",
-            "is_agent": key_name is not None,
-            "harness": key_harness,
+            "actor_id": f"key:{activity.api_key_id}" if agent else f"user:{person_id}",
+            "actor_name": agent[0] if agent else people.get(person_id, "Someone"),
+            "is_agent": agent is not None,
+            "is_me": agent is None and person_id == current_user.id,
+            # For an agent, the person whose key it used.
+            "on_behalf_of": people.get(person_id) if agent else None,
+            "harness": agent[1] if agent else None,
             "bytes_delta": activity.bytes_delta,
             "version_id": str(activity.version_id) if activity.version_id else None,
             "created_at": activity.created_at.isoformat() if activity.created_at else None,
         })
     return entries
+
+
+@router.get("/documents/{document_id}/presence")
+async def get_document_presence(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Who is on the document now: people with it open, agents that wrote lately."""
+    await access.require(db, document_id, current_user, "read")
+    return await presence_service.snapshot(db, document_id, current_user.id)
 
 
 # ─── Publication ─────────────────────────────────────────────
@@ -470,12 +476,7 @@ async def publish_document(
     people are meant to read. Blocking gate findings stop it — that is the
     whole point of the gate being a gate rather than a report.
     """
-    result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == current_user.id)
-    )
-    doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    await access.require(db, document_id, current_user, "write")
 
     from app.routers.quality_gate import open_high_findings
 

@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { createEngine, type ComponentType, type Engine, type Surface } from "@docforge-lib/layout";
-import { Button, IconButton, Switch, textStyle } from "@/components/ui";
+import { Button, IconButton, Pill, Switch, textStyle } from "@/components/ui";
+import { ActivityPanel, DocumentBar, DocumentSidebar, DocumentStatusBar, PresenceStack, type DocumentRole, type SideTab as SideTabDef } from "@/components/document";
+import { usePresence } from "@/hooks/usePresence";
 import {
   apiCreateLayoutAnnotation,
-  apiFetchMembers,
   apiGetLayout,
+  apiGetLayoutPublication,
   apiListLayoutNotes,
   apiReplyLayoutNote,
   apiUpdateLayoutNote,
   type LayoutNote,
+  type LayoutPublication,
   type LayoutRect,
   type LayoutState,
 } from "@/utils/api";
@@ -37,11 +40,17 @@ import { relativeTime } from "@/utils/time";
 
 interface LayoutDocumentViewProps {
   documentId: string;
+  title: string;
+  /** Given when the viewer may rename the document. */
+  onRenameTitle?: (title: string) => Promise<void>;
+  role: DocumentRole;
+  /** The pills every document shows: the viewer's role, the agent via MCP. */
+  context: ReactNode;
   /** Bumped on every SSE event for the document; an agent write triggers a refetch. */
   sseTick: number;
+  /** Bumped when someone opens or closes the document. */
+  presenceTick: number;
 }
-
-type Role = "owner" | "editor" | "commenter" | "viewer";
 
 /**
  * A layout document: the pages, rendered in the browser with the same library
@@ -49,12 +58,11 @@ type Role = "owner" | "editor" | "commenter" | "viewer";
  * editing layer and panels that send the same operations agents send. Loaded on
  * demand: fontkit stays out of the main bundle.
  */
-export default function LayoutDocumentView({ documentId, sseTick }: LayoutDocumentViewProps) {
+export default function LayoutDocumentView({ documentId, sseTick, ...shell }: LayoutDocumentViewProps) {
   const { getToken } = useAuth();
   const { t } = useI18n();
   const [engine, setEngine] = useState<Engine | null>(null);
   const [state, setState] = useState<LayoutState | null>(null);
-  const [role, setRole] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,10 +81,6 @@ export default function LayoutDocumentView({ documentId, sseTick }: LayoutDocume
     apiGetLayout(documentId, getToken)
       .then((next) => !cancelled && setState(next))
       .catch((e: unknown) => !cancelled && setError(String(e)));
-    apiFetchMembers(documentId, getToken)
-      .then((m) => !cancelled && setRole((m.myRole as Role) ?? "viewer"))
-      // Without the members list, read-only is the safe default.
-      .catch(() => !cancelled && setRole("viewer"));
     return () => {
       cancelled = true;
     };
@@ -89,7 +93,7 @@ export default function LayoutDocumentView({ documentId, sseTick }: LayoutDocume
       </Centered>
     );
   }
-  if (!engine || !state || !role) {
+  if (!engine || !state) {
     return (
       <Centered>
         <span className="animate-pulse" style={{ ...textStyle.caption, color: "var(--color-faint)" }}>
@@ -98,10 +102,10 @@ export default function LayoutDocumentView({ documentId, sseTick }: LayoutDocume
       </Centered>
     );
   }
-  return <LayoutWorkspace key={documentId} engine={engine} initial={state} documentId={documentId} role={role} sseTick={sseTick} />;
+  return <LayoutWorkspace key={documentId} engine={engine} initial={state} documentId={documentId} sseTick={sseTick} {...shell} />;
 }
 
-type SideTab = "structure" | "review" | "design" | "page" | "comments" | "history";
+type SideTab = "structure" | "review" | "design" | "page" | "comments" | "history" | "activity";
 const ZOOMS = [0.5, 0.6, 0.75, 1, 1.25];
 
 /** The largest zoom at which a page this wide fits beside the panels (slides are wide). */
@@ -116,11 +120,30 @@ const TAB_ICON: Record<SideTab, string> = {
   page: "description",
   comments: "forum",
   history: "history",
+  activity: "timeline",
 };
 
-function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engine: Engine; initial: LayoutState; documentId: string; role: Role; sseTick: number }) {
+function LayoutWorkspace({
+  engine,
+  initial,
+  documentId,
+  role,
+  sseTick,
+  presenceTick,
+  title,
+  onRenameTitle,
+  context,
+}: { engine: Engine; initial: LayoutState; documentId: string; sseTick: number } & Omit<LayoutDocumentViewProps, "documentId" | "sseTick">) {
   const { t, dateLocale } = useI18n();
   const { getToken } = useAuth();
+  const presence = usePresence(documentId, getToken, presenceTick + sseTick);
+  const [publication, setPublication] = useState<LayoutPublication | null>(null);
+  useEffect(() => {
+    apiGetLayoutPublication(documentId, getToken)
+      .then(setPublication)
+      // The state pill is a courtesy; the document works without it.
+      .catch(() => {});
+  }, [documentId, getToken]);
   const canEdit = role === "owner" || role === "editor";
   const canComment = canEdit || role === "commenter";
   const editor = useLayoutEditor(engine, documentId, initial, getToken, sseTick);
@@ -206,7 +229,6 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
     }
   }, []);
   const openSide = (tab: SideTab) => {
-    if (tab === side && panelOpen) return setPanelOpen(false);
     setSide(tab);
     setPanelOpen(true);
     track("layout_panel_opened", { panel: tab });
@@ -289,10 +311,81 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
     setPanelOpen(true);
   };
 
+  const publishedBehind = publication?.published && publication.revision !== null && editor.revision > publication.revision;
+  const sideTabs: SideTabDef<SideTab>[] = (Object.keys(TAB_ICON) as SideTab[]).map((tab) => ({
+    id: tab,
+    icon: tab === "page" && deck ? "slideshow" : TAB_ICON[tab],
+    label: t(`layout.side.${tab}`),
+    short: t(`layout.side.${tab}.short`),
+    badge: badges[tab],
+    dot: tab === "design" && draft ? t("layout.design.draft") : undefined,
+  }));
+
   return (
-    <div style={{ height: "100%", paddingTop: 56, display: "flex", overflow: "hidden", background: "var(--color-bg)" }}>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <div role="toolbar" aria-label={t("layout.editor.toolbar")} className="df-layout-toolbar">
+    <div className="df-doc-shell">
+      <DocumentBar
+        title={title}
+        onRenameTitle={onRenameTitle}
+        status={
+          <>
+            {publishedBehind ? (
+              <Pill tone="heat" dot>
+                {t("editor.unpublishedChanges")}
+              </Pill>
+            ) : publication?.published ? (
+              <Pill tone="steel">{t("editor.published")}</Pill>
+            ) : (
+              <Pill tone="ghost">{t("common.draft")}</Pill>
+            )}
+            {context}
+          </>
+        }
+        presence={<PresenceStack presence={presence} />}
+        actions={
+          <>
+            {slides && (
+              <Button
+                variant="secondary"
+                icon="slideshow"
+                iconPosition="start"
+                onClick={() => {
+                  track("layout_presented", { slides: layout.pages.length });
+                  setPresenting(true);
+                }}
+              >
+                {t("layout.slides.present")}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              icon="download"
+              iconPosition="start"
+              onClick={() => {
+                track("document_exported", { document_id: documentId, mode: "layout", format: "pdf", pages: layout.pages.length, slides });
+                canvas.current?.print();
+              }}
+            >
+              {t("layout.print")}
+            </Button>
+            {role === "owner" && (
+              <Button
+                variant={viewing ? "secondary" : "primary"}
+                icon="public"
+                iconPosition="start"
+                onClick={() => {
+                  track("layout_publish_opened");
+                  setPublishing(true);
+                }}
+              >
+                {t("layout.publish.button")}
+              </Button>
+            )}
+          </>
+        }
+      />
+      <div className="df-doc-shell__main">
+      <div className="df-doc-shell__work">
+        <div role="toolbar" aria-label={t("layout.editor.toolbar")} className="df-doc-toolbar">
           {canEdit && <Switch checked={editing} onChange={setEditing} label={t("layout.editor.editMode")} />}
           {surfaces.length > 1 && (
             <select className="df-input" aria-label={t("layout.surface")} value={activeSurface ?? ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ width: "auto", padding: "4px 8px" }}>
@@ -313,7 +406,7 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
           <Switch checked={showGrid} onChange={setShowGrid} label={t("layout.grid")} />
           {editable && (
             <>
-              <span aria-hidden className="df-layout-toolbar__sep" />
+              <span aria-hidden className="df-doc-toolbar__sep" />
               <IconButton icon="undo" label={t("layout.editor.undo")} disabled={!editor.canUndo} onClick={editor.undo} />
               <IconButton icon="redo" label={t("layout.editor.redo")} disabled={!editor.canRedo} onClick={editor.redo} />
               <div style={{ position: "relative" }}>
@@ -340,59 +433,9 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
               {annotating ? t("layout.notes.stopAnnotating") : t("layout.comments.comment")}
             </Button>
           )}
-          <div style={{ flex: 1 }} />
-          <span
-            style={{ ...textStyle.caption, display: "inline-flex", alignItems: "center", gap: 6, color: editor.status === "error" ? "var(--color-error)" : "var(--color-dim)" }}
-            aria-live="polite"
-            title={t("layout.revision", { revision: editor.revision })}
-          >
-            <span
-              aria-hidden
-              style={{ width: 6, height: 6, borderRadius: "50%", background: editor.status === "error" ? "var(--color-error)" : editor.status === "saving" ? "var(--color-warn)" : "var(--color-ok)" }}
-            />
-            {editor.status === "saving" ? t("layout.status.saving") : editor.status === "error" ? t("layout.editor.notSaved") : t("layout.status.saved")}
-            <span style={{ color: "var(--color-faint)" }}>· {slides ? t("layout.slides.count", { count: layout.pages.length }) : t("layout.pages", { count: layout.pages.length })}</span>
-          </span>
-          {slides && (
-            <Button
-              variant="secondary"
-              icon="slideshow"
-              iconPosition="start"
-              onClick={() => {
-                track("layout_presented", { slides: layout.pages.length });
-                setPresenting(true);
-              }}
-            >
-              {t("layout.slides.present")}
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            icon="download"
-            iconPosition="start"
-            onClick={() => {
-              track("document_exported", { document_id: documentId, mode: "layout", format: "pdf", pages: layout.pages.length, slides });
-              canvas.current?.print();
-            }}
-          >
-            {t("layout.print")}
-          </Button>
-          {role === "owner" && (
-            <Button
-              variant="secondary"
-              icon="public"
-              iconPosition="start"
-              onClick={() => {
-                track("layout_publish_opened");
-                setPublishing(true);
-              }}
-            >
-              {t("layout.publish.button")}
-            </Button>
-          )}
         </div>
         {noticeText && !viewing && (
-          <div role="status" className="df-layout-banner df-layout-banner--steel">
+          <div role="status" className="df-doc-banner df-doc-banner--steel">
             <span className="material-symbols-outlined" aria-hidden>
               smart_toy
             </span>
@@ -415,7 +458,7 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
           </div>
         )}
         {viewing && (
-          <div role="status" className="df-layout-banner df-layout-banner--heat">
+          <div role="status" className="df-doc-banner df-doc-banner--heat">
             <span className="material-symbols-outlined" aria-hidden>
               history
             </span>
@@ -497,13 +540,7 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
         </div>
       </div>
 
-      {panelOpen && (
-        <aside aria-label={t("layout.editor.panel")} className="df-layout-panel">
-          <header className="df-layout-panel__head">
-            <span style={{ ...textStyle.group, color: "var(--color-text)" }}>{t(`layout.side.${side}`)}</span>
-            <IconButton icon="right_panel_close" label={t("layout.side.hide")} onClick={() => setPanelOpen(false)} />
-          </header>
-          <div className="df-layout-panel__body">
+      <DocumentSidebar tabs={sideTabs} active={side} open={panelOpen} onSelect={openSide} onClose={() => setPanelOpen(false)}>
             {side === "structure" &&
               (selectedComponent && !viewing ? (
                 <ComponentPanel
@@ -594,31 +631,23 @@ function LayoutWorkspace({ engine, initial, documentId, role, sseTick }: { engin
                 getToken={getToken}
               />
             )}
-          </div>
-        </aside>
-      )}
+            {side === "activity" && <ActivityPanel documentId={documentId} getToken={getToken} refreshTick={sseTick + editor.revision} />}
+      </DocumentSidebar>
+      </div>
 
-      <nav className="df-side-rail" aria-label={t("layout.editor.panel")}>
-        {(Object.keys(TAB_ICON) as SideTab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className="df-side-rail__item"
-            aria-pressed={side === tab && panelOpen}
-            title={t(`layout.side.${tab}`)}
-            onClick={() => openSide(tab)}
-          >
-            <span className="material-symbols-outlined" aria-hidden>
-              {tab === "page" && deck ? "slideshow" : TAB_ICON[tab]}
-            </span>
-            <span className="df-side-rail__label">{t(`layout.side.${tab}.short`)}</span>
-            {(badges[tab] ?? 0) > 0 && <span className="df-side-rail__badge">{badges[tab]}</span>}
-            {tab === "design" && draft && <span className="df-side-rail__dot" aria-label={t("layout.design.draft")} />}
-          </button>
-        ))}
-      </nav>
+      <DocumentStatusBar
+        save={{
+          text: editor.status === "saving" ? t("layout.status.saving") : editor.status === "error" ? t("layout.editor.notSaved") : t("layout.status.saved"),
+          tone: editor.status === "saving" ? "busy" : editor.status === "error" ? "error" : "quiet",
+        }}
+        presence={presence}
+      >
+        <span title={t("layout.revision", { revision: editor.revision })}>
+          {slides ? t("layout.slides.count", { count: layout.pages.length }) : t("layout.pages", { count: layout.pages.length })} · {t("layout.revision", { revision: editor.revision })}
+        </span>
+      </DocumentStatusBar>
 
-      {publishing && <PublishDialog documentId={documentId} saving={editor.status === "saving"} onClose={() => setPublishing(false)} />}
+      {publishing && <PublishDialog documentId={documentId} saving={editor.status === "saving"} onChange={setPublication} onClose={() => setPublishing(false)} />}
       {presenting && <PresentMode html={output.page} pages={layout.pages.length} width={layout.pages[0]?.width ?? 1280} height={layout.pages[0]?.height ?? 720} start={visiblePage} onClose={() => setPresenting(false)} />}
     </div>
   );

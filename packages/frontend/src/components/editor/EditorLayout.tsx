@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import type { Artifact, AuditFinding, Section, Suggestion } from "@/types";
 import { apiFetchArtifacts, apiTriageSuggestion } from "@/utils/api";
 import { useAuth } from "@clerk/clerk-react";
@@ -6,19 +6,28 @@ import { parseHeadings, resolveAnchor } from "@/utils/documentStructure";
 import { hunkCountsBySection, diffHunks } from "@/utils/diff";
 import { apiCreateFeedback } from "@/utils/api";
 import { useAutosave } from "@/hooks/useAutosave";
-import { EditorNavPanel } from "./EditorNavPanel";
+import { usePresence } from "@/hooks/usePresence";
+import { DocumentStatusBar, PresenceStack } from "@/components/document";
+import { Button } from "@/components/ui";
+import { useI18n } from "@/i18n";
 import { EditorCenterPanel, type EditorMode, type EditorCenterHandle } from "./EditorCenterPanel";
-import { EditorActivityRail } from "./EditorActivityRail";
-import { EditorSidebarTabs } from "./EditorSidebarTabs";
+import { EditorSidebarTabs, type EditorSideTab } from "./EditorSidebarTabs";
 import { EditorDocumentBar } from "./EditorDocumentBar";
+import type { CommentAnchor } from "./EditorCommentsPanel";
 import type { HunkDecision } from "./EditorDiffView";
+import { describeSave } from "./saveStatus";
 
 interface EditorLayoutProps {
   documentId: string;
   sections: Section[];
   sseTick: number;
+  /** Moves when someone opens or closes the document. */
+  presenceTick: number;
+  canEdit: boolean;
+  canComment: boolean;
+  /** The pills every document shows: the viewer's role, the agent via MCP. */
+  context?: ReactNode;
   documentTitle?: string;
-  isMcpManaged?: boolean;
   publishedAt?: string | null;
   hasUnpublishedChanges?: boolean;
   onPublished?: () => void;
@@ -29,8 +38,11 @@ export function EditorLayout({
   documentId,
   sections,
   sseTick,
+  presenceTick,
+  canEdit,
+  canComment,
+  context,
   documentTitle = "Documento",
-  isMcpManaged = false,
   publishedAt = null,
   hasUnpublishedChanges = false,
   onPublished,
@@ -41,7 +53,11 @@ export function EditorLayout({
 
   const [content, setContent] = useState(initialContent);
   const [serverContent, setServerContent] = useState(initialContent);
-  const [mode, setMode] = useState<EditorMode>("source");
+  // Someone who cannot edit starts on the rendered text, not the source.
+  const [mode, setMode] = useState<EditorMode>(canEdit ? "source" : "preview");
+  const [side, setSide] = useState<EditorSideTab>("structure");
+  const [sideOpen, setSideOpen] = useState(true);
+  const [pendingComment, setPendingComment] = useState<CommentAnchor | null>(null);
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [activityTick, setActivityTick] = useState(0);
   const [pending, setPending] = useState<Suggestion[]>([]);
@@ -53,6 +69,8 @@ export function EditorLayout({
   const [findings, setFindings] = useState<AuditFinding[]>([]);
   const [triageError, setTriageError] = useState<string | null>(null);
   const { getToken } = useAuth();
+  const { t, dateLocale } = useI18n();
+  const presence = usePresence(documentId, getToken, presenceTick + sseTick);
 
   const centerRef = useRef<EditorCenterHandle>(null);
 
@@ -85,7 +103,7 @@ export function EditorLayout({
   }, []);
 
   const { state: saveState, isDirty } = useAutosave({
-    sectionId: bodySection?.id,
+    sectionId: canEdit ? bodySection?.id : undefined,
     content,
     baseline: serverContent,
     onSaved: handleSaved,
@@ -208,104 +226,114 @@ export function EditorLayout({
     setServerContent(switchedContent);
   }
 
+  /** Comment on what the reader selected, under the heading they are in. */
+  const startComment = useCallback(() => {
+    const quote = centerRef.current?.selection().trim().slice(0, 1000) ?? "";
+    const heading = headings.find((h) => h.slug === activeSlug)?.text;
+    setPendingComment({ ...(quote ? { quote } : {}), ...(heading ? { heading } : {}) });
+    setSide("comments");
+    setSideOpen(true);
+  }, [headings, activeSlug]);
+
+  const goToComment = useCallback(
+    (anchor: CommentAnchor) => {
+      const bySlug = anchor.quote ? resolveAnchor(content, { quote: anchor.quote }, headings).heading : null;
+      const target = bySlug ?? headings.find((h) => h.text === anchor.heading) ?? null;
+      if (target) handleNavigate(target.slug);
+    },
+    [content, headings, handleNavigate],
+  );
+
+  const words = useMemo(() => content.split(/\s+/).filter(Boolean).length, [content]);
+
   return (
-    <div
-      style={{
-        position: "relative",
-        height: "100%",
-        paddingTop: 56,
-        display: "flex",
-        overflow: "hidden",
-        background: "var(--color-bg)",
-      }}
-    >
-      <EditorNavPanel
+    <div className="df-doc-shell">
+      <EditorDocumentBar
         documentId={documentId}
-        headings={headings}
-        activeSlug={activeSlug}
-        counts={sectionCounts}
-        onNavigate={handleNavigate}
-        activitySlot={
-          <EditorActivityRail documentId={documentId} refreshTick={activityTick + sseTick} />
-        }
+        title={documentTitle}
+        onRenameTitle={canEdit ? onRenameTitle : undefined}
+        pendingChanges={hunks.length}
+        blockingFindings={blockingFindings}
+        publishedAt={publishedAt}
+        hasUnpublishedChanges={hasUnpublishedChanges}
+        savePending={isDirty || saveState.status === "saving" || saveState.status === "error"}
+        canPublish={canEdit}
+        context={context}
+        presence={<PresenceStack presence={presence} />}
+        onPublished={() => {
+          bumpActivity();
+          onPublished?.();
+        }}
       />
 
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <EditorDocumentBar
-          documentId={documentId}
-          title={documentTitle}
-          onRenameTitle={onRenameTitle}
-          pendingChanges={hunks.length}
-          blockingFindings={blockingFindings}
-          isMcpManaged={isMcpManaged}
-          publishedAt={publishedAt}
-          hasUnpublishedChanges={hasUnpublishedChanges}
-          savePending={isDirty || saveState.status === "saving" || saveState.status === "error"}
-          onPublished={() => {
-            bumpActivity();
-            onPublished?.();
-          }}
-        />
-        <EditorCenterPanel
-          ref={centerRef}
-          content={content}
-          mode={mode}
-          headings={headings}
-          saveState={saveState}
-          agentLabel={pending.find((s) => s.agentName)?.agentName ?? null}
-          hunks={hunks}
-          activeHunk={activeHunk}
-          onHunkSelect={setActiveHunk}
-          onHunkStep={stepHunk}
-          decisions={decisions}
-          artifacts={artifacts}
-          findings={findings}
-          openArtifact={openArtifact}
-          onCloseArtifact={() => setOpenArtifact(null)}
-          onOpenArtifact={setOpenArtifact}
-          activeHeading={headings.find((h) => h.slug === activeSlug) ?? null}
-          onAnchorArtifact={(a) => {
-            // Put the directive at the end of the section the reader is on;
-            // the anchor lives in the markdown, so this is a plain text edit.
-            const heading = headings.find((h) => h.slug === activeSlug);
-            const lines = content.split("\n");
-            const at = heading ? heading.endLine + 1 : lines.length;
-            lines.splice(at, 0, "", `::artefato[${a.key}]`, "");
-            setContent(lines.join("\n"));
-            setOpenArtifact(null);
-            bumpActivity();
-          }}
-          onMoveArtifactAnchor={(a) => {
-            setContent(
-              content
-                .split("\n")
-                .filter((l) => l.trim() !== `::artefato[${a.key}]`)
-                .join("\n"),
-            );
-            bumpActivity();
-          }}
-          onModeChange={setMode}
-          onChange={setContent}
-          onActiveSlugChange={setActiveSlug}
-        />
-      </div>
+      <div className="df-doc-shell__main">
+        <div className="df-doc-shell__work">
+          <EditorCenterPanel
+            ref={centerRef}
+            content={content}
+            mode={mode}
+            headings={headings}
+            readOnly={!canEdit}
+            tools={
+              canComment && (
+                <Button variant="ghost" icon="add_comment" iconPosition="start" onClick={startComment} title={t("doc.comments.selectHint")}>
+                  {t("layout.comments.comment")}
+                </Button>
+              )
+            }
+            hunks={hunks}
+            activeHunk={activeHunk}
+            onHunkSelect={setActiveHunk}
+            onHunkStep={stepHunk}
+            decisions={decisions}
+            artifacts={artifacts}
+            findings={findings}
+            openArtifact={openArtifact}
+            onCloseArtifact={() => setOpenArtifact(null)}
+            onOpenArtifact={setOpenArtifact}
+            activeHeading={headings.find((h) => h.slug === activeSlug) ?? null}
+            onAnchorArtifact={(a) => {
+              // Put the directive at the end of the section the reader is on;
+              // the anchor lives in the markdown, so this is a plain text edit.
+              const heading = headings.find((h) => h.slug === activeSlug);
+              const lines = content.split("\n");
+              const at = heading ? heading.endLine + 1 : lines.length;
+              lines.splice(at, 0, "", `::artefato[${a.key}]`, "");
+              setContent(lines.join("\n"));
+              setOpenArtifact(null);
+              bumpActivity();
+            }}
+            onMoveArtifactAnchor={(a) => {
+              setContent(
+                content
+                  .split("\n")
+                  .filter((l) => l.trim() !== `::artefato[${a.key}]`)
+                  .join("\n"),
+              );
+              bumpActivity();
+            }}
+            onModeChange={setMode}
+            onChange={setContent}
+            onActiveSlugChange={setActiveSlug}
+          />
+        </div>
 
-      {bodySection && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            flexShrink: 0,
-            borderLeft: "1px solid var(--color-outline)",
-            width: 340,
-            overflow: "hidden",
-          }}
-        >
+        {bodySection && (
           <EditorSidebarTabs
             documentId={documentId}
             sectionId={bodySection.id}
             currentContent={content}
             refreshTick={sseTick + activityTick}
+            canEdit={canEdit}
+            canComment={canComment}
+            side={side}
+            open={sideOpen}
+            onSide={setSide}
+            onOpenChange={setSideOpen}
+            headings={headings}
+            activeSlug={activeSlug}
+            counts={sectionCounts}
+            onNavigate={handleNavigate}
             onSuggestionResolved={bumpActivity}
             onPendingChange={setPending}
             onArtifactOpen={setOpenArtifact}
@@ -315,6 +343,7 @@ export function EditorLayout({
                 "Pedido do revisor: um artefato (diagrama, tabela ou nota de decisão) ajudaria a sustentar este documento.",
                 null,
                 getToken,
+                { forAgent: true },
               ).then(bumpActivity);
             }}
             onGateBlockingChange={setBlockingFindings}
@@ -337,9 +366,19 @@ export function EditorLayout({
               onSave: saveTriage,
             }}
             onVersionSwitch={(c) => { handleVersionSwitch(c); bumpActivity(); }}
+            pendingComment={pendingComment}
+            onStartComment={startComment}
+            onCancelComment={() => setPendingComment(null)}
+            onGoToComment={goToComment}
           />
-        </div>
-      )}
+        )}
+      </div>
+
+      <DocumentStatusBar save={canEdit ? describeSave(saveState, t, dateLocale) : null} presence={presence}>
+        <span>
+          {t("doc.status.words", { count: words.toLocaleString(dateLocale) })} · {t("doc.status.sections", { count: headings.length })}
+        </span>
+      </DocumentStatusBar>
     </div>
   );
 }
