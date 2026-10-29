@@ -4,51 +4,49 @@ from app.config import settings
 
 
 def get_tiers() -> list[dict]:
+    """The plans, in display order. Free carries everything DocForge does; Pro
+    lifts the limits. Teams are handled by contact, not a self-serve plan."""
     return [
         {
             "slug": "free",
             "name": "Free",
             "price_monthly_usd": 0,
-            "credits": f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} document creations / week",
-            "description": (
-                "A focused workspace for writing with one connected agent. "
-                "Review every change, keep history, and publish when ready."
-            ),
+            "credits": f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} new documents / week",
+            "description": "Everything DocForge does, for one person and their agents.",
             "features": [
-                "Editor + real-time viewer",
-                "MCP access (1 connected agent)",
-                f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} document creations each week",
+                "Markdown documents and layout pages and slides",
+                f"{settings.FREE_WEEKLY_DOCUMENT_CREDITS} new documents each week",
                 f"Up to {settings.FREE_MAX_ACTIVE_DOCUMENTS} active documents",
-                "Suggestion review & feedback loop",
-                "Writing guides for agents (ADR, postmortem, runbook, RFC)",
-                "No authenticated exports",
+                f"{settings.FREE_MAX_API_KEYS} connected agents (MCP)",
+                "Review agent changes as suggestions",
+                f"{settings.FREE_MAX_VERSIONS_PER_SECTION} versions per document",
+                "Comments, sharing and public links",
+                "Markdown and PDF export",
             ],
             "limits": {
                 "max_active_documents": settings.FREE_MAX_ACTIVE_DOCUMENTS,
                 "max_api_keys": settings.FREE_MAX_API_KEYS,
                 "weekly_document_creations": settings.FREE_WEEKLY_DOCUMENT_CREDITS,
                 "max_versions_per_section": settings.FREE_MAX_VERSIONS_PER_SECTION,
-                "export_formats": [],
+                "export_formats": ["md", "pdf"],
             },
-            "cta": "Get started",
+            "cta": "Start for free",
             "highlight": False,
             "available": True,
         },
         {
             "slug": "pro",
             "name": "Pro",
-            "price_monthly_usd": None,
-            "credits": f"{settings.PRO_WEEKLY_DOCUMENT_CREDITS} document creations / week",
-            "description": (
-                "For individuals who run durable documentation workflows with agents."
-            ),
+            "price_monthly_usd": settings.PRO_PRICE_MONTHLY_USD,
+            "credits": f"{settings.PRO_WEEKLY_DOCUMENT_CREDITS} new documents / week",
+            "description": "For people who write with agents every day.",
             "features": [
                 "Everything in Free",
-                f"{settings.PRO_WEEKLY_DOCUMENT_CREDITS} document creations each week",
-                f"Up to {settings.PRO_MAX_API_KEYS} connected agents",
+                f"{settings.PRO_WEEKLY_DOCUMENT_CREDITS} new documents each week",
                 f"Up to {settings.PRO_MAX_ACTIVE_DOCUMENTS} active documents",
+                f"{settings.PRO_MAX_API_KEYS} connected agents (MCP)",
                 "Full version history",
-                "Markdown, PDF & DOCX export",
+                "Word export",
             ],
             "limits": {
                 "max_active_documents": settings.PRO_MAX_ACTIVE_DOCUMENTS,
@@ -61,39 +59,15 @@ def get_tiers() -> list[dict]:
             "highlight": True,
             "available": settings.STRIPE_ENABLED,
         },
-        {
-            "slug": "team",
-            "name": "Team",
-            "price_monthly_usd": None,
-            "credits": "Capacity model not defined",
-            "description": "Planned for shared standards, audit trails, and policy gates.",
-            "features": [
-                "Everything in Pro, per seat",
-                "Shared workspaces",
-                "Org-wide standards served via MCP",
-                "Quality gates as team policy",
-                "Per-agent audit trail (compliance)",
-                "SSO",
-            ],
-            "limits": {
-                "max_active_documents": None,
-                "max_api_keys": None,
-                "weekly_document_creations": None,
-                "max_versions_per_section": None,
-                "export_formats": [],
-            },
-            "cta": "Coming soon",
-            "highlight": False,
-            "available": False,
-        },
     ]
 
 
 def get_limits(plan: str) -> dict:
-    for tier in get_tiers():
-        if tier["slug"] == plan:
-            return tier["limits"]
-    return get_tiers()[0]["limits"]
+    tiers = {tier["slug"]: tier["limits"] for tier in get_tiers()}
+    if plan in tiers:
+        return tiers[plan]
+    # A paid plan that is not listed (a team set up by hand) gets Pro's limits.
+    return tiers["free"] if plan in ("", None) else tiers["pro"]
 
 
 async def check_document_limit(db, user) -> str | None:

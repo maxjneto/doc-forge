@@ -91,6 +91,8 @@ export interface Tier {
     maxActiveDocuments: number | null;
     maxApiKeys: number | null;
     weeklyDocumentCreations: number | null;
+    /** null = every version is kept. */
+    maxVersionsPerSection: number | null;
     exportFormats: ExportFormat[];
   };
   cta: string;
@@ -115,6 +117,7 @@ export async function apiFetchTiers(): Promise<Tier[]> {
         maxActiveDocuments: (limits.max_active_documents as number) ?? null,
         maxApiKeys: (limits.max_api_keys as number) ?? null,
         weeklyDocumentCreations: (limits.weekly_document_creations as number) ?? null,
+        maxVersionsPerSection: (limits.max_versions_per_section as number | null) ?? null,
         exportFormats: (limits.export_formats as ExportFormat[]) ?? [],
       },
       cta: raw.cta as string,
@@ -125,7 +128,7 @@ export async function apiFetchTiers(): Promise<Tier[]> {
 }
 
 export async function apiCreateCheckoutSession(
-  plan: "pro" | "team",
+  plan: "pro",
   getToken: GetToken,
 ): Promise<string> {
   const res = await fetch(`${API_BASE}/billing/checkout`, {

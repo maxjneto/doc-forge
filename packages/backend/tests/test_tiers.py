@@ -14,7 +14,7 @@ async def test_tiers_endpoint_is_public_and_complete(client_factory):
         assert res.status_code == 200
         tiers = res.json()["tiers"]
         slugs = [t["slug"] for t in tiers]
-        assert slugs == ["free", "pro", "team"]
+        assert slugs == ["free", "pro"]
         free = tiers[0]
         assert free["limits"]["max_active_documents"] == settings.FREE_MAX_ACTIVE_DOCUMENTS
         assert free["limits"]["max_api_keys"] == settings.FREE_MAX_API_KEYS
@@ -99,3 +99,17 @@ async def test_me_exposes_plan(client_factory):
         assert payload["plan"] == "free"
         assert payload["next_document_creations_reset_at"]
         assert payload["weekly_document_creations"] == settings.FREE_WEEKLY_DOCUMENT_CREDITS
+
+
+def test_paid_plans_not_listed_get_pro_limits():
+    from app.services import tiers
+
+    assert tiers.get_limits("team") == tiers.get_limits("pro")
+    assert tiers.get_limits("free")["export_formats"] == ["md", "pdf"]
+
+
+@pytest.mark.asyncio
+async def test_pro_price_is_served(client_factory):
+    async with client_factory() as client:
+        pro = next(t for t in (await client.get("/api/tiers")).json()["tiers"] if t["slug"] == "pro")
+    assert pro["price_monthly_usd"] == settings.PRO_PRICE_MONTHLY_USD
