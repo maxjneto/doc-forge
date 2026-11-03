@@ -6,7 +6,7 @@ import { useI18n } from "@/i18n";
 import { displayName, isAlignedRow, rowRebuildOp, rowsOf, widthLabel } from "./names";
 import { SelectionBar } from "./SelectionBar";
 import { InlineTextEditor } from "./InlineTextEditor";
-import { InlineKpiEditor, InlineTableEditor, inlineKind } from "./InlineBlockEditors";
+import { InlineCardEditor, InlineCodeEditor, InlineEntriesEditor, InlineKpiEditor, InlineListEditor, InlineTableEditor, inlineKind } from "./InlineBlockEditors";
 import { insertOps, type InsertKey } from "./defaults";
 import { SlashMenu } from "./SlashMenu";
 import { track } from "./track";
@@ -831,8 +831,13 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
                   setInline(null);
                   if (change) save(change.set, change.remove);
                 };
-                if (kind === "kpi") return <InlineKpiEditor key={inline} component={component} geometry={g} doc={content} tokens={layout.tokens} style={{ ...place, height: box.height }} onDone={close} />;
-                if (kind === "table") return <InlineTableEditor key={inline} component={component} geometry={g} doc={content} tokens={layout.tokens} style={place} onDone={close} />;
+                const block = { component, geometry: g, doc: content, tokens: layout.tokens, style: place, onDone: close };
+                if (kind === "kpi") return <InlineKpiEditor key={inline} {...block} style={{ ...place, height: box.height }} />;
+                if (kind === "table") return <InlineTableEditor key={inline} {...block} />;
+                if (kind === "card") return <InlineCardEditor key={inline} {...block} />;
+                if (kind === "list") return <InlineListEditor key={inline} {...block} />;
+                if (kind === "steps" || kind === "timeline") return <InlineEntriesEditor key={inline} {...block} />;
+                if (kind === "code") return <InlineCodeEditor key={inline} {...block} />;
                 return (
                   <InlineTextEditor
                     key={inline}

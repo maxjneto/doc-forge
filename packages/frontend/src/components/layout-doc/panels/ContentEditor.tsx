@@ -1,10 +1,23 @@
 import { useEffect, useState, type FocusEvent, type ReactNode } from "react";
-import { TEXT_ROLES, type ApplyResult, type Component } from "@docforge-lib/layout";
+import { TEXT_ROLES, type ApplyResult, type Component, type TextRole, type Tokens } from "@docforge-lib/layout";
 import { Button, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
-import { Field, ItemActions, move, Row, Select, TextArea, TextInput as Input } from "./fields";
+import type { Paragraph } from "../ParagraphsEditable";
+import { Field, ItemActions, move, Row, SectionTitle, Select, TextArea, TextInput as Input } from "./fields";
+import { RichParagraphs } from "./RichParagraphs";
 
 type Json = Record<string, unknown>;
+
+/**
+ * Rows pasted from a spreadsheet: tab-separated as Excel and Sheets copy them, or
+ * `;` / `,` separated text. Quotes around a cell are dropped. Blank lines are skipped.
+ */
+export function parseSheet(text: string): string[][] {
+  const lines = text.replace(/\r/g, "").split("\n").filter((l) => l.trim());
+  if (!lines.length) return [];
+  const sep = lines.some((l) => l.includes("\t")) ? "\t" : lines.some((l) => l.includes(";")) ? ";" : ",";
+  return lines.map((line) => line.split(sep).map((cell) => cell.trim().replace(/^"(.*)"$/s, "$1").replace(/""/g, '"')));
+}
 
 interface Draft {
   content: Json;
@@ -75,8 +88,11 @@ const fromCsv = (text: string) =>
  * create a revision per keystroke. An invalid draft is not applied: the error
  * from the library is shown and the draft is kept.
  */
-export function ContentEditor({ component, commit, readOnly }: { component: Component; commit: (ops: unknown[]) => ApplyResult; readOnly: boolean }) {
+export function ContentEditor({ component, tokens, commit, readOnly }: { component: Component; tokens: Tokens; commit: (ops: unknown[]) => ApplyResult; readOnly: boolean }) {
   const { t } = useI18n();
+  const [pasting, setPasting] = useState(false);
+  const [sheet, setSheet] = useState("");
+  const [sheetHeader, setSheetHeader] = useState(true);
   const original: Draft = {
     content: ((component as { content?: Json }).content ?? {}) as Json,
     props: ((component as { props?: Json }).props ?? {}) as Json,
@@ -138,39 +154,17 @@ export function ContentEditor({ component, commit, readOnly }: { component: Comp
   let form: ReactNode = null;
   switch (component.type) {
     case "text": {
-      const paragraphs = (c.paragraphs as unknown[]) ?? [];
-      const rows = paragraphs.map((para) =>
-        typeof para === "string" ? { role: "body", text: para, runs: false } : { role: String((para as Json).role ?? "body"), text: inlineToString((para as Json).text), runs: hasRuns((para as Json).text) },
-      );
-      const write = (next: typeof rows) =>
-        setContent({ paragraphs: next.map((r) => (r.role === "body" ? r.text : { role: r.role, text: r.text })) });
+      const paragraphs = ((c.paragraphs as Paragraph[]) ?? []).length ? (c.paragraphs as Paragraph[]) : [""];
+      const defaultRole = (typeof p.role === "string" ? p.role : "body") as TextRole;
       form = (
         <>
-          {rows.map((row, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 8, borderBottom: "1px solid var(--color-outline)" }}>
-              <Row>
-                <Select
-                  label={t("layout.content.role")}
-                  value={row.role}
-                  onChange={(role) => write(rows.map((r, j) => (j === i ? { ...r, role } : r)))}
-                  options={TEXT_ROLES.map((role) => ({ value: role, label: t(`layout.role.${role}`) }))}
-                  style={{ flex: 1 }}
-                />
-                <ItemActions index={i} count={rows.length} labels={labels} onMove={(a, b) => write(move(rows, a, b))} onRemove={(j) => write(rows.filter((_, k) => k !== j))} />
-              </Row>
-              <TextArea
-                aria-label={t("layout.content.paragraph", { n: i + 1 })}
-                rows={row.role.startsWith("title") ? 1 : 3}
-                value={row.text}
-                onChange={(e) => write(rows.map((r, j) => (j === i ? { ...r, text: e.target.value, runs: false } : r)))}
-              />
-              {row.runs && runsWarning}
-            </div>
-          ))}
-          <Button icon="add" iconPosition="start" variant="ghost" onClick={() => write([...rows, { role: "body", text: "", runs: false }])}>
-            {t("layout.content.addParagraph")}
-          </Button>
-          <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.content.inlineHint")}</span>
+          <Field label={t("layout.content.text")} hint={t("layout.content.richHint")}>
+            {/* Remounted when the block changes from outside (undo, an agent) while nothing is being typed. */}
+            <RichParagraphs key={dirty ? "editing" : sourceKey} value={paragraphs} defaultRole={defaultRole} tokens={tokens} onChange={(next) => setContent({ paragraphs: next.length ? next : [""] })} />
+          </Field>
+          <Field label={t("layout.content.defaultRole")} hint={t("layout.content.defaultRoleHint")}>
+            <Select value={defaultRole} onChange={(role) => setProps({ role: role === "body" ? undefined : role })} options={TEXT_ROLES.map((role) => ({ value: role, label: t(`layout.role.${role}`) }))} />
+          </Field>
         </>
       );
       break;
@@ -196,61 +190,94 @@ export function ContentEditor({ component, commit, readOnly }: { component: Comp
       const columns = ((c.columns as unknown[]) ?? []).map((col) =>
         typeof col === "string" ? { header: col, align: "left" } : { header: String((col as Json).header ?? ""), align: String((col as Json).align ?? "left"), width: (col as Json).width },
       );
-      const rows = ((c.rows as unknown[][]) ?? []).map((row) => columns.map((_, i) => inlineToString(row[i])));
-      const write = (cols: typeof columns, body: string[][]) =>
+      // Cells keep whatever inline form they have; the panel only reshapes the table.
+      const rows = ((c.rows as unknown[][]) ?? []).map((row) => columns.map((_, i) => row[i] ?? ""));
+      const write = (cols: typeof columns, body: unknown[][]) =>
         setContent({
           columns: cols.map((col) => (col.align === "left" && col.width === undefined ? col.header : { header: col.header, ...(col.align !== "left" ? { align: col.align } : {}), ...(col.width !== undefined ? { width: col.width } : {}) })),
           rows: body,
         });
+      const moveColumn = (a: number, b: number) => write(move(columns, a, b), rows.map((r) => move(r, a, b)));
+      const WEIGHTS = [0.5, 1, 1.5, 2, 3];
       form = (
         <>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {columns.map((col, i) => (
-                    <th key={i} style={{ padding: 2, verticalAlign: "top" }}>
-                      <Input aria-label={t("layout.content.header", { n: i + 1 })} value={col.header} onChange={(e) => write(columns.map((x, j) => (j === i ? { ...x, header: e.target.value } : x)), rows)} style={{ minWidth: 90, fontWeight: 600 }} />
-                      <Row gap={2} style={{ marginTop: 2 }}>
-                        <Select
-                          label={t("layout.content.align")}
-                          value={col.align}
-                          onChange={(align) => write(columns.map((x, j) => (j === i ? { ...x, align } : x)), rows)}
-                          options={["left", "center", "right"].map((a) => ({ value: a, label: t(`layout.style.align.${a}`) }))}
-                          style={{ flex: 1 }}
-                        />
-                        <Button variant="ghost" icon="close" aria-label={t("layout.content.removeColumn")} disabled={columns.length <= 1} onClick={() => write(columns.filter((_, j) => j !== i), rows.map((r) => r.filter((_, j) => j !== i)))} />
-                      </Row>
-                    </th>
+          <SectionTitle>{t("layout.content.columns", { count: columns.length })}</SectionTitle>
+          {columns.map((col, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, paddingBottom: 8, borderBottom: "1px solid var(--color-outline)" }}>
+              <Row gap={4} style={{ alignItems: "center" }}>
+                <Input aria-label={t("layout.content.header", { n: i + 1 })} value={col.header} onChange={(e) => write(columns.map((x, j) => (j === i ? { ...x, header: e.target.value } : x)), rows)} style={{ flex: 1, minWidth: 0, fontWeight: 600 }} />
+                <ItemActions index={i} count={columns.length} labels={labels} onMove={moveColumn} onRemove={(j) => write(columns.filter((_, k) => k !== j), rows.map((r) => r.filter((_, k) => k !== j)))} />
+              </Row>
+              <Row gap={6} style={{ alignItems: "center" }}>
+                <div role="group" aria-label={t("layout.content.align")} className="df-seg" style={{ flex: "0 0 auto" }}>
+                  {(["left", "center", "right"] as const).map((a) => (
+                    <button key={a} type="button" aria-pressed={col.align === a} title={t(`layout.style.align.${a}`)} aria-label={t(`layout.style.align.${a}`)} onClick={() => write(columns.map((x, j) => (j === i ? { ...x, align: a } : x)), rows)} style={{ padding: "3px 6px" }}>
+                      <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 15 }}>
+                        {`format_align_${a}`}
+                      </span>
+                    </button>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, r) => (
-                  <tr key={r}>
-                    {row.map((cell, i) => (
-                      <td key={i} style={{ padding: 2 }}>
-                        <Input aria-label={t("layout.content.cell", { row: r + 1, col: i + 1 })} value={cell} onChange={(e) => write(columns, rows.map((x, k) => (k === r ? x.map((v, j) => (j === i ? e.target.value : v)) : x)))} style={{ minWidth: 90 }} />
-                      </td>
-                    ))}
-                    <td>
-                      <Button variant="ghost" icon="close" aria-label={t("layout.content.removeRow", { n: r + 1 })} onClick={() => write(columns, rows.filter((_, k) => k !== r))} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </div>
+                <Select
+                  label={t("layout.content.weight")}
+                  value={col.width === undefined ? "auto" : String(col.width)}
+                  onChange={(v) => write(columns.map((x, j) => (j === i ? { ...x, width: v === "auto" ? undefined : Number(v) } : x)), rows)}
+                  options={[{ value: "auto", label: t("layout.content.weightAuto") }, ...WEIGHTS.map((w) => ({ value: String(w), label: `${String(w).replace(".", ",")}×` }))]}
+                  style={{ flex: 1 }}
+                />
+              </Row>
+            </div>
+          ))}
+          <Button variant="ghost" icon="add" iconPosition="start" onClick={() => write([...columns, { header: t("layout.content.newColumn"), align: "left" }], rows.map((r) => [...r, ""]))}>
+            {t("layout.content.addColumn")}
+          </Button>
+          <SectionTitle>{t("layout.content.rows", { count: rows.length })}</SectionTitle>
+          <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.content.cellsOnPage")}</span>
           <Row>
             <Button variant="ghost" icon="add" iconPosition="start" onClick={() => write(columns, [...rows, columns.map(() => "")])}>
               {t("layout.content.addRow")}
             </Button>
-            <Button variant="ghost" icon="add" iconPosition="start" onClick={() => write([...columns, { header: t("layout.content.newColumn"), align: "left" }], rows.map((r) => [...r, ""]))}>
-              {t("layout.content.addColumn")}
+            <Button variant="ghost" icon="content_paste" iconPosition="start" aria-expanded={pasting} onClick={() => setPasting(!pasting)}>
+              {t("layout.content.pasteSheet")}
             </Button>
           </Row>
-          <Switch checked={p.zebra === true} onChange={(on) => setProps({ zebra: on || undefined })} label={t("layout.content.zebra")} />
+          {pasting && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Field label={t("layout.content.pasteSheet")} hint={t("layout.content.pasteSheetHint")}>
+                <TextArea rows={5} mono value={sheet} onChange={(e) => setSheet(e.target.value)} />
+              </Field>
+              <Switch checked={sheetHeader} onChange={setSheetHeader} label={t("layout.content.firstRowHeader")} />
+              <Row style={{ justifyContent: "flex-end" }}>
+                <Button
+                  variant="secondary"
+                  disabled={!sheet.trim()}
+                  onClick={() => {
+                    const parsed = parseSheet(sheet);
+                    if (!parsed.length) return;
+                    const header = sheetHeader ? (parsed[0] as string[]) : null;
+                    const body = sheetHeader ? parsed.slice(1) : parsed;
+                    const width = Math.max(...parsed.map((r) => r.length));
+                    const cols = Array.from({ length: width }, (_, i) => ({ header: header?.[i] ?? columns[i]?.header ?? t("layout.content.newColumn"), align: columns[i]?.align ?? "left", width: columns[i]?.width }));
+                    // Applied right away: the button that was clicked is about to disappear, so no blur would follow.
+                    apply({
+                      content: {
+                        ...draft.content,
+                        columns: cols.map((col) => (col.align === "left" && col.width === undefined ? col.header : { header: col.header, ...(col.align !== "left" ? { align: col.align } : {}), ...(col.width !== undefined ? { width: col.width } : {}) })),
+                        rows: body.map((r) => cols.map((_, i) => r[i] ?? "")),
+                      },
+                      props: draft.props,
+                    });
+                    setSheet("");
+                    setPasting(false);
+                  }}
+                >
+                  {t("layout.content.pasteApply")}
+                </Button>
+              </Row>
+            </div>
+          )}
           <Switch checked={p.header !== false} onChange={(on) => setProps({ header: on ? undefined : false })} label={t("layout.content.headerRow")} />
+          <Switch checked={p.zebra === true} onChange={(on) => setProps({ zebra: on || undefined })} label={t("layout.content.zebra")} />
         </>
       );
       break;

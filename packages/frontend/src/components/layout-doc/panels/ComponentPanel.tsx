@@ -75,7 +75,7 @@ export function ComponentPanel({ doc, component, geometry, layout, tokens, famil
           <Tab key={key} plain label={t(`layout.panel.${key}`)} active={tab === key} onClick={() => onTab(key)} />
         ))}
       </div>
-      {tab === "content" && <ContentEditor key={component.id} component={component} commit={commit} readOnly={readOnly} />}
+      {tab === "content" && <ContentEditor key={component.id} component={component} tokens={tokens} commit={commit} readOnly={readOnly} />}
       {tab === "style" && (
         <>
           {geometry ? (
