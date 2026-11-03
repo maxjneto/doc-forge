@@ -32,6 +32,10 @@ class SectionContentUpdateRequest(BaseModel):
     # of replacing it — lets MCP callers add to a document without resending
     # the whole body (see append_section in the MCP server).
     mode: Literal["replace", "append"] = "replace"
+    # The text this write was built on. An agent's write on a document under
+    # review records it as the suggestion's base, so accepting replays only
+    # what the agent changed relative to what it saw.
+    base: str | None = None
 
 
 class SectionSnapshotRequest(BaseModel):

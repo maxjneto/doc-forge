@@ -17,6 +17,7 @@ from app.models.user import User
 from app.schemas.sse import SSEEvent
 from app.services import actor as acting
 from app.services import sse as sse_service
+from app.services.merge import merge3
 
 
 async def log_activity(
@@ -283,8 +284,15 @@ async def create_suggestion(
     content: str,
     note: str | None = None,
     api_key_id: uuid.UUID | None = None,
+    base_content: str | None = None,
 ) -> Suggestion:
     """Create a pending suggestion: a non-active SectionVersion + review row.
+
+    An agent keeps ONE pending suggestion per section, like a pull request it
+    keeps pushing to: when it already has one, the new content replaces that
+    proposal instead of opening a second one. Separate proposals would each be
+    a whole body written against the same text, and accepting them one after
+    the other would undo all but the last.
 
     INTERNAL: caller must validate section ownership before invoking.
     """
@@ -299,6 +307,27 @@ async def create_suggestion(
         from app.models.api_key import ApiKey
         key_result = await db.execute(select(ApiKey.name).where(ApiKey.id == api_key_id))
         actor = key_result.scalar_one_or_none() or "Agent"
+
+        mine = await own_pending_suggestion(db, section_id, api_key_id)
+        if mine is not None:
+            mine.proposed_version.content = content
+            if base_content is not None:
+                mine.base_content = base_content
+            if note:
+                mine.note = f"{mine.note}\n{note}"[-2000:] if mine.note else note
+                mine.proposed_version.change_summary = mine.note[-500:]
+            await log_activity(
+                db, doc_id, "suggestion_created",
+                description=f"{actor} updated its proposed change ({len(content):,} chars) awaiting review",
+                api_key_id=api_key_id,
+                version_id=mine.proposed_version_id,
+            )
+            await db.commit()
+            sse_service.publish(str(doc_id), SSEEvent(
+                type="suggestion_created",
+                payload={"doc_id": str(doc_id), "section_id": str(section_id), "suggestion_id": str(mine.id)},
+            ))
+            return mine
 
     timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M")
     proposed = SectionVersion(
@@ -317,6 +346,7 @@ async def create_suggestion(
         section_id=section_id,
         proposed_version_id=proposed.id,
         base_version_id=active.id if active else None,
+        base_content=base_content if base_content is not None else (active.content if active else ""),
         api_key_id=api_key_id,
         status="pending",
         note=note,
@@ -341,6 +371,51 @@ async def create_suggestion(
         },
     ))
     return suggestion
+
+
+async def own_pending_suggestion(
+    db: AsyncSession, section_id: uuid.UUID, api_key_id: uuid.UUID
+) -> Suggestion | None:
+    """The proposal this agent key still has open on the section, if any."""
+    result = await db.execute(
+        select(Suggestion)
+        .options(selectinload(Suggestion.proposed_version))
+        .where(
+            Suggestion.section_id == section_id,
+            Suggestion.api_key_id == api_key_id,
+            Suggestion.status == "pending",
+        )
+        .order_by(Suggestion.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def proposal_on(suggestion: Suggestion, current: str) -> tuple[str, bool]:
+    """(what accepting would make the text now, whether it conflicts).
+
+    The proposal replayed on the current text, so edits people made after it
+    was written survive. On a conflict, the raw proposal comes back flagged.
+    Suggestions from before `base_content` existed keep the old behaviour.
+    """
+    proposed = suggestion.proposed_version.content if suggestion.proposed_version else ""
+    if suggestion.base_content is None:
+        return proposed, False
+    merged = merge3(suggestion.base_content, current, proposed)
+    return (proposed, True) if merged is None else (merged, False)
+
+
+async def active_content(db: AsyncSession, section_id: uuid.UUID) -> str:
+    result = await db.execute(
+        select(SectionVersion.content).where(
+            SectionVersion.section_id == section_id, SectionVersion.is_active.is_(True)
+        )
+    )
+    return result.scalar_one_or_none() or ""
+
+
+class SuggestionConflict(ValueError):
+    """The proposal and people's later edits changed the same words differently."""
 
 
 async def get_suggestion(db: AsyncSession, suggestion_id: uuid.UUID) -> Suggestion | None:
@@ -381,8 +456,20 @@ async def accept_suggestion(
 ) -> Suggestion:
     """Accept a pending suggestion: its proposed version becomes active.
 
+    The proposal is first replayed on the current text, so what people wrote
+    after it was proposed stays. Raises SuggestionConflict when both changed
+    the same words differently — nothing is applied then.
+
     INTERNAL: caller must validate ownership and pending status before invoking.
     """
+    merged, conflict = proposal_on(suggestion, await active_content(db, suggestion.section_id))
+    if conflict:
+        raise SuggestionConflict(
+            "This suggestion conflicts with edits made after it was proposed: "
+            "both changed the same passage. Reject it, or ask the agent to propose it again."
+        )
+    if suggestion.proposed_version is not None:
+        suggestion.proposed_version.content = merged
     await db.execute(
         update(SectionVersion)
         .where(

@@ -27,6 +27,10 @@ class SuggestionResponse(BaseModel):
     proposed_content: str | None = None
     current_content: str | None = None
     is_stale: bool = False
+    # Accepting now would clash with edits people made after it was proposed.
+    has_conflict: bool = False
+    # Written by the API key making this request (an agent finding its own proposal).
+    is_mine: bool = False
     created_at: datetime
     resolved_at: datetime | None
 

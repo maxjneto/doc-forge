@@ -33,6 +33,10 @@ class Suggestion(Base):
     base_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("section_versions.id", ondelete="SET NULL"), nullable=True
     )
+    # The text the proposal was written against. The base version itself keeps
+    # changing (people's edits save in place), so the text is kept here: it is
+    # what lets a proposal be replayed on what people wrote since (services/merge).
+    base_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_key_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
     )

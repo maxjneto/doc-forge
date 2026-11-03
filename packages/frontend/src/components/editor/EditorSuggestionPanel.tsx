@@ -90,9 +90,11 @@ function SuggestionCard({ suggestion, index, onResolved, readOnly = false }: Sug
               ? sections[0]
               : `${sections.length} seções`}
         </span>
-        {suggestion.isStale && (
+        {/* Edits made after the proposal are kept (the server replays it on
+            them), so only a clash on the same words needs the reviewer. */}
+        {suggestion.hasConflict && (
           <Pill tone="warn" dot={false}>
-            desatualizada
+            conflita com edições recentes
           </Pill>
         )}
       </div>

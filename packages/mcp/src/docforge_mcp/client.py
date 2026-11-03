@@ -104,11 +104,13 @@ async def get_document(document_id: str) -> dict[str, Any]:
 
 
 async def update_section_content(
-    section_id: str, content: str, note: str | None = None, mode: str = "replace"
+    section_id: str, content: str, note: str | None = None, mode: str = "replace", base: str | None = None
 ) -> dict[str, Any]:
     body: dict[str, Any] = {"content": content, "mode": mode}
     if note:
         body["note"] = note
+    if base is not None:
+        body["base"] = base
     return await _patch(f"/sections/{section_id}/content", json=body)
 
 
