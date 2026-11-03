@@ -4,14 +4,14 @@ import { GCD_COMPONENT_TYPES } from "@/components/marketing/componentTypes";
 import { ClosingCta, CodeBlock, Panel, SectionHead, Shot, leadStyle, useMarketingPage } from "@/components/marketing/parts";
 import { AppFooter, TopBar } from "@/components/shared";
 import { useI18n } from "@/i18n";
-import { MCP_URL } from "@/utils/mcpUrl";
+import { MCP_CGD_URL } from "@/utils/mcpUrl";
 
 /** The technical, hands-on page: connect, what a GCD is inside, the agent's loop, your side, where it runs. */
 
 const CLIENTS = [
-  { name: "Claude Code", code: `claude mcp add --transport http docforge ${MCP_URL} \\\n  --header "Authorization: Bearer $DOCFORGE_API_KEY"` },
-  { name: "Codex", code: `codex mcp add docforge --url ${MCP_URL} \\\n  --bearer-token-env-var DOCFORGE_API_KEY` },
-  { name: "Cursor", code: `// .cursor/mcp.json\n{\n  "mcpServers": {\n    "docforge": {\n      "url": "${MCP_URL}",\n      "headers": { "Authorization": "Bearer \${env:DOCFORGE_API_KEY}" }\n    }\n  }\n}` },
+  { name: "Claude Code", code: `claude mcp add --transport http docforge ${MCP_CGD_URL} \\\n  --header "Authorization: Bearer $DOCFORGE_API_KEY"` },
+  { name: "Codex", code: `codex mcp add docforge --url ${MCP_CGD_URL} \\\n  --bearer-token-env-var DOCFORGE_API_KEY` },
+  { name: "Cursor", code: `// .cursor/mcp.json\n{\n  "mcpServers": {\n    "docforge": {\n      "url": "${MCP_CGD_URL}",\n      "headers": { "Authorization": "Bearer \${env:DOCFORGE_API_KEY}" }\n    }\n  }\n}` },
   { name: "Local", code: "claude mcp add docforge-layout -- \\\n  npx docforge-layout mcp --root ." },
 ] as const;
 

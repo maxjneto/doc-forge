@@ -5,7 +5,7 @@ import { AppFooter } from "@/components/shared";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { apiFetchTiers, type Tier } from "@/utils/api";
-import { MCP_URL } from "@/utils/mcpUrl";
+import { MCP_CGD_URL } from "@/utils/mcpUrl";
 
 const GcdDemo = lazy(() => import("@/components/marketing/GcdDemo"));
 
@@ -151,7 +151,7 @@ const COPY = {
 } as const;
 
 const DEV_CODE = [
-  `claude mcp add --transport http docforge ${MCP_URL}`,
+  `claude mcp add --transport http docforge ${MCP_CGD_URL}`,
   "npx docforge-layout mcp --root .",
   "npm i @docforge-lib/layout",
 ];
