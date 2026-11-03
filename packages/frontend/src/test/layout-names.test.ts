@@ -7,7 +7,7 @@ import { translate } from "@/i18n";
 const engine = createEngine({ registry: createNodeRegistry() });
 const t = (key: string, vars?: Record<string, string | number>) => translate("pt-BR", key, vars);
 const doc = (components: unknown[]): LayoutDocument =>
-  ({ format: "docforge/layout", version: 3, surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }], components }) as LayoutDocument;
+  ({ format: "docforge/layout", version: 4, surfaces: [{ id: "a4", kind: "page", size: "A4", margin: 40 }], components }) as LayoutDocument;
 
 describe("displayName", () => {
   it("uses the component's own words, without markdown", () => {

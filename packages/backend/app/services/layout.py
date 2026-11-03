@@ -19,7 +19,7 @@ from app.config import settings
 FORMAT = "docforge/layout"
 # The format version the vendored library writes. Readers with an older library
 # ask for theirs (`?format=`) and get the document converted down (`downgrade`).
-FORMAT_VERSION = 3
+FORMAT_VERSION = 4
 OLDEST_SERVED_FORMAT = 2
 
 
@@ -36,7 +36,7 @@ def starter_document(title: str, fmt: str = "page") -> dict[str, Any]:
     if fmt == "slide":
         return {
             "format": FORMAT,
-            "version": 3,
+            "version": 4,
             "meta": {"title": title},
             "tokens": {"size": dict(SLIDE_SIZES)},
             "surfaces": [{"id": "slides", "kind": "page", "size": "Slide", "margin": 56}],
@@ -44,7 +44,7 @@ def starter_document(title: str, fmt: str = "page") -> dict[str, Any]:
         }
     return {
         "format": FORMAT,
-        "version": 3,
+        "version": 4,
         "meta": {"title": title},
         "surfaces": [
             {"id": "a4", "kind": "page", "size": "A4", "margin": 40},

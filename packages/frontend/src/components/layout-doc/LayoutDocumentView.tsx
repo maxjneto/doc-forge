@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { createEngine, type ComponentType, type Engine, type Surface } from "@docforge-lib/layout";
+import { createEngine, type ComponentType, type Engine, type LayoutDocument, type Surface } from "@docforge-lib/layout";
 import { Button, Dialog, IconButton, Pill, Switch, textStyle } from "@/components/ui";
 import { ActivityPanel, DocumentBar, DocumentSidebar, DocumentStatusBar, PresenceStack, type DocumentRole, type SideTab as SideTabDef } from "@/components/document";
 import { usePresence } from "@/hooks/usePresence";
@@ -191,12 +191,26 @@ function LayoutWorkspace({
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [saveRequested, setSaveRequested] = useState(false);
   const clearSaveRequest = useCallback(() => setSaveRequested(false), []);
+  /** The part of the selected block being styled (picked on the page or in the panel). */
+  const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  /** A document shown without being applied (hovering a ready-made look). */
+  const [previewDoc, setPreviewDoc] = useState<LayoutDocument | null>(null);
 
   const surfaces = doc.surfaces;
   const activeSurface = surfaceId && surfaces.some((s) => s.id === surfaceId) ? surfaceId : surfaces[0]?.id;
   const slides = deck && activeSurface === primary.id;
   // What the page shows: a past version, or the document with the design draft over it.
-  const shown = useMemo(() => (viewing ? viewing.content : withDraft(doc, draft?.tokens ?? null)), [viewing, doc, draft]);
+  const shown = useMemo(() => (viewing ? viewing.content : withDraft(previewDoc ?? doc, draft?.tokens ?? null)), [viewing, doc, draft, previewDoc]);
+  useEffect(() => setPreviewDoc(null), [doc]);
+  /** A part picked on the page: the panel opens on its look. */
+  const pickPart = useCallback((part: string | null) => {
+    setSelectedPart(part);
+    if (part) {
+      setComponentTab("style");
+      setSide("structure");
+      setPanelOpen(true);
+    }
+  }, []);
   const output = useMemo(() => engine.render(shown, { surfaceId: activeSurface, grid: showGrid, backdrop: null }), [engine, shown, activeSurface, showGrid]);
   const layout = output.layout;
   const current = useMemo(() => (shown === doc ? layout : engine.layout(doc, activeSurface)), [engine, doc, shown, layout, activeSurface]);
@@ -241,6 +255,7 @@ function LayoutWorkspace({
 
   const select = useCallback((id: string | null) => {
     setSelected(id);
+    setSelectedPart(null);
     if (id) {
       setSide((s) => (s === "comments" || s === "design" ? s : "structure"));
       setPanelOpen(true);
@@ -300,6 +315,11 @@ function LayoutWorkspace({
         setViewing(null);
         return;
       }
+      // Esc with a part picked (from the bar or the panel, where the block itself has no focus) goes back to the whole block.
+      if (e.key === "Escape" && selectedPart) {
+        setSelectedPart(null);
+        return;
+      }
       if (!mod || !editable) return;
       if (key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -315,7 +335,7 @@ function LayoutWorkspace({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editable, canEdit, editor, viewing, selectedComponent, layout, pasteInto, openSide]);
+  }, [editable, canEdit, editor, viewing, selectedComponent, selectedPart, layout, pasteInto, openSide]);
 
   // Copy, cut and paste blocks through the system clipboard (as JSON text, so it also travels to a chat or an agent).
   useEffect(() => {
@@ -611,6 +631,8 @@ function LayoutWorkspace({
             editable={editable && !annotating}
             selected={viewing ? null : selected}
             onSelect={select}
+            selectedPart={viewing ? null : selectedPart}
+            onSelectPart={pickPart}
             commit={editor.commit}
             preview={editor.preview}
             annotating={annotating && !viewing}
@@ -656,6 +678,10 @@ function LayoutWorkspace({
                   onTab={setComponentTab}
                   onRemoved={() => select(null)}
                   onBack={() => select(null)}
+                  part={selectedPart}
+                  onPart={setSelectedPart}
+                  preview={editor.preview}
+                  onPreview={setPreviewDoc}
                 />
               ) : (
                 <StructurePanel doc={shown} layout={layout} slides={slides} map={() => engine.map(doc, { level: 1, surfaceId: activeSurface }).text} onPick={(id) => (viewing ? canvas.current?.reveal(id) : (select(id), canvas.current?.reveal(id)))} />

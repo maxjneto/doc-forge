@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { TEXT_ROLES, type TextRole, type Tokens } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
+import { isTransparent } from "./richText";
 
 /** Colors offered for a run, by token, so a theme change recolors the text too. */
 const RUN_COLORS = ["text", "muted", "primary", "success", "danger", "warning"];
@@ -15,6 +16,9 @@ interface RunBarProps {
   /** After a command changed the HTML (hosts that keep a draft re-read it). */
   onChanged?: () => void;
 }
+
+/** The highlight token's color, falling back to another warm token of the theme. */
+const highlightColor = (tokens: Tokens) => String(tokens.color.highlight ?? tokens.color.warning ?? tokens.color.text);
 
 /** Whether the selection sits inside `root` (so the bar belongs to this editor). */
 function selectionIn(root: HTMLElement): Range | null {
@@ -80,7 +84,7 @@ export const RunBar = forwardRef<RunBarHandle, RunBarProps>(function RunBar({ ro
       italic: document.queryCommandState("italic"),
       code: !!el?.closest("code"),
       link: !!el?.closest("a"),
-      highlight: !!background && background !== "transparent" && background !== "rgba(0, 0, 0, 0)" && background !== "initial",
+      highlight: !isTransparent(background),
     });
   }, [root, linkOpen]);
 
@@ -110,6 +114,7 @@ export const RunBar = forwardRef<RunBarHandle, RunBarProps>(function RunBar({ ro
     refresh();
   };
   const keep = (e: MouseEvent) => e.preventDefault();
+  const swatch = (key: string) => String(tokens.color[key] ?? tokens.color.text);
 
   const openLink = () => {
     if (!root) return;
@@ -185,8 +190,8 @@ export const RunBar = forwardRef<RunBarHandle, RunBarProps>(function RunBar({ ro
             title={`${t("layout.runbar.color")}: ${key}`}
             aria-label={`${t("layout.runbar.color")}: ${key}`}
             onMouseDown={keep}
-            onClick={() => run(() => document.execCommand("foreColor", false, String(tokens.color[key] ?? "#000")))}
-            style={{ background: String(tokens.color[key] ?? "#000") }}
+            onClick={() => run(() => document.execCommand("foreColor", false, swatch(key)))}
+            style={{ background: swatch(key) }}
           />
         ))}
       </span>
@@ -196,9 +201,9 @@ export const RunBar = forwardRef<RunBarHandle, RunBarProps>(function RunBar({ ro
         title={`${t("layout.runbar.highlight")} (Ctrl+Shift+H)`}
         aria-label={t("layout.runbar.highlight")}
         onMouseDown={keep}
-        onClick={() => run(() => document.execCommand("hiliteColor", false, state.highlight ? "transparent" : String(tokens.color.highlight ?? "#fff3b0")))}
+        onClick={() => run(() => document.execCommand("hiliteColor", false, state.highlight ? "transparent" : highlightColor(tokens)))}
       >
-        <span className="material-symbols-outlined" aria-hidden style={{ color: state.highlight ? undefined : String(tokens.color.highlight ?? "#fff3b0") }}>
+        <span className="material-symbols-outlined" aria-hidden style={{ color: state.highlight ? undefined : highlightColor(tokens) }}>
           ink_highlighter
         </span>
       </button>
@@ -264,8 +269,8 @@ export function runShortcut(e: { key: string; ctrlKey: boolean; metaKey: boolean
   if (key === "h" && e.shiftKey) {
     e.preventDefault();
     const current = document.queryCommandValue("hiliteColor");
-    const on = !!current && current !== "transparent" && current !== "rgba(0, 0, 0, 0)" && current !== "initial";
-    document.execCommand("hiliteColor", false, on ? "transparent" : String(tokens.color.highlight ?? "#fff3b0"));
+    const on = !isTransparent(current);
+    document.execCommand("hiliteColor", false, on ? "transparent" : highlightColor(tokens));
     return true;
   }
   return false;

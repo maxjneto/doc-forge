@@ -30,7 +30,7 @@ export function inlineToHtml(inline: Inline, tokens: Tokens): string {
       if (run.size) html = `<span data-size="${escapeHtml(run.size)}">${html}</span>`;
       if (run.highlight) {
         const written = run.highlight === true ? "$color.highlight" : run.highlight;
-        const css = colorOf(written, tokens) ?? "#fff3b0";
+        const css = colorOf(written, tokens) ?? colorOf("$color.highlight", tokens) ?? colorOf("$color.warning", tokens) ?? "";
         html = `<span data-highlight="${escapeHtml(written)}" style="background-color:${css}">${html}</span>`;
       }
       if (run.color) {
@@ -43,13 +43,23 @@ export function inlineToHtml(inline: Inline, tokens: Tokens): string {
     .join("");
 }
 
-/** `rgb(255, 77, 0)` / `#ff4d00` / `#f40` → `#ff4d00`; anything else as it is. */
+/** A red-green-blue triple or a three-digit hex becomes the six-digit hex; anything else stays as it is. */
 export function normalizeColor(css: string): string {
   const s = css.trim().toLowerCase();
-  const rgb = /^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(s);
+  const rgb = /^rgba?\s*\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(s);
   if (rgb) return `#${[rgb[1], rgb[2], rgb[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
   if (/^#[0-9a-f]{3}$/.test(s)) return `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`;
   return s;
+}
+
+/** A background that paints nothing: unset, transparent, or a color with zero alpha. */
+export function isTransparent(css: string | null | undefined): boolean {
+  const s = (css ?? "").trim().toLowerCase();
+  if (!s || s === "transparent" || s === "initial" || s === "inherit" || s === "none") return true;
+  const inner = /\((.*)\)$/.exec(s)?.[1];
+  if (!inner || !/^rgba?/.test(s)) return false;
+  const parts = inner.split(/[\s,/]+/).filter(Boolean);
+  return parts.length === 4 && Number(parts[3]) === 0;
 }
 
 /** The token that holds this color (`$color.danger`), so a new theme recolors the run too. */
@@ -115,7 +125,7 @@ function walk(node: Node, marks: Marks, tokens: Tokens, out: Run[], options: Rea
   const dataHighlight = node.dataset.highlight;
   const cssBackground = node.style.backgroundColor;
   if (dataHighlight) next.highlight = dataHighlight === "$color.highlight" ? true : dataHighlight;
-  else if (cssBackground && cssBackground !== "transparent" && cssBackground !== "inherit" && !/^rgba\(.*,\s*0\)$/.test(cssBackground)) {
+  else if (cssBackground && !isTransparent(cssBackground)) {
     const token = tokenFor(cssBackground, tokens);
     next.highlight = token === "$color.highlight" ? true : (token ?? normalizeColor(cssBackground));
   }

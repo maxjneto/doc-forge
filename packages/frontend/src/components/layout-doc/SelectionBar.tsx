@@ -2,7 +2,7 @@ import type { CSSProperties, PointerEvent } from "react";
 import type { ApplyResult, LayoutDocument, LayoutResult } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
 import { TYPE_ICON } from "./defaults";
-import { guideSpan, isAlignedRow, rowRebuildOp, rowsOf } from "./names";
+import { guideSpan, isAlignedRow, partLabel, rowRebuildOp, rowsOf } from "./names";
 import { track } from "./track";
 
 interface SelectionBarProps {
@@ -16,6 +16,10 @@ interface SelectionBarProps {
   onRemoved: () => void;
   announce: (message: string) => void;
   style: CSSProperties;
+  /** The block's parts that can be styled on their own, and the one picked. */
+  parts?: string[];
+  selectedPart?: string | null;
+  onSelectPart?: (part: string | null) => void;
 }
 
 /** Fractions of the guide columns offered as widths, by how many of 12 they take. */
@@ -32,7 +36,7 @@ const WIDTHS: { label: string; of12: number }[] = [
  * page, its place in the row it belongs to, and the row's widths and heights. Every
  * button sends the same ops an agent would (`place` with `cols`, `row`).
  */
-export function SelectionBar({ id, doc, layout, commit, onOpenContent, onComment, onRemoved, announce, style }: SelectionBarProps) {
+export function SelectionBar({ id, doc, layout, commit, onOpenContent, onComment, onRemoved, announce, style, parts = [], selectedPart = null, onSelectPart }: SelectionBarProps) {
   const { t } = useI18n();
   const g = layout.components[id];
   const component = doc.components.find((c) => c.id === id);
@@ -79,13 +83,28 @@ export function SelectionBar({ id, doc, layout, commit, onOpenContent, onComment
 
   return (
     <div role="toolbar" aria-label={t("layout.bar.label")} className="df-layout-bar" style={style} onPointerDown={stop} onDoubleClick={(e) => e.stopPropagation()}>
-      <span className="df-layout-bar__group">
-        <span className="df-layout-bar__item df-layout-bar__item--static">
-          <span className="material-symbols-outlined" aria-hidden>
-            {TYPE_ICON[component.type]}
+      <span className="df-layout-bar__group" role={parts.length ? "group" : undefined} aria-label={parts.length ? t("layout.style.applyTo") : undefined}>
+        {parts.length && onSelectPart ? (
+          <button type="button" className="df-layout-bar__item" aria-pressed={!selectedPart} title={t("layout.part.block")} onClick={() => onSelectPart(null)}>
+            <span className="material-symbols-outlined" aria-hidden>
+              {TYPE_ICON[component.type]}
+            </span>
+            {t(`layout.type.${component.type}`)}
+          </button>
+        ) : (
+          <span className="df-layout-bar__item df-layout-bar__item--static">
+            <span className="material-symbols-outlined" aria-hidden>
+              {TYPE_ICON[component.type]}
+            </span>
+            {t(`layout.type.${component.type}`)}
           </span>
-          {t(`layout.type.${component.type}`)}
-        </span>
+        )}
+        {onSelectPart &&
+          parts.map((part) => (
+            <button key={part} type="button" className="df-layout-bar__item" aria-pressed={selectedPart === part} onClick={() => onSelectPart(part)}>
+              {partLabel(component.type, part, t)}
+            </button>
+          ))}
       </span>
       {total === 12 && (
         <span className="df-layout-bar__group" role="group" aria-label={t("layout.bar.width")}>

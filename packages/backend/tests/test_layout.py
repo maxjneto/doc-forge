@@ -118,7 +118,7 @@ async def test_create_starts_from_an_empty_starter_document(client_factory):
 
     assert state["revision"] == 1
     assert state["content"]["format"] == "docforge/layout"
-    assert state["content"]["version"] == 3
+    assert state["content"]["version"] == 4
     assert "sections" not in state["content"]
     assert state["content"]["meta"]["title"] == "Quarterly"
     assert state["content"]["components"] == []

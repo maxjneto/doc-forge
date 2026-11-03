@@ -603,6 +603,16 @@ textarea.font-mono,
 .df-inline-entry__badge { flex-shrink: 0; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 600; }
 .df-inline-entry__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .df-inline-code textarea { display: block; width: 100%; border: 0; outline: none; background: transparent; resize: none; padding: 0; }
+/* The part of a block picked on the page (a table's header, a KPI's label), outlined where it is drawn. */
+.df-layout-part { position: absolute; pointer-events: none; z-index: 3; outline: 2px solid var(--color-heat); outline-offset: 3px; border-radius: 2px; }
+.df-layout-part .df-layout-chip { pointer-events: none; }
+/* A ready-made look, with what it changes; hovering previews it on the page. */
+.df-preset { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-outline); background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+.df-preset:hover, .df-preset:focus-visible { border-color: var(--color-heat-line); background: var(--color-hover); outline: none; }
+.df-preset__swatch { flex-shrink: 0; width: 18px; height: 18px; border-radius: var(--radius-xs); border: 1px solid; }
+.df-preset__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.df-preset__text b { font: 600 12.5px/1.3 var(--font-sans); }
+.df-preset__text small { font: 400 11.5px/1.35 var(--font-sans); color: var(--color-dim); }
 /* The floating bar over a selection: runs get bold, italic, code, link, color, highlight. */
 .df-run-bar { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: var(--radius-sm); background: var(--color-surface-high); border: 1px solid var(--color-outline-md); box-shadow: var(--shadow-pop); color: var(--color-text); }
 .df-run-bar > button { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--color-text); font: 500 12.5px/1 var(--font-sans); cursor: pointer; }

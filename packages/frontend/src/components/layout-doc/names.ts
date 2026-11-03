@@ -1,4 +1,4 @@
-import type { Component, LayoutResult } from "@docforge-lib/layout";
+import { componentDefs, type Component, type LayoutResult } from "@docforge-lib/layout";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 type Json = Record<string, unknown>;
@@ -107,6 +107,28 @@ export { rowsOf, type RowGroup } from "@docforge-lib/layout";
 const COLOR_KEYS = ["text", "muted", "primary", "surface", "subtle", "border", "success", "danger", "warning", "highlight"];
 
 /** A token's name in the person's language: "$color.subtle" → "Fundo suave", "$size.l" → "G". */
+/**
+ * The parts of a block that can be styled on their own: a table's header and
+ * striped rows, a KPI's label, a card's title… For text, the roles its paragraphs use.
+ */
+export function partsOf(component: Component): string[] {
+  if (component.type === "text") {
+    const defaultRole = String((component as { props?: { role?: string } }).props?.role ?? "body");
+    const paragraphs = ((component as { content?: { paragraphs?: unknown[] } }).content?.paragraphs ?? []) as unknown[];
+    const roles = paragraphs.map((p) => (typeof p === "string" ? defaultRole : String((p as { role?: string }).role ?? defaultRole)));
+    return [...new Set(roles)];
+  }
+  return componentDefs[component.type]?.variants ?? [];
+}
+
+/** A part's name for people ("Header", "Label", "Title 2"). */
+export function partLabel(type: string, part: string, t: T): string {
+  if (type === "text") return t(`layout.role.${part}`);
+  const key = `layout.part.${type}.${part}`;
+  const text = t(key);
+  return text === key ? part : text;
+}
+
 export function tokenName(group: string, key: string, t: T): string {
   if (group === "color") {
     const chart = /^chart(\d)$/.exec(key);
