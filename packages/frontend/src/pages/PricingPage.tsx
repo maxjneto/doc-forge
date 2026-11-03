@@ -1,288 +1,278 @@
-import { useEffect, useState } from "react";
-import { useAuth, useClerk } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
-import { AppFooter } from "@/components/shared";
+import { useEffect, useState, type ReactNode } from "react";
 import { MarketingNav } from "@/components/marketing";
-import { apiCreateCheckoutSession, apiFetchTiers, type Tier } from "@/utils/api";
+import { ClosingCta, Panel, h2Style, leadStyle, useMarketingPage, useProCheckout } from "@/components/marketing/parts";
+import { AppFooter } from "@/components/shared";
+import { Button, Eyebrow } from "@/components/ui";
 import { useI18n } from "@/i18n";
-import { Button, Eyebrow, Pill, textStyle } from "@/components/ui";
+import { apiFetchTiers, type Tier } from "@/utils/api";
 
 const CONTACT = "mailto:maxjneto@gmail.com?subject=DocForge%20for%20a%20team";
 
 const COPY = {
   en: {
-    badge: "Pricing",
-    title: "Free to use. Cheap to grow.",
-    lead: "Everything DocForge does is in the free plan. Pro lifts the limits for people who write with agents every day.",
+    eyebrow: "Pricing",
+    title: (price: ReactNode) => <>Free to start. <span style={{ color: "var(--color-heat)" }}>{price}</span> for no limits.</>,
+    lead: "The free plan already has everything DocForge does. Pro only lifts the limits for people who make documents every week.",
     perMonth: "/ month",
     free: "Free",
-    freeWhat: "Everything DocForge does, for one person and their agents.",
-    proWhat: "For people who write with agents every day.",
-    start: "Start for free",
-    upgrade: "Upgrade to Pro",
-    current: "Your plan",
+    freeNote: "Forever. No card.",
+    proNote: "Cancel any time.",
+    badge: "For weekly use",
+    startFree: "Start for free",
+    upgrade: "Get Pro",
     soon: "Coming soon",
-    popular: "For daily use",
+    kinds: "GCDs (pages and slide decks) and Markdown",
     weekly: (n: string) => `${n} new documents a week`,
-    active: (n: string) => `Up to ${n} active documents`,
     agents: (n: string) => `${n} connected agents`,
     versions: (n: string) => `${n} versions per document`,
     fullHistory: "Full version history",
-    exportAs: (formats: string) => `Export to ${formats}`,
+    collab: "Review, comments, themes and collaboration",
+    publish: "Public link and PDF",
     everything: "Everything in Free",
-    both: ["Markdown documents, pages and slides", "Review agent changes as suggestions", "Comments, sharing and public links"],
-    compareTitle: "Compare plans",
-    rows: {
-      weekly: "New documents per week",
-      active: "Active documents",
-      agents: "Connected agents (MCP)",
-      versions: "Versions kept per document",
-      export: "Export",
-      kinds: "Markdown documents, pages and slides",
-      review: "Suggestions, comments and quality gate",
-      publish: "Publishing and public links",
-      themes: "Saved themes",
-    },
-    all: "All",
-    and: "and",
+    word: "Markdown to Word",
+    compareTitle: "Side by side",
+    rows: { weekly: "New documents per week", active: "Active documents", agents: "Connected agents", versions: "Versions per document", kinds: "GCD and Markdown", collab: "Review, comments and collaboration", publish: "Public link and PDF", word: "Markdown to Word (.docx)" },
+    all: "all",
+    yes: "yes",
+    no: "no",
+    libLabel: "Open source",
+    libTitle: "The library is free forever.",
+    libBody: "The engine behind every GCD is MIT. Run it locally with your agent or show GCDs in your own app, with no account and no limits.",
+    teamLabel: "Teams",
+    teamTitle: "More people, more agents?",
+    teamBody: "For teams we set up a plan with you: limits, a single bill and help bringing the team's agents into DocForge.",
+    teamCta: "Talk to us",
     faqTitle: "Questions",
     faq: [
       ["What counts as a new document?", "Creating one, in the editor or by an agent. Editing, reviewing, commenting, versioning and publishing never count. The allowance renews every Monday at 00:00 UTC."],
-      ["What happens at the limit?", "Nothing is lost or locked. You keep editing; creating waits for Monday, or for an archived document to free an active slot."],
+      ["What happens at the limit?", "Nothing is lost or locked. You keep editing everything you have; creating waits for Monday, or for Pro."],
+      ["And active documents?", "Archive what you are done with to free room. Its history stays, and you can restore it whenever you want."],
       ["Does DocForge charge for AI?", "No. Your agent runs on your side with your own model; DocForge never calls a model, so there are no tokens to pay for."],
-      ["Can I cancel Pro?", "Any time, from the billing page. Your documents stay; the free limits apply again."],
+      ["How do I pay and cancel?", "By card, through Stripe, in reais. Cancel any time from the billing page; your documents stay and the free limits apply again."],
+      ["Does running the library locally cost anything?", "No. The library is open and runs on your computer without an account. The plans are for doc-forge.dev."],
     ],
-    team: "Need it for a team?",
-    teamCta: "Talk to us",
     checkoutError: "Could not start the checkout. Try again in a moment.",
+    closing: "Start free. Decide later.",
   },
   "pt-BR": {
-    badge: "Planos",
-    title: "Grátis para usar. Barato para crescer.",
-    lead: "Tudo o que o DocForge faz está no plano gratuito. O Pro tira os limites de quem escreve com agentes todo dia.",
+    eyebrow: "Preços",
+    title: (price: ReactNode) => <>Grátis para começar. <span style={{ color: "var(--color-heat)" }}>{price}</span> para não ter limite.</>,
+    lead: "O plano grátis já tem tudo o que o DocForge faz. O Pro só tira os limites de quem faz documento toda semana.",
     perMonth: "/ mês",
     free: "Grátis",
-    freeWhat: "Tudo o que o DocForge faz, para uma pessoa e seus agentes.",
-    proWhat: "Para quem escreve com agentes todo dia.",
-    start: "Começar grátis",
+    freeNote: "Para sempre. Sem cartão.",
+    proNote: "Cancele quando quiser.",
+    badge: "Para quem faz toda semana",
+    startFree: "Começar grátis",
     upgrade: "Assinar o Pro",
-    current: "Seu plano",
     soon: "Em breve",
-    popular: "Para uso diário",
+    kinds: "GCDs (páginas e apresentações) e Markdown",
     weekly: (n: string) => `${n} documentos novos por semana`,
-    active: (n: string) => `Até ${n} documentos ativos`,
     agents: (n: string) => `${n} agentes conectados`,
     versions: (n: string) => `${n} versões por documento`,
-    fullHistory: "Histórico de versões completo",
-    exportAs: (formats: string) => `Exportar em ${formats}`,
-    everything: "Tudo do Grátis",
-    both: ["Documentos Markdown, páginas e slides", "Revise as mudanças do agente como sugestões", "Comentários, compartilhamento e links públicos"],
-    compareTitle: "Compare os planos",
-    rows: {
-      weekly: "Documentos novos por semana",
-      active: "Documentos ativos",
-      agents: "Agentes conectados (MCP)",
-      versions: "Versões guardadas por documento",
-      export: "Exportar",
-      kinds: "Documentos Markdown, páginas e slides",
-      review: "Sugestões, comentários e gate de qualidade",
-      publish: "Publicação e links públicos",
-      themes: "Temas salvos",
-    },
-    all: "Todas",
-    and: "e",
+    fullHistory: "Histórico completo de versões",
+    collab: "Revisão, comentários, temas e colaboração",
+    publish: "Link público e PDF",
+    everything: "Tudo do grátis",
+    word: "Markdown em Word",
+    compareTitle: "Lado a lado",
+    rows: { weekly: "Documentos novos por semana", active: "Documentos ativos", agents: "Agentes conectados", versions: "Versões por documento", kinds: "GCD e Markdown", collab: "Revisão, comentários e colaboração", publish: "Link público e PDF", word: "Markdown em Word (.docx)" },
+    all: "todas",
+    yes: "sim",
+    no: "não",
+    libLabel: "Código aberto",
+    libTitle: "A lib é grátis para sempre.",
+    libBody: "O motor dos GCDs é MIT. Rode local com o seu agente ou mostre GCDs no seu app, sem conta e sem limite.",
+    teamLabel: "Times",
+    teamTitle: "Mais pessoas, mais agentes?",
+    teamBody: "Para times, montamos um plano junto com você: limites, cobrança única e ajuda para colocar os agentes do time no DocForge.",
+    teamCta: "Fale com a gente",
     faqTitle: "Perguntas",
     faq: [
       ["O que conta como documento novo?", "Criar um, no editor ou por um agente. Editar, revisar, comentar, versionar e publicar nunca contam. A cota renova toda segunda-feira, 00:00 UTC."],
-      ["O que acontece no limite?", "Nada se perde nem trava. Você continua editando; criar espera a segunda-feira, ou um documento arquivado liberar espaço."],
+      ["O que acontece quando chego no limite?", "Nada se perde nem trava. Você continua editando tudo o que já tem; criar espera a segunda-feira, ou o Pro."],
+      ["E os documentos ativos?", "Arquive o que já terminou para liberar espaço. O histórico continua lá e dá para restaurar quando quiser."],
       ["O DocForge cobra pela IA?", "Não. Seu agente roda do seu lado, com o seu modelo; o DocForge nunca chama um modelo, então não há tokens para pagar."],
-      ["Posso cancelar o Pro?", "Quando quiser, pela página de assinatura. Seus documentos ficam; os limites do plano gratuito voltam a valer."],
+      ["Como pago e como cancelo?", "Com cartão, pelo Stripe, em reais. Cancele quando quiser pela página de assinatura; seus documentos ficam e os limites do grátis voltam a valer."],
+      ["Usar a lib local tem custo?", "Não. A lib é aberta e roda no seu computador sem conta. Os planos valem para o doc-forge.dev."],
     ],
-    team: "Precisa para um time?",
-    teamCta: "Fale com a gente",
     checkoutError: "Não foi possível abrir o pagamento. Tente de novo em instantes.",
+    closing: "Comece grátis. Decida depois.",
   },
 } as const;
-
-const FORMAT_NAMES: Record<string, string> = { md: "Markdown", pdf: "PDF", docx: "Word" };
 
 export function PricingPage() {
   const { locale } = useI18n();
   const copy = COPY[locale];
-  const { isSignedIn, getToken } = useAuth();
-  const { openSignIn } = useClerk();
-  const navigate = useNavigate();
+  const { start } = useMarketingPage();
+  const checkout = useProCheckout(copy.checkoutError);
   const [tiers, setTiers] = useState<Tier[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    apiFetchTiers().then((t) => !cancelled && setTiers(t)).catch(() => {});
+    apiFetchTiers().then((list) => !cancelled && setTiers(list)).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
   const number = (n: number | null) => (n === null ? "∞" : n.toLocaleString(locale));
   const money = (tier: Tier) =>
     new Intl.NumberFormat(locale, { style: "currency", currency: tier.currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(tier.priceMonthly ?? 0);
-  const formats = (list: string[]) => {
-    const names = list.map((f) => FORMAT_NAMES[f] ?? f);
-    return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} ${copy.and} ${names[names.length - 1]}`;
-  };
-  const free = tiers.find((t) => t.slug === "free");
-  const pro = tiers.find((t) => t.slug === "pro");
-
-  const startFree = () => (isSignedIn ? navigate("/home") : openSignIn({ afterSignInUrl: "/home", afterSignUpUrl: "/home" }));
-  const upgrade = async () => {
-    if (!isSignedIn) {
-      openSignIn({ afterSignInUrl: "/pricing", afterSignUpUrl: "/pricing" });
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      window.location.href = await apiCreateCheckoutSession("pro", getToken);
-    } catch {
-      setError(copy.checkoutError);
-      setBusy(false);
-    }
-  };
-
-  const limitsOf = (tier: Tier) => [
-    copy.weekly(number(tier.limits.weeklyDocumentCreations)),
-    copy.active(number(tier.limits.maxActiveDocuments)),
-    copy.agents(number(tier.limits.maxApiKeys)),
-    tier.limits.maxVersionsPerSection === null ? copy.fullHistory : copy.versions(number(tier.limits.maxVersionsPerSection)),
-    copy.exportAs(formats(tier.limits.exportFormats)),
-  ];
+  const free = tiers.find((tier) => tier.slug === "free");
+  const pro = tiers.find((tier) => tier.slug === "pro");
+  const versions = (tier: Tier) => (tier.limits.maxVersionsPerSection === null ? copy.fullHistory : copy.versions(number(tier.limits.maxVersionsPerSection)));
+  const word = (tier: Tier) => tier.limits.exportFormats.includes("docx");
 
   return (
-    <div className="hide-scrollbar" style={{ background: "var(--color-bg)", color: "var(--color-text)", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-sans)", position: "relative" }}>
-      <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 800px 600px at 50% 15%, var(--color-heat-wash), transparent 60%)" }} />
-      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1 }}>
-        <MarketingNav active="pricing" />
-        <main style={{ flex: 1, padding: "76px 24px 96px", maxWidth: 980, margin: "0 auto", width: "100%" }}>
-          <header style={{ textAlign: "center", marginBottom: 48 }}>
-            <Pill tone="heat">{copy.badge}</Pill>
-            <h1 style={{ fontSize: "clamp(36px, 5.5vw, 58px)", fontWeight: 600, letterSpacing: "-.05em", lineHeight: 1, margin: "20px 0 16px" }}>{copy.title}</h1>
-            <p style={{ color: "var(--color-dim)", fontSize: 17, lineHeight: 1.6, maxWidth: 560, margin: "0 auto" }}>{copy.lead}</p>
-          </header>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 16, alignItems: "stretch" }}>
-            {free && (
-              <PlanCard
-                name={copy.free}
-                price={money(free)}
-                perMonth={copy.perMonth}
-                what={copy.freeWhat}
-                lines={[...copy.both, ...limitsOf(free)]}
-                cta={<Button size="lg" onClick={startFree} style={{ width: "100%" }}>{copy.start}</Button>}
-              />
-            )}
-            {pro && (
-              <PlanCard
-                highlight
-                badge={copy.popular}
-                name="Pro"
-                price={money(pro)}
-                perMonth={copy.perMonth}
-                what={copy.proWhat}
-                lines={[copy.everything, ...limitsOf(pro)]}
-                cta={
-                  <Button size="lg" variant="primary" onClick={upgrade} disabled={!pro.available || busy} style={{ width: "100%" }}>
-                    {pro.available ? copy.upgrade : copy.soon}
-                  </Button>
-                }
-              />
-            )}
+    <div className="df-mk hide-scrollbar">
+      <MarketingNav active="pricing" />
+      <main>
+        <section style={{ position: "relative", overflow: "hidden" }}>
+          <div className="df-mk-gridbg" aria-hidden />
+          <div className="df-mk-wrap" style={{ position: "relative", paddingTop: 88, paddingBottom: 56, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 18 }}>
+            <Eyebrow tone="heat" align="center">{copy.eyebrow}</Eyebrow>
+            <h1 style={{ margin: 0, fontSize: "clamp(40px, 6.4vw, 64px)", lineHeight: 1, letterSpacing: "-.05em", fontWeight: 600, maxWidth: 840 }}>
+              {copy.title(pro ? money(pro) : "Pro")}
+            </h1>
+            <p style={{ ...leadStyle, maxWidth: 600 }}>{copy.lead}</p>
           </div>
-          {error && <p style={{ color: "var(--color-error)", textAlign: "center", fontSize: "var(--text-body-sm)", marginTop: 14 }}>{error}</p>}
-
-          <p style={{ textAlign: "center", color: "var(--color-dim)", fontSize: "var(--text-body)", marginTop: 26 }}>
-            {copy.team}{" "}
-            <a href={CONTACT} style={{ color: "var(--color-heat-soft)", fontWeight: 600, textDecoration: "none" }}>{copy.teamCta} →</a>
-          </p>
-
           {free && pro && (
-            <section style={{ marginTop: 80 }}>
-              <h2 style={sectionTitle}>{copy.compareTitle}</h2>
-              <div style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
-                <CompareRow head label="" free={copy.free} pro="Pro" />
-                <CompareRow label={copy.rows.weekly} free={number(free.limits.weeklyDocumentCreations)} pro={number(pro.limits.weeklyDocumentCreations)} />
-                <CompareRow label={copy.rows.active} free={number(free.limits.maxActiveDocuments)} pro={number(pro.limits.maxActiveDocuments)} />
-                <CompareRow label={copy.rows.agents} free={number(free.limits.maxApiKeys)} pro={number(pro.limits.maxApiKeys)} />
-                <CompareRow label={copy.rows.versions} free={number(free.limits.maxVersionsPerSection)} pro={pro.limits.maxVersionsPerSection === null ? copy.all : number(pro.limits.maxVersionsPerSection)} />
-                <CompareRow label={copy.rows.export} free={formats(free.limits.exportFormats)} pro={formats(pro.limits.exportFormats)} />
-                <CompareRow label={copy.rows.kinds} free pro check />
-                <CompareRow label={copy.rows.review} free pro check />
-                <CompareRow label={copy.rows.publish} free pro check />
-                <CompareRow label={copy.rows.themes} free pro check />
+            <div className="df-mk-wrap" style={{ position: "relative", paddingBottom: 96 }}>
+              <div className="df-mk-grid-2" style={{ maxWidth: 920, margin: "0 auto", gap: 20 }}>
+                <PlanCard
+                  name={copy.free}
+                  price={money(free)}
+                  perMonth={copy.perMonth}
+                  note={copy.freeNote}
+                  lines={[copy.kinds, copy.weekly(number(free.limits.weeklyDocumentCreations)), copy.agents(number(free.limits.maxApiKeys)), copy.collab, copy.publish]}
+                  cta={<Button size="lg" style={{ width: "100%" }} onClick={start}>{copy.startFree}</Button>}
+                />
+                <PlanCard
+                  highlight
+                  badge={copy.badge}
+                  name="Pro"
+                  price={money(pro)}
+                  perMonth={copy.perMonth}
+                  note={copy.proNote}
+                  lines={[copy.everything, copy.weekly(number(pro.limits.weeklyDocumentCreations)), copy.agents(number(pro.limits.maxApiKeys)), versions(pro), ...(word(pro) ? [copy.word] : [])]}
+                  cta={
+                    <Button size="lg" variant="primary" style={{ width: "100%" }} disabled={!pro.available || checkout.busy} onClick={checkout.upgrade}>
+                      {pro.available ? copy.upgrade : copy.soon}
+                    </Button>
+                  }
+                />
               </div>
-            </section>
+              {checkout.error && <p style={{ textAlign: "center", color: "var(--color-error)", fontSize: "var(--text-body-sm)", margin: "14px 0 0" }}>{checkout.error}</p>}
+            </div>
           )}
+        </section>
 
-          <section style={{ marginTop: 80 }}>
-            <h2 style={sectionTitle}>{copy.faqTitle}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))", gap: 14 }}>
-              {copy.faq.map(([q, a]) => (
-                <article key={q} style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", padding: 20, background: "var(--color-hover)" }}>
-                  <h3 style={{ fontSize: "var(--text-title)", margin: "0 0 8px" }}>{q}</h3>
-                  <p style={{ color: "var(--color-dim)", fontSize: "var(--text-body-sm)", lineHeight: 1.6, margin: 0 }}>{a}</p>
-                </article>
-              ))}
+        {free && pro && (
+          <section className="df-mk-band">
+            <div className="df-mk-wrap" style={{ paddingTop: 80, paddingBottom: 80, maxWidth: 920, display: "flex", flexDirection: "column", gap: 28 }}>
+              <h2 style={h2Style}>{copy.compareTitle}</h2>
+              <Panel style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", minWidth: 560, borderCollapse: "collapse", fontSize: "var(--text-body)" }}>
+                  <thead>
+                    <tr>
+                      <th scope="col" style={cell} />
+                      <th scope="col" style={{ ...cell, ...num, fontWeight: 600 }}>{copy.free}</th>
+                      <th scope="col" style={{ ...cell, ...num, fontWeight: 600, color: "var(--color-heat-hi)" }}>Pro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <Row label={copy.rows.weekly} free={number(free.limits.weeklyDocumentCreations)} pro={number(pro.limits.weeklyDocumentCreations)} />
+                    <Row label={copy.rows.active} free={number(free.limits.maxActiveDocuments)} pro={number(pro.limits.maxActiveDocuments)} />
+                    <Row label={copy.rows.agents} free={number(free.limits.maxApiKeys)} pro={number(pro.limits.maxApiKeys)} />
+                    <Row label={copy.rows.versions} free={free.limits.maxVersionsPerSection === null ? copy.all : number(free.limits.maxVersionsPerSection)} pro={pro.limits.maxVersionsPerSection === null ? copy.all : number(pro.limits.maxVersionsPerSection)} />
+                    <Row label={copy.rows.kinds} free pro yes={copy.yes} no={copy.no} />
+                    <Row label={copy.rows.collab} free pro yes={copy.yes} no={copy.no} />
+                    <Row label={copy.rows.publish} free pro yes={copy.yes} no={copy.no} />
+                    <Row label={copy.rows.word} free={word(free)} pro={word(pro)} yes={copy.yes} no={copy.no} last />
+                  </tbody>
+                </table>
+              </Panel>
             </div>
           </section>
-        </main>
-        <AppFooter />
-      </div>
+        )}
+
+        <section className="df-mk-wrap" style={{ paddingTop: 88, paddingBottom: 72 }}>
+          <div className="df-mk-grid-2" style={{ gap: 20 }}>
+            <Panel style={{ padding: 32, display: "flex", flexDirection: "column", gap: 14 }}>
+              <Eyebrow style={{ color: "var(--color-steel-hi)" }}>{copy.libLabel}</Eyebrow>
+              <h3 style={h3}>{copy.libTitle}</h3>
+              <p style={body}>{copy.libBody}</p>
+              <code className="df-mono" style={{ marginTop: "auto", fontSize: "var(--text-body-sm)", color: "var(--color-text)", background: "var(--color-sink)", borderRadius: "var(--radius-sm)", padding: "12px 14px", overflowX: "auto", whiteSpace: "nowrap" }}>npx docforge-layout mcp --root .</code>
+            </Panel>
+            <Panel style={{ padding: 32, display: "flex", flexDirection: "column", gap: 14 }}>
+              <Eyebrow tone="heat">{copy.teamLabel}</Eyebrow>
+              <h3 style={h3}>{copy.teamTitle}</h3>
+              <p style={body}>{copy.teamBody}</p>
+              <a href={CONTACT} style={{ marginTop: "auto", fontSize: "var(--text-body)", fontWeight: 600, color: "var(--color-heat-soft)", textDecoration: "none" }}>{copy.teamCta} →</a>
+            </Panel>
+          </div>
+        </section>
+
+        <section className="df-mk-wrap" style={{ paddingTop: 24, paddingBottom: 40, maxWidth: 880 }}>
+          <h2 style={h2Style}>{copy.faqTitle}</h2>
+          <div style={{ marginTop: 16 }}>
+            {copy.faq.map(([q, a], i) => (
+              <details key={q} className="df-mk-faq" open={i === 0}>
+                <summary>{q}</summary>
+                <p style={{ ...leadStyle, fontSize: "var(--text-body)", paddingBottom: 20 }}>{a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <ClosingCta title={copy.closing} cta={copy.startFree} onClick={start} />
+      </main>
+      <AppFooter />
     </div>
   );
 }
 
-const sectionTitle = { fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 600, letterSpacing: "-.035em", textAlign: "center", margin: "0 0 24px" } as const;
+const h3 = { margin: 0, fontSize: 28, letterSpacing: "-.02em", fontWeight: 600 } as const;
+const body = { margin: 0, fontSize: "var(--text-body)", lineHeight: 1.6, color: "var(--color-dim)" } as const;
+const cell = { padding: "16px 20px", borderBottom: "1px solid var(--color-outline)", textAlign: "left" } as const;
+const num = { textAlign: "center", fontVariantNumeric: "tabular-nums" } as const;
 
-function PlanCard({ name, price, perMonth, what, lines, cta, highlight = false, badge }: {
-  name: string; price: string; perMonth: string; what: string; lines: readonly string[]; cta: React.ReactNode; highlight?: boolean; badge?: string;
+function PlanCard({ name, price, perMonth, note, lines, cta, highlight = false, badge }: {
+  name: string; price: string; perMonth: string; note: string; lines: readonly string[]; cta: ReactNode; highlight?: boolean; badge?: string;
 }) {
   return (
-    <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 20, padding: "30px 26px", borderRadius: "var(--radius-lg)", border: `1px solid ${highlight ? "var(--color-heat-strong)" : "var(--color-outline)"}`, background: highlight ? "var(--gradient-warm)" : "var(--color-chrome)", boxShadow: highlight ? "var(--shadow-glow)" : "none" }}>
-      {badge && <Pill tone="heat" style={{ position: "absolute", top: -12, left: 26 }}>{badge}</Pill>}
-      <div>
-        <Eyebrow tone={highlight ? "heat" : "faint"}>{name}</Eyebrow>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 14 }}>
-          <span style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-.05em" }}>{price}</span>
-          <span style={{ color: "var(--color-faint)", fontSize: "var(--text-body)" }}>{perMonth}</span>
-        </div>
-        <p style={{ color: "var(--color-dim)", fontSize: "var(--text-body)", lineHeight: 1.55, margin: "10px 0 0" }}>{what}</p>
+    <Panel accent={highlight} style={{ position: "relative", padding: 36, display: "flex", flexDirection: "column", gap: 22, boxShadow: highlight ? "0 0 100px var(--color-heat-tint)" : "none" }}>
+      {badge && (
+        <span style={{ position: "absolute", top: -13, left: 36, background: "var(--color-heat)", color: "var(--color-on-heat)", fontSize: "var(--text-caption)", fontWeight: 600, padding: "7px 10px", borderRadius: "var(--radius-pill)" }}>{badge}</span>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <span style={{ fontSize: "var(--text-body)", color: highlight ? "var(--color-heat-hi)" : "var(--color-dim)" }}>{name}</span>
+        <span style={{ fontSize: 60, fontWeight: 600, letterSpacing: "-.05em", lineHeight: 1 }}>
+          {price}
+          <span style={{ fontSize: 17, color: "var(--color-dim)", fontWeight: 400, letterSpacing: 0 }}> {perMonth}</span>
+        </span>
+        <span style={{ fontSize: "var(--text-body)", color: "var(--color-dim)" }}>{note}</span>
       </div>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+      {cta}
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 12, fontSize: "var(--text-body)", lineHeight: 1.45, color: "var(--color-dim)" }}>
         {lines.map((line) => (
-          <li key={line} style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: "var(--text-body-sm)", color: "var(--color-dim)", lineHeight: 1.45 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16, color: highlight ? "var(--color-heat-hi)" : "var(--color-steel-hi)", flexShrink: 0 }}>check</span>
+          <li key={line} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 18, color: highlight ? "var(--color-heat-hi)" : "var(--color-ok)", flexShrink: 0 }}>check</span>
             {line}
           </li>
         ))}
       </ul>
-      <div style={{ marginTop: "auto" }}>{cta}</div>
-    </div>
+    </Panel>
   );
 }
 
-function CompareRow({ label, free, pro, head = false, check = false }: { label: string; free: string | boolean; pro: string | boolean; head?: boolean; check?: boolean }) {
-  const cell = (value: string | boolean) =>
-    check && value === true
-      ? <span className="material-symbols-outlined" style={{ fontSize: 17, color: "var(--color-ok)" }}>check</span>
-      : <span>{value}</span>;
+function Row({ label, free, pro, yes = "", no = "", last = false }: { label: string; free: string | boolean; pro: string | boolean; yes?: string; no?: string; last?: boolean }) {
+  const value = (v: string | boolean) => (typeof v === "boolean" ? <span style={{ color: v ? "var(--color-ok)" : "var(--color-faint)" }}>{v ? yes : no}</span> : v);
+  const border = last ? { borderBottom: "none" } : {};
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr)", alignItems: "center", gap: 12, padding: "12px 18px", borderTop: head ? "none" : "1px solid var(--color-outline)", background: head ? "var(--color-hover)" : "transparent", fontSize: "var(--text-body-sm)" }}>
-      <span style={head ? { ...textStyle.label, color: "var(--color-faint)" } : { color: "var(--color-dim)" }}>{label}</span>
-      <span style={{ textAlign: "center", ...(head ? { ...textStyle.label, color: "var(--color-faint)" } : {}) }}>{cell(free)}</span>
-      <span style={{ textAlign: "center", ...(head ? { ...textStyle.label, color: "var(--color-heat-hi)" } : {}) }}>{cell(pro)}</span>
-    </div>
+    <tr>
+      <th scope="row" style={{ ...cell, ...border, fontWeight: 500, color: "var(--color-dim)" }}>{label}</th>
+      <td style={{ ...cell, ...num, ...border }}>{value(free)}</td>
+      <td style={{ ...cell, ...num, ...border, color: "var(--color-text)", fontWeight: typeof pro === "string" ? 600 : 400 }}>{value(pro)}</td>
+    </tr>
   );
 }

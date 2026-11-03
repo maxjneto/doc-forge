@@ -3,3 +3,6 @@
  * domain — or a local stack — shows the right address in every setup snippet.
  */
 export const MCP_URL: string = (import.meta.env.VITE_MCP_URL as string | undefined) || "https://mcp.doc-forge.dev/mcp";
+
+/** The page-document (GCD) toolset: what the marketing pages tell agents to connect to. */
+export const MCP_CGD_URL = `${MCP_URL}/cgd`;

@@ -144,13 +144,77 @@ def _use_api_key(ctx: Context) -> None:
     _api_key_var.set(key)
 
 
+def _require_markdown(doc: dict) -> None:
+    if doc.get("document_mode") == "layout":
+        raise DocForgeError(
+            f"'{doc.get('title')}' is a layout (CGD) document, not Markdown: read it with get_layout_map "
+            "and change it with apply_layout_ops (the cgd toolset, /mcp/cgd)."
+        )
+
+
+def _body_id(doc: dict) -> str:
+    body = next((s for s in doc.get("sections", []) if s.get("section_type") == "body"), None)
+    if body is None:
+        raise DocForgeError(f"Document {doc.get('id')} has no body section.")
+    return body["id"]
+
+
 async def _resolve_body_section(document_id: str) -> tuple[dict, str]:
     doc = await api.get_document(document_id)
-    sections = doc.get("sections", [])
-    body = next((s for s in sections if s.get("section_type") == "body"), None)
-    if body is None:
-        raise DocForgeError(f"Document {document_id} has no body section.")
-    return doc, body["id"]
+    _require_markdown(doc)
+    return doc, _body_id(doc)
+
+
+async def _working_copy(document_id: str) -> tuple[dict, str, dict | None]:
+    """(document, the text this agent works on, its pending suggestion or None).
+
+    On a document under review, an agent's writes become one pending
+    suggestion that it keeps updating. Its reads and edits have to start from
+    that proposal — replayed by the server on whatever people wrote since —
+    or each edit would silently drop the previous ones.
+    """
+    doc = await api.get_document(document_id)
+    _require_markdown(doc)
+    content = _body_content(doc)
+    if doc.get("agent_write_policy", "suggest") != "suggest":
+        return doc, content, None
+    pending = await api.list_suggestions(document_id, status="pending", include_content=True)
+    mine = next((s for s in pending if s.get("is_mine")), None)
+    # On a clash the proposal can't be replayed: work from what people wrote,
+    # and re-apply what is still wanted (the next write replaces the proposal).
+    if mine is not None and mine.get("proposed_content") is not None and not mine.get("has_conflict"):
+        content = mine["proposed_content"]
+    return doc, content, mine
+
+
+def _pending_line(mine: dict | None) -> str:
+    if mine is None:
+        return ""
+    line = (
+        f"Your pending suggestion {mine['id']} is applied in what you see here: people see these "
+        "changes once they accept it. Further writes update that same suggestion.\n"
+    )
+    if mine.get("has_conflict"):
+        line = (
+            f"WARNING: your pending suggestion {mine['id']} clashes with edits people made since (the same "
+            "words, changed two ways), so it can't be accepted. What you see here is the document as people "
+            "left it, WITHOUT your pending changes: re-apply every one of them — your next write replaces "
+            "the suggestion.\n" + _people_changes(mine)
+        )
+    return line
+
+
+def _people_changes(suggestion: dict) -> str:
+    """The passages people changed since a conflicting suggestion: the only ones to adapt."""
+    changes = suggestion.get("people_changes") or []
+    if not changes:
+        return ""
+    lines = "".join(f'  - "{c["before"]}" → "{c["after"]}"\n' for c in changes)
+    return (
+        "What people changed since (everything else that differs from your suggestion is yours, so "
+        "re-apply it as it was; where they touched a passage you changed, start from their version and "
+        f"make your change again if it is still needed):\n{lines}"
+    )
 
 
 def _body_content(doc: dict) -> str:
@@ -219,7 +283,14 @@ async def list_documents(*, ctx: Context) -> str:
     docs = await api.list_documents()
     if not docs:
         return "No documents found."
-    lines = [f"- [{d['title']}] id={d['id']} updated={d.get('updated_at', '')[:10]}" for d in docs]
+    toolset = _toolset()
+    lines = []
+    for d in docs:
+        kind = "cgd" if d.get("document_mode") == "layout" else "markdown"
+        line = f"- [{d['title']}] id={d['id']} type={kind} updated={d.get('updated_at', '')[:10]}"
+        if toolset is not None and kind != toolset:
+            line += f" (its tools are in /mcp/{kind})"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -256,11 +327,11 @@ async def get_document(document_id: str, full: bool = False, *, ctx: Context) ->
         full: If True, return the complete body content instead of just an outline.
     """
     _use_api_key(ctx)
-    doc = await api.get_document(document_id)
-    content = _body_content(doc)
+    doc, content, mine = await _working_copy(document_id)
     header = (
         f"Title: {doc['title']}\n"
         f"ID: {doc['id']}\n"
+        f"{_pending_line(mine)}"
     )
     headings = _extract_headings(content)
     if full or not headings:
@@ -286,8 +357,7 @@ async def get_section(document_id: str, heading: str, *, ctx: Context) -> str:
         heading: Exact heading text (without the '#' markers), e.g. 'Risks'.
     """
     _use_api_key(ctx)
-    doc = await api.get_document(document_id)
-    content = _body_content(doc)
+    doc, content, _mine = await _working_copy(document_id)
     excerpt = _extract_section_by_heading(content, heading)
     if excerpt is None:
         headings = _extract_headings(content)
@@ -296,119 +366,125 @@ async def get_section(document_id: str, heading: str, *, ctx: Context) -> str:
     return excerpt
 
 
+def _write_result(doc: dict, result: Any, what: str) -> str:
+    if isinstance(result, dict) and result.get("mode") == "suggestion":
+        return (
+            f"{what}: proposed for review in '{doc['title']}' (suggestion {result.get('suggestion_id')}).\n"
+            "That one suggestion holds all your pending changes to this document: further writes update it, "
+            "and get_document / get_section show the document with it applied. People see the changes once "
+            "they accept it (check_suggestions tells you). If it answers a comment, resolve the comment now "
+            "with a note saying the change awaits their review."
+        )
+    return f"{what} in '{doc['title']}'. People see it now."
+
+
 @mcp.tool()
 async def write_section(document_id: str, content: str, note: str = "", *, ctx: Context) -> str:
-    """Replace the full body section content of a document.
-    To add to the end without resending everything, use append_section instead.
-    For a small edit, use patch_section. To read the current content first,
-    call get_document(document_id, full=True).
+    """Replace the whole document body. For anything smaller use patch_section
+    (or append_section to add at the end): you don't resend the document and
+    you can't drop a passage by accident.
 
-    IMPORTANT: by default your write does NOT apply immediately — it becomes a
-    pending SUGGESTION that the user reviews as a diff in their browser and
-    accepts or rejects (like a pull request). Check the outcome later with
-    check_suggestions, and read any review feedback with get_pending_feedback.
-    Documents configured with the 'direct' policy apply writes immediately.
+    On a document under review (the default) the write becomes a suggestion
+    people accept or reject, and your pending changes stay in it: base the
+    content on get_document(full=True), which shows them.
 
     Args:
         document_id: Document UUID.
-        content: Full Markdown content to write.
-        note: Optional explanation shown to the reviewer (e.g. 'Analyzed 47 source files').
+        content: The full Markdown body.
+        note: What changed and why, for the reviewer (one sentence).
     """
     _use_api_key(ctx)
     doc, section_id = await _resolve_body_section(document_id)
     result = await api.update_section_content(section_id, content, note or None)
-    if isinstance(result, dict) and result.get("mode") == "suggestion":
-        return (
-            f"Suggestion submitted for '{doc['title']}' ({len(content)} characters).\n"
-            f"Suggestion ID: {result.get('suggestion_id')}\n\n"
-            f"The write is PENDING human review — the document content is unchanged "
-            f"until the user accepts it in their browser. Use check_suggestions to "
-            f"see if it was accepted or rejected, and get_pending_feedback to read "
-            f"any review comments before rewriting."
-        )
-    return (
-        f"Written {len(content)} characters to '{doc['title']}'. "
-        f"The user's browser has been updated in real-time."
-    )
+    return _write_result(doc, result, f"Wrote {len(content)} characters")
 
 
 @mcp.tool()
 async def append_section(document_id: str, content: str, note: str = "", *, ctx: Context) -> str:
-    """Append content to the end of a document's body section, without needing
-    to read and resend the existing content first. Same suggestion/direct-write
-    policy as write_section — check the return value to see which applied.
+    """Add Markdown at the end of the document, without reading or resending it.
 
     Args:
         document_id: Document UUID.
-        content: Markdown content to add after the existing body.
-        note: Optional explanation shown to the reviewer.
+        content: Markdown to add after the existing body.
+        note: What it adds, for the reviewer (one sentence).
     """
     _use_api_key(ctx)
     doc, section_id = await _resolve_body_section(document_id)
     result = await api.update_section_content(section_id, content, note or None, mode="append")
-    if isinstance(result, dict) and result.get("mode") == "suggestion":
-        return (
-            f"Append suggestion submitted for '{doc['title']}' ({len(content)} characters).\n"
-            f"Suggestion ID: {result.get('suggestion_id')}\n\n"
-            f"PENDING human review — nothing appended yet. Use check_suggestions to "
-            f"see if it was accepted or rejected."
+    return _write_result(doc, result, f"Appended {len(content)} characters")
+
+
+def _apply_edit(content: str, edit: dict[str, Any], number: int) -> str:
+    old = edit.get("old_text")
+    if not isinstance(old, str) or not old:
+        raise DocForgeError(f"Edit {number}: old_text is required (the exact text to replace).")
+    new = edit.get("new_text", "")
+    if not isinstance(new, str):
+        raise DocForgeError(f"Edit {number}: new_text must be text ('' deletes).")
+    anchor = edit.get("anchor") or ""
+    start, end = 0, len(content)
+    if anchor:
+        span = _heading_span(content, anchor)
+        if span is None:
+            available = ", ".join(h["text"] for h in _extract_headings(content)) or "(none found)"
+            raise DocForgeError(f"Edit {number}: heading {anchor!r} not found. Headings: {available}.")
+        start, end, _level = span
+    scope = content[start:end]
+    where = f"under {anchor!r}" if anchor else "in the document"
+    count = scope.count(old)
+    if count == 0:
+        raise DocForgeError(f"Edit {number}: old_text not found {where}: {old[:80]!r}.")
+    if count > 1 and not edit.get("all"):
+        raise DocForgeError(
+            f"Edit {number}: old_text appears {count} times {where}. Make it longer so it is unique, "
+            'give an anchor heading, or set "all": true to replace every one.'
         )
-    return (
-        f"Appended {len(content)} characters to '{doc['title']}'. "
-        f"The user's browser has been updated in real-time."
-    )
+    replaced = scope.replace(old, new) if edit.get("all") else scope.replace(old, new, 1)
+    return content[:start] + replaced + content[end:]
 
 
 @mcp.tool()
 async def patch_section(
-    document_id: str, anchor: str, old_text: str, new_text: str, note: str = "", *, ctx: Context
+    document_id: str,
+    anchor: str = "",
+    old_text: str = "",
+    new_text: str = "",
+    note: str = "",
+    edits: list[dict[str, Any]] | str | None = None,
+    *,
+    ctx: Context,
 ) -> str:
-    """Edit part of a document's body by exact text replacement, scoped to one
-    Markdown heading — like a find-and-replace within that section only.
-    Cheaper and safer than write_section for small changes: you don't resend
-    the whole document, and old_text must match exactly once within the
-    section or the call fails (ambiguous or missing match — make old_text more
-    specific and retry).
+    """Change parts of the document by exact text replacement — the usual way
+    to edit: you never resend the document.
+
+    One edit: old_text / new_text (and optionally anchor). Several at once, as
+    one change: edits=[{"old_text": ..., "new_text": ..., "anchor"?: ..., "all"?: true}].
+    - old_text must appear exactly once — under the `anchor` heading when you
+      give one, otherwise in the whole document.
+    - "all": true replaces every occurrence (a renamed term, a date format).
+    - new_text "" deletes.
+    If any edit does not match, nothing is written and the error says which.
 
     Args:
         document_id: Document UUID.
-        anchor: Exact heading text the edit is scoped to (see get_document for the outline).
-        old_text: Exact existing text to replace, within that section.
-        new_text: Replacement text.
-        note: Optional explanation shown to the reviewer.
+        anchor: Optional heading text that scopes old_text (see get_document's outline).
+        old_text: Exact text to replace.
+        new_text: Replacement ('' deletes).
+        note: What changed and why, for the reviewer (one sentence).
+        edits: Several edits applied in order, instead of anchor/old_text/new_text.
     """
     _use_api_key(ctx)
-    doc = await api.get_document(document_id)
-    content = _body_content(doc)
-    span = _heading_span(content, anchor)
-    if span is None:
-        headings = _extract_headings(content)
-        available = ", ".join(h["text"] for h in headings) or "(none found)"
-        raise DocForgeError(f"Heading {anchor!r} not found in '{doc['title']}'. Available: {available}.")
-    start, end, _level = span
-    section_slice = content[start:end]
-    occurrences = section_slice.count(old_text)
-    if occurrences == 0:
-        raise DocForgeError(f"old_text not found under heading {anchor!r}.")
-    if occurrences > 1:
-        raise DocForgeError(
-            f"old_text matches {occurrences} times under heading {anchor!r} — "
-            "make it more specific so the edit is unambiguous."
-        )
-    patched_slice = section_slice.replace(old_text, new_text, 1)
-    new_content = content[:start] + patched_slice + content[end:]
-    _, section_id = await _resolve_body_section(document_id)
-    result = await api.update_section_content(section_id, new_content, note or None)
-    if isinstance(result, dict) and result.get("mode") == "suggestion":
-        return (
-            f"Patch suggestion submitted for '{doc['title']}' (section {anchor!r}).\n"
-            f"Suggestion ID: {result.get('suggestion_id')}\n\n"
-            f"PENDING human review — nothing changed yet."
-        )
-    return (
-        f"Patched section {anchor!r} in '{doc['title']}'. "
-        f"The user's browser has been updated in real-time."
-    )
+    batch = _parse_json_arg(edits, "edits") if edits else [{"anchor": anchor, "old_text": old_text, "new_text": new_text}]
+    if not isinstance(batch, list) or not batch or not all(isinstance(e, dict) for e in batch):
+        raise DocForgeError("`edits` must be a non-empty list of {old_text, new_text, anchor?, all?} objects.")
+    doc, content, _mine = await _working_copy(document_id)
+    new_content = content
+    for number, edit in enumerate(batch, 1):
+        new_content = _apply_edit(new_content, edit, number)
+    if new_content == content:
+        return "Nothing changed: every new_text equals its old_text."
+    result = await api.update_section_content(_body_id(doc), new_content, note or None, base=_body_content(doc))
+    return _write_result(doc, result, f"Applied {len(batch)} edit(s)")
 
 
 @mcp.tool()
@@ -428,10 +504,14 @@ async def check_suggestions(document_id: str, status: str = "", *, ctx: Context)
     lines = []
     for s in suggestions:
         ts = (s.get("created_at") or "")[:16]
-        stale = " (stale: document changed since proposal)" if s.get("is_stale") else ""
+        stale = " (people edited the document since; your changes are replayed on top)" if s.get("is_stale") else ""
+        if s.get("has_conflict"):
+            stale = " (CONFLICT: someone rewrote the same passage since — re-read it and write it again)"
         line = f"- [{s.get('status', '?').upper()}] id={s['id']} created={ts}{stale}"
         if s.get("note"):
             line += f"\n  note: {s['note']}"
+        if s.get("has_conflict") and s.get("people_changes"):
+            line += "\n  " + _people_changes(s).rstrip("\n").replace("\n", "\n  ")
         if s.get("review_comment"):
             line += f"\n  reviewer said: {s['review_comment']}"
         lines.append(line)
@@ -440,39 +520,34 @@ async def check_suggestions(document_id: str, status: str = "", *, ctx: Context)
 
 @mcp.tool()
 async def get_pending_feedback(document_id: str, *, ctx: Context) -> str:
-    """Read open human feedback on a document: comment threads people left on the
-    text (with the passage they point at) and comments from rejected suggestions.
-    Requests addressed to you come first. Call this BEFORE writing to incorporate
-    what people asked for; answer in a thread with reply_feedback, and mark an
-    item done with resolve_feedback once the document reflects it.
+    """Read the open comments on a document, with the passage each points at.
+
+    Comments FOR YOU (requests to the agent, and reasons a person gave for
+    rejecting your suggestion) come first: act on each one — change the
+    document, or answer with reply_feedback when it is a question — then
+    resolve_feedback. The rest are people talking to each other: read them for
+    context, and leave them alone.
 
     Args:
         document_id: Document UUID.
     """
     _use_api_key(ctx)
     items = await api.list_feedback(document_id, status="open")
-    if not items:
-        return "No open feedback. You're clear to write."
     roots = [f for f in items if not f.get("parent_id")]
+    if not roots:
+        return "No open comments."
     replies: dict[str, list[dict[str, Any]]] = {}
     for f in items:
         if f.get("parent_id"):
             replies.setdefault(f["parent_id"], []).append(f)
-    roots.sort(key=lambda f: not f.get("for_agent"))
 
     def who(f: dict[str, Any]) -> str:
         name = f.get("author_name") or "someone"
         return f"{name} (agent)" if f.get("by_agent") else name
 
-    lines = []
-    for f in roots:
+    def entry(f: dict[str, Any]) -> str:
         ts = (f.get("created_at") or "")[:16]
-        tags = []
-        if f.get("for_agent"):
-            tags.append("[for you]")
-        if f.get("suggestion_id"):
-            tags.append("[from a rejected suggestion]")
-        head = f"- id={f['id']} {ts} {who(f)} {' '.join(tags)}".rstrip()
+        head = f"- id={f['id']} {ts} {who(f)}" + (" [why your suggestion was rejected]" if f.get("suggestion_id") else "")
         anchor = f.get("anchor") or {}
         if anchor.get("heading"):
             head += f"\n  under: {anchor['heading']}"
@@ -481,8 +556,21 @@ async def get_pending_feedback(document_id: str, *, ctx: Context) -> str:
         head += f"\n  {f['content']}"
         for r in replies.get(f["id"], []):
             head += f"\n    ↳ {who(r)}: {r['content']}"
-        lines.append(head)
-    return "Open feedback items:\n" + "\n".join(lines)
+        return head
+
+    for_you = [f for f in roots if f.get("for_agent") or f.get("suggestion_id")]
+    others = [f for f in roots if f not in for_you]
+    out = []
+    if for_you:
+        out.append(f"FOR YOU ({len(for_you)}): act on each, then resolve_feedback.\n" + "\n".join(entry(f) for f in for_you))
+    else:
+        out.append("Nothing addressed to you.")
+    if others:
+        out.append(
+            f"BETWEEN PEOPLE ({len(others)}): context only. Do not reply to or resolve these.\n"
+            + "\n".join(entry(f) for f in others)
+        )
+    return "\n\n".join(out)
 
 
 @mcp.tool()
@@ -502,7 +590,9 @@ async def reply_feedback(feedback_id: str, message: str, *, ctx: Context) -> str
 
 @mcp.tool()
 async def resolve_feedback(feedback_id: str, resolution_note: str = "", *, ctx: Context) -> str:
-    """Mark a feedback item as resolved after addressing it in the document.
+    """Close a comment that was for you, once the document reflects it (or
+    your suggestion with the change is waiting for review — say so in the note).
+    Comments between people are theirs to close.
 
     Args:
         feedback_id: Feedback UUID (from get_pending_feedback).
@@ -1527,6 +1617,7 @@ async def resource_get_document(document_id: str, ctx: Context) -> str:
     """Current body content of the document as Markdown."""
     _use_api_key(ctx)
     doc = await api.get_document(document_id)
+    _require_markdown(doc)
     content = _body_content(doc)
     return f"---\ntitle: {doc['title']}\nid: {doc['id']}\n---\n\n{content}"
 
@@ -1613,6 +1704,125 @@ async def write_document(doc_type: str) -> str:
         return f"Unknown document type '{doc_type}'. Available guides: {available}."
 
 
+# ─── Toolsets ────────────────────────────────────────────────
+#
+# One server, three ways in: /mcp (every tool), /mcp/markdown and /mcp/cgd.
+# An agent that only writes Markdown never loads the layout tools, and the
+# other way round: fewer schemas in every model call (~15k tokens for all of
+# them) and no get_document / get_layout_document mix-ups. The client just
+# connects to another URL; _toolset_paths turns the path into an
+# X-DocForge-Toolset header, which a client may also send itself.
+
+GENERAL_TOOLS = {"get_user_info", "list_documents", "get_document_url", "get_activity"}
+MARKDOWN_TOOLS = {
+    "create_document", "get_document", "get_section", "write_section", "append_section", "patch_section",
+    "check_suggestions", "get_pending_feedback", "reply_feedback", "resolve_feedback",
+    "snapshot_section", "list_versions", "select_active_version", "get_version_content", "rename_version",
+    "list_artifacts", "create_artifact", "get_quality_gate", "submit_quality_findings",
+}
+CGD_TOOLS = {
+    "create_layout_document", "get_layout_map", "get_layout_document", "apply_layout_ops", "preview_layout",
+    "measure_component", "calibrate_style", "render_page", "review_layout", "find_layout",
+    "get_layout_notes", "request_review", "resolve_layout_note", "reply_layout_note",
+    "list_layout_themes", "apply_layout_theme", "save_layout_theme",
+    "save_layout_version", "list_layout_versions", "restore_layout_version",
+}
+TOOLSETS = {"markdown": GENERAL_TOOLS | MARKDOWN_TOOLS, "cgd": GENERAL_TOOLS | CGD_TOOLS}
+MARKDOWN_PROMPTS = {"docforge_orientation", "write_document"}
+
+
+def _toolset() -> str | None:
+    """The toolset this request asked for; None = every tool."""
+    try:
+        request = mcp._mcp_server.request_context.request
+    except LookupError:
+        return None
+    value = request.headers.get("x-docforge-toolset", "").strip().lower() if request is not None else ""
+    return value if value in TOOLSETS else None
+
+
+def _resource_toolset(uri: str) -> str | None:
+    """Which toolset a resource belongs to; None = both."""
+    if uri == "docforge://documents":
+        return None
+    return "cgd" if uri.startswith("docforge://guide/layout") else "markdown"
+
+
+def _outside(toolset: str | None, belongs_to: str | None) -> bool:
+    return toolset is not None and belongs_to is not None and belongs_to != toolset
+
+
+async def _list_tools():
+    tools = await mcp.list_tools()
+    toolset = _toolset()
+    return tools if toolset is None else [t for t in tools if t.name in TOOLSETS[toolset]]
+
+
+async def _call_tool(name: str, arguments: dict[str, Any]):
+    toolset = _toolset()
+    if toolset is not None and name not in TOOLSETS[toolset]:
+        other = next((n for n, names in TOOLSETS.items() if name in names), None)
+        where = f"/mcp/{other}" if other else "/mcp"
+        raise DocForgeError(f"{name} is not in the {toolset} toolset. Connect to {where} (or /mcp for every tool).")
+    return await mcp.call_tool(name, arguments)
+
+
+async def _list_resources():
+    toolset = _toolset()
+    return [r for r in await mcp.list_resources() if not _outside(toolset, _resource_toolset(str(r.uri)))]
+
+
+async def _list_resource_templates():
+    toolset = _toolset()
+    return [t for t in await mcp.list_resource_templates() if not _outside(toolset, _resource_toolset(t.uriTemplate))]
+
+
+async def _read_resource(uri):
+    toolset = _toolset()
+    if _outside(toolset, _resource_toolset(str(uri))):
+        raise DocForgeError(f"{uri} is not in the {toolset} toolset.")
+    return await mcp.read_resource(uri)
+
+
+async def _list_prompts():
+    prompts = await mcp.list_prompts()
+    return [p for p in prompts if _toolset() != "cgd" or p.name not in MARKDOWN_PROMPTS]
+
+
+async def _get_prompt(name: str, arguments: dict[str, str] | None = None):
+    if _toolset() == "cgd" and name in MARKDOWN_PROMPTS:
+        raise DocForgeError(f"{name} is not in the cgd toolset.")
+    return await mcp.get_prompt(name, arguments)
+
+
+mcp._mcp_server.list_tools()(_list_tools)
+mcp._mcp_server.call_tool(validate_input=False)(_call_tool)
+mcp._mcp_server.list_resources()(_list_resources)
+mcp._mcp_server.list_resource_templates()(_list_resource_templates)
+mcp._mcp_server.read_resource()(_read_resource)
+mcp._mcp_server.list_prompts()(_list_prompts)
+mcp._mcp_server.get_prompt()(_get_prompt)
+
+
+def _toolset_paths(app):
+    """/mcp/markdown and /mcp/cgd: the same endpoint, with the toolset in a header."""
+
+    async def route(scope, receive, send):
+        if scope["type"] == "http":
+            base, _, name = scope["path"].rstrip("/").rpartition("/")
+            if base == "/mcp" and name in TOOLSETS:
+                headers = [(k, v) for k, v in scope["headers"] if k != b"x-docforge-toolset"]
+                scope = {
+                    **scope,
+                    "path": "/mcp",
+                    "raw_path": b"/mcp",
+                    "headers": [*headers, (b"x-docforge-toolset", name.encode())],
+                }
+        await app(scope, receive, send)
+
+    return route
+
+
 # ─── Entry point ─────────────────────────────────────────────
 
 def serve() -> None:
@@ -1632,7 +1842,7 @@ def serve() -> None:
     """
     import uvicorn
 
-    app = mcp.streamable_http_app()
+    app = _toolset_paths(mcp.streamable_http_app())
 
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8001"))

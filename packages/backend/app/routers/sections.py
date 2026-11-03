@@ -18,7 +18,13 @@ from app.schemas.section import (
 )
 from app.schemas.suggestion import SectionWriteResponse
 from app.services import access
-from app.services.db import create_version_snapshot, restore_version, update_section_content
+from app.services.db import (
+    create_version_snapshot,
+    own_pending_suggestion,
+    proposal_on,
+    restore_version,
+    update_section_content,
+)
 from app.services.observability import capture_event
 
 router = APIRouter(tags=["sections"])
@@ -153,6 +159,7 @@ async def update_section_content_endpoint(
     note = getattr(payload, "note", None)
 
     content = payload.content
+    base = payload.base
     if payload.mode == "append":
         active_result = await db.execute(
             select(SectionVersion)
@@ -160,6 +167,14 @@ async def update_section_content_endpoint(
         )
         active = active_result.scalar_one_or_none()
         existing = (active.content if active else "") or ""
+        if api_key_id:
+            # An agent appends to what it already proposed, not behind its own back.
+            mine = await own_pending_suggestion(db, section_id, api_key_id)
+            if mine is not None:
+                # Built on the proposal replayed on the current text: the
+                # current text is what this write's changes are relative to.
+                base = existing
+                existing = proposal_on(mine, existing)[0]
         content = f"{existing}\n\n{payload.content}" if existing else payload.content
 
     if api_key_id:
@@ -172,7 +187,7 @@ async def update_section_content_endpoint(
 
             suggestion = await create_suggestion(
                 db, section_id, section.document_id, content,
-                note=note, api_key_id=api_key_id,
+                note=note, api_key_id=api_key_id, base_content=base,
             )
             capture_event(str(current_user.id), str(section.document_id), "mcp_suggestion_created", {
                 "content_length": len(content),
