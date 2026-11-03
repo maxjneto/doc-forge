@@ -12,7 +12,9 @@ src/
     editor/            the Markdown editor and its review panels
     layout-doc/        the layout editor (pages, slides, panels, publishing)
     dashboard/         the document library: folders, sharing, moving
-    marketing/         the public pages' navigation
+    marketing/         the public pages: navigation, shared sections, and the Home's live
+                       GCD demo (the real layout engine replaying demo/report-demo.json,
+                       loaded only when the section scrolls into view)
     shared/            top bar, dialogs, Markdown renderer, footer
     ui/                design-system primitives (Button, Pill, Card, Page…)
   hooks/               useDocument (data + SSE), useAutosave, PostHog identity
