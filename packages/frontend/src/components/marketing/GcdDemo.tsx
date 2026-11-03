@@ -193,6 +193,8 @@ function PageFrame({ html, title }: { html: string | null; title: string }) {
           title={title}
           srcDoc={html}
           tabIndex={-1}
+          // Sized to its pages and clipped by the box: never a scrollbar of its own.
+          scrolling="no"
           // No script runs inside; same origin lets the fonts load and the size be read.
           sandbox="allow-same-origin"
           onLoad={() => {
