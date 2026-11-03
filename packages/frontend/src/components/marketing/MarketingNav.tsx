@@ -5,7 +5,7 @@ import { BrandMark } from "./BrandMark";
 import { LanguageSwitcher } from "@/components/shared";
 import { useI18n } from "@/i18n";
 
-type NavKey = "how-it-works" | "pricing" | null;
+type NavKey = "home" | "how-it-works" | "pricing" | null;
 
 export function MarketingNav({ active = null }: { active?: NavKey }) {
   const { isSignedIn } = useAuth();
@@ -36,8 +36,9 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
       <BrandMark />
       <div className="df-marketing-nav__right" style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
         <span className="df-marketing-nav__links" style={{ display: "contents" }}>
-          <NavLinkItem to="/how-it-works" active={active === "how-it-works"}>{t("nav.howItWorks")}</NavLinkItem>
+          <NavLinkItem to="/" active={active === "home"}>{t("nav.home")}</NavLinkItem>
           <NavLinkItem to="/pricing" active={active === "pricing"}>{t("nav.pricing")}</NavLinkItem>
+          <NavLinkItem to="/how-it-works" active={active === "how-it-works"}>{t("nav.howItWorks")}</NavLinkItem>
         </span>
         <LanguageSwitcher compact />
         <button
@@ -48,7 +49,7 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
             background: "var(--color-heat)",
             color: "var(--color-on-heat)",
             fontWeight: 600,
-            fontSize: 12.5,
+            fontSize: 13,
             border: "none",
             cursor: "pointer",
             letterSpacing: "0.02em",
@@ -69,7 +70,7 @@ function NavLinkItem({ to, active, children }: { to: string; active?: boolean; c
     <Link
       to={to}
       style={{
-        fontSize: 12.5,
+        fontSize: "var(--text-body)",
         color: active ? "var(--color-text)" : "var(--color-dim)",
         textDecoration: "none",
         letterSpacing: "0.02em",

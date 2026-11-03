@@ -1,130 +1,437 @@
-import { useEffect } from "react";
-import { useAuth, useClerk } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
-
+import { useState, type ReactNode } from "react";
 import { MarketingNav } from "@/components/marketing";
+import { GCD_COMPONENT_TYPES } from "@/components/marketing/componentTypes";
+import { ClosingCta, CodeBlock, Panel, SectionHead, Shot, leadStyle, useMarketingPage } from "@/components/marketing/parts";
 import { AppFooter, TopBar } from "@/components/shared";
 import { useI18n } from "@/i18n";
+import { MCP_CGD_URL } from "@/utils/mcpUrl";
 
-import { Button, Card, Eyebrow, Pill } from "@/components/ui";
+/** The technical, hands-on page: connect, what a GCD is inside, the agent's loop, your side, where it runs. */
+
+const CLIENTS = [
+  { name: "Claude Code", code: `claude mcp add --transport http docforge ${MCP_CGD_URL} \\\n  --header "Authorization: Bearer $DOCFORGE_API_KEY"` },
+  { name: "Codex", code: `codex mcp add docforge --url ${MCP_CGD_URL} \\\n  --bearer-token-env-var DOCFORGE_API_KEY` },
+  { name: "Cursor", code: `// .cursor/mcp.json\n{\n  "mcpServers": {\n    "docforge": {\n      "url": "${MCP_CGD_URL}",\n      "headers": { "Authorization": "Bearer \${env:DOCFORGE_API_KEY}" }\n    }\n  }\n}` },
+  { name: "Local", code: "claude mcp add docforge-layout -- \\\n  npx docforge-layout mcp --root ." },
+] as const;
+
+const RENDER_CODE = `import { createEngine, fetchPublished } from "@docforge-lib/layout";
+import { createNodeRegistry } from "@docforge-lib/layout/node";
+
+const engine = createEngine({ registry: createNodeRegistry() });
+const { doc } = await fetchPublished("https://doc-forge.dev/public/<token>");
+const { page } = engine.render(doc, { surfaceId: "a4" }); // HTML, ready to print`;
+
 const COPY = {
   en: {
-    badge: "How it works", title: "A document workspace for", accent: "you and your agent.",
-    intro: "Create a document, connect the agent you already use, and keep every change reviewable, attributed, and ready to publish — whether it is text or a page laid out on a grid.",
-    primary: "Start for free", secondary: "Connect an agent", flowLabel: "One document, one shared workflow",
-    flowTitle: "From a blank page to a version you can share.",
-    flow: [["01", "Create", "A Markdown document, or a page or slide deck — empty or from a template. Folders keep the library in order."], ["02", "Connect", "Give Claude Code, Codex, Cursor, or another MCP client an API key. It reads the guides and starts writing."], ["03", "Review", "Agent writes arrive as suggestions you accept, reject or keep in part. On pages, comment on a block and the agent answers."], ["04", "Publish", "Pick the version people should read: a read-only link, or a page other sites load."]],
-    workspaceLabel: "The workspace", workspaceTitle: "Your library stays the source of truth.", workspaceBody: "Documents live beside folders like a familiar file manager. Your agent and your browser work on the same document, so there is no copying context between tools.",
-    entryLabel: "Two ways in", entryTitle: "Write it yourself, or let the agent build it.",
-    editorTitle: "Write in the editor", editorBody: "Write Markdown with a live outline, or arrange a page in the visual editor. Invite collaborators and publish when it is ready.", editorCta: "Create a document",
-    agentTitle: "Connect through MCP", agentBody: "Generate an API key, add DocForge to your MCP client, and ask for a report, a spec or a deck. The agent drafts, measures, fixes and hands it back for review.", agentCta: "See MCP setup",
-    controlsLabel: "Control never leaves the document", controlsTitle: "Built for judgment, not token meters.",
-    controls: [["difference", "Reviewable changes", "Set a policy per document: agent edits apply immediately or wait for your approval."], ["history", "Versions and attribution", "Every write records who made it — you or which agent — and any version comes back in one click."], ["forum", "Comments the agent reads", "Pin a request to a block or an area; the agent sees it first, does it, and replies in the thread."], ["public", "Stable public sharing", "A public link serves the version you published. New edits stay drafts until you publish again."]],
-    capacityTitle: "Make space without losing work.", capacityBody: "Archive documents you are done with to free active-document capacity; their history remains available to restore later.",
+    eyebrow: "How it works",
+    title: "From the first command to a published GCD.",
+    lead: "The hands-on guide: connect your agent, see what a Component Grid Document is made of, and what you and the AI do at each step.",
+    toc: ["Quick start", "Anatomy of a GCD", "The agent's loop", "Your side", "Where it runs", "Markdown", "Questions"],
+    quickLabel: "01 · Quick start",
+    quickTitle: "Three steps, two minutes.",
+    keyTitle: "Create an API key",
+    keyBody: "In your workspace, under API keys. Each key is one agent: the history shows which one wrote what.",
+    connectTitle: "Add DocForge to your client",
+    hints: ["Check it with /mcp inside Claude Code.", "Check it with codex mcp list.", "Restart Cursor after saving.", "No key and no account: GCDs as *.docforge.json files in your repo."],
+    askTitle: "Ask for something",
+    askBody: "The agent reads DocForge's guide on its own and picks the tools.",
+    ask: "“Make a one-pager of the launch from docs/annual.md, A4, on a single page.”",
+    anatomyLabel: "02 · Anatomy of a GCD",
+    anatomyTitle: "JSON that becomes a page, and a page that becomes text.",
+    anatomyLead: "A GCD is JSON: components placed on a grid, in 8 px units. The library measures, paginates and draws it, and hands the AI a text map of the same page.",
+    docCaption: "The document (from the report template)",
+    mapCaption: "What the AI reads (get_layout_map)",
+    rules: [
+      ["Content decides the height", "A box's height is a minimum. Text that needs more room makes it grow."],
+      ["Only what it invades moves", "A growing box pushes what it covers down, in a chain. Nothing else moves."],
+      ["The library paginates", "Text, lists and tables split between lines; tables repeat their header."],
+      ["Measured without a browser", "The library reads the fonts and decides every line break. Screen, PDF and measure agree."],
+    ],
+    componentsLabel: "Components today",
+    componentsMore: "+ more on the way",
+    loopLabel: "03 · The agent's loop",
+    loopTitle: "Read, change, check, talk.",
+    loopLead: "The tools the agent gets over MCP. It writes with small operations that can be undone, and checks before it calls you.",
+    groups: [
+      ["Read", "get_layout_map\nfind_layout\nrender_page", "The map, finding blocks, and the page as an image."],
+      ["Change", "apply_layout_ops\npreview_layout\napply_layout_theme", "add, row, move, fit… and what would change, without saving."],
+      ["Check", "review_layout\nmeasure_component\ncalibrate_style", "What a reader would notice, with the operation that fixes it."],
+      ["Talk", "request_review\nget_layout_notes\nreply_layout_note", "Hand it over with questions and answer your comments."],
+      ["Versions", "save_layout_version\nlist_layout_versions\nrestore_layout_version", "Name, list and restore, with the author of every write."],
+    ],
+    youLabel: "04 · Your side",
+    youTitle: "The editor where you decide.",
+    you: [
+      ["Edit", "drag and resize components, edit text on the page, add blocks."],
+      ["Review", "the document's warnings, with “fit to content” in one click."],
+      ["Design", "built-in or saved themes; colours, fonts and corners."],
+      ["Comments", "pinned to a block or an area; the AI reads them and replies."],
+      ["History", "named versions, and every write with its author."],
+      ["Together", "several people and agents, each with the role you gave them."],
+      ["Publish", "a read-only link, a PDF, or your own site."],
+    ],
+    editorAlt: "The DocForge editor with a one-page report and its structure",
+    runLabel: "05 · Where it runs",
+    runTitle: "One engine, three places.",
+    run: [
+      ["doc-forge.dev", "Library, editor, review, collaboration and publishing. Connect over MCP with a key."],
+      ["Local", "MCP over *.docforge.json files in your repo. The last 20 versions stay in .docforge-history/."],
+      ["In your app", "Publish in DocForge and show it on your site. Keep the JSON in your database so your readers never depend on DocForge."],
+    ],
+    mdLabel: "06 · Markdown",
+    mdTitle: "For long text, Markdown with review.",
+    mdBody: "Specs, notes and READMEs. What the agent writes arrives as a suggestion: accept it, reject it or keep part. Same library, same history, same publishing.",
+    faqLabel: "07 · Questions",
+    faqTitle: "Technical questions.",
+    faq: [
+      ["Which agents work?", "Any MCP client that speaks HTTP: Claude Code, Codex and Cursor have step-by-step setup. Locally, any client that runs an MCP server over stdio."],
+      ["Do I need an account to run it locally?", "No. npx docforge-layout mcp works on files in your repository, offline. The account is for the editor, review, collaboration and publishing."],
+      ["Does the PDF look like the screen?", "Yes. The library decides every line break with the same fonts, and the browser never wraps the text again."],
+      ["What if the agent and I edit at the same time?", "Every write checks the revision. If someone wrote first, yours comes back with what changed and the editor reapplies what you had pending."],
+      ["Are my documents public?", "No. Only what you publish has a link, and unpublishing revokes it."],
+    ],
+    mdSample: ["## Invite rules", "- The link works once.", "+ The link works for up to 5 people."],
+    sessionPrompt: "one-pager of the launch, A4, one page",
+    sessionAsk: "“Discount in reais or in %?”",
+    copy: "Copy",
+    copied: "Copied",
+    closing: "Try it with your agent.",
+    cta: "Get started",
   },
   "pt-BR": {
-    badge: "Como funciona", title: "Um workspace de documentos para", accent: "você e seu agente.",
-    intro: "Crie um documento, conecte o agente que você já usa e mantenha cada mudança revisável, atribuída e pronta para publicar — seja texto, seja uma página diagramada numa grade.",
-    primary: "Começar grátis", secondary: "Conectar um agente", flowLabel: "Um documento, um fluxo compartilhado",
-    flowTitle: "Da página em branco até uma versão que você pode compartilhar.",
-    flow: [["01", "Criar", "Um documento Markdown, ou uma página ou apresentação — vazia ou a partir de um modelo. Pastas mantêm a biblioteca organizada."], ["02", "Conectar", "Dê uma chave de API ao Claude Code, Codex, Cursor ou outro cliente MCP. Ele lê os guias e começa a escrever."], ["03", "Revisar", "As escritas do agente chegam como sugestões que você aceita, rejeita ou aproveita em parte. Nas páginas, comente um bloco e o agente responde."], ["04", "Publicar", "Escolha a versão que as pessoas devem ler: um link somente leitura, ou uma página que outros sites carregam."]],
-    workspaceLabel: "O workspace", workspaceTitle: "Sua biblioteca continua sendo a fonte da verdade.", workspaceBody: "Documentos ficam ao lado das pastas, como em um gerenciador de arquivos. Seu agente e o navegador trabalham no mesmo documento, sem copiar contexto entre ferramentas.",
-    entryLabel: "Duas portas de entrada", entryTitle: "Escreva você mesmo ou deixe o agente montar.",
-    editorTitle: "Escreva no editor", editorBody: "Escreva Markdown com a estrutura ao lado, ou arrume uma página no editor visual. Convide colaboradores e publique quando estiver pronto.", editorCta: "Criar um documento",
-    agentTitle: "Conecte via MCP", agentBody: "Gere uma chave de API, adicione o DocForge ao seu cliente MCP e peça um relatório, uma especificação ou uma apresentação. O agente rascunha, mede, corrige e devolve para você revisar.", agentCta: "Ver configuração MCP",
-    controlsLabel: "O controle nunca sai do documento", controlsTitle: "Feito para julgamento, não para medidores de tokens.",
-    controls: [["difference", "Alterações revisáveis", "Defina uma política por documento: edições do agente entram na hora ou aguardam sua aprovação."], ["history", "Versões e atribuição", "Cada escrita registra quem fez — você ou qual agente — e qualquer versão volta com um clique."], ["forum", "Comentários que o agente lê", "Fixe um pedido num bloco ou numa área; o agente vê primeiro, faz e responde na conversa."], ["public", "Compartilhamento público estável", "O link público mostra a versão publicada. Novas edições continuam rascunho até a próxima publicação."]],
-    capacityTitle: "Abra espaço sem perder trabalho.", capacityBody: "Arquive os documentos concluídos para liberar sua capacidade de documentos ativos; o histórico fica disponível para restaurar quando quiser.",
+    eyebrow: "Como funciona",
+    title: "Do primeiro comando ao GCD publicado.",
+    lead: "O guia prático: conectar o seu agente, entender do que um Component Grid Document é feito, e o que você e a IA fazem em cada etapa.",
+    toc: ["Começo rápido", "Anatomia de um GCD", "O ciclo do agente", "O seu lado", "Onde rodar", "Markdown", "Perguntas"],
+    quickLabel: "01 · Começo rápido",
+    quickTitle: "Três passos, dois minutos.",
+    keyTitle: "Crie uma chave de API",
+    keyBody: "No seu workspace, em Chaves de API. Cada chave é um agente: o histórico mostra qual deles escreveu cada coisa.",
+    connectTitle: "Adicione o DocForge ao seu cliente",
+    hints: ["Confira com /mcp dentro do Claude Code.", "Confira com codex mcp list.", "Reinicie o Cursor depois de salvar.", "Sem chave e sem conta: GCDs como arquivos *.docforge.json no seu repositório."],
+    askTitle: "Faça o primeiro pedido",
+    askBody: "O agente lê o guia do DocForge sozinho e escolhe as ferramentas.",
+    ask: "“Faz um one-pager do lançamento a partir do docs/anual.md, A4, cabendo em uma página.”",
+    anatomyLabel: "02 · Anatomia de um GCD",
+    anatomyTitle: "Um JSON que vira página, e uma página que vira texto.",
+    anatomyLead: "Um GCD é um JSON: componentes posicionados numa grade, em unidades de 8 px. A lib mede, pagina e desenha, e entrega para a IA um mapa em texto da mesma página.",
+    docCaption: "O documento (trecho do modelo de relatório)",
+    mapCaption: "O que a IA lê (get_layout_map)",
+    rules: [
+      ["O conteúdo decide a altura", "A altura de uma caixa é um mínimo. Texto que precisa de mais espaço faz a caixa crescer."],
+      ["Só o invadido desce", "Uma caixa que cresce empurra o que ela invadiu, em cadeia. O resto não se move."],
+      ["A lib pagina", "Texto, listas e tabelas quebram entre linhas; tabelas repetem o cabeçalho."],
+      ["Mede sem navegador", "A lib lê as fontes e decide cada quebra de linha. Tela, PDF e medida batem."],
+    ],
+    componentsLabel: "Componentes hoje",
+    componentsMore: "+ novos a caminho",
+    loopLabel: "03 · O ciclo do agente",
+    loopTitle: "Ler, mudar, conferir, conversar.",
+    loopLead: "As tools que o agente recebe pelo MCP. Ele escreve com operações pequenas, que dá para desfazer, e confere antes de te chamar.",
+    groups: [
+      ["Ler", "get_layout_map\nfind_layout\nrender_page", "O mapa, a busca por bloco e a página como imagem."],
+      ["Mudar", "apply_layout_ops\npreview_layout\napply_layout_theme", "add, row, move, fit… e o que mudaria, sem salvar."],
+      ["Conferir", "review_layout\nmeasure_component\ncalibrate_style", "O que um leitor notaria, com a operação que corrige."],
+      ["Conversar", "request_review\nget_layout_notes\nreply_layout_note", "Entregar com perguntas e responder aos seus comentários."],
+      ["Versões", "save_layout_version\nlist_layout_versions\nrestore_layout_version", "Marcar, listar e voltar, com o autor de cada escrita."],
+    ],
+    youLabel: "04 · O seu lado",
+    youTitle: "O editor onde você decide.",
+    you: [
+      ["Editar", "arraste e redimensione componentes, edite o texto na página, adicione blocos."],
+      ["Revisão", "os avisos do documento, com “ajustar ao conteúdo” em um clique."],
+      ["Design", "temas prontos ou salvos por você; cores, fontes e cantos."],
+      ["Comentários", "fixados num bloco ou numa área; a IA lê e responde."],
+      ["Histórico", "versões com nome e cada escrita com o autor."],
+      ["Junto", "várias pessoas e agentes, cada um com o papel que você deu."],
+      ["Publicar", "link só de leitura, PDF ou no seu site."],
+    ],
+    editorAlt: "Editor do DocForge com um relatório de uma página e a estrutura ao lado",
+    runLabel: "05 · Onde rodar",
+    runTitle: "O mesmo motor em três lugares.",
+    run: [
+      ["doc-forge.dev", "Biblioteca, editor, revisão, colaboração e publicação. Conecte por MCP com uma chave."],
+      ["Local", "MCP sobre arquivos *.docforge.json no seu repositório. As 20 últimas versões ficam em .docforge-history/."],
+      ["No seu app", "Publique no DocForge e mostre no seu site. Guarde o JSON no seu banco: seus leitores não dependem do DocForge."],
+    ],
+    mdLabel: "06 · Markdown",
+    mdTitle: "Para textos longos, o Markdown com revisão.",
+    mdBody: "Specs, notas e READMEs. O que o agente escreve chega como sugestão: você aceita, rejeita ou fica com parte. Mesma biblioteca, mesmo histórico, mesma publicação.",
+    faqLabel: "07 · Perguntas",
+    faqTitle: "Perguntas técnicas.",
+    faq: [
+      ["Quais agentes funcionam?", "Qualquer cliente MCP com HTTP: Claude Code, Codex e Cursor têm passo a passo. Localmente, qualquer cliente que rode um servidor MCP por stdio."],
+      ["Preciso de conta para rodar local?", "Não. O npx docforge-layout mcp roda sobre arquivos do seu repositório, sem rede. A conta é para o editor, a revisão, a colaboração e a publicação."],
+      ["O PDF sai igual à tela?", "Sim. A lib decide cada quebra de linha com as mesmas fontes, e o navegador nunca quebra o texto de novo."],
+      ["E se eu e o agente mexermos ao mesmo tempo?", "Cada escrita confere a revisão. Se alguém escreveu antes, a sua volta com o que mudou e o editor reaplica o que você tinha pendente."],
+      ["Meus documentos ficam públicos?", "Não. Só o que você publica tem link, e despublicar revoga o link."],
+    ],
+    mdSample: ["## Regras do convite", "- O link é de uso único.", "+ O link vale para até 5 pessoas."],
+    sessionPrompt: "one-pager do lançamento, A4, em uma página",
+    sessionAsk: "“O desconto entra em reais ou em %?”",
+    copy: "Copiar",
+    copied: "Copiado",
+    closing: "Experimente com o seu agente.",
+    cta: "Começar agora",
   },
 } as const;
 
-export function HowItWorksPage() {
-  const { isSignedIn } = useAuth();
-  const { openSignIn } = useClerk();
-  const navigate = useNavigate();
-  const { locale } = useI18n();
-  const copy = COPY[locale];
-  const openWorkspace = () => isSignedIn ? navigate("/home") : openSignIn({ afterSignInUrl: "/home", afterSignUpUrl: "/home" });
+const TOC_IDS = ["quick-start", "anatomy", "agent", "you", "run", "markdown", "faq"];
 
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
+export function HowItWorksPage() {
+  const { locale, t } = useI18n();
+  const copy = COPY[locale];
+  const { isSignedIn, start } = useMarketingPage();
+  const [client, setClient] = useState(0);
 
   return (
-    <div className="hide-scrollbar" style={{ background: "var(--color-bg)", color: "var(--color-text)", minHeight: "100vh", fontFamily: "var(--font-sans)" }}>
-      <Ambient />
-      <div style={{ position: "relative", zIndex: 1 }}>
-        {isSignedIn ? <TopBar dashboardNav /> : <MarketingNav active="how-it-works" />}
-        <main style={{ maxWidth: 1120, margin: "0 auto", padding: isSignedIn ? "122px 28px 96px" : "82px 28px 96px" }}>
-          <header style={{ textAlign: "center", maxWidth: 780, margin: "0 auto 70px" }}>
-            <Pill tone="heat">{copy.badge}</Pill>
-            <h1 style={{ fontSize: "clamp(40px, 6.3vw, 68px)", fontWeight: 600, letterSpacing: "-.055em", lineHeight: .98, margin: "20px 0" }}>
-              {copy.title}<br /><span style={{ color: "var(--color-heat-hi)" }}>{copy.accent}</span>
-            </h1>
-            <p style={{ color: "var(--color-dim)", lineHeight: 1.65, fontSize: 17, margin: "0 auto", maxWidth: 650 }}>{copy.intro}</p>
-            <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
-              <Button size="lg" variant="primary" icon="folder_open" iconPosition="start" onClick={openWorkspace}>{copy.primary}</Button>
-              <Button size="lg" icon="terminal" iconPosition="start" onClick={() => document.getElementById("mcp")?.scrollIntoView({ behavior: "smooth", block: "start" })}>{copy.secondary}</Button>
-            </div>
-          </header>
+    <div className="df-mk hide-scrollbar">
+      {isSignedIn ? <TopBar dashboardNav /> : <MarketingNav active="how-it-works" />}
+      <main style={{ paddingTop: isSignedIn ? 56 : 0 }}>
+        <header className="df-mk-wrap" style={{ paddingTop: 80, paddingBottom: 56, display: "flex", flexDirection: "column", gap: 20 }}>
+          <SectionHead eyebrow={copy.eyebrow} title={<span style={{ fontSize: "clamp(40px, 6vw, 58px)", letterSpacing: "-.045em" }}>{copy.title}</span>} lead={copy.lead} maxWidth={860} />
+          <nav className="df-mk-toc" aria-label={copy.eyebrow}>
+            {copy.toc.map((label, i) => <a key={label} href={`#${TOC_IDS[i]}`}>{label}</a>)}
+          </nav>
+        </header>
 
-          <section style={{ marginBottom: 100 }}>
-            <Eyebrow tone="heat" align="center">{copy.flowLabel}</Eyebrow>
-            <h2 style={sectionTitle}>{copy.flowTitle}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12, position: "relative" }}>
-              {copy.flow.map(([number, title, body], index) => <FlowCard key={number} number={number} title={title} body={body} last={index === copy.flow.length - 1} />)}
-            </div>
-          </section>
+        {/* 01 Quick start */}
+        <Band id="quick-start">
+          <SectionHead eyebrow={copy.quickLabel} title={copy.quickTitle} />
+          <div className="df-mk-steps">
+            <Panel style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+              <StepNo n={1} />
+              <h3 style={h3}>{copy.keyTitle}</h3>
+              <p style={small}>{copy.keyBody}</p>
+              <code className="df-mono" style={{ marginTop: "auto", fontSize: "var(--text-body-sm)", color: "var(--color-dim)" }}>export DOCFORGE_API_KEY=…</code>
+            </Panel>
+            <Panel style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ padding: "22px 24px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+                <StepNo n={2} />
+                <h3 style={h3}>{copy.connectTitle}</h3>
+              </div>
+              <div role="tablist" aria-label={copy.connectTitle} style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid var(--color-outline-md)", margin: "12px 0 0", padding: "0 12px" }}>
+                {CLIENTS.map((c, i) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === client}
+                    onClick={() => setClient(i)}
+                    style={{ minHeight: 44, padding: "0 14px", background: "transparent", border: 0, borderBottom: `2px solid ${i === client ? "var(--color-heat)" : "transparent"}`, color: i === client ? "var(--color-text)" : "var(--color-dim)", fontSize: "var(--text-body-sm)", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+              <div role="tabpanel" style={{ padding: "16px 16px 0" }}>
+                <CodeBlock code={CLIENTS[client]!.code} copyLabel={copy.copy} copiedLabel={copy.copied} />
+              </div>
+              <p style={{ ...small, padding: "12px 24px 20px" }}>{copy.hints[client]}</p>
+            </Panel>
+            <Panel style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+              <StepNo n={3} />
+              <h3 style={h3}>{copy.askTitle}</h3>
+              <p style={small}>{copy.askBody}</p>
+              <div style={{ marginTop: "auto", background: "var(--color-heat-wash)", border: "1px solid var(--color-heat-line)", borderRadius: "var(--radius-md) var(--radius-md) var(--radius-xs) var(--radius-md)", padding: "12px 14px", fontSize: "var(--text-body)", lineHeight: 1.5 }}>{copy.ask}</div>
+            </Panel>
+          </div>
+        </Band>
 
-          <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(320px, .86fr)", gap: 46, alignItems: "center", marginBottom: 110 }}>
-            <div>
-              <Eyebrow tone="heat">{copy.workspaceLabel}</Eyebrow>
-              <h2 style={{ ...sectionTitle, textAlign: "left", maxWidth: 470 }}>{copy.workspaceTitle}</h2>
-              <p style={{ color: "var(--color-dim)", lineHeight: 1.65, fontSize: 14, maxWidth: 475, margin: 0 }}>{copy.workspaceBody}</p>
-            </div>
-            <WorkspaceMock />
-          </section>
+        {/* 02 Anatomy */}
+        <section id="anatomy" className="df-mk-wrap" style={{ paddingTop: 96, paddingBottom: 88, display: "flex", flexDirection: "column", gap: 36, scrollMarginTop: 72 }}>
+          <SectionHead eyebrow={copy.anatomyLabel} tone="steel" title={copy.anatomyTitle} lead={copy.anatomyLead} />
+          <div className="df-mk-grid-2" style={{ gap: 20 }}>
+            <Figure caption={copy.docCaption}><DocJson /></Figure>
+            <Figure caption={copy.mapCaption}><MapText /></Figure>
+          </div>
+          <div className="df-mk-grid-4">
+            {copy.rules.map(([title, body]) => (
+              <Panel key={title} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+                <b style={{ fontSize: "var(--text-body)", fontWeight: 600 }}>{title}</b>
+                <span style={small}>{body}</span>
+              </Panel>
+            ))}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: "var(--text-body-sm)", color: "var(--color-dim)", marginRight: 6 }}>{copy.componentsLabel}:</span>
+            {GCD_COMPONENT_TYPES.map((type) => <Chip key={type}>{type}</Chip>)}
+            <Chip dashed>{copy.componentsMore}</Chip>
+          </div>
+        </section>
 
-          <section style={{ marginBottom: 110 }}>
-            <div style={{ textAlign: "center", maxWidth: 690, margin: "0 auto 34px" }}>
-              <Eyebrow tone="heat" align="center">{copy.entryLabel}</Eyebrow>
-              <h2 style={sectionTitle}>{copy.entryTitle}</h2>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))", gap: 16 }}>
-              <EntryCard icon="edit_note" title={copy.editorTitle} body={copy.editorBody} cta={copy.editorCta} onClick={openWorkspace} warm />
-              <EntryCard id="mcp" icon="terminal" title={copy.agentTitle} body={copy.agentBody} cta={copy.agentCta} onClick={() => navigate("/mcp")} />
-            </div>
-          </section>
+        {/* 03 The agent's loop */}
+        <Band id="agent">
+          <SectionHead eyebrow={copy.loopLabel} tone="steel" title={copy.loopTitle} lead={copy.loopLead} />
+          <div className="df-mk-grid-5">
+            {copy.groups.map(([name, tools, body]) => (
+              <Panel key={name} style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                <b style={{ fontSize: "var(--text-body)", fontWeight: 600 }}>{name}</b>
+                <span className="df-mono" style={{ fontSize: "var(--text-caption)", lineHeight: 1.7, color: "var(--color-steel-hi)", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{tools}</span>
+                <span style={{ ...small, fontSize: "var(--text-body-sm)" }}>{body}</span>
+              </Panel>
+            ))}
+          </div>
+          <SessionLog prompt={copy.sessionPrompt} ask={copy.sessionAsk} />
+        </Band>
 
-          <section style={{ marginBottom: 76 }}>
-            <div style={{ textAlign: "center", maxWidth: 700, margin: "0 auto 34px" }}>
-              <Eyebrow tone="heat" align="center">{copy.controlsLabel}</Eyebrow>
-              <h2 style={sectionTitle}>{copy.controlsTitle}</h2>
+        {/* 04 Your side */}
+        <section id="you" className="df-mk-wrap" style={{ paddingTop: 96, paddingBottom: 88, scrollMarginTop: 72 }}>
+          <div className="df-mk-split">
+            <Shot src="/marketing/editor.png" alt={copy.editorAlt} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <SectionHead eyebrow={copy.youLabel} title={copy.youTitle} />
+              <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 10, fontSize: "var(--text-body)", lineHeight: 1.55, color: "var(--color-dim)" }}>
+                {copy.you.map(([name, body]) => <li key={name}><b style={{ color: "var(--color-text)", fontWeight: 600 }}>{name}:</b> {body}</li>)}
+              </ul>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 14 }}>
-              {copy.controls.map(([icon, title, body]) => <ControlCard key={title} icon={icon} title={title} body={body} />)}
-            </div>
-          </section>
+          </div>
+        </section>
 
-          <section style={{ border: "1px solid var(--color-heat-strong)", borderRadius: "var(--radius-lg)", padding: "26px 30px", background: "var(--gradient-band)", display: "flex", gap: 20, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", maxWidth: 700 }}>
-              <span className="material-symbols-outlined" style={{ color: "var(--color-heat-hi)", fontSize: 23 }}>archive</span>
-              <div><h2 style={{ margin: "0 0 6px", fontSize: 17, letterSpacing: "-.02em" }}>{copy.capacityTitle}</h2><p style={{ color: "var(--color-dim)", lineHeight: 1.55, fontSize: 13, margin: 0 }}>{copy.capacityBody}</p></div>
+        {/* 05 Where it runs */}
+        <Band id="run">
+          <SectionHead eyebrow={copy.runLabel} tone="steel" title={copy.runTitle} />
+          <div className="df-mk-grid-3">
+            {copy.run.map(([name, body], i) => (
+              <Panel key={name} accent={i === 0} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 10 }}>
+                <h3 style={h3}>{name}</h3>
+                <p style={small}>{body}</p>
+                {i === 1 && <code className="df-mono" style={{ marginTop: "auto", fontSize: "var(--text-body-sm)", color: "var(--color-text)", background: "var(--color-sink)", borderRadius: "var(--radius-sm)", padding: "10px 12px", overflowX: "auto", whiteSpace: "nowrap" }}>npx docforge-layout mcp --root .</code>}
+              </Panel>
+            ))}
+          </div>
+          <CodeBlock code={RENDER_CODE} copyLabel={copy.copy} copiedLabel={copy.copied} />
+        </Band>
+
+        {/* 06 Markdown */}
+        <section id="markdown" className="df-mk-wrap" style={{ paddingTop: 80, paddingBottom: 56, scrollMarginTop: 72 }}>
+          <Panel style={{ padding: 36 }}>
+            <div className="df-mk-split">
+              <SectionHead eyebrow={copy.mdLabel} tone="steel" title={copy.mdTitle} lead={copy.mdBody} />
+              <div className="df-mono" style={{ background: "var(--color-sink)", border: "1px solid var(--color-outline-md)", borderRadius: "var(--radius-md)", padding: 16, fontSize: "var(--text-body-sm)", lineHeight: 1.7, display: "flex", flexDirection: "column", gap: 4 }}>
+                <span>{copy.mdSample[0]}</span>
+                <span style={{ background: "var(--color-diff-del-bg)", color: "var(--color-diff-del-fg)", padding: "2px 8px", borderRadius: "var(--radius-xs)" }}>{copy.mdSample[1]}</span>
+                <span style={{ background: "var(--color-diff-add-bg)", color: "var(--color-diff-add-fg)", padding: "2px 8px", borderRadius: "var(--radius-xs)" }}>{copy.mdSample[2]}</span>
+              </div>
             </div>
-            <Button size="lg" icon="arrow_forward" iconPosition="start" onClick={() => navigate("/pricing")}>{locale === "pt-BR" ? "Ver planos" : "View plans"}</Button>
-          </section>
-        </main>
-        <AppFooter />
-      </div>
+          </Panel>
+        </section>
+
+        {/* 07 FAQ */}
+        <section id="faq" className="df-mk-wrap" style={{ paddingTop: 40, paddingBottom: 40, maxWidth: 880, scrollMarginTop: 72 }}>
+          <SectionHead eyebrow={copy.faqLabel} title={copy.faqTitle} />
+          <div style={{ marginTop: 16 }}>
+            {copy.faq.map(([q, a], i) => (
+              <details key={q} className="df-mk-faq" open={i === 0}>
+                <summary>{q}</summary>
+                <p style={{ ...leadStyle, fontSize: "var(--text-body)", paddingBottom: 20 }}>{a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <ClosingCta title={copy.closing} cta={isSignedIn ? t("nav.openWorkspace") : copy.cta} onClick={start} />
+      </main>
+      <AppFooter />
     </div>
   );
 }
 
-const sectionTitle = { fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 600, letterSpacing: "-.04em", lineHeight: 1.08, textAlign: "center", margin: "12px 0 30px" } as const;
+const h3 = { margin: 0, fontSize: "var(--text-title)", fontWeight: 600 } as const;
+const small = { margin: 0, fontSize: "var(--text-body)", lineHeight: 1.55, color: "var(--color-dim)" } as const;
 
-function FlowCard({ number, title, body, last }: { number: string; title: string; body: string; last: boolean }) { return <article style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", padding: 20, minHeight: 185, background: "var(--color-hover)", position: "relative", overflow: "hidden" }}><span className="df-mono" style={{ color: "var(--color-heat-hi)", fontSize: 11.5, letterSpacing: "var(--tracking-label)" }}>{number}</span><h3 style={{ margin: "38px 0 9px", fontSize: 17, letterSpacing: "-.02em" }}>{title}</h3><p style={{ color: "var(--color-dim)", fontSize: 13, lineHeight: 1.55, margin: 0 }}>{body}</p>{!last && <span className="material-symbols-outlined" style={{ position: "absolute", right: 14, top: 16, color: "var(--color-faint)", fontSize: 18 }}>arrow_forward</span>}</article>; }
-function EntryCard({ id, icon, title, body, cta, onClick, warm = false }: { id?: string; icon: string; title: string; body: string; cta: string; onClick: () => void; warm?: boolean }) { return <Card id={id} tone={warm ? "warm" : "steel"}><span className="material-symbols-outlined" style={{ color: warm ? "var(--color-heat-hi)" : "var(--color-steel-hi)", fontSize: 25 }}>{icon}</span><h3 style={{ margin: "32px 0 8px", fontSize: 21, letterSpacing: "-.025em" }}>{title}</h3><p style={{ color: "var(--color-dim)", fontSize: 13, lineHeight: 1.6, minHeight: 65, margin: "0 0 20px" }}>{body}</p><button onClick={onClick} style={{ background: "transparent", border: 0, color: warm ? "var(--color-heat-soft)" : "var(--color-steel-hi)", cursor: "pointer", padding: 0, fontWeight: 600, fontSize: 13, fontFamily: "inherit", display: "inline-flex", gap: 7, alignItems: "center" }}>{cta}<span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span></button></Card>; }
-function ControlCard({ icon, title, body }: { icon: string; title: string; body: string }) { return <article style={{ border: "1px solid var(--color-outline)", borderRadius: "var(--radius-md)", padding: 19, background: "var(--color-hover)" }}><span className="material-symbols-outlined" style={{ color: "var(--color-steel-hi)", fontSize: 21 }}>{icon}</span><h3 style={{ margin: "17px 0 7px", fontSize: 14 }}>{title}</h3><p style={{ color: "var(--color-dim)", fontSize: 12.5, lineHeight: 1.55, margin: 0 }}>{body}</p></article>; }
-function WorkspaceMock() { return <div style={{ border: "1px solid var(--color-outline-md)", borderRadius: "var(--radius-md)", overflow: "hidden", background: "var(--color-bg)", boxShadow: "var(--shadow-modal)" }}><div style={{ height: 37, padding: "0 13px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--color-outline)", gap: 6 }}><span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--color-heat-hi)" }}>folder_open</span><span className="df-mono" style={{ fontSize: 10, color: "var(--color-dim)" }}>product / payments</span><span style={{ marginLeft: "auto", fontSize: 10, color: "var(--color-steel-hi)", border: "1px solid var(--color-steel-line)", borderRadius: "var(--radius-pill)", padding: "3px 7px" }}>MCP connected</span></div><div style={{ display: "grid", gridTemplateColumns: "120px 1fr", minHeight: 270 }}><aside style={{ borderRight: "1px solid var(--color-outline)", padding: 10 }}><div className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", letterSpacing: "var(--tracking-label)", marginBottom: 9 }}>FOLDERS</div>{["Architecture", "Payments", "Runbooks"].map((x, i) => <div key={x} style={{ display: "flex", gap: 5, padding: "6px 4px", fontSize: 10, color: i === 1 ? "var(--color-heat-soft)" : "var(--color-dim)", background: i === 1 ? "var(--color-heat-tint)" : "transparent" }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>folder</span>{x}</div>)}</aside><div style={{ padding: "17px 18px" }}><div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--color-outline)", paddingBottom: 12 }}><div><div style={{ fontSize: 14, fontWeight: 600 }}>Payments RFC</div><div className="df-mono" style={{ fontSize: 10, color: "var(--color-faint)", marginTop: 4 }}>DRAFT · 4 SECTIONS</div></div><span style={{ fontSize: 10, color: "var(--color-heat-soft)", background: "var(--color-heat-wash)", padding: "4px 7px", borderRadius: "var(--radius-xs)" }}>2 changes to review</span></div><div style={{ marginTop: 18 }}><div className="df-mono" style={{ fontSize: 10, color: "var(--color-heat-hi)" }}>## Rollback path</div><div style={{ marginTop: 9, height: 6, width: "91%", borderRadius: "var(--radius-xs)", background: "var(--color-outline)" }} /><div style={{ marginTop: 7, height: 6, width: "78%", borderRadius: "var(--radius-xs)", background: "var(--color-outline)" }} /><div style={{ marginTop: 15, borderLeft: "2px solid var(--color-heat)", padding: "7px 9px", background: "var(--color-heat-tint)", color: "var(--color-steel-hi)", fontSize: 10 }}>Agent suggestion · review before publish</div></div></div></div></div>; }
-function Ambient() { return <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 800px 550px at 18% 0%, var(--color-heat-wash), transparent 64%), radial-gradient(ellipse 650px 560px at 85% 38%, var(--color-steel-tint), transparent 65%)" }} />; }
+function Band({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <section id={id} className="df-mk-band" style={{ scrollMarginTop: 72 }}>
+      <div className="df-mk-wrap" style={{ paddingTop: 80, paddingBottom: 80, display: "flex", flexDirection: "column", gap: 32 }}>{children}</div>
+    </section>
+  );
+}
+
+function StepNo({ n }: { n: number }) {
+  return <span className="df-mono" style={{ fontSize: "var(--text-body-sm)", fontWeight: 600, color: "var(--color-heat)" }}>{n}</span>;
+}
+
+function Chip({ children, dashed = false }: { children: ReactNode; dashed?: boolean }) {
+  return (
+    <span className="df-mono" style={{ fontSize: "var(--text-body-sm)", padding: "7px 10px", borderRadius: "var(--radius-sm)", border: `1px ${dashed ? "dashed" : "solid"} ${dashed ? "var(--color-heat-line)" : "var(--color-outline-md)"}`, color: dashed ? "var(--color-heat-hi)" : "var(--color-dim)" }}>
+      {children}
+    </span>
+  );
+}
+
+function Figure({ caption, children }: { caption: string; children: ReactNode }) {
+  return (
+    <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+      <figcaption style={{ fontSize: "var(--text-body-sm)", color: "var(--color-dim)" }}>{caption}</figcaption>
+      {children}
+    </figure>
+  );
+}
+
+const pre = { margin: 0, background: "var(--color-sink)", border: "1px solid var(--color-outline-md)", borderRadius: "var(--radius-md)", padding: "16px 18px", fontSize: "var(--text-body-sm)", lineHeight: 1.7, color: "var(--color-text)", overflowX: "auto", flex: 1 } as const;
+const K = ({ children }: { children: ReactNode }) => <span style={{ color: "var(--color-steel-hi)" }}>{children}</span>;
+const S = ({ children }: { children: ReactNode }) => <span style={{ color: "var(--color-diff-add-fg)" }}>{children}</span>;
+
+/** A trimmed excerpt of the report template, in the real format. */
+function DocJson() {
+  return (
+    <pre className="df-mono" style={pre}>
+      {"{\n  "}<K>"format"</K>: <S>"docforge/layout"</S>, <K>"version"</K>: 3,
+      {"\n  "}<K>"grid"</K>: {"{ "}<K>"unit"</K>: 8, <K>"columns"</K>: 12, <K>"gutter"</K>: 16{" },"}
+      {"\n  "}<K>"surfaces"</K>: {"[{ "}<K>"id"</K>: <S>"a4"</S>, <K>"kind"</K>: <S>"page"</S>, <K>"size"</K>: <S>"A4"</S>{" }],"}
+      {"\n  "}<K>"components"</K>: {"["}
+      {"\n    { "}<K>"id"</K>: <S>"titulo"</S>, <K>"type"</K>: <S>"text"</S>,
+      {"\n      "}<K>"at"</K>: {"{ "}<K>"page"</K>: 1, <K>"x"</K>: 0, <K>"y"</K>: 0, <K>"w"</K>: 87{" } },"}
+      {"\n    { "}<K>"id"</K>: <S>"kpi-receita"</S>, <K>"type"</K>: <S>"kpi"</S>,
+      {"\n      "}<K>"content"</K>: {"{ "}<K>"value"</K>: <S>"R$ 4,2M"</S>, <K>"delta"</K>: <S>"+12% vs T2"</S>{" },"}
+      {"\n      "}<K>"at"</K>: {"{ "}<K>"page"</K>: 1, <K>"x"</K>: 0, <K>"y"</K>: 12, <K>"w"</K>: 28, <K>"h"</K>: 16{" } }"}
+      {"\n  ]\n}"}
+    </pre>
+  );
+}
+
+/** The level-1 map of the same document, as get_layout_map draws it. */
+function MapText() {
+  return (
+    <pre className="df-mono" style={{ ...pre, borderColor: "var(--color-steel-line)" }}>
+      {`Page 1/1 · A4 · 87 × 130 units
+     0          29          58         87
+  0  +----------------------------------+
+     | text  titulo                     |
+ 12  +-----------+-----------+----------+
+     | kpi       | kpi       | kpi      |
+     | receita   | margem    | clientes |
+ 30  +-----------+-----------+----------+
+     | chart  vendas                    |
+ 62  +-----------------+----------------+
+     | text  analise   | list  proximos |
+`}
+      <span style={{ color: "var(--color-warn)" }}>{`130  +-----------------+------------ +2 +
+     ! list proximos needs 2 more rows → fit`}</span>
+    </pre>
+  );
+}
+
+/** One real-shaped session, as the agent's client prints it. */
+function SessionLog({ prompt, ask }: { prompt: string; ask: string }) {
+  const row = (tool: string, detail: string, tone?: "warn" | "ok") => (
+    <div key={tool + detail}>
+      <span style={{ color: "var(--color-steel)" }}>● </span>
+      <span style={{ color: "var(--color-text)" }}>{tool.padEnd(24, " ")}</span>
+      <span style={{ color: tone === "warn" ? "var(--color-warn)" : tone === "ok" ? "var(--color-ok)" : "var(--color-faint)" }}>{detail}</span>
+    </div>
+  );
+  return (
+    <div className="df-mono" style={{ ...pre, whiteSpace: "pre" }}>
+      <div><span style={{ color: "var(--color-heat-hi)" }}>&gt; </span>{prompt}</div>
+      {row("create_layout_document", 'template: "one-pager"')}
+      {row("apply_layout_ops", "12 ops · add, row, move")}
+      {row("review_layout", '1 warning: list "faq" needs 2 more rows → { "op": "fit", "pages": 1 }', "warn")}
+      {row("apply_layout_ops", "fit")}
+      {row("review_layout", "0 warnings · 1 page", "ok")}
+      {row("request_review", ask)}
+    </div>
+  );
+}

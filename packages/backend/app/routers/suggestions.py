@@ -17,6 +17,7 @@ from app.schemas.suggestion import (
     FeedbackResolveRequest,
     FeedbackResponse,
     FeedbackUpdateRequest,
+    PassageChange,
     SuggestionCreateRequest,
     SuggestionListResponse,
     SuggestionRejectRequest,
@@ -26,6 +27,7 @@ from app.schemas.suggestion import (
 from app.services import access, actor
 from app.services import db as db_service
 from app.services.hunks import apply_hunks, diff_hunks
+from app.services.merge import changed_passages
 from app.services.observability import capture_event
 
 router = APIRouter(tags=["suggestions"])
@@ -72,10 +74,14 @@ async def _feedback_responses(db: AsyncSession, items: list[Feedback], me: str) 
 
 
 async def _to_response(
-    db: AsyncSession, suggestion: Suggestion, include_content: bool = True
+    db: AsyncSession,
+    suggestion: Suggestion,
+    include_content: bool = True,
+    api_key_id: uuid.UUID | None = None,
 ) -> SuggestionResponse:
     resp = SuggestionResponse.model_validate(suggestion)
     resp.agent_name = suggestion.api_key.name if suggestion.api_key else None
+    resp.is_mine = api_key_id is not None and suggestion.api_key_id == api_key_id
 
     active_result = await db.execute(
         select(SectionVersion).where(
@@ -84,16 +90,32 @@ async def _to_response(
         )
     )
     active = active_result.scalar_one_or_none()
-    # Stale = the document moved on while this suggestion sat pending
-    resp.is_stale = (
-        suggestion.status == "pending"
-        and active is not None
-        and suggestion.base_version_id is not None
-        and active.id != suggestion.base_version_id
-    )
+    current = active.content if active else ""
+    pending = suggestion.status == "pending"
+    # Stale = the document moved on while this suggestion sat pending. People's
+    # edits save in place, so compare the text when it was kept.
+    if suggestion.base_content is not None:
+        resp.is_stale = pending and current != suggestion.base_content
+    else:
+        resp.is_stale = (
+            pending
+            and active is not None
+            and suggestion.base_version_id is not None
+            and active.id != suggestion.base_version_id
+        )
+    proposed, conflict = db_service.proposal_on(suggestion, current)
+    resp.has_conflict = pending and conflict
+    if resp.has_conflict:
+        # The agent redoing its proposal needs to tell people's edits from its own.
+        resp.people_changes = [
+            PassageChange(before=before, after=after)
+            for before, after in changed_passages(suggestion.base_content or "", current)
+        ]
     if include_content:
+        # While pending, show what accepting would do now: the proposal
+        # replayed on the current text, so the diff never reverts people.
         resp.proposed_content = (
-            suggestion.proposed_version.content if suggestion.proposed_version else None
+            proposed if pending else (suggestion.proposed_version.content if suggestion.proposed_version else None)
         )
         resp.current_content = active.content if active else None
     return resp
@@ -132,6 +154,7 @@ async def create_suggestion(
 
 @router.get("/documents/{document_id}/suggestions", response_model=SuggestionListResponse)
 async def list_suggestions(
+    request: Request,
     document_id: uuid.UUID,
     status: str | None = None,
     include_content: bool = True,
@@ -140,18 +163,22 @@ async def list_suggestions(
 ):
     await _assert_document_ownership(document_id, current_user, db, "read")
     suggestions = await db_service.list_suggestions(db, document_id, status=status)
-    items = [await _to_response(db, s, include_content=include_content) for s in suggestions]
+    api_key_id = getattr(request.state, "api_key_id", None)
+    items = [
+        await _to_response(db, s, include_content=include_content, api_key_id=api_key_id) for s in suggestions
+    ]
     return SuggestionListResponse(suggestions=items)
 
 
 @router.get("/suggestions/{suggestion_id}", response_model=SuggestionResponse)
 async def get_suggestion(
+    request: Request,
     suggestion_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     suggestion = await _assert_suggestion_ownership(suggestion_id, current_user, db, "read")
-    return await _to_response(db, suggestion)
+    return await _to_response(db, suggestion, api_key_id=getattr(request.state, "api_key_id", None))
 
 
 @router.post("/suggestions/{suggestion_id}/accept", response_model=SuggestionResponse)
@@ -185,7 +212,10 @@ async def accept_suggestion(
                 ),
             )
 
-    await db_service.accept_suggestion(db, suggestion)
+    try:
+        await db_service.accept_suggestion(db, suggestion)
+    except db_service.SuggestionConflict as e:
+        raise HTTPException(status_code=409, detail=str(e))
     suggestion = await db_service.get_suggestion(db, suggestion_id)
     capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_accepted", {})
     return await _to_response(db, suggestion)
@@ -253,7 +283,16 @@ async def triage_suggestion(
     if proposed_version is None:
         raise HTTPException(status_code=404, detail="Proposed version not found")
 
-    hunks = diff_hunks(base_text, proposed_version.content)
+    # Number the changes on the proposal replayed on the current text — the
+    # same thing the reviewer was shown — so people's later edits are not
+    # offered back as "changes" to turn down.
+    proposed_text, conflict = db_service.proposal_on(suggestion, base_text)
+    if conflict:
+        raise HTTPException(
+            status_code=409,
+            detail="This suggestion conflicts with edits made after it was proposed. Reject it, or ask the agent again.",
+        )
+    hunks = diff_hunks(base_text, proposed_text)
     valid = {h.index for h in hunks}
     unknown = [i for i in payload.accepted_indexes if i not in valid]
     if unknown:
@@ -280,7 +319,7 @@ async def triage_suggestion(
         })
         return await _to_response(db, suggestion)
 
-    merged = apply_hunks(base_text, proposed_version.content, accepted)
+    merged = apply_hunks(base_text, proposed_text, accepted)
 
     if rejected:
         # Partial acceptance: the merged text is a new thing, neither the base

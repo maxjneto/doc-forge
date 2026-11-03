@@ -206,27 +206,100 @@ async def test_direct_policy_lets_agent_write_directly(client_factory, agent_cli
         assert res.json()["content"] == "direct write"
 
 
+BODY = "# Doc\n\n## Um\n\nlinha a\n\n## Dois\n\nlinha c\n"
+
+
+async def _body(client, doc_id: str) -> str:
+    detail = await client.get(f"/api/documents/{doc_id}")
+    return next(s for s in detail.json()["sections"] if s["section_type"] == "body")["active_version_content"]
+
+
 @pytest.mark.asyncio
 async def test_suggestion_goes_stale_when_human_edits(client_factory, agent_client_factory):
+    """People's edits save in place; accepting afterwards keeps them and adds the agent's."""
     user = User(id="u_sugg5", email="s5@test.com", name="S", credits=5)
     async with client_factory(user) as human:
         doc_id, section_id = await _create_editor_document(human)
-        await human.patch(f"/api/sections/{section_id}/content", json={"content": "base"})
-        # Snapshot creates a new active version later — first the agent suggests
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": BODY})
     async with agent_client_factory(user) as agent:
-        await agent.patch(f"/api/sections/{section_id}/content", json={"content": "proposal"})
+        await agent.patch(f"/api/sections/{section_id}/content", json={"content": BODY.replace("linha a", "linha A")})
 
     async with client_factory(user) as human:
-        # Human keeps editing: snapshot creates a NEW active version
-        res = await human.post(f"/api/sections/{section_id}/versions/snapshot", json={})
-        assert res.status_code == 201
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": BODY.replace("linha c", "linha C")})
 
         listed = await human.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
         s = listed.json()["suggestions"][0]
         assert s["is_stale"] is True
-        # Still acceptable — stale is informational, not blocking
+        assert s["has_conflict"] is False
+        # The diff the reviewer sees is only the agent's change, not a revert of theirs.
+        assert s["proposed_content"] == BODY.replace("linha a", "linha A").replace("linha c", "linha C")
+
         res = await human.post(f"/api/suggestions/{s['id']}/accept")
         assert res.status_code == 200
+        assert await _body(human, doc_id) == BODY.replace("linha a", "linha A").replace("linha c", "linha C")
+
+
+@pytest.mark.asyncio
+async def test_a_clash_with_a_later_human_edit_is_refused_not_overwritten(client_factory, agent_client_factory):
+    user = User(id="u_sugg5b", email="s5b@test.com", name="S", credits=5)
+    async with client_factory(user) as human:
+        doc_id, section_id = await _create_editor_document(human)
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": BODY})
+    async with agent_client_factory(user) as agent:
+        await agent.patch(f"/api/sections/{section_id}/content", json={"content": BODY.replace("linha a", "linha do agente")})
+    async with client_factory(user) as human:
+        mine = BODY.replace("linha a", "linha da pessoa")
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": mine})
+        listed = await human.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
+        s = listed.json()["suggestions"][0]
+        assert s["has_conflict"] is True
+        # The agent is told what the person changed, so it can tell their edit from its own.
+        assert s["people_changes"] == [{"before": "linha a", "after": "linha da pessoa"}]
+
+        res = await human.post(f"/api/suggestions/{s['id']}/accept")
+        assert res.status_code == 409
+        assert await _body(human, doc_id) == mine
+
+    async with agent_client_factory(user) as agent:
+        # The agent redoes its change on the person's text and says so: the clash is gone.
+        redo = mine.replace("## Dois", "## Dois (revisto)")
+        await agent.patch(f"/api/sections/{section_id}/content", json={"content": redo, "base": mine})
+    async with client_factory(user) as human:
+        listed = await human.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
+        [again] = listed.json()["suggestions"]
+        assert again["id"] == s["id"] and again["has_conflict"] is False and again["people_changes"] == []
+        assert (await human.post(f"/api/suggestions/{s['id']}/accept")).status_code == 200
+        assert await _body(human, doc_id) == redo
+
+
+@pytest.mark.asyncio
+async def test_an_agent_keeps_one_pending_suggestion_and_builds_on_it(client_factory, agent_client_factory):
+    """Several small edits in a row are one proposal, not proposals that undo each other."""
+    user = User(id="u_sugg5c", email="s5c@test.com", name="S", credits=5)
+    async with client_factory(user) as human:
+        doc_id, section_id = await _create_editor_document(human)
+        await human.patch(f"/api/sections/{section_id}/content", json={"content": BODY})
+    async with agent_client_factory(user) as agent:
+        first = BODY.replace("linha a", "linha A")
+        r1 = await agent.patch(f"/api/sections/{section_id}/content", json={"content": first, "note": "um"})
+        r2 = await agent.patch(f"/api/sections/{section_id}/content", json={"content": first.replace("linha c", "linha C"), "note": "dois"})
+        r3 = await agent.patch(f"/api/sections/{section_id}/content", json={"content": "## Três\n\nfim", "mode": "append"})
+        assert r1.json()["suggestion_id"] == r2.json()["suggestion_id"] == r3.json()["suggestion_id"]
+
+        listed = await agent.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
+        [s] = listed.json()["suggestions"]
+        assert s["is_mine"] is True
+        assert s["note"] == "um\ndois"
+        assert s["proposed_content"] == BODY.replace("linha a", "linha A").replace("linha c", "linha C") + "\n\n## Três\n\nfim"
+
+    async with client_factory(user) as human:
+        listed = await human.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
+        assert listed.json()["suggestions"][0]["is_mine"] is False
+        await human.post(f"/api/suggestions/{s['id']}/accept")
+    async with agent_client_factory(user) as agent:
+        # Once accepted, the next write opens a new proposal.
+        r4 = await agent.patch(f"/api/sections/{section_id}/content", json={"content": "outra coisa"})
+        assert r4.json()["suggestion_id"] != s["id"]
 
 
 @pytest.mark.asyncio

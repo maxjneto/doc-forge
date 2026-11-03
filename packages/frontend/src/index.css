@@ -841,3 +841,46 @@ textarea.font-mono,
   .df-marketing-nav__cta { padding: 7px 11px; }
   .df-marketing-nav__links { display: none !important; }
 }
+
+/* ─── Marketing pages (Home, How it works, Pricing) ──────────── */
+.df-mk { background: var(--color-bg); color: var(--color-text); min-height: 100vh; font-family: var(--font-sans); }
+.df-mk-wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+.df-mk-band { background: var(--color-active-line); border-top: 1px solid var(--color-outline); border-bottom: 1px solid var(--color-outline); }
+/* The GCD grid behind a hero, fading out at the edges. */
+.df-mk-gridbg {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(var(--color-outline-md) 1px, transparent 1px), linear-gradient(90deg, var(--color-outline-md) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 28%, black 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 65% 55% at 50% 28%, black 30%, transparent 100%);
+}
+.df-mk-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.df-mk-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.df-mk-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.df-mk-grid-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.df-mk-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+.df-mk-pair { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1.2fr); gap: 20px; align-items: center; }
+.df-mk-steps { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.6fr) minmax(0, .9fr); gap: 16px; align-items: stretch; }
+.df-mk-float { position: absolute; }
+.df-mk-pop { animation: df-mk-pop 0.45s ease both; }
+@keyframes df-mk-pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.df-mk-range { width: 100%; height: 44px; margin: 0; accent-color: var(--color-heat); cursor: ew-resize; }
+.df-mk-faq { border-bottom: 1px solid var(--color-outline-md); }
+.df-mk-faq summary { cursor: pointer; list-style: none; padding: 20px 0; font-size: var(--text-title); font-weight: 600; display: flex; justify-content: space-between; gap: 16px; }
+.df-mk-faq summary::-webkit-details-marker { display: none; }
+.df-mk-faq summary::after { content: "+"; color: var(--color-heat-hi); font-weight: 400; }
+.df-mk-faq[open] summary::after { content: "−"; }
+.df-mk-faq summary:focus-visible { outline: 2px solid var(--color-heat); outline-offset: 2px; border-radius: var(--radius-xs); }
+.df-mk-toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.df-mk-toc a { font-size: var(--text-body-sm); color: var(--color-dim); text-decoration: none; padding: 9px 13px; border-radius: var(--radius-pill); border: 1px solid var(--color-outline-md); }
+.df-mk-toc a:hover { border-color: var(--color-heat); color: var(--color-text); }
+@media (max-width: 900px) {
+  .df-mk-wrap { padding: 0 16px; }
+  .df-mk-grid-2, .df-mk-grid-3, .df-mk-split, .df-mk-steps { grid-template-columns: minmax(0, 1fr); }
+  .df-mk-grid-4, .df-mk-grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .df-mk-pair { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .df-mk-pair__arrow { display: none; }
+  .df-mk-float { position: static; margin-top: 12px; max-width: none !important; }
+}
+@media (max-width: 560px) { .df-mk-grid-4, .df-mk-grid-5 { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .df-mk-pop { animation: none; } }
