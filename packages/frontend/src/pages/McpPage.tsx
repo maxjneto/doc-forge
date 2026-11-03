@@ -11,8 +11,13 @@ import { relativeTime, shortDate } from "@/utils/time";
 
 type Tab = "claude_code" | "codex" | "cursor" | "generic";
 type T = (key: string, vars?: Record<string, string | number>) => string;
+// Which toolset the snippets connect to. Each kind of document has its own
+// endpoint; /mcp (everything) stays available but costs context on every call.
+type Endpoint = "cgd" | "markdown" | "all";
 
 const TABS: Tab[] = ["claude_code", "codex", "cursor", "generic"];
+const ENDPOINTS: Endpoint[] = ["cgd", "markdown", "all"];
+const endpointUrl = (ep: Endpoint) => (ep === "all" ? MCP_URL : `${MCP_URL}/${ep}`);
 const HARNESS_OPTIONS: Tab[] = ["claude_code", "codex", "cursor", "generic"];
 
 const tabLabel = (tab: Tab, t: T) => (tab === "generic" ? t("mcp.genericAgent") : HARNESS_META[tab].label);
@@ -27,6 +32,7 @@ export function McpPage() {
   const [created, setCreated] = useState<ApiKeyCreateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("claude_code");
+  const [endpoint, setEndpoint] = useState<Endpoint>("cgd");
   const [copied, setCopied] = useState<string | null>(null);
   const [editingHarness, setEditingHarness] = useState<string | null>(null);
 
@@ -232,10 +238,11 @@ export function McpPage() {
 
             <div style={{ padding: "24px 28px" }}>
               <Callout>{t("mcp.setupInfo")}</Callout>
-              {tab === "claude_code" && <ClaudeCodePanel copy={copy} copied={copied} t={t} />}
-              {tab === "codex" && <CodexPanel copy={copy} copied={copied} t={t} />}
-              {tab === "cursor" && <CursorPanel copy={copy} copied={copied} t={t} />}
-              {tab === "generic" && <GenericPanel copy={copy} copied={copied} t={t} />}
+              <EndpointPicker selected={endpoint} onPick={setEndpoint} t={t} />
+              {tab === "claude_code" && <ClaudeCodePanel url={endpointUrl(endpoint)} copy={copy} copied={copied} t={t} />}
+              {tab === "codex" && <CodexPanel url={endpointUrl(endpoint)} copy={copy} copied={copied} t={t} />}
+              {tab === "cursor" && <CursorPanel url={endpointUrl(endpoint)} copy={copy} copied={copied} t={t} />}
+              {tab === "generic" && <GenericPanel url={endpointUrl(endpoint)} copy={copy} copied={copied} t={t} />}
             </div>
           </div>
         </section>
@@ -252,7 +259,7 @@ export function McpPage() {
           <div style={{ ...cardStyle, padding: "18px 20px" }}>
             <Step num={1} title={t("mcp.tip1")}>
               <Note style={{ marginBottom: 10 }}>{t("mcp.tip1Body")}</Note>
-              <CodeBlock text={t("mcp.tip1Prompt")} id="tip-sysprompt" copy={copy} copied={copied} t={t} />
+              <CodeBlock text={t(`mcp.tip1Prompt.${endpoint}`)} id="tip-sysprompt" copy={copy} copied={copied} t={t} />
             </Step>
           </div>
         </section>
@@ -300,16 +307,52 @@ function HarnessPicker({ selected, onPick, onClear }: { selected: string | null;
   );
 }
 
+// ─── Endpoint picker ─────────────────────────────────────────
+
+function EndpointPicker({ selected, onPick, t }: { selected: Endpoint; onPick: (ep: Endpoint) => void; t: T }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>{t("mcp.ep.label")}</div>
+      <div role="radiogroup" aria-label={t("mcp.ep.label")} style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        {ENDPOINTS.map((ep) => {
+          const active = selected === ep;
+          return (
+            <button
+              key={ep}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onPick(ep)}
+              style={{
+                padding: "5px 12px", borderRadius: "var(--radius-sm)", fontSize: 12.5, fontWeight: 500,
+                border: `1px solid ${active ? "var(--color-steel-line)" : "var(--color-outline)"}`,
+                background: active ? "var(--color-steel-wash)" : "transparent",
+                color: active ? "var(--color-steel-hi)" : "var(--color-faint)",
+                cursor: "pointer", fontFamily: "inherit",
+                transition: "border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast)",
+              }}
+            >
+              {t(`mcp.ep.${ep}`)}
+            </button>
+          );
+        })}
+      </div>
+      <Note><RichText text={t(`mcp.ep.${selected}Note`)} /></Note>
+    </div>
+  );
+}
+
 // ─── Client panels ───────────────────────────────────────────
 
 interface PanelProps {
+  url: string;
   copy: (text: string, key: string) => void;
   copied: string | null;
   t: T;
 }
 
-function ClaudeCodePanel({ copy, copied, t }: PanelProps) {
-  const cmd1 = `claude mcp add --transport http docforge ${MCP_URL} -H "Authorization: Bearer your_api_key_here"`;
+function ClaudeCodePanel({ url, copy, copied, t }: PanelProps) {
+  const cmd1 = `claude mcp add --transport http docforge ${url} -H "Authorization: Bearer your_api_key_here"`;
   const cmd2 = `claude mcp list`;
   const cmd3 = `claude "${t("mcp.cc.prompt")}"`;
   return (
@@ -330,11 +373,11 @@ function ClaudeCodePanel({ copy, copied, t }: PanelProps) {
   );
 }
 
-function CodexPanel({ copy, copied, t }: PanelProps) {
+function CodexPanel({ url, copy, copied, t }: PanelProps) {
   const posixEnv = `export DOCFORGE_API_KEY=your_api_key_here`;
   const powershellEnv = `$env:DOCFORGE_API_KEY = "your_api_key_here"`;
-  const cmd1 = `codex mcp add docforge --url ${MCP_URL} --bearer-token-env-var DOCFORGE_API_KEY`;
-  const toml = `[mcp_servers.docforge]\nurl = "${MCP_URL}"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
+  const cmd1 = `codex mcp add docforge --url ${url} --bearer-token-env-var DOCFORGE_API_KEY`;
+  const toml = `[mcp_servers.docforge]\nurl = "${url}"\nbearer_token_env_var = "DOCFORGE_API_KEY"\ndefault_tools_approval_mode = "prompt"`;
   const verify = `codex mcp get docforge\ncodex mcp list`;
   const smokeTest = `codex "${t("mcp.cx.prompt")}"`;
   return (
@@ -366,8 +409,8 @@ function CodexPanel({ copy, copied, t }: PanelProps) {
   );
 }
 
-function CursorPanel({ copy, copied, t }: PanelProps) {
-  const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "${MCP_URL}",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
+function CursorPanel({ url, copy, copied, t }: PanelProps) {
+  const json = `{\n  "mcpServers": {\n    "docforge": {\n      "url": "${url}",\n      "headers": {\n        "Authorization": "Bearer \${env:DOCFORGE_API_KEY}"\n      }\n    }\n  }\n}`;
   const cmd2 = `export DOCFORGE_API_KEY=your_api_key_here`;
   return (
     <>
@@ -386,10 +429,9 @@ function CursorPanel({ copy, copied, t }: PanelProps) {
   );
 }
 
-function GenericPanel({ copy, copied, t }: PanelProps) {
-  const url = MCP_URL;
+function GenericPanel({ url, copy, copied, t }: PanelProps) {
   const auth = `Authorization: Bearer your_api_key_here`;
-  const transport = `# Streamable HTTP\nurl = "${MCP_URL}"`;
+  const transport = `# Streamable HTTP\nurl = "${url}"`;
   return (
     <>
       <Step num={1} title={t("mcp.gn.s1")}>
@@ -412,67 +454,116 @@ function GenericPanel({ copy, copied, t }: PanelProps) {
 
 // ─── Capabilities ────────────────────────────────────────────
 
-const TOOL_NAMES = [
-  "get_user_info", "list_documents", "create_document", "get_document", "get_section",
-  "write_section", "append_section", "patch_section", "check_suggestions", "get_pending_feedback",
-  "reply_feedback", "resolve_feedback", "snapshot_section", "list_versions", "get_version_content", "select_active_version",
-  "rename_version", "get_activity", "get_document_url", "get_quality_gate", "submit_quality_findings",
-  "list_artifacts", "create_artifact",
-  // Layout documents
-  "create_layout_document", "get_layout_map", "get_layout_document", "apply_layout_ops", "preview_layout",
-  "measure_component", "calibrate_style", "render_page", "review_layout", "find_layout",
-  "get_layout_notes", "request_review", "resolve_layout_note", "reply_layout_note", "save_layout_version",
-  "list_layout_versions", "restore_layout_version", "list_layout_themes", "apply_layout_theme", "save_layout_theme",
-];
+// Mirrors the server's toolsets (packages/mcp/src/docforge_mcp/server.py,
+// GENERAL_TOOLS / MARKDOWN_TOOLS / CGD_TOOLS): /mcp/markdown and /mcp/cgd load
+// only their own tools; /mcp loads every one.
+type Toolset = {
+  key: "general" | "markdown" | "cgd";
+  path: string | null;
+  groups: { key: string; tools: string[] }[];
+  resources: { uri: string; key: string }[];
+  prompts?: boolean;
+};
 
-const RESOURCES: { uri: string; key: string }[] = [
-  { uri: "docforge://documents", key: "documents" },
-  { uri: "docforge://document/{id}", key: "document" },
-  { uri: "docforge://document/{id}/versions", key: "versions" },
-  { uri: "docforge://guide/system-prompt", key: "guide" },
-  { uri: "docforge://guide/layout", key: "layoutGuide" },
-  { uri: "docforge://recipes", key: "recipes" },
-  { uri: "docforge://recipes/{slug}", key: "recipe" },
-  { uri: "docforge://writing/{type}", key: "writing" },
+const TOOLSETS: Toolset[] = [
+  {
+    key: "general",
+    path: null,
+    groups: [{ key: "account", tools: ["get_user_info", "list_documents", "get_document_url", "get_activity"] }],
+    resources: [{ uri: "docforge://documents", key: "documents" }],
+  },
+  {
+    key: "markdown",
+    path: "/markdown",
+    groups: [
+      { key: "mdWrite", tools: ["create_document", "get_document", "get_section", "patch_section", "append_section", "write_section"] },
+      { key: "mdReview", tools: ["get_pending_feedback", "reply_feedback", "resolve_feedback", "check_suggestions"] },
+      { key: "mdVersions", tools: ["snapshot_section", "list_versions", "get_version_content", "select_active_version", "rename_version"] },
+      { key: "mdExtras", tools: ["list_artifacts", "create_artifact", "get_quality_gate", "submit_quality_findings"] },
+    ],
+    resources: [
+      { uri: "docforge://document/{id}", key: "document" },
+      { uri: "docforge://document/{id}/versions", key: "versions" },
+      { uri: "docforge://guide/system-prompt", key: "guide" },
+      { uri: "docforge://recipes", key: "recipes" },
+      { uri: "docforge://recipes/{slug}", key: "recipe" },
+      { uri: "docforge://writing/{type}", key: "writing" },
+    ],
+    prompts: true,
+  },
+  {
+    key: "cgd",
+    path: "/cgd",
+    groups: [
+      { key: "cgdRead", tools: ["create_layout_document", "get_layout_map", "get_layout_document", "find_layout"] },
+      { key: "cgdChange", tools: ["apply_layout_ops", "preview_layout", "measure_component", "calibrate_style"] },
+      { key: "cgdCheck", tools: ["render_page", "review_layout"] },
+      { key: "cgdReview", tools: ["get_layout_notes", "reply_layout_note", "resolve_layout_note", "request_review"] },
+      { key: "cgdThemes", tools: ["list_layout_themes", "apply_layout_theme", "save_layout_theme"] },
+      { key: "cgdVersions", tools: ["save_layout_version", "list_layout_versions", "restore_layout_version"] },
+    ],
+    resources: [{ uri: "docforge://guide/layout", key: "layoutGuide" }],
+  },
 ];
 
 function CapabilitiesCard({ t }: { t: T }) {
   const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 14, rowGap: 7, alignItems: "baseline", justifyItems: "start", fontSize: 12.5 };
   const desc: React.CSSProperties = { fontSize: 12.5, color: "var(--color-dim)", lineHeight: 1.45 };
+  const groupLabel: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: "var(--color-text)", margin: "14px 0 8px" };
   return (
     <div style={cardStyle}>
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-outline)" }}>
-        <Eyebrow style={{ marginBottom: 12 }}>{t("mcp.tools")}</Eyebrow>
-        <div style={grid}>
-          {TOOL_NAMES.map((name) => (
-            <React.Fragment key={name}>
-              <InlineCode>{name}</InlineCode>
-              <span style={desc}>{t(`mcp.tool.${name}`)}</span>
-            </React.Fragment>
-          ))}
-        </div>
+      <div style={{ padding: "16px 20px 0" }}>
+        <Callout><RichText text={t("mcp.toolsetsNote")} /></Callout>
       </div>
 
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-outline)" }}>
-        <Eyebrow style={{ marginBottom: 12 }}>{t("mcp.resources")}</Eyebrow>
-        <div style={grid}>
-          {RESOURCES.map(({ uri, key }) => (
-            <React.Fragment key={uri}>
-              <InlineCode>{uri}</InlineCode>
-              <span style={desc}>{t(`mcp.res.${key}`)}</span>
-            </React.Fragment>
+      {TOOLSETS.map((set, i) => (
+        <div
+          key={set.key}
+          style={{
+            padding: "0 20px 16px",
+            ...(i < TOOLSETS.length - 1 && { borderBottom: "1px solid var(--color-outline)", marginBottom: 16 }),
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <Eyebrow>{t(`mcp.ts.${set.key}`)}</Eyebrow>
+            <span style={desc}>
+              {set.path ? <InlineCode>{`${MCP_URL}${set.path}`}</InlineCode> : t("mcp.ts.everywhere")}
+            </span>
+          </div>
+          {set.groups.map((group) => (
+            <div key={group.key}>
+              {set.groups.length > 1 && <div style={groupLabel}>{t(`mcp.grp.${group.key}`)}</div>}
+              <div style={{ ...grid, marginTop: set.groups.length > 1 ? 0 : 12 }}>
+                {group.tools.map((name) => (
+                  <React.Fragment key={name}>
+                    <InlineCode>{name}</InlineCode>
+                    <span style={desc}>{t(`mcp.tool.${name}`)}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
           ))}
+          <div style={groupLabel}>{t("mcp.resources")}</div>
+          <div style={grid}>
+            {set.resources.map(({ uri, key }) => (
+              <React.Fragment key={uri}>
+                <InlineCode>{uri}</InlineCode>
+                <span style={desc}>{t(`mcp.res.${key}`)}</span>
+              </React.Fragment>
+            ))}
+          </div>
+          {set.prompts && (
+            <>
+              <div style={groupLabel}>{t("mcp.prompts")}</div>
+              <div style={{ ...grid, marginBottom: 12 }}>
+                <InlineCode>docforge_orientation</InlineCode>
+                <span style={desc}>{t("mcp.promptDesc")}</span>
+              </div>
+              <Callout><RichText text={t("mcp.promptNote")} /></Callout>
+            </>
+          )}
         </div>
-      </div>
-
-      <div style={{ padding: "16px 20px" }}>
-        <Eyebrow style={{ marginBottom: 12 }}>{t("mcp.prompts")}</Eyebrow>
-        <div style={{ ...grid, marginBottom: 12 }}>
-          <InlineCode>docforge_orientation</InlineCode>
-          <span style={desc}>{t("mcp.promptDesc")}</span>
-        </div>
-        <Callout><RichText text={t("mcp.promptNote")} /></Callout>
-      </div>
+      ))}
     </div>
   );
 }

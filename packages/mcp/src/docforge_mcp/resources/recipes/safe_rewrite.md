@@ -1,21 +1,19 @@
 # Recipe: safe-rewrite
 
-Use when you're about to replace a section's content with something substantially different (more than a paragraph changed).
+Use when you're about to replace most of the document with something substantially different — not for edits, which `patch_section` handles without any of this.
 
 ## Steps
 
-1. **`get_document(document_id)`** — read the current body. Note its length and the last few headings.
-2. **`get_activity(document_id, limit=5)`** — confirm no one else has edited recently. If the most recent entry is from another actor, decide whether to merge their change or wait.
-3. **`snapshot_section(document_id, version_name="...", change_summary="...")`** — name the snapshot after the *current* (pre-rewrite) state, e.g. `"Pre-restructure draft"`. The summary should say what you're about to change and why.
-4. **`write_section(document_id, content=..., note="...")`** — write the new content. The `note` is recorded in the activity log; describe the rewrite in one short sentence.
-5. **`get_activity(document_id, limit=3)`** — verify your write landed and shows the actor as you.
+1. **`get_document(document_id, full=True)`** — read the whole body (with your pending suggestion applied, if you have one). Note its length and headings.
+2. **`snapshot_section(document_id, version_name="...", change_summary="...")`** — name the snapshot after the *current* state, e.g. `"Antes da reestruturação"`, and say in the summary what you're about to change and why.
+3. **`write_section(document_id, content=..., note="...")`** — the new body; the `note` describes the rewrite in one sentence.
 
 ## Why this order
 
-Snapshotting before writing means the prior version is preserved as a named, restorable checkpoint. If you write first and snapshot after, the snapshot captures the new content — the old version is gone.
+Snapshotting first keeps the prior version as a named, restorable checkpoint. On a document under review your rewrite is a suggestion anyway, and people's later edits are replayed on top when they accept it — but the snapshot is what lets them compare and go back.
 
 ## Failure modes to avoid
 
-- Skipping step 1: writing without reading means you might delete sections you didn't intend to.
-- Skipping step 2: silently clobbering a human edit.
-- Snapshotting with no name: the default timestamp name is useless for navigation later.
+- Writing without reading the full body: you'll drop sections you never saw.
+- A body much shorter than what you read, when nobody asked you to cut.
+- Snapshotting with no name: the default timestamp name is useless in history.

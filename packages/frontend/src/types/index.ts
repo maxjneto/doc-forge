@@ -127,6 +127,8 @@ export interface Suggestion {
   proposedContent: string | null;
   currentContent: string | null;
   isStale: boolean;
+  /** Accepting now would clash with edits people made after it was proposed. */
+  hasConflict: boolean;
   createdAt: string;
   resolvedAt: string | null;
 }

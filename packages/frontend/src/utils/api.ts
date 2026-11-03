@@ -891,6 +891,7 @@ function mapSuggestion(raw: Record<string, unknown>): Suggestion {
     proposedContent: (raw.proposed_content as string) ?? null,
     currentContent: (raw.current_content as string) ?? null,
     isStale: Boolean(raw.is_stale),
+    hasConflict: Boolean(raw.has_conflict),
     createdAt: raw.created_at as string,
     resolvedAt: (raw.resolved_at as string) ?? null,
   };

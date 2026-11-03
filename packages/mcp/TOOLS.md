@@ -20,11 +20,11 @@ Document creations remaining: 12 (weekly allowance: 15)
 
 ## `list_documents`
 
-Lists all your DocForge editor documents.
+Lists your documents with the kind of each: `markdown` or `cgd` (a layout page). Connected to one toolset, documents of the other kind say where their tools are.
 
 ```
-- [FastAPI Tech Spec] id=abc123 updated=2025-05-20
-- [onboarding guide] id=def456 updated=2025-05-18
+- [FastAPI Tech Spec] id=abc123 type=markdown updated=2025-05-20
+- [Relatório Q3] id=def456 type=cgd updated=2025-05-18 (its tools are in /mcp/cgd)
 ```
 
 ---
@@ -85,19 +85,26 @@ Appends content to the end of the body without requiring the agent to resend the
 
 ## `patch_section`
 
-Replaces an exact text fragment scoped to a Markdown heading. Use it for a focused change instead of rewriting the whole body.
+Changes parts of the body by exact text replacement — the usual way to edit, since the document is never resent. Several edits can go in one call and land together, as one change. If any edit does not match, nothing is written and the error names the edit.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `document_id` | string | yes | Document UUID |
-| `anchor` | string | yes | Exact heading that scopes the edit |
-| `old_text` | string | yes | Exact text to replace once |
-| `new_text` | string | yes | Replacement text |
+| `old_text` | string | one edit | Exact text to replace; must appear once (in the `anchor` section when given, else in the whole document) |
+| `new_text` | string | one edit | Replacement (`""` deletes) |
+| `anchor` | string | no | Heading that scopes `old_text` |
+| `edits` | list | several edits | `[{"old_text", "new_text", "anchor"?, "all"?}]`, applied in order; `"all": true` replaces every occurrence |
 | `note` | string | no | Review note |
+
+```
+Applied 3 edit(s): proposed for review in 'ADR: layout service' (suggestion 7c2e...).
+That one suggestion holds all your pending changes to this document: further writes update it,
+and get_document / get_section show the document with it applied. ...
+```
 
 ## `write_section`
 
-Writes the full body section content. **By default the write becomes a pending suggestion** (`agent_write_policy: suggest`): the user reviews it as a diff in the browser and accepts or rejects it — the document is unchanged until acceptance. On `direct`-policy documents the write applies immediately. The response tells you which happened.
+Replaces the whole body. **By default the write becomes a pending suggestion** (`agent_write_policy: suggest`): people review it as a diff and accept or reject it. An agent keeps one pending suggestion per document — further writes (`write_section`, `append_section`, `patch_section`) update it, and the agent's reads show it applied. When people accept it, the agent's changes are replayed on whatever they wrote meanwhile; only a clash on the same words is refused. On `direct`-policy documents the write applies immediately. The response says which happened.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -105,17 +112,7 @@ Writes the full body section content. **By default the write becomes a pending s
 | `content` | string | yes | Full Markdown content |
 | `note` | string | no | Your "PR description" — shown to the reviewer next to the diff |
 
-To **append**: call `get_document` first, compose `existing + new_content`, then write.
-
-```
-Suggestion submitted for 'FastAPI Service Tech Spec' (2847 characters).
-Suggestion ID: 7c2e...
-
-The write is PENDING human review — the document content is unchanged until
-the user accepts it in their browser. Use check_suggestions to see if it was
-accepted or rejected, and get_pending_feedback to read any review comments
-before rewriting.
-```
+For anything smaller than a restructure, use `patch_section` (or `append_section` to add at the end).
 
 ---
 
@@ -138,10 +135,24 @@ Lists your suggestions on a document with review status (`pending` / `accepted` 
 
 ## `get_pending_feedback`
 
-Reads open human feedback on a document: comment threads people left on the text (with the passage and heading they point at, and the replies so far) plus rejection comments from suggestions. Requests marked `[for you]` come first. **Call before writing** and address the items.
+Reads the open comments on a document, with the passage and heading each points at and the replies so far, in two groups: **FOR YOU** — requests to the agent and the reasons people gave for rejecting its suggestion — and **BETWEEN PEOPLE**, which are context only (the agent should not reply to or resolve them).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
+| `document_id` | string | yes | Document UUID |
+
+```
+FOR YOU (1): act on each, then resolve_feedback.
+- id=91af... 2026-07-18 14:02 Max [why your suggestion was rejected]
+  Wrong: the timeout is 30s, see config.py
+
+BETWEEN PEOPLE (1): context only. Do not reply to or resolve these.
+- id=4c0d... 2026-07-18 15:10 Ana
+  under: Rollout
+  @time: who owns the migration?
+```
+
+---|---|---|---|
 | `document_id` | string | yes | Document UUID |
 
 ```
