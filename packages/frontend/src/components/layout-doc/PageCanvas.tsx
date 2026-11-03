@@ -449,6 +449,11 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       return;
     }
     if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 4) return;
+    if (!g.moved) {
+      // A drag has begun. Captured by the layer, which stays mounted: the handle that
+      // started a resize disappears while dragging, and a capture on it would be lost with it.
+      layer.current?.setPointerCapture?.(e.pointerId);
+    }
     g.moved = true;
     const { clientX, clientY, altKey } = e;
     if (raf.current !== null) return;
@@ -531,9 +536,8 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
     const at = locate(e.clientX, e.clientY);
     if (!g || !at) return;
     onSelect(id);
-    // Captured by the layer, which stays mounted: the handle that started a resize
-    // disappears while dragging, and a capture on it would be lost with it.
-    layer.current?.setPointerCapture?.(e.pointerId);
+    // The pointer is captured only once it moves (see onPointerMove): a capture here
+    // would send the click and the double-click to the layer instead of the block.
     gesture.current = {
       kind,
       id,

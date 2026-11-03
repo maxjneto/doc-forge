@@ -399,11 +399,12 @@ export async function apiApplyLayoutOps(
   ops: unknown[],
   baseRevision: number,
   getToken: GetToken,
+  note?: string | null,
 ): Promise<LayoutWriteResult> {
   const res = await fetch(`${API_BASE}/documents/${documentId}/layout/ops`, {
     method: "POST",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ ops, base_revision: baseRevision, draw: false, pages: [1] }),
+    body: JSON.stringify({ ops, base_revision: baseRevision, draw: false, pages: [1], ...(note ? { note: note.slice(0, 500) } : {}) }),
   });
   return layoutWrite(res);
 }
@@ -413,11 +414,12 @@ export async function apiReplaceLayout(
   content: unknown,
   baseRevision: number,
   getToken: GetToken,
+  note?: string | null,
 ): Promise<LayoutWriteResult> {
   const res = await fetch(`${API_BASE}/documents/${documentId}/layout`, {
     method: "PUT",
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
-    body: JSON.stringify({ content, base_revision: baseRevision }),
+    body: JSON.stringify({ content, base_revision: baseRevision, ...(note ? { note: note.slice(0, 500) } : {}) }),
   });
   return layoutWrite(res);
 }

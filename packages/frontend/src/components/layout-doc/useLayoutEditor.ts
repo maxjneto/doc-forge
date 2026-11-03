@@ -11,7 +11,7 @@ import {
 type GetToken = () => Promise<string | null>;
 
 /** A write waiting to reach the server. */
-type Job = { kind: "ops"; ops: unknown[]; coalesce?: string } | { kind: "replace"; content: LayoutDocument };
+type Job = { kind: "ops"; ops: unknown[]; coalesce?: string; note?: string } | { kind: "replace"; content: LayoutDocument; note?: string };
 
 interface UndoEntry {
   content: LayoutDocument;
@@ -34,6 +34,15 @@ export interface ExternalChange {
 export interface CommitOptions {
   /** Consecutive commits with the same key within a short time are one undo step and one write (keyboard nudges). */
   coalesce?: string;
+}
+
+/** What each write is called in the history and the activity ("Edited “Revenue”"). */
+export interface EditorWords {
+  /** A line for these operations on the document they apply to. */
+  describe: (ops: unknown[], before: LayoutDocument) => string;
+  undo: string;
+  redo: string;
+  restore: string;
 }
 
 export interface LayoutEditor {
@@ -75,7 +84,10 @@ export function useLayoutEditor(
   initial: LayoutState,
   getToken: GetToken,
   sseTick: number,
+  words?: EditorWords,
 ): LayoutEditor {
+  const wordsRef = useRef(words);
+  wordsRef.current = words;
   const [content, setContent] = useState<LayoutDocument>(initial.content as LayoutDocument);
   const [revision, setRevision] = useState(initial.revision);
   const [status, setStatus] = useState<SaveStatus>("saved");
@@ -150,8 +162,8 @@ export function useLayoutEditor(
         try {
           const result =
             job.kind === "ops"
-              ? await apiApplyLayoutOps(documentId, job.ops, revisionRef.current, getToken)
-              : await apiReplaceLayout(documentId, job.content, revisionRef.current, getToken);
+              ? await apiApplyLayoutOps(documentId, job.ops, revisionRef.current, getToken, job.note)
+              : await apiReplaceLayout(documentId, job.content, revisionRef.current, getToken, job.note);
           if (!result.ok) {
             await resync({ kind: "save-failed" });
             break;
@@ -238,7 +250,7 @@ export function useLayoutEditor(
       });
       setRedoStack([]);
       show(result.doc);
-      enqueue({ kind: "ops", ops, coalesce: options.coalesce });
+      enqueue({ kind: "ops", ops, coalesce: options.coalesce, note: wordsRef.current?.describe(ops, before) });
       return result;
     },
     [engine, enqueue, show],
@@ -252,7 +264,7 @@ export function useLayoutEditor(
     setUndoStack(undoStack.slice(0, -1));
     setRedoStack((stack) => [...stack, current]);
     show(top.content);
-    enqueue({ kind: "replace", content: top.content });
+    enqueue({ kind: "replace", content: top.content, note: wordsRef.current?.undo });
   }, [enqueue, show, undoStack]);
 
   const replaceAll = useCallback(
@@ -261,7 +273,7 @@ export function useLayoutEditor(
       setUndoStack((stack) => [...stack.slice(-99), { content: current, at: Date.now() }]);
       setRedoStack([]);
       show(next);
-      enqueue({ kind: "replace", content: next });
+      enqueue({ kind: "replace", content: next, note: wordsRef.current?.restore });
     },
     [enqueue, show],
   );
@@ -273,7 +285,7 @@ export function useLayoutEditor(
     setRedoStack(redoStack.slice(0, -1));
     setUndoStack((stack) => [...stack, { content: current, at: 0 }]);
     show(top);
-    enqueue({ kind: "replace", content: top });
+    enqueue({ kind: "replace", content: top, note: wordsRef.current?.redo });
   }, [enqueue, redoStack, show]);
 
   return {

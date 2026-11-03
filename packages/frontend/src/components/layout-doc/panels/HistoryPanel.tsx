@@ -41,6 +41,9 @@ interface HistoryPanelProps {
   canEdit: boolean;
   surfaceId: string | undefined;
   getToken: GetToken;
+  /** Ctrl+S from anywhere: open the "save a version" form. */
+  saveRequested?: boolean;
+  onSaveRequested?: () => void;
 }
 
 /**
@@ -50,12 +53,17 @@ interface HistoryPanelProps {
  * brought back; bringing one back is a new edit, so nothing is ever lost.
  */
 export function HistoryPanel(props: HistoryPanelProps) {
-  const { documentId, engine, doc, revision, external, comparison, commit, replaceAll, onDismissExternal, onShow, viewing, onView, notices, onDismissNotices, nameOf, canEdit, surfaceId, getToken } = props;
+  const { documentId, engine, doc, revision, external, comparison, commit, replaceAll, onDismissExternal, onShow, viewing, onView, notices, onDismissNotices, nameOf, canEdit, surfaceId, getToken, saveRequested, onSaveRequested } = props;
   const { t, dateLocale: locale } = useI18n();
   const actorName = useActorName();
   const [revisions, setRevisions] = useState<LayoutRevisionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<{ name: string; note: string } | null>(null);
+  useEffect(() => {
+    if (!saveRequested) return;
+    if (canEdit) setSaving((current) => current ?? { name: "", note: "" });
+    onSaveRequested?.();
+  }, [saveRequested, canEdit, onSaveRequested]);
   const [editing, setEditing] = useState<{ revision: number; name: string; note: string } | null>(null);
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const [opening, setOpening] = useState<number | null>(null);

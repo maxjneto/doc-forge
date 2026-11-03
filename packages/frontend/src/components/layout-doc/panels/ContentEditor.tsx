@@ -1,8 +1,8 @@
 import { useEffect, useState, type FocusEvent, type ReactNode } from "react";
 import { TEXT_ROLES, type ApplyResult, type Component } from "@docforge-lib/layout";
-import { Button, Input, Switch, textStyle } from "@/components/ui";
+import { Button, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
-import { Field, ItemActions, move, Row, Select, TextArea } from "./fields";
+import { Field, ItemActions, move, Row, Select, TextArea, TextInput as Input } from "./fields";
 
 type Json = Record<string, unknown>;
 
@@ -417,7 +417,8 @@ export function ContentEditor({ component, commit, readOnly }: { component: Comp
   }
 
   return (
-    <div onBlur={onBlur} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    // While a draft is being typed, Ctrl+Z belongs to the field; once applied, it undoes the document.
+    <div onBlur={onBlur} data-undo={dirty ? "native" : "document"} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
         {json === null ? (
           form

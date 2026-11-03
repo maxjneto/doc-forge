@@ -37,7 +37,7 @@ describe("useLayoutEditor", () => {
     });
     expect(result.current.content.components[0]?.at?.x).toBe(10);
     await waitFor(() => expect(result.current.revision).toBe(2));
-    expect(api.apiApplyLayoutOps).toHaveBeenCalledWith("d1", [{ op: "place", component: "a", at: { x: 10 } }], 1, getToken);
+    expect(api.apiApplyLayoutOps).toHaveBeenCalledWith("d1", [{ op: "place", component: "a", at: { x: 10 } }], 1, getToken, undefined);
     expect(result.current.status).toBe("saved");
   });
 
@@ -61,7 +61,7 @@ describe("useLayoutEditor", () => {
     });
     await waitFor(() => expect(result.current.revision).toBe(6));
     expect(ids(result.current.content)).toEqual(["a", "agent", "mine"]);
-    expect(api.apiApplyLayoutOps).toHaveBeenLastCalledWith("d1", expect.any(Array), 5, getToken);
+    expect(api.apiApplyLayoutOps).toHaveBeenLastCalledWith("d1", expect.any(Array), 5, getToken, undefined);
     expect(result.current.notice).toEqual({ kind: "external" });
     expect(result.current.canUndo).toBe(false);
   });
@@ -90,7 +90,7 @@ describe("useLayoutEditor", () => {
     act(() => result.current.undo());
     expect(result.current.content.components[0]?.at?.y).toBe(0);
     await waitFor(() => expect(result.current.revision).toBe(3));
-    expect(api.apiReplaceLayout).toHaveBeenCalledWith("d1", expect.objectContaining({ components: [expect.objectContaining({ at: { page: 1, x: 0, y: 0, w: 40 } })] }), 2, getToken);
+    expect(api.apiReplaceLayout).toHaveBeenCalledWith("d1", expect.objectContaining({ components: [expect.objectContaining({ at: { page: 1, x: 0, y: 0, w: 40 } })] }), 2, getToken, undefined);
     act(() => result.current.redo());
     await waitFor(() => expect(result.current.revision).toBe(4));
     expect(result.current.content.components[0]?.at?.y).toBe(20);

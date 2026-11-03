@@ -37,6 +37,8 @@ class LayoutOpsRequest(BaseModel):
 class LayoutReplaceRequest(BaseModel):
     content: dict[str, Any]
     base_revision: int | None = None
+    # Why, in a sentence ("Undid an edit", "Restored version 12"), kept with the revision.
+    note: str | None = Field(default=None, max_length=500)
 
 
 class LayoutPreviewRequest(BaseModel):
