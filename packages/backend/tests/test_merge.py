@@ -1,6 +1,6 @@
 """Three-way merge of an agent's proposal with what people wrote since (app/services/merge.py)."""
 
-from app.services.merge import merge3
+from app.services.merge import changed_passages, merge3
 
 BASE = "# Doc\n\n## Um\n\nO serviço roda na porta 8002 e responde rápido.\n\n## Dois\n\nlinha c\n"
 
@@ -58,3 +58,12 @@ def test_insertions_at_the_same_point_clash():
     current = BASE.replace("## Dois", "pessoa\n\n## Dois")
     proposed = BASE.replace("## Dois", "agente\n\n## Dois")
     assert merge3(BASE, current, proposed) is None
+
+
+def test_changed_passages_trims_to_the_words_that_differ():
+    base = "Um parágrafo longo sobre o serviço, que não tem rota no Caddy e só o backend chama por dentro.\n\nfim\n"
+    current = base.replace("rota no Caddy", "rota no Caddy 2").replace("fim", "fim revisado")
+    assert changed_passages(base, current) == [
+        ("não tem rota no Caddy e só o backend chama", "não tem rota no Caddy 2 e só o backend chama"),
+        ("fim", "fim revisado"),
+    ]

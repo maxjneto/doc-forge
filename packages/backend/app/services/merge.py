@@ -80,6 +80,25 @@ def _merge(base: list[str], ours: list[str], theirs: list[str], refine: bool) ->
     return out + base[pos:]
 
 
+def changed_passages(base: str, current: str, limit: int = 8, context: int = 10) -> list[tuple[str, str]]:
+    """What people changed since `base`, as short (before, after) excerpts.
+
+    Shown to an agent whose proposal clashed, so it can tell people's edits from
+    its own: each changed region trimmed to the words that differ plus a few
+    tokens of context on each side.
+    """
+    base_lines = base.splitlines(keepends=True)
+    out: list[tuple[str, str]] = []
+    for start, end, lines in _hunks(base_lines, current.splitlines(keepends=True))[:limit]:
+        a, b = _TOKEN.findall("".join(base_lines[start:end])), _TOKEN.findall("".join(lines))
+        same = min(len(a), len(b))
+        head = next((i for i in range(same) if a[i] != b[i]), same)
+        tail = next((i for i in range(same - head) if a[-1 - i] != b[-1 - i]), same - head)
+        lo, cut = max(0, head - context), max(0, tail - context)
+        out.append(("".join(a[lo : len(a) - cut]).strip(), "".join(b[lo : len(b) - cut]).strip()))
+    return out
+
+
 def merge3(base: str, current: str, proposed: str, _by_words: bool = False) -> str | None:
     """`proposed` (written against `base`) replayed on `current`; None on a real conflict."""
     if current == base:

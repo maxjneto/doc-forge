@@ -17,6 +17,7 @@ from app.schemas.suggestion import (
     FeedbackResolveRequest,
     FeedbackResponse,
     FeedbackUpdateRequest,
+    PassageChange,
     SuggestionCreateRequest,
     SuggestionListResponse,
     SuggestionRejectRequest,
@@ -26,6 +27,7 @@ from app.schemas.suggestion import (
 from app.services import access, actor
 from app.services import db as db_service
 from app.services.hunks import apply_hunks, diff_hunks
+from app.services.merge import changed_passages
 from app.services.observability import capture_event
 
 router = APIRouter(tags=["suggestions"])
@@ -103,6 +105,12 @@ async def _to_response(
         )
     proposed, conflict = db_service.proposal_on(suggestion, current)
     resp.has_conflict = pending and conflict
+    if resp.has_conflict:
+        # The agent redoing its proposal needs to tell people's edits from its own.
+        resp.people_changes = [
+            PassageChange(before=before, after=after)
+            for before, after in changed_passages(suggestion.base_content or "", current)
+        ]
     if include_content:
         # While pending, show what accepting would do now: the proposal
         # replayed on the current text, so the diff never reverts people.

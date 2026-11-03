@@ -102,9 +102,12 @@ def test_comments_for_the_agent_are_set_apart_from_people_talking(backend):
 def test_a_clashing_suggestion_is_redone_from_what_people_wrote(backend):
     backend["active"] = BODY.replace("porta 8002", "porta 9000")  # a person changed it
     backend["mine"] = {"id": "s1", "is_mine": True, "has_conflict": True,
-                       "proposed_content": BODY.replace("porta 8002", "porta 8003")}
+                       "proposed_content": BODY.replace("porta 8002", "porta 8003"),
+                       "people_changes": [{"before": "porta 8002", "after": "porta 9000"}]}
     doc = run(srv.get_document("d", full=True, ctx=None))
     assert "WARNING" in doc and "WITHOUT your pending changes" in doc and "porta 9000" in doc
+    # It names what the person changed, so everything else is the agent's to re-apply.
+    assert '"porta 8002" → "porta 9000"' in doc
 
     run(srv.patch_section("d", old_text="Caddy de novo", new_text="proxy", ctx=None))
     # Rebuilt on the people's text, and that text is the new base: no clash left.

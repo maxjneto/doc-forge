@@ -198,10 +198,23 @@ def _pending_line(mine: dict | None) -> str:
         line = (
             f"WARNING: your pending suggestion {mine['id']} clashes with edits people made since (the same "
             "words, changed two ways), so it can't be accepted. What you see here is the document as people "
-            "left it, WITHOUT your pending changes: re-apply the ones still needed — your next write replaces "
-            "the suggestion.\n"
+            "left it, WITHOUT your pending changes: re-apply every one of them — your next write replaces "
+            "the suggestion.\n" + _people_changes(mine)
         )
     return line
+
+
+def _people_changes(suggestion: dict) -> str:
+    """The passages people changed since a conflicting suggestion: the only ones to adapt."""
+    changes = suggestion.get("people_changes") or []
+    if not changes:
+        return ""
+    lines = "".join(f'  - "{c["before"]}" → "{c["after"]}"\n' for c in changes)
+    return (
+        "What people changed since (everything else that differs from your suggestion is yours, so "
+        "re-apply it as it was; where they touched a passage you changed, start from their version and "
+        f"make your change again if it is still needed):\n{lines}"
+    )
 
 
 def _body_content(doc: dict) -> str:
@@ -497,6 +510,8 @@ async def check_suggestions(document_id: str, status: str = "", *, ctx: Context)
         line = f"- [{s.get('status', '?').upper()}] id={s['id']} created={ts}{stale}"
         if s.get("note"):
             line += f"\n  note: {s['note']}"
+        if s.get("has_conflict") and s.get("people_changes"):
+            line += "\n  " + _people_changes(s).rstrip("\n").replace("\n", "\n  ")
         if s.get("review_comment"):
             line += f"\n  reviewer said: {s['review_comment']}"
         lines.append(line)

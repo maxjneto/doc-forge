@@ -253,6 +253,8 @@ async def test_a_clash_with_a_later_human_edit_is_refused_not_overwritten(client
         listed = await human.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
         s = listed.json()["suggestions"][0]
         assert s["has_conflict"] is True
+        # The agent is told what the person changed, so it can tell their edit from its own.
+        assert s["people_changes"] == [{"before": "linha a", "after": "linha da pessoa"}]
 
         res = await human.post(f"/api/suggestions/{s['id']}/accept")
         assert res.status_code == 409
@@ -265,7 +267,7 @@ async def test_a_clash_with_a_later_human_edit_is_refused_not_overwritten(client
     async with client_factory(user) as human:
         listed = await human.get(f"/api/documents/{doc_id}/suggestions", params={"status": "pending"})
         [again] = listed.json()["suggestions"]
-        assert again["id"] == s["id"] and again["has_conflict"] is False
+        assert again["id"] == s["id"] and again["has_conflict"] is False and again["people_changes"] == []
         assert (await human.post(f"/api/suggestions/{s['id']}/accept")).status_code == 200
         assert await _body(human, doc_id) == redo
 

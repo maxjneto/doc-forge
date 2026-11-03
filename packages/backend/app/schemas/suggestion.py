@@ -14,6 +14,11 @@ class SuggestionRejectRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=4000)
 
 
+class PassageChange(BaseModel):
+    before: str
+    after: str
+
+
 class SuggestionResponse(BaseModel):
     id: UUID
     document_id: UUID
@@ -29,6 +34,8 @@ class SuggestionResponse(BaseModel):
     is_stale: bool = False
     # Accepting now would clash with edits people made after it was proposed.
     has_conflict: bool = False
+    # On a conflict: what people changed since it was proposed, as short excerpts.
+    people_changes: list[PassageChange] = []
     # Written by the API key making this request (an agent finding its own proposal).
     is_mine: bool = False
     created_at: datetime
