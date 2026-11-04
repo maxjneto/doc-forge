@@ -8,6 +8,13 @@ if settings.POSTHOG_ENABLED and settings.POSTHOG_API_KEY:
     posthog_client = Posthog(settings.POSTHOG_API_KEY, host=settings.POSTHOG_HOST)
 
 
+def shutdown() -> None:
+    """Send what is still queued. The client batches in a background thread, so
+    without this every deploy or restart drops the last events."""
+    if posthog_client is not None:
+        posthog_client.shutdown()
+
+
 def capture_event(
     distinct_id: str,
     doc_id: str,

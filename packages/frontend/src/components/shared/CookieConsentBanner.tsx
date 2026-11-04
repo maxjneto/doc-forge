@@ -4,6 +4,19 @@ import { useI18n } from "@/i18n";
 
 const CONSENT_KEY = "docforge_cookie_consent";
 
+function readConsent(): string | null {
+  try {
+    return localStorage.getItem(CONSENT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** True when this browser accepted analytics cookies, now or on an earlier visit. */
+export function hasAnalyticsConsent(): boolean {
+  return readConsent() === "accepted";
+}
+
 interface CookieConsentBannerProps {
   onOptIn?: () => void;
 }
@@ -11,7 +24,7 @@ interface CookieConsentBannerProps {
 export default function CookieConsentBanner({ onOptIn }: CookieConsentBannerProps) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(
-    () => localStorage.getItem(CONSENT_KEY) === null
+    () => readConsent() === null
   );
 
   if (!visible) return null;

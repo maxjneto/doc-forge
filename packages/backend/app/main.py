@@ -1,4 +1,5 @@
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,11 +19,19 @@ from app.routers import (
     telemetry,
 )
 from app.routers import users as users_router
+from app.services import observability
 from app.services.observability import capture_account_event
 
 setup_logging()
 
-app = FastAPI(title="DocForge API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    observability.shutdown()
+
+
+app = FastAPI(title="DocForge API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
