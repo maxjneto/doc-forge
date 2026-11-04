@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { IconButton, textStyle } from "@/components/ui";
 
 /** A label above its control, with an optional hint under it. */
@@ -12,8 +12,31 @@ export function Field({ label, hint, children, style }: { label: string; hint?: 
   );
 }
 
-export function TextArea({ rows = 3, mono, style, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { mono?: boolean }) {
-  return <textarea {...rest} rows={rows} className={`df-input${mono ? " df-mono" : ""}`} style={{ resize: "vertical", minHeight: 0, ...style }} />;
+/**
+ * Keeps a field's DOM value in step with `value` without React touching the element on
+ * every keystroke. With a `value` or `defaultValue` prop, React rewrites the field's
+ * default after each input event, and Chrome drops the undo history when that happens
+ * (Ctrl+Z then takes back one letter). So neither prop is passed: the value is written
+ * here, and only when it differs from what the field holds.
+ */
+function useStableValue<E extends HTMLInputElement | HTMLTextAreaElement>(value: string | number | readonly string[] | undefined) {
+  const ref = useRef<E>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && value !== undefined && el.value !== String(value)) el.value = String(value);
+  }, [value]);
+  return ref;
+}
+
+export function TextArea({ rows = 3, mono, style, value, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { mono?: boolean }) {
+  const ref = useStableValue<HTMLTextAreaElement>(value);
+  return <textarea {...rest} ref={ref} rows={rows} className={`df-input${mono ? " df-mono" : ""}`} style={{ resize: "vertical", minHeight: 0, ...style }} />;
+}
+
+/** A text input with the same undo-friendly behaviour as `TextArea`. */
+export function TextInput({ value, className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  const ref = useStableValue<HTMLInputElement>(value);
+  return <input {...rest} ref={ref} className={className ? `df-input ${className}` : "df-input"} />;
 }
 
 export function Select({

@@ -147,7 +147,7 @@ describe("layout service contract", () => {
     };
     const { body } = await post("/upgrade", { doc: v1 });
     assert.equal(body.ok, true);
-    assert.equal(body.doc.version, 3);
+    assert.equal(body.doc.version, 4);
     assert.ok(Array.isArray(body.notes));
   });
 

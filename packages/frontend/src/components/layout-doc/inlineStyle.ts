@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { defaultPresets, resolveStyle, type Component, type LayoutDocument, type ResolvedStyle, type Tokens } from "@docforge-lib/layout";
+import { defaultPresets, resolveStyle, type Component, type LayoutDocument, type ResolvedResult, type ResolvedStyle, type Tokens } from "@docforge-lib/layout";
 
 /**
  * A component's style (or one of its parts: a text role, a KPI label, a table
@@ -7,7 +7,7 @@ import { defaultPresets, resolveStyle, type Component, type LayoutDocument, type
  * look like what they replace. Regions are left out: they only shift a few
  * values and the editor is temporary.
  */
-export function componentStyle(component: Component, doc: LayoutDocument, tokens: Tokens, variant?: string): ResolvedStyle {
+export function resolveComponentStyle(component: Component, doc: LayoutDocument, tokens: Tokens, variant?: string): ResolvedResult {
   return resolveStyle(
     {
       tokens,
@@ -17,10 +17,15 @@ export function componentStyle(component: Component, doc: LayoutDocument, tokens
       labelStyles: doc.styles?.labels ?? {},
       componentLabels: component.labels ?? [],
       componentStyle: component.style,
+      componentStyles: component.styles,
     },
     component.type,
     variant,
-  ).style;
+  );
+}
+
+export function componentStyle(component: Component, doc: LayoutDocument, tokens: Tokens, variant?: string): ResolvedStyle {
+  return resolveComponentStyle(component, doc, tokens, variant).style;
 }
 
 /** The text part of a resolved style as CSS. */

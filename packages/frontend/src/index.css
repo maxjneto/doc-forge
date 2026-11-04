@@ -247,6 +247,39 @@ textarea.font-mono,
   scrollbar-color: var(--color-outline-md) transparent;
 }
 
+/* Every scrolling area shares one thin bar (the rendered page lives in its own
+   document). Chrome and Safari take the ::-webkit rules; Firefox the standard
+   properties, kept apart so Chrome does not swap the styled bar for its thin native one. */
+:root {
+  color-scheme: dark;
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline-md) transparent;
+  }
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-outline-md);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-heat-line);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Primary action outside the Button primitive. Hover brightens the heat
    instead of inverting to white (design-system plan §4). */
 .forge-btn {
@@ -551,6 +584,48 @@ textarea.font-mono,
 .df-inline-table { border-collapse: collapse; table-layout: fixed; }
 .df-inline-table th, .df-inline-table td { text-align: left; vertical-align: top; }
 .df-inline-add { margin-top: 6px; padding: 4px 8px; border: 1px dashed var(--color-outline-md); border-radius: var(--radius-xs); background: var(--color-surface-high); color: var(--color-dim); font: 500 12px/1.2 var(--font-sans); cursor: pointer; }
+.df-inline-hint { display: block; margin-top: 4px; font: 400 10.5px/1.3 var(--font-sans); color: var(--color-faint); }
+/* The "+" at a table's edges: a column on the right, a row at the bottom. */
+.df-inline-plus { position: absolute; width: 18px; height: 18px; border-radius: 50%; border: 0; background: var(--color-heat); color: var(--color-on-heat); font: 700 13px/18px var(--font-sans); text-align: center; cursor: pointer; box-shadow: var(--shadow-pop); }
+.df-inline-plus--col { right: -9px; top: 10px; }
+.df-inline-plus--row { left: 50%; bottom: -9px; margin-left: -9px; }
+/* One piece of inline text edited in place (a title, an item, a step's text). */
+.df-inline-field { min-width: 0; outline: none; border-radius: 2px; white-space: normal; word-break: break-word; cursor: text; }
+.df-inline-field:focus { box-shadow: 0 0 0 2px var(--color-heat-wash); }
+.df-inline-field:empty::before { content: attr(data-placeholder); color: var(--color-faint); pointer-events: none; }
+.df-inline-field code { font-family: var(--font-mono); font-size: 0.92em; }
+.df-inline-field a { color: inherit; text-decoration: underline; }
+.df-inline-card input { width: 100%; }
+.df-inline-list__item { display: flex; align-items: baseline; gap: 8px; }
+.df-inline-list__marker { flex-shrink: 0; min-width: 14px; text-align: right; }
+.df-inline-list input[type="checkbox"] { width: auto; margin: 0; align-self: center; }
+.df-inline-entry { display: flex; gap: 12px; align-items: flex-start; }
+.df-inline-entry__badge { flex-shrink: 0; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 600; }
+.df-inline-entry__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.df-inline-code textarea { display: block; width: 100%; border: 0; outline: none; background: transparent; resize: none; padding: 0; }
+/* The part of a block picked on the page (a table's header, a KPI's label), outlined where it is drawn. */
+.df-layout-part { position: absolute; pointer-events: none; z-index: 3; outline: 2px solid var(--color-heat); outline-offset: 3px; border-radius: 2px; }
+.df-layout-part .df-layout-chip { pointer-events: none; }
+/* A ready-made look, with what it changes; hovering previews it on the page. */
+.df-preset { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-outline); background: transparent; color: var(--color-text); text-align: left; cursor: pointer; }
+.df-preset:hover, .df-preset:focus-visible { border-color: var(--color-heat-line); background: var(--color-hover); outline: none; }
+.df-preset__swatch { flex-shrink: 0; width: 18px; height: 18px; border-radius: var(--radius-xs); border: 1px solid; }
+.df-preset__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.df-preset__text b { font: 600 12.5px/1.3 var(--font-sans); }
+.df-preset__text small { font: 400 11.5px/1.35 var(--font-sans); color: var(--color-dim); }
+/* The floating bar over a selection: runs get bold, italic, code, link, color, highlight. */
+.df-run-bar { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: var(--radius-sm); background: var(--color-surface-high); border: 1px solid var(--color-outline-md); box-shadow: var(--shadow-pop); color: var(--color-text); }
+.df-run-bar > button { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--color-text); font: 500 12.5px/1 var(--font-sans); cursor: pointer; }
+.df-run-bar > button:hover { background: var(--color-hover); }
+.df-run-bar > button[aria-pressed="true"] { background: var(--color-heat); color: var(--color-on-heat); }
+.df-run-bar > button .material-symbols-outlined { font-size: 17px; }
+.df-run-bar__role { height: 26px; padding: 0 4px; border: 0; border-radius: var(--radius-xs); background: var(--color-surface-mid); color: var(--color-text); font: 500 12px/1 var(--font-sans); }
+.df-run-bar__sep { width: 1px; height: 16px; margin: 0 3px; background: var(--color-outline-md); }
+.df-run-bar__swatches { display: inline-flex; gap: 3px; padding: 0 3px; }
+.df-run-bar__swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgb(255 255 255 / 25%); padding: 0; cursor: pointer; }
+.df-run-bar__link { display: flex; gap: 4px; align-items: center; margin-left: 4px; }
+.df-run-bar__link input { width: 190px; height: 26px; padding: 0 8px; font-size: 12px; }
+.df-run-bar__link button { height: 26px; padding: 0 8px; border: 0; border-radius: var(--radius-xs); background: var(--color-heat); color: var(--color-on-heat); font: 600 12px/1 var(--font-sans); cursor: pointer; }
 .df-reorder-line { background: var(--color-heat); border-radius: var(--radius-xs); }
 .df-layout-bar {
   position: absolute;
@@ -612,7 +687,23 @@ textarea.font-mono,
 .df-doc-banner--steel > .material-symbols-outlined { color: var(--color-steel); }
 .df-doc-banner--heat { background: var(--color-heat-tint); border-bottom-color: var(--color-heat-line); }
 .df-doc-banner--heat > .material-symbols-outlined { color: var(--color-heat); }
-.df-side-panel { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--color-outline); background: var(--color-surface); }
+.df-side-panel { position: relative; width: 340px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--color-outline); background: var(--color-surface); }
+/* Drag the panel's left edge to make it wider. */
+.df-side-panel__grip { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
+.df-side-panel__grip:hover, .df-side-panel__grip:focus-visible { background: var(--color-heat-line); outline: none; }
+/* The text block's paragraphs in the panel: one editor, the role in the margin. */
+.df-rich { min-height: 120px; max-height: 50vh; overflow-y: auto; padding: 8px 10px 8px 34px; white-space: normal; word-break: break-word; cursor: text; }
+.df-rich [data-role] { position: relative; }
+.df-rich [data-role] + [data-role] { margin-top: 8px; }
+.df-rich [data-role]::before { content: ""; position: absolute; left: -26px; top: 2px; font: 500 8.5px/1.3 var(--font-mono); color: var(--color-heat-hi); letter-spacing: 0.02em; pointer-events: none; }
+.df-rich [data-role="title-1"]::before { content: "T1"; }
+.df-rich [data-role="title-2"]::before { content: "T2"; }
+.df-rich [data-role="title-3"]::before { content: "T3"; }
+.df-rich [data-role="subtitle"]::before { content: "SUB"; }
+.df-rich [data-role="quote"]::before { content: "CIT"; }
+.df-rich [data-role="caption"]::before { content: "LEG"; }
+.df-rich code { font-family: var(--font-mono); font-size: 0.92em; background: var(--color-surface-high); padding: 0 3px; border-radius: 3px; }
+.df-rich a { color: var(--color-heat-hi); text-decoration: underline; }
 .df-side-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--color-outline); }
 .df-side-panel__body { position: relative; flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 .df-side-panel__body--flush { padding: 0; gap: 0; overflow: hidden; }
@@ -817,6 +908,18 @@ textarea.font-mono,
 .df-activity__text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; font: 400 12.5px/1.45 var(--font-sans); color: var(--color-dim); }
 .df-activity__text b { font-weight: 600; color: var(--color-text); }
 .df-activity__text time { font-size: 11.5px; color: var(--color-mute); font-variant-numeric: tabular-nums; }
+/* A burst of edits folded into one line; opens into the list of what each one did. */
+.df-activity__burst { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: transparent; font: inherit; color: var(--color-dim); cursor: pointer; }
+.df-activity__burst:hover { color: var(--color-text); }
+.df-activity__burst-items { list-style: none; margin: 4px 0 0; padding: 0 0 0 10px; flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; border-left: 2px solid var(--color-outline); }
+.df-activity__burst-items li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; }
+
+/* The shortcuts list: keys on the left, what they do on the right. */
+.df-shortcuts { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.df-shortcuts__row { display: grid; grid-template-columns: 180px 1fr; gap: 10px; align-items: baseline; font: 400 12.5px/1.4 var(--font-sans); color: var(--color-text); }
+.df-shortcuts__row dt { margin: 0; white-space: nowrap; }
+.df-shortcuts__row dd { margin: 0; color: var(--color-dim); }
+.df-kbd { display: inline-block; padding: 1px 6px; border-radius: var(--radius-xs); border: 1px solid var(--color-outline-md); border-bottom-width: 2px; background: var(--color-surface-high); font: 500 11.5px/1.4 var(--font-mono); color: var(--color-text); }
 
 .df-quote { margin: 0; padding: 4px 8px; border-left: 2px solid var(--color-heat-line); background: var(--color-heat-tint); border-radius: 0 var(--radius-xs) var(--radius-xs) 0; font: 400 12.5px/1.45 var(--font-sans); color: var(--color-dim); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 

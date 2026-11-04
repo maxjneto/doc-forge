@@ -8,8 +8,36 @@ export const GENERIC_DESCRIPTION = /^(\d+ layout operations?|Created|Layout repl
 /** Op names → what they did, most telling first (a write that added and moved says "added"). */
 const OP_ORDER = ["add", "row", "remove", "page", "edit", "replaceText", "update", "place", "setStyle", "setTokens", "setSurface", "setGrid", "fit", "compact", "setMeta", "setRegion", "removeRegion", "removeSurface"];
 
+/** The summary the server keeps for a revision, built here from operations about to be sent. */
+export function summarizeOps(ops: unknown[]): NonNullable<LayoutRevisionItem["summary"]> {
+  const counts: Record<string, number> = {};
+  const components: string[] = [];
+  const seen = new Set<string>();
+  const touch = (id: unknown) => {
+    if (typeof id === "string" && !seen.has(id)) {
+      seen.add(id);
+      components.push(id);
+    }
+  };
+  for (const raw of ops) {
+    if (!raw || typeof raw !== "object") continue;
+    const op = raw as Record<string, unknown>;
+    const name = String(op.op ?? "");
+    counts[name] = (counts[name] ?? 0) + 1;
+    if (name === "add") touch((op.component as Record<string, unknown> | undefined)?.id);
+    else touch(op.component);
+    if (Array.isArray(op.items)) for (const item of op.items) touch(typeof item === "string" ? item : (item as Record<string, unknown> | null)?.id);
+  }
+  return { ops: counts, components };
+}
+
+/** One line for a write about to happen: the same line the history will show for it. */
+export function describeOps(ops: unknown[], t: T, nameOf: (id: string) => string): string {
+  return describeRevision({ description: null, summary: summarizeOps(ops), opsCount: ops.length }, t, nameOf);
+}
+
 /** One line for a revision: the writer's note, else what its ops did ("Editou o texto de “Receita”"). */
-export function describeRevision(r: LayoutRevisionItem, t: T, nameOf: (id: string) => string): string {
+export function describeRevision(r: Pick<LayoutRevisionItem, "description" | "summary" | "opsCount">, t: T, nameOf: (id: string) => string): string {
   if (r.description && !GENERIC_DESCRIPTION.test(r.description)) {
     if (r.description.startsWith("Tema: ")) return t("layout.history.op.theme", { name: r.description.slice(6) });
     return r.description;

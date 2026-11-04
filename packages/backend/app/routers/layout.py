@@ -750,7 +750,7 @@ async def replace_layout(
     changes = await layout_service.diff(layout.content, payload.content, _changed_components(layout.content, payload.content))
     revision = await _save(
         db, request, doc, layout, payload.content,
-        description="Layout replaced",
+        description=payload.note or "Layout replaced",
         user=current_user,
         ops=None,
         changes=changes,
