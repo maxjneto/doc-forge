@@ -41,7 +41,9 @@ function opsFor(doc: LayoutDocument, draft: PageDraft, keepProportions: boolean,
     const size = draft.size === "custom" ? { width: Math.max(100, draft.width), height: Math.max(100, draft.height) } : draft.size;
     const maxPages = Number(draft.maxPages);
     const next = { id: surface.id, kind: "page", size, margin: Math.max(0, draft.margin), ...(maxPages >= 1 && draft.size !== "Slide" ? { maxPages: Math.round(maxPages) } : {}) };
-    if (JSON.stringify(next) !== JSON.stringify(surface)) ops.push({ op: "setSurface", surface: next, ...(keepProportions ? { fitWidth: true } : {}) });
+    // The master is not part of this form (setSurface keeps it), so it does not count as a change.
+    const { master: _master, ...bare } = surface;
+    if (JSON.stringify(next) !== JSON.stringify(bare)) ops.push({ op: "setSurface", surface: next, ...(keepProportions ? { fitWidth: true } : {}) });
     const wasSlide = surface.size === "Slide";
     const isSlide = draft.size === "Slide";
     if (retype && wasSlide !== isSlide) {
@@ -57,6 +59,67 @@ function opsFor(doc: LayoutDocument, draft: PageDraft, keepProportions: boolean,
   for (const key of ["unit", "columns", "gutter", "gap"] as const) if (draft[key] !== current[key]) grid[key] = draft[key];
   if (Object.keys(grid).length) ops.push({ op: "setGrid", grid });
   return ops;
+}
+
+/** Ids of the master components this panel writes; anything else in the master (an agent's) is kept. */
+const HEADER_ID = "master-title";
+const FOOTER_ID = "master-page";
+const BAND = 3;
+const RESERVE = 5;
+
+/** The ops that make the master hold a title header and/or a page-number footer, on `pages`. */
+export function masterOps(doc: LayoutDocument, layout: LayoutResult, want: { header: boolean; footer: boolean; pages: "all" | "except-first" }): unknown[] {
+  const surface = doc.surfaces[0] as Surface;
+  if (surface.kind !== "page") return [];
+  const master = surface.master;
+  const others = (master?.components ?? []).filter((c) => c.id !== HEADER_ID && c.id !== FOOTER_ID);
+  const reserve = master?.reserve ?? {};
+  const fullRows = (layout.units.rows ?? 0) + (reserve.top ?? 0) + (reserve.bottom ?? 0);
+  const cols = layout.units.cols;
+  const caption = (text: string) => ({ paragraphs: [{ role: "caption", text }] });
+  const components = [
+    ...others,
+    ...(want.header ? [{ id: HEADER_ID, type: "text", at: { x: 0, y: 0, w: cols, h: BAND }, content: caption("{title}") }] : []),
+    ...(want.footer ? [{ id: FOOTER_ID, type: "text", at: { x: 0, y: Math.max(0, fullRows - BAND), w: cols, h: BAND }, style: { align: "right" }, content: caption("{page} / {pages}") }] : []),
+  ];
+  if (!components.length) return master ? [{ op: "removeMaster" }] : [];
+  const top = want.header ? Math.max(RESERVE, others.length ? (reserve.top ?? 0) : 0) : others.length ? (reserve.top ?? 0) : 0;
+  const bottom = want.footer ? Math.max(RESERVE, others.length ? (reserve.bottom ?? 0) : 0) : others.length ? (reserve.bottom ?? 0) : 0;
+  return [{ op: "setMaster", master: { pages: want.pages, reserve: { top, bottom }, components } }];
+}
+
+/** Header and footer: the page master as two switches and a choice of pages. */
+function MasterSection({ doc, layout, commit, readOnly }: { doc: LayoutDocument; layout: LayoutResult; commit: (ops: unknown[]) => ApplyResult; readOnly: boolean }) {
+  const { t } = useI18n();
+  const surface = doc.surfaces[0] as Surface;
+  const master = surface.kind === "page" ? surface.master : undefined;
+  const ids = new Set((master?.components ?? []).map((c) => c.id));
+  const current = { header: ids.has(HEADER_ID), footer: ids.has(FOOTER_ID), pages: master?.pages === "except-first" ? ("except-first" as const) : ("all" as const) };
+  const others = [...ids].filter((id) => id !== HEADER_ID && id !== FOOTER_ID);
+  const change = (patch: Partial<typeof current>) => {
+    const ops = masterOps(doc, layout, { ...current, ...patch });
+    if (ops.length) commit(ops);
+  };
+  return (
+    <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+      <SectionTitle>{t("layout.page.master")}</SectionTitle>
+      <Switch checked={current.header} onChange={(header) => change({ header })} label={t("layout.page.masterHeader")} />
+      <Switch checked={current.footer} onChange={(footer) => change({ footer })} label={t("layout.page.masterFooter")} />
+      {(current.header || current.footer || others.length > 0) && (
+        <Select
+          label={t("layout.page.masterPages")}
+          value={current.pages}
+          onChange={(pages) => change({ pages: pages as "all" | "except-first" })}
+          options={[
+            { value: "all", label: t("layout.page.masterPages.all") },
+            { value: "except-first", label: t("layout.page.masterPages.exceptFirst") },
+          ]}
+        />
+      )}
+      {others.length > 0 && <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.page.masterOthers", { count: others.length })}</span>}
+      <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.page.masterHint")}</span>
+    </fieldset>
+  );
 }
 
 /** Each format drawn to scale, so the choice is visual. */
@@ -222,6 +285,7 @@ export function PagePanel({
 
       <AutoAdjust doc={doc} layout={layout} commit={commit} preview={preview} readOnly={readOnly} />
 
+      {surface.kind === "page" && <MasterSection doc={doc} layout={layout} commit={commit} readOnly={readOnly} />}
       <details className="df-disclosure">
         <summary style={{ ...textStyle.group, color: "var(--color-text)" }}>{t("layout.page.gridAndLanguage")}</summary>
         <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10, minWidth: 0, paddingTop: 12 }}>

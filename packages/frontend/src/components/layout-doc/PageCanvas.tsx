@@ -6,7 +6,8 @@ import { useI18n } from "@/i18n";
 import { displayName, isAlignedRow, rowRebuildOp, rowsOf, widthLabel } from "./names";
 import { SelectionBar } from "./SelectionBar";
 import { InlineTextEditor } from "./InlineTextEditor";
-import { InlineKpiEditor, InlineTableEditor, inlineKind } from "./InlineBlockEditors";
+import { InlineCardEditor, InlineCodeEditor, InlineEntriesEditor, InlineKpiEditor, InlineListEditor, InlineTableEditor, inlineKind } from "./InlineBlockEditors";
+import { partLabel, partsOf } from "./names";
 import { insertOps, type InsertKey } from "./defaults";
 import { SlashMenu } from "./SlashMenu";
 import { track } from "./track";
@@ -62,6 +63,8 @@ type Gesture =
       moved: boolean;
       /** Rows the content needs: a box never gets shorter than this (the layout would grow it back). */
       minH: number;
+      /** Whether the block was already selected when the pointer went down: a click then picks a part. */
+      wasSelected: boolean;
     }
   | { kind: "annotate"; page: number; ux: number; uy: number; startX: number; startY: number; component: string | null };
 
@@ -106,6 +109,9 @@ interface PageCanvasProps {
   editable: boolean;
   selected: string | null;
   onSelect: (id: string | null) => void;
+  /** The part of the selected block picked on the page (a table's header, a card's title…). */
+  selectedPart?: string | null;
+  onSelectPart?: (part: string | null) => void;
   commit: (ops: unknown[], options?: { coalesce?: string }) => ApplyResult;
   preview: (ops: unknown[]) => ApplyResult;
   annotating: boolean;
@@ -149,6 +155,8 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
     editable,
     selected,
     onSelect,
+    selectedPart = null,
+    onSelectPart,
     commit,
     preview,
     annotating,
@@ -214,15 +222,25 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
   // Two iframes: the next render loads in the hidden one and swaps in when ready, so edits never flash white.
   const [slots, setSlots] = useState<[string, string]>([html, ""]);
   const [active, setActive] = useState<0 | 1>(0);
+  /** What each frame has finished loading: going back to it (a preview that ends) needs no reload. */
+  const loaded = useRef<[string, string]>([html, ""]);
   useEffect(() => {
-    setSlots((current) => {
-      if (current[active] === html) return current;
-      const next: [string, string] = [...current] as [string, string];
-      next[active === 0 ? 1 : 0] = html;
-      return next;
-    });
-  }, [html, active]);
+    if (slots[active] === html) return;
+    const other = active === 0 ? 1 : 0;
+    if (loaded.current[other] === html && slots[other] === html) {
+      setActive(other);
+      return;
+    }
+    if (slots[other] !== html) {
+      setSlots((current) => {
+        const next: [string, string] = [...current] as [string, string];
+        next[other] = html;
+        return next;
+      });
+    }
+  }, [html, active, slots]);
   const onFrameLoad = (slot: 0 | 1) => {
+    loaded.current[slot] = slots[slot];
     if (slot !== active && slots[slot] === html) setActive(slot);
   };
 
@@ -449,6 +467,11 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       return;
     }
     if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < 4) return;
+    if (!g.moved) {
+      // A drag has begun. Captured by the layer, which stays mounted: the handle that
+      // started a resize disappears while dragging, and a capture on it would be lost with it.
+      layer.current?.setPointerCapture?.(e.pointerId);
+    }
     g.moved = true;
     const { clientX, clientY, altKey } = e;
     if (raf.current !== null) return;
@@ -496,6 +519,12 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       else if (rect) onAnnotate(rect);
       return;
     }
+    if (g.kind === "move" && !g.moved) {
+      setDrag(IDLE);
+      // A click inside the block that was already selected picks the part under the pointer.
+      if (g.wasSelected && onSelectPart) onSelectPart(partAt(g.id, e.clientX, e.clientY));
+      return;
+    }
     if (g.moved && g.kind === "move" && !e.altKey) {
       const at = locate(e.clientX, e.clientY);
       const reorder = at ? reorderFor(g.id, at.page, at.ux, at.uy) : null;
@@ -531,9 +560,8 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
     const at = locate(e.clientX, e.clientY);
     if (!g || !at) return;
     onSelect(id);
-    // Captured by the layer, which stays mounted: the handle that started a resize
-    // disappears while dragging, and a capture on it would be lost with it.
-    layer.current?.setPointerCapture?.(e.pointerId);
+    // The pointer is captured only once it moves (see onPointerMove): a capture here
+    // would send the click and the double-click to the layer instead of the block.
     gesture.current = {
       kind,
       id,
@@ -544,6 +572,7 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
       grabY: at.uy - piece.y,
       moved: false,
       minH: g.sizing === "content" ? Math.max(1, Math.ceil(g.needed / unit - 1e-6)) : 1,
+      wasSelected: selected === id,
     };
   };
 
@@ -561,6 +590,44 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
     }
     onSelect(null);
   };
+
+  /** The parts of a block as drawn: their boxes in page coordinates (the iframe's own, which the layer shares). */
+  const partBoxes = useCallback(
+    (id: string): { part: string; left: number; top: number; width: number; height: number }[] => {
+      const pageDoc = frames.current[active]?.contentDocument;
+      if (!pageDoc) return [];
+      const out: { part: string; left: number; top: number; width: number; height: number }[] = [];
+      for (const el of pageDoc.querySelectorAll<HTMLElement>(`[data-component="${CSS.escape(id)}"] [data-part]`)) {
+        const r = el.getBoundingClientRect();
+        if (el.dataset.part && (r.width || r.height)) out.push({ part: el.dataset.part, left: r.left, top: r.top, width: r.width, height: r.height });
+      }
+      return out;
+    },
+    [active],
+  );
+  /** The part under a pointer position, the smallest one when they nest. */
+  const partAt = (id: string, clientX: number, clientY: number): string | null => {
+    const frame = frames.current[active];
+    if (!frame) return null;
+    const fr = frame.getBoundingClientRect();
+    const x = (clientX - fr.left) / zoom;
+    const y = (clientY - fr.top) / zoom;
+    const hits = partBoxes(id).filter((b) => x >= b.left && x <= b.left + b.width && y >= b.top && y <= b.top + b.height);
+    hits.sort((a, b) => a.width * a.height - b.width * b.height);
+    return hits[0]?.part ?? null;
+  };
+  /** Where the picked part is drawn (the union of its pieces), for the outline. */
+  const [partRect, setPartRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  useEffect(() => {
+    if (!selected || !selectedPart) return setPartRect(null);
+    const boxes = partBoxes(selected).filter((b) => b.part === selectedPart);
+    if (!boxes.length) return setPartRect(null);
+    const left = Math.min(...boxes.map((b) => b.left));
+    const top = Math.min(...boxes.map((b) => b.top));
+    const right = Math.max(...boxes.map((b) => b.left + b.width));
+    const bottom = Math.max(...boxes.map((b) => b.top + b.height));
+    setPartRect({ left, top, width: right - left, height: bottom - top });
+  }, [selected, selectedPart, partBoxes, html, layout]);
 
   const nudge = (e: KeyboardEvent, id: string) => {
     const g = layout.components[id];
@@ -606,7 +673,8 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
         setSlash({ below: id, query: "" });
         return;
       case "Escape":
-        onSelect(null);
+        if (selectedPart && onSelectPart) onSelectPart(null);
+        else onSelect(null);
         return;
       default:
         return;
@@ -772,6 +840,22 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
               );
             })}
 
+            {/* The picked part of the selected block, outlined where it is drawn. */}
+            {selected &&
+              selectedPart &&
+              partRect &&
+              !drag.id &&
+              (() => {
+                const c = content.components.find((x) => x.id === selected);
+                return (
+                  <div className="df-layout-part" style={{ left: partRect.left, top: partRect.top, width: partRect.width, height: partRect.height }}>
+                    <span className="df-layout-chip" style={{ left: 0, top: -24, transform: `scale(${1 / zoom})`, transformOrigin: "0 100%" }}>
+                      {c ? partLabel(c.type, selectedPart, t) : selectedPart}
+                    </span>
+                  </div>
+                );
+              })()}
+
             {/* Tools for the selected block, next to it (kept at screen size whatever the zoom). */}
             {editable &&
               selected &&
@@ -798,6 +882,12 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
                     onComment={onCommentBlock ? () => onCommentBlock(selected) : undefined}
                     onRemoved={() => onSelect(null)}
                     announce={announce}
+                    parts={(() => {
+                      const c = content.components.find((x) => x.id === selected);
+                      return c ? partsOf(c) : [];
+                    })()}
+                    selectedPart={selectedPart}
+                    onSelectPart={onSelectPart}
                     style={{
                       left: fromRight ? Number(box.left) + Number(box.width) : box.left,
                       top: above ? top - 44 / zoom : top + Number(box.height) + 8 / zoom,
@@ -827,8 +917,13 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
                   setInline(null);
                   if (change) save(change.set, change.remove);
                 };
-                if (kind === "kpi") return <InlineKpiEditor key={inline} component={component} geometry={g} doc={content} tokens={layout.tokens} style={{ ...place, height: box.height }} onDone={close} />;
-                if (kind === "table") return <InlineTableEditor key={inline} component={component} geometry={g} doc={content} tokens={layout.tokens} style={place} onDone={close} />;
+                const block = { component, geometry: g, doc: content, tokens: layout.tokens, style: place, onDone: close };
+                if (kind === "kpi") return <InlineKpiEditor key={inline} {...block} style={{ ...place, height: box.height }} />;
+                if (kind === "table") return <InlineTableEditor key={inline} {...block} />;
+                if (kind === "card") return <InlineCardEditor key={inline} {...block} />;
+                if (kind === "list") return <InlineListEditor key={inline} {...block} />;
+                if (kind === "steps" || kind === "timeline") return <InlineEntriesEditor key={inline} {...block} />;
+                if (kind === "code") return <InlineCodeEditor key={inline} {...block} />;
                 return (
                   <InlineTextEditor
                     key={inline}

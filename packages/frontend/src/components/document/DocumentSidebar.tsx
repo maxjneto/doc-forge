@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { IconButton, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 
@@ -29,17 +29,82 @@ interface DocumentSidebarProps<T extends string> {
   children: ReactNode;
 }
 
+const WIDTH_KEY = "docforge.sidePanelWidth";
+export const PANEL_WIDTH = { min: 340, max: 560, initial: 340 };
+
+function storedWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(WIDTH_KEY));
+    return Number.isFinite(n) && n >= PANEL_WIDTH.min && n <= PANEL_WIDTH.max ? n : PANEL_WIDTH.initial;
+  } catch {
+    return PANEL_WIDTH.initial;
+  }
+}
+
 /**
  * The right side of every document: an icon rail and the panel it opens. Picking
- * the open tab again closes the panel, so the page can have the room.
+ * the open tab again closes the panel, so the page can have the room. The panel's
+ * left edge drags to make it wider (kept per browser).
  */
 export function DocumentSidebar<T extends string>({ tabs, active, open, onSelect, onClose, body = "padded", children }: DocumentSidebarProps<T>) {
   const { t } = useI18n();
   const current = tabs.find((tab) => tab.id === active);
+  const [width, setWidth] = useState(storedWidth);
+  const drag = useRef<{ x: number; width: number } | null>(null);
+
+  const onGripDown = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      drag.current = { x: e.clientX, width };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [width],
+  );
+  const onGripMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    setWidth(Math.round(Math.max(PANEL_WIDTH.min, Math.min(PANEL_WIDTH.max, drag.current.width + (drag.current.x - e.clientX)))));
+  };
+  const onGripUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    drag.current = null;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      localStorage.setItem(WIDTH_KEY, String(width));
+    } catch {
+      // Not remembered: the panel still resizes for this session.
+    }
+  };
+
   return (
     <>
       {open && (
-        <aside aria-label={current?.label} className="df-side-panel">
+        <aside aria-label={current?.label} className="df-side-panel" style={{ width }}>
+          <div
+            className="df-side-panel__grip"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("layout.side.resize")}
+            aria-valuenow={width}
+            aria-valuemin={PANEL_WIDTH.min}
+            aria-valuemax={PANEL_WIDTH.max}
+            tabIndex={0}
+            onPointerDown={onGripDown}
+            onPointerMove={onGripMove}
+            onPointerUp={onGripUp}
+            onPointerCancel={onGripUp}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              e.preventDefault();
+              const next = Math.max(PANEL_WIDTH.min, Math.min(PANEL_WIDTH.max, width + (e.key === "ArrowLeft" ? 20 : -20)));
+              setWidth(next);
+              try {
+                localStorage.setItem(WIDTH_KEY, String(next));
+              } catch {
+                // see above
+              }
+            }}
+          />
           <header className="df-side-panel__head">
             <span style={{ ...textStyle.group, color: "var(--color-text)" }}>{current?.label}</span>
             <IconButton icon="right_panel_close" label={t("layout.side.hide")} onClick={onClose} />

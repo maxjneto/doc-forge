@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { createEngine, type ComponentType, type Engine, type Surface } from "@docforge-lib/layout";
-import { Button, IconButton, Pill, Switch, textStyle } from "@/components/ui";
+import { createEngine, type ComponentType, type Engine, type LayoutDocument, type Surface } from "@docforge-lib/layout";
+import { Button, Dialog, IconButton, Pill, Switch, textStyle } from "@/components/ui";
 import { ActivityPanel, DocumentBar, DocumentSidebar, DocumentStatusBar, PresenceStack, type DocumentRole, type SideTab as SideTabDef } from "@/components/document";
 import { usePresence } from "@/hooks/usePresence";
 import {
@@ -30,8 +30,9 @@ import { StructurePanel } from "./panels/StructurePanel";
 import { PresentMode } from "./PresentMode";
 import { PublishDialog } from "./PublishDialog";
 import { SlideRail } from "./SlideRail";
-import { threadsOf, type Thread } from "./history";
-import { useLayoutEditor } from "./useLayoutEditor";
+import { blockOf, parseClipboard, pasteOps, serializeComponent, type Pasted } from "./clipboard";
+import { describeOps, threadsOf, type Thread } from "./history";
+import { useLayoutEditor, type EditorWords } from "./useLayoutEditor";
 import { useThemes } from "./useThemes";
 import { displayName } from "./names";
 import { withDraft } from "./themes";
@@ -146,7 +147,21 @@ function LayoutWorkspace({
   }, [documentId, getToken]);
   const canEdit = role === "owner" || role === "editor";
   const canComment = canEdit || role === "commenter";
-  const editor = useLayoutEditor(engine, documentId, initial, getToken, sseTick);
+  // What each write is called in the history and the activity, in the reader's language.
+  const words = useMemo<EditorWords>(
+    () => ({
+      describe: (ops, before) =>
+        describeOps(ops, t, (id) => {
+          const c = before.components.find((x) => x.id === id);
+          return c ? displayName(c, t) : id;
+        }),
+      undo: t("layout.history.undoNote"),
+      redo: t("layout.history.redoNote"),
+      restore: t("layout.history.restoreNote"),
+    }),
+    [t],
+  );
+  const editor = useLayoutEditor(engine, documentId, initial, getToken, sseTick, words);
   const doc = editor.content;
   const canvas = useRef<PageCanvasHandle>(null);
   const library = useThemes(getToken);
@@ -173,12 +188,29 @@ function LayoutWorkspace({
   const [visiblePage, setVisiblePage] = useState(1);
   const [presenting, setPresenting] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [saveRequested, setSaveRequested] = useState(false);
+  const clearSaveRequest = useCallback(() => setSaveRequested(false), []);
+  /** The part of the selected block being styled (picked on the page or in the panel). */
+  const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  /** A document shown without being applied (hovering a ready-made look). */
+  const [previewDoc, setPreviewDoc] = useState<LayoutDocument | null>(null);
 
   const surfaces = doc.surfaces;
   const activeSurface = surfaceId && surfaces.some((s) => s.id === surfaceId) ? surfaceId : surfaces[0]?.id;
   const slides = deck && activeSurface === primary.id;
   // What the page shows: a past version, or the document with the design draft over it.
-  const shown = useMemo(() => (viewing ? viewing.content : withDraft(doc, draft?.tokens ?? null)), [viewing, doc, draft]);
+  const shown = useMemo(() => (viewing ? viewing.content : withDraft(previewDoc ?? doc, draft?.tokens ?? null)), [viewing, doc, draft, previewDoc]);
+  useEffect(() => setPreviewDoc(null), [doc]);
+  /** A part picked on the page: the panel opens on its look. */
+  const pickPart = useCallback((part: string | null) => {
+    setSelectedPart(part);
+    if (part) {
+      setComponentTab("style");
+      setSide("structure");
+      setPanelOpen(true);
+    }
+  }, []);
   const output = useMemo(() => engine.render(shown, { surfaceId: activeSurface, grid: showGrid, backdrop: null }), [engine, shown, activeSurface, showGrid]);
   const layout = output.layout;
   const current = useMemo(() => (shown === doc ? layout : engine.layout(doc, activeSurface)), [engine, doc, shown, layout, activeSurface]);
@@ -223,39 +255,126 @@ function LayoutWorkspace({
 
   const select = useCallback((id: string | null) => {
     setSelected(id);
+    setSelectedPart(null);
     if (id) {
       setSide((s) => (s === "comments" || s === "design" ? s : "structure"));
       setPanelOpen(true);
     }
   }, []);
-  const openSide = (tab: SideTab) => {
+  const openSide = useCallback((tab: SideTab) => {
     setSide(tab);
     setPanelOpen(true);
     track("layout_panel_opened", { panel: tab });
-  };
+  }, []);
 
-  // Undo / redo from anywhere but text fields (they keep their own undo); Esc leaves a past version.
+  /** The selected block as clipboard text, with the size it has on the page. */
+  const clipText = useCallback(() => {
+    if (!selectedComponent) return null;
+    const g = layout.components[selectedComponent.id];
+    return serializeComponent(selectedComponent, { w: g?.box.w ?? 0, h: g?.declared.h ?? undefined });
+  }, [selectedComponent, layout]);
+
+  /** Put a block (or text) below the selected block, else at the end of the visible page. */
+  const pasteInto = useCallback(
+    (pasted: Pasted, how: "pasted" | "duplicated") => {
+      const below = selected && layout.components[selected] ? selected : null;
+      const page = slides ? visiblePage : Math.max(1, layout.pages.length);
+      const { ops, select: id } = pasteOps(doc, pasted, below, page, (key) => t(key));
+      const result = editor.commit(ops);
+      if (!result.ok) {
+        setAnnouncement(t("layout.editor.refused"));
+        return;
+      }
+      select(id);
+      setAnnouncement(t(how === "pasted" ? "layout.editor.announcePasted" : "layout.editor.announceDuplicated", { id }));
+      track(how === "pasted" ? "layout_block_pasted" : "layout_block_duplicated", { type: "block" in pasted ? String(pasted.block.component.type) : "text" });
+      requestAnimationFrame(() => canvas.current?.reveal(id));
+    },
+    [selected, layout, slides, visiblePage, doc, editor, t, select],
+  );
+
+  // Shortcuts from anywhere but a field being typed in (it keeps the browser's own keys); Esc leaves a past version.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (mod && e.key === "/") {
+        e.preventDefault();
+        setShortcutsOpen((open) => !open);
+        return;
+      }
+      if (mod && key === "s" && canEdit) {
+        e.preventDefault();
+        setSaveRequested(true);
+        openSide("history");
+        return;
+      }
+      if (fieldKeepsKeys(target)) return;
       if (e.key === "Escape" && viewing) {
         setViewing(null);
         return;
       }
-      const mod = e.ctrlKey || e.metaKey;
+      // Esc with a part picked (from the bar or the panel, where the block itself has no focus) goes back to the whole block.
+      if (e.key === "Escape" && selectedPart) {
+        setSelectedPart(null);
+        return;
+      }
       if (!mod || !editable) return;
-      if (e.key.toLowerCase() === "z" && !e.shiftKey) {
+      if (key === "z" && !e.shiftKey) {
         e.preventDefault();
         editor.undo();
-      } else if ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y") {
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
         e.preventDefault();
         editor.redo();
+      } else if (key === "d" && selectedComponent) {
+        e.preventDefault();
+        const g = layout.components[selectedComponent.id];
+        pasteInto({ block: blockOf(selectedComponent, { w: g?.box.w ?? 0, h: g?.declared.h ?? undefined }) }, "duplicated");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editable, editor, viewing]);
+  }, [editable, canEdit, editor, viewing, selectedComponent, selectedPart, layout, pasteInto, openSide]);
+
+  // Copy, cut and paste blocks through the system clipboard (as JSON text, so it also travels to a chat or an agent).
+  useEffect(() => {
+    if (!editable) return;
+    const onCopy = (e: ClipboardEvent) => {
+      if (isField(e.target as HTMLElement | null) || !selectedComponent) return;
+      const text = clipText();
+      if (!text || !e.clipboardData) return;
+      e.clipboardData.setData("text/plain", text);
+      e.preventDefault();
+      setAnnouncement(t("layout.editor.announceCopied", { id: nameOf(selectedComponent.id) }));
+      track("layout_block_copied", { type: selectedComponent.type });
+    };
+    const onCut = (e: ClipboardEvent) => {
+      if (isField(e.target as HTMLElement | null) || !selectedComponent) return;
+      onCopy(e);
+      if (!e.defaultPrevented) return;
+      const result = editor.commit([{ op: "remove", component: selectedComponent.id }]);
+      if (result.ok) {
+        select(null);
+        setAnnouncement(t("layout.editor.announceCut", { id: nameOf(selectedComponent.id) }));
+      }
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (isField(e.target as HTMLElement | null)) return;
+      const pasted = parseClipboard(e.clipboardData?.getData("text/plain") ?? "");
+      if (!pasted) return;
+      e.preventDefault();
+      pasteInto(pasted, "pasted");
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+    };
+  }, [editable, selectedComponent, clipText, editor, select, nameOf, t, pasteInto]);
 
   const add = (type: ComponentType) => {
     setAddOpen(false);
@@ -409,6 +528,7 @@ function LayoutWorkspace({
               <span aria-hidden className="df-doc-toolbar__sep" />
               <IconButton icon="undo" label={t("layout.editor.undo")} disabled={!editor.canUndo} onClick={editor.undo} />
               <IconButton icon="redo" label={t("layout.editor.redo")} disabled={!editor.canRedo} onClick={editor.redo} />
+              <IconButton icon="keyboard" label={t("layout.shortcuts.open")} onClick={() => setShortcutsOpen(true)} />
               <div style={{ position: "relative" }}>
                 <Button icon="add" iconPosition="start" aria-haspopup="menu" aria-expanded={addOpen} onClick={() => setAddOpen(!addOpen)}>
                   {t("layout.editor.add")}
@@ -511,6 +631,8 @@ function LayoutWorkspace({
             editable={editable && !annotating}
             selected={viewing ? null : selected}
             onSelect={select}
+            selectedPart={viewing ? null : selectedPart}
+            onSelectPart={pickPart}
             commit={editor.commit}
             preview={editor.preview}
             annotating={annotating && !viewing}
@@ -556,6 +678,10 @@ function LayoutWorkspace({
                   onTab={setComponentTab}
                   onRemoved={() => select(null)}
                   onBack={() => select(null)}
+                  part={selectedPart}
+                  onPart={setSelectedPart}
+                  preview={editor.preview}
+                  onPreview={setPreviewDoc}
                 />
               ) : (
                 <StructurePanel doc={shown} layout={layout} slides={slides} map={() => engine.map(doc, { level: 1, surfaceId: activeSurface }).text} onPick={(id) => (viewing ? canvas.current?.reveal(id) : (select(id), canvas.current?.reveal(id)))} />
@@ -629,6 +755,8 @@ function LayoutWorkspace({
                 canEdit={canEdit}
                 surfaceId={activeSurface}
                 getToken={getToken}
+                saveRequested={saveRequested}
+                onSaveRequested={clearSaveRequest}
               />
             )}
             {side === "activity" && <ActivityPanel documentId={documentId} getToken={getToken} refreshTick={sseTick + editor.revision} />}
@@ -648,6 +776,7 @@ function LayoutWorkspace({
       </DocumentStatusBar>
 
       {publishing && <PublishDialog documentId={documentId} saving={editor.status === "saving"} onChange={setPublication} onClose={() => setPublishing(false)} />}
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
       {presenting && <PresentMode html={output.page} pages={layout.pages.length} width={layout.pages[0]?.width ?? 1280} height={layout.pages[0]?.height ?? 720} start={visiblePage} onClose={() => setPresenting(false)} />}
     </div>
   );
@@ -708,6 +837,80 @@ function AddMenu({ onPick, onClose }: { onPick: (type: ComponentType) => void; o
         </button>
       ))}
     </div>
+  );
+}
+
+/** A text field or editable area under the pointer of the keyboard. */
+function isField(target: HTMLElement | null): boolean {
+  return !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+}
+
+/** A field keeps the keys while it is being typed in; a clean content form hands them to the document. */
+function fieldKeepsKeys(target: HTMLElement | null): boolean {
+  return isField(target) && target?.closest("[data-undo]")?.getAttribute("data-undo") !== "document";
+}
+
+const SHORTCUTS: { group: string; items: [keys: string, label: string][] }[] = [
+  {
+    group: "edit",
+    items: [
+      ["Ctrl+Z", "undo"],
+      ["Ctrl+Y · Ctrl+Shift+Z", "redo"],
+      ["Ctrl+S", "save"],
+      ["Ctrl+/", "list"],
+    ],
+  },
+  {
+    group: "blocks",
+    items: [
+      ["Ctrl+C · Ctrl+X", "copy"],
+      ["Ctrl+V", "paste"],
+      ["Ctrl+D", "duplicate"],
+      ["← ↑ → ↓", "move"],
+      ["Alt+← ↑ → ↓", "resize"],
+      ["Enter", "edit"],
+      ["/", "insert"],
+      ["Delete", "remove"],
+      ["Esc", "deselect"],
+    ],
+  },
+  {
+    group: "inline",
+    items: [
+      ["Ctrl+B · Ctrl+I", "bold"],
+      ["Ctrl+Enter", "finish"],
+      ["Esc", "cancel"],
+    ],
+  },
+];
+
+function ShortcutsDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  return (
+    <Dialog onClose={onClose} title={t("layout.shortcuts.title")} subtitle={t("layout.shortcuts.hint")} width={520} closable>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {SHORTCUTS.map((group) => (
+          <section key={group.group} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <h3 style={{ ...textStyle.fieldLabel, color: "var(--color-dim)", margin: 0 }}>{t(`layout.shortcuts.group.${group.group}`)}</h3>
+            <dl className="df-shortcuts">
+              {group.items.map(([keys, label]) => (
+                <div key={label} className="df-shortcuts__row">
+                  <dt>
+                    {keys.split(" · ").map((combo, i) => (
+                      <span key={combo}>
+                        {i > 0 && <span style={{ color: "var(--color-faint)", margin: "0 4px" }}>·</span>}
+                        <kbd className="df-kbd">{combo}</kbd>
+                      </span>
+                    ))}
+                  </dt>
+                  <dd>{t(`layout.shortcuts.${label}`)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+      </div>
+    </Dialog>
   );
 }
 

@@ -128,13 +128,13 @@ async def test_an_older_library_gets_its_format_and_what_was_lost(client_factory
     async with client_factory() as client:
         doc_id = (await _create(client))["document_id"]
         token = (await client.post(f"/api/documents/{doc_id}/layout/publish")).json()["token"]
-        current = (await client.get(f"/api/public/{token}/layout?format=3")).json()
+        current = (await client.get(f"/api/public/{token}/layout?format=4")).json()
         newer = (await client.get(f"/api/public/{token}/layout?format=7")).json()
         older = (await client.get(f"/api/public/{token}/layout?format=2")).json()
         too_old = await client.get(f"/api/public/{token}/layout?format=1")
 
-    assert current["content"]["version"] == 3 and current["notes"] == []
-    assert newer["content"]["version"] == 3
+    assert current["content"]["version"] == 4 and current["notes"] == []
+    assert newer["content"]["version"] == 4
     assert older["content"]["version"] == 2
     assert older["notes"] == ["converted to 2"]
     assert too_old.status_code == 422
@@ -190,7 +190,7 @@ async def test_by_id_a_pinned_revision_or_the_current_one(client_factory):
         doc_id = (await _create(client, title="Por id"))["document_id"]
         await _write(client, doc_id, "a")
         await _write(client, doc_id, "b")
-        pinned = (await client.get(f"/api/documents/{doc_id}/layout?revision=2&format=3")).json()
+        pinned = (await client.get(f"/api/documents/{doc_id}/layout?revision=2&format=4")).json()
         current = (await client.get(f"/api/documents/{doc_id}/layout")).json()
         older = (await client.get(f"/api/documents/{doc_id}/layout?revision=2&format=2")).json()
         missing = await client.get(f"/api/documents/{doc_id}/layout?revision=42")
@@ -209,7 +209,7 @@ async def test_any_site_can_read_a_published_document(client_factory):
     async with client_factory() as client:
         doc_id = (await _create(client))["document_id"]
         token = (await client.post(f"/api/documents/{doc_id}/layout/publish")).json()["token"]
-        res = await client.get(f"/api/public/{token}/layout?format=3", headers={"Origin": "https://copasim.com"})
+        res = await client.get(f"/api/public/{token}/layout?format=4", headers={"Origin": "https://copasim.com"})
 
     assert res.status_code == 200
     assert res.headers["access-control-allow-origin"] == "*"

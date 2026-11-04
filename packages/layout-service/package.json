@@ -12,7 +12,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@docforge-lib/layout": "~0.6.0",
+    "@docforge-lib/layout": "file:vendor/docforge-lib-layout-0.8.0-alpha.2.tgz",
     "@resvg/resvg-js": "^2.6.2"
   }
 }

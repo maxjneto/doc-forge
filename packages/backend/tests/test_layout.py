@@ -118,7 +118,7 @@ async def test_create_starts_from_an_empty_starter_document(client_factory):
 
     assert state["revision"] == 1
     assert state["content"]["format"] == "docforge/layout"
-    assert state["content"]["version"] == 3
+    assert state["content"]["version"] == 4
     assert "sections" not in state["content"]
     assert state["content"]["meta"]["title"] == "Quarterly"
     assert state["content"]["components"] == []
@@ -315,3 +315,19 @@ async def test_page_image_comes_from_the_service(client_factory, layout_service)
     sent = [c.args[1] for c in layout_service.call_args_list if c.args[0] == "/render-image"][-1]
     assert sent["highlight"] == ["a", "b"] and sent["scale"] == 0.5
     assert too_big.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_replace_keeps_the_editors_note(client_factory):
+    """Undo, redo and restore send why the whole document changed; it is what history and activity show."""
+    async with client_factory() as client:
+        doc_id = (await _create(client))["document_id"]
+        state = (await client.get(f"/api/documents/{doc_id}/layout")).json()
+        new_content = {**state["content"], "components": [{"id": "z", "type": "divider"}]}
+        await client.put(f"/api/documents/{doc_id}/layout", json={"content": new_content, "base_revision": 1, "note": "Desfez uma edição"})
+        revisions = (await client.get(f"/api/documents/{doc_id}/layout/revisions")).json()["revisions"]
+        activity = (await client.get(f"/api/documents/{doc_id}/activity")).json()
+
+    assert revisions[0]["revision"] == 2 and revisions[0]["description"] == "Desfez uma edição"
+    updated = [a for a in activity if a["action_type"] == "layout_updated"]
+    assert [a["description"] for a in updated] == ["Desfez uma edição"]

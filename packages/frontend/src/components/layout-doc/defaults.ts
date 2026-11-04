@@ -1,7 +1,25 @@
 import type { ComponentType, LayoutDocument } from "@docforge-lib/layout";
 
 /** Order of the "Add" menu: the everyday ones first. */
-export const ADDABLE_TYPES: ComponentType[] = ["text", "kpi", "card", "list", "table", "chart", "steps", "timeline", "code", "image", "divider"];
+export const ADDABLE_TYPES: ComponentType[] = [
+  "text",
+  "flow",
+  "kpi",
+  "card",
+  "list",
+  "table",
+  "chart",
+  "callout",
+  "tags",
+  "progress",
+  "steps",
+  "timeline",
+  "code",
+  "image",
+  "cover",
+  "toc",
+  "divider",
+];
 
 /** Material Symbols name for each component type. */
 export const TYPE_ICON: Record<ComponentType, string> = {
@@ -16,6 +34,12 @@ export const TYPE_ICON: Record<ComponentType, string> = {
   chart: "bar_chart",
   image: "image",
   divider: "horizontal_rule",
+  flow: "article",
+  callout: "info",
+  tags: "sell",
+  progress: "linear_scale",
+  cover: "title",
+  toc: "toc",
 };
 
 /** Guide columns a new component spans by default (narrow things side by side, the rest across). */
@@ -31,6 +55,12 @@ const DEFAULT_COLS: Record<ComponentType, [number, number]> = {
   chart: [1, 6],
   image: [1, 6],
   divider: [1, 12],
+  flow: [1, 12],
+  callout: [1, 12],
+  tags: [1, 6],
+  progress: [1, 6],
+  cover: [1, 12],
+  toc: [1, 12],
 };
 
 /** Starter content for a new component: something visible to replace, never empty. */
@@ -79,6 +109,24 @@ export function starterComponent(type: ComponentType, id: string, sample: (key: 
       };
     case "divider":
       return { id, type, props: { kind: "line" } };
+    case "flow":
+      return {
+        id,
+        type,
+        content: {
+          blocks: [`# ${s("layout.sample.title")}`, s("layout.sample.paragraph"), { type: "table", content: { columns: [s("layout.sample.column1"), s("layout.sample.column2")], rows: [[s("layout.sample.cell"), "1"]] } }],
+        },
+      };
+    case "callout":
+      return { id, type, content: { title: s("layout.sample.calloutTitle"), text: s("layout.sample.calloutText") }, props: { kind: "note" } };
+    case "tags":
+      return { id, type, content: { items: [s("layout.sample.tag1"), s("layout.sample.tag2"), s("layout.sample.tag3")] } };
+    case "progress":
+      return { id, type, content: { items: [{ label: s("layout.sample.item1"), value: 70 }, { label: s("layout.sample.item2"), value: 40 }] } };
+    case "cover":
+      return { id, type, content: { eyebrow: s("layout.sample.coverEyebrow"), title: s("layout.sample.title"), subtitle: s("layout.sample.coverSubtitle") }, props: { background: "$color.primary", fullBleed: true, vertical: "bottom" } };
+    case "toc":
+      return { id, type };
   }
 }
 

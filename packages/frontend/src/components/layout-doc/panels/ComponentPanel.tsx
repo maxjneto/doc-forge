@@ -3,7 +3,7 @@ import type { ApplyResult, Component, ComponentGeometry, LayoutDocument, LayoutR
 import { Button, IconButton, Input, Pill, Switch, Tab, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { TYPE_ICON } from "../defaults";
-import { displayName, widthLabel } from "../names";
+import { displayName, partLabel, partsOf, widthLabel } from "../names";
 import { ContentEditor } from "./ContentEditor";
 import { Field, Row, SectionTitle } from "./fields";
 import { StyleEditor } from "./StyleEditor";
@@ -24,10 +24,16 @@ interface ComponentPanelProps {
   onRemoved: () => void;
   /** Back to the structure list (clears the selection). */
   onBack: () => void;
+  /** The part of the block being styled (also selectable on the page). */
+  part?: string | null;
+  onPart?: (part: string | null) => void;
+  preview?: (ops: unknown[]) => ApplyResult;
+  onPreview?: (doc: LayoutDocument | null) => void;
 }
 
-export function ComponentPanel({ doc, component, geometry, layout, tokens, families, commit, readOnly, tab, onTab, onRemoved, onBack }: ComponentPanelProps) {
+export function ComponentPanel({ doc, component, geometry, layout, tokens, families, commit, readOnly, tab, onTab, onRemoved, onBack, part = null, onPart, preview, onPreview }: ComponentPanelProps) {
   const { t } = useI18n();
+  const partName = part && partsOf(component).includes(part) ? partLabel(component.type, part, t) : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <button
@@ -56,6 +62,7 @@ export function ComponentPanel({ doc, component, geometry, layout, tokens, famil
             </span>
             <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>
               {t(`layout.type.${component.type}`)}
+              {partName ? ` › ${partName}` : ""}
               {geometry ? ` · ${t("layout.structure.page", { n: geometry.box.page })} · ${widthLabel(geometry.box, layout, t)}` : ""}
             </span>
           </div>
@@ -75,11 +82,11 @@ export function ComponentPanel({ doc, component, geometry, layout, tokens, famil
           <Tab key={key} plain label={t(`layout.panel.${key}`)} active={tab === key} onClick={() => onTab(key)} />
         ))}
       </div>
-      {tab === "content" && <ContentEditor key={component.id} component={component} commit={commit} readOnly={readOnly} />}
+      {tab === "content" && <ContentEditor key={component.id} component={component} tokens={tokens} commit={commit} readOnly={readOnly} />}
       {tab === "style" && (
         <>
           {geometry ? (
-            <StyleEditor doc={doc} component={component} geometry={geometry} tokens={tokens} families={families} commit={commit} readOnly={readOnly} />
+            <StyleEditor doc={doc} component={component} geometry={geometry} tokens={tokens} families={families} commit={commit} preview={preview} readOnly={readOnly} part={part} onPart={onPart} onPreview={onPreview} />
           ) : (
             <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.editor.unplaced")}</span>
           )}

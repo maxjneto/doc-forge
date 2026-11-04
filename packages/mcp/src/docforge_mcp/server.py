@@ -1107,9 +1107,17 @@ async def apply_layout_ops(
     *,
     ctx: Context,
 ) -> str:
-    """Change a layout document with operations: add, place, row, update, edit,
+    """Change a layout document with operations: add, place, row, columns, update, edit,
     replaceText, move, remove, setStyle, setRegion, removeRegion, setTokens, setGrid,
-    setSurface, removeSurface, setMeta, page, compact, fit (shapes: docforge://guide/layout).
+    setSurface, removeSurface, setMaster, removeMaster, setMeta, page, compact, fit
+    (shapes: docforge://guide/layout).
+    For prose and long reference tables, add ONE component of type "flow" and write
+    its blocks in order (strings are paragraphs; "# ", "## " make titles; tables,
+    callouts and charts are blocks too): it splits across pages by itself, so you
+    never compute positions inside it. Add or change blocks with edit
+    (insert {"blocks.4": [...]}, set "blocks.2", remove).
+    Headers, footers and page numbers go in the page master (setMaster, with
+    {page} / {pages} in its text); a cover and a table of contents (toc) are components.
     To change a finished document, send only what changes: edit then fit to stay
     within N pages, move to reorder sections — never rebuild the layout.
     Positions: {page, x, y, w, h?} in units, or relative — cols:[a,b] for x/w,
@@ -1200,7 +1208,8 @@ async def measure_component(
     choose a width or to know where the next component should start.
     Returns, for each width: the height it needs in px and in rows (units),
     whether it would split across pages, and any problem (e.g. a KPI value that
-    does not fit). With document_id, it is measured with that document's grid,
+    does not fit). For a table it also gives the narrowest w that keeps every
+    word whole (tables size their columns by content unless a column has a weight). With document_id, it is measured with that document's grid,
     tokens and styles.
 
     Args:
