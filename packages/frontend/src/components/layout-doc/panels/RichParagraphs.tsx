@@ -5,6 +5,7 @@ import { ParagraphsEditable, type Paragraph, type ParagraphsHandle } from "../Pa
 
 /** The panel's look for each role: the page's hierarchy at the panel's scale. */
 const ROLE_CSS: Record<TextRole, string> = {
+  display: "font:700 17px/1.3 var(--font-sans);color:var(--color-text)",
   "title-1": "font:700 15px/1.35 var(--font-sans);color:var(--color-text)",
   "title-2": "font:600 14px/1.35 var(--font-sans);color:var(--color-text)",
   "title-3": "font:600 13px/1.4 var(--font-sans);color:var(--color-text)",

@@ -4,6 +4,7 @@ import { Button, Switch, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import type { Paragraph } from "../ParagraphsEditable";
 import { Field, ItemActions, move, Row, SectionTitle, Select, TextArea, TextInput as Input } from "./fields";
+import { FlowBlocksEditor } from "./FlowBlocksEditor";
 import { RichParagraphs } from "./RichParagraphs";
 
 type Json = Record<string, unknown>;
@@ -74,6 +75,32 @@ export function textToItems(text: string): ListItem[] {
     });
   return simplify(root.items);
 }
+
+/** Columns a table row covers, counting cells that span several. */
+const spanOf = (cell: unknown) => (cell && typeof cell === "object" && !Array.isArray(cell) ? Number((cell as Json).span ?? 1) : 1);
+/** A row padded (or cut) to `n` columns, keeping cells that span. */
+export function fitRow(row: unknown[], n: number): unknown[] {
+  const out: unknown[] = [];
+  let covered = 0;
+  for (const cell of row) {
+    if (covered >= n) break;
+    out.push(cell);
+    covered += spanOf(cell);
+  }
+  while (covered < n) {
+    out.push("");
+    covered++;
+  }
+  return out;
+}
+
+/** Scatter points ⇄ text: `x y` pairs separated by `;`. */
+const pointsToText = (points: unknown) => (Array.isArray(points) ? points.map((p) => (Array.isArray(p) ? `${p[0]} ${p[1]}` : "")).join("; ") : "");
+const textToPoints = (text: string) =>
+  text
+    .split(";")
+    .map((pair) => pair.trim().split(/[\s,]+/).map(Number))
+    .filter((p) => p.length === 2 && p.every((n) => Number.isFinite(n)));
 
 const csv = (values: unknown[]) => values.map(String).join(", ");
 const fromCsv = (text: string) =>
@@ -191,11 +218,14 @@ export function ContentEditor({ component, tokens, commit, readOnly }: { compone
         typeof col === "string" ? { header: col, align: "left" } : { header: String((col as Json).header ?? ""), align: String((col as Json).align ?? "left"), width: (col as Json).width },
       );
       // Cells keep whatever inline form they have; the panel only reshapes the table.
-      const rows = ((c.rows as unknown[][]) ?? []).map((row) => columns.map((_, i) => row[i] ?? ""));
+      const rows = ((c.rows as unknown[][]) ?? []).map((row) => fitRow(row, columns.length));
+      const footer = Array.isArray(c.footer) ? fitRow(c.footer as unknown[], columns.length) : null;
+      const autoWidths = p.columnWidths === "auto" || (p.columnWidths === undefined && columns.every((col) => col.width === undefined));
       const write = (cols: typeof columns, body: unknown[][]) =>
         setContent({
           columns: cols.map((col) => (col.align === "left" && col.width === undefined ? col.header : { header: col.header, ...(col.align !== "left" ? { align: col.align } : {}), ...(col.width !== undefined ? { width: col.width } : {}) })),
           rows: body,
+          ...(footer ? { footer: fitRow(footer, cols.length) } : {}),
         });
       const moveColumn = (a: number, b: number) => write(move(columns, a, b), rows.map((r) => move(r, a, b)));
       const WEIGHTS = [0.5, 1, 1.5, 2, 3];
@@ -278,6 +308,38 @@ export function ContentEditor({ component, tokens, commit, readOnly }: { compone
           )}
           <Switch checked={p.header !== false} onChange={(on) => setProps({ header: on ? undefined : false })} label={t("layout.content.headerRow")} />
           <Switch checked={p.zebra === true} onChange={(on) => setProps({ zebra: on || undefined })} label={t("layout.content.zebra")} />
+          <Field label={t("layout.content.autoWidths")} hint={t("layout.content.autoWidthsHint")}>
+            <Switch
+              checked={autoWidths}
+              onChange={(on) => {
+                // Content-sized columns have no weights; fixed ones keep whatever weights they had.
+                if (on) set({ content: { ...draft.content, columns: columns.map((col) => (col.align === "left" ? col.header : { header: col.header, align: col.align })) }, props: Object.fromEntries(Object.entries(draft.props).filter(([k]) => k !== "columnWidths")) });
+                else setProps({ columnWidths: "fixed" });
+              }}
+              label={t("layout.content.autoWidthsLabel")}
+            />
+          </Field>
+          <Switch checked={footer !== null} onChange={(on) => setContent({ footer: on ? columns.map(() => "") : undefined })} label={t("layout.content.footerRow")} />
+          {footer && (
+            <Row gap={4}>
+              {footer.map((cell, i) => (
+                <Input
+                  key={i}
+                  aria-label={t("layout.content.footerCell", { n: i + 1 })}
+                  value={inlineToString(cell && typeof cell === "object" && !Array.isArray(cell) ? (cell as Json).text : cell)}
+                  onChange={(e) => setContent({ footer: footer.map((x, j) => (j === i ? e.target.value : x)) })}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              ))}
+            </Row>
+          )}
+          <Field label={t("layout.content.bars")} hint={t("layout.content.barsHint")}>
+            <Select
+              value={typeof p.bars === "string" ? p.bars : typeof p.bars === "number" ? (columns[p.bars]?.header ?? "") : ""}
+              onChange={(bars) => setProps({ bars: bars || undefined })}
+              options={[{ value: "", label: t("layout.content.barsNone") }, ...columns.map((col) => ({ value: col.header, label: col.header }))]}
+            />
+          </Field>
         </>
       );
       break;
@@ -345,6 +407,15 @@ export function ContentEditor({ component, tokens, commit, readOnly }: { compone
           <Field label={t("layout.content.delta")}>
             <Input value={String(c.delta ?? "")} onChange={(e) => setContent({ delta: e.target.value || undefined })} />
           </Field>
+          <Field label={t("layout.content.sparkline")} hint={t("layout.content.sparklineHint")}>
+            <Input
+              value={csv((c.sparkline as unknown[]) ?? [])}
+              onChange={(e) => {
+                const values = fromCsv(e.target.value).map(Number).filter((n) => Number.isFinite(n));
+                setContent({ sparkline: values.length >= 3 ? values.slice(0, 60) : undefined });
+              }}
+            />
+          </Field>
           <Field label={t("layout.content.href")} hint={t("layout.content.hrefHint")}>
             <Input value={String(p.href ?? "")} onChange={(e) => setProps({ href: e.target.value })} />
           </Field>
@@ -377,17 +448,44 @@ export function ContentEditor({ component, tokens, commit, readOnly }: { compone
       );
       break;
     case "chart": {
-      const series = ((c.series as { name: string; values: number[] }[]) ?? []).map((s) => ({ name: s.name, values: csv(s.values) }));
-      const write = (next: { name: string; values: string }[]) =>
-        setContent({ series: next.map((s) => ({ name: s.name, values: fromCsv(s.values).map(Number).filter((n) => Number.isFinite(n)) })) });
+      const kind = String(c.kind ?? "bar");
+      const scatter = kind === "scatter";
+      const series = ((c.series as { name: string; values?: number[]; points?: unknown }[]) ?? []).map((s) => ({ name: s.name, values: scatter ? pointsToText(s.points) : csv(s.values ?? []) }));
+      const write = (next: { name: string; values: string }[], asScatter = scatter) =>
+        setContent({
+          series: next.map((s) => (asScatter ? { name: s.name, points: textToPoints(s.values) } : { name: s.name, values: fromCsv(s.values).map(Number).filter((n) => Number.isFinite(n)) })),
+        });
+      // Scatter has points and no categories; the others the reverse. Switching keeps the names.
+      const switchKind = (next: string) => {
+        if ((next === "scatter") === scatter) return setContent({ kind: next });
+        const toScatter = next === "scatter";
+        set({
+          content: {
+            ...Object.fromEntries(Object.entries(draft.content).filter(([k]) => k !== "categories")),
+            kind: next,
+            ...(toScatter ? {} : { categories: ["A", "B", "C"] }),
+            series: series.map((s) => (toScatter ? { name: s.name, points: [[1, 1], [2, 3], [3, 2]] } : { name: s.name, values: [1, 2, 3] })),
+          },
+          props: draft.props,
+        });
+      };
+      const axis = (p.axis ?? {}) as Json;
+      const setAxis = (patch: Json) => {
+        const next = { ...axis, ...patch };
+        for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === "") delete next[k];
+        setProps({ axis: Object.keys(next).length ? next : undefined });
+      };
       form = (
         <>
           <Field label={t("layout.content.chartKind")}>
-            <Select value={String(c.kind ?? "bar")} onChange={(kind) => setContent({ kind })} options={["bar", "line", "pie"].map((k) => ({ value: k, label: t(`layout.content.chartKind.${k}`) }))} />
+            <Select value={kind} onChange={switchKind} options={["bar", "line", "area", "pie", "donut", "scatter"].map((k) => ({ value: k, label: t(`layout.content.chartKind.${k}`) }))} />
           </Field>
-          <Field label={t("layout.content.categories")} hint={t("layout.content.csvHint")}>
-            <Input value={csv((c.categories as unknown[]) ?? [])} onChange={(e) => setContent({ categories: fromCsv(e.target.value) })} />
-          </Field>
+          {!scatter && (
+            <Field label={t("layout.content.categories")} hint={t("layout.content.csvHint")}>
+              <Input value={csv((c.categories as unknown[]) ?? [])} onChange={(e) => setContent({ categories: fromCsv(e.target.value) })} />
+            </Field>
+          )}
+          {scatter && <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.content.pointsHint")}</span>}
           {series.map((s, i) => (
             <Row key={i}>
               <Field label={t("layout.content.seriesName")} style={{ width: 110 }}>
@@ -407,10 +505,184 @@ export function ContentEditor({ component, tokens, commit, readOnly }: { compone
           </Field>
           <Switch checked={p.values === true} onChange={(on) => setProps({ values: on || undefined })} label={t("layout.content.showValues")} />
           <Switch checked={p.legend !== false} onChange={(on) => setProps({ legend: on ? undefined : false })} label={t("layout.content.showLegend")} />
+          <Switch checked={p.legendPosition === "right"} onChange={(on) => setProps({ legendPosition: on ? "right" : undefined })} label={t("layout.content.legendRight")} />
+          {kind === "bar" && <Switch checked={p.orientation === "horizontal"} onChange={(on) => setProps({ orientation: on ? "horizontal" : undefined })} label={t("layout.content.horizontal")} />}
+          {(kind === "bar" || kind === "area") && <Switch checked={p.stacked === true} onChange={(on) => setProps({ stacked: on || undefined })} label={t("layout.content.stacked")} />}
+          {kind === "donut" && (
+            <Field label={t("layout.content.center")} hint={t("layout.content.centerHint")}>
+              <Input value={String(p.center ?? "")} onChange={(e) => setProps({ center: e.target.value || undefined })} />
+            </Field>
+          )}
+          {kind !== "pie" && kind !== "donut" && (
+            <Row>
+              <Field label={t("layout.content.axisX")} style={{ flex: 1 }}>
+                <Input value={String(axis.x ?? "")} onChange={(e) => setAxis({ x: e.target.value })} />
+              </Field>
+              <Field label={t("layout.content.axisY")} style={{ flex: 1 }}>
+                <Input value={String(axis.y ?? "")} onChange={(e) => setAxis({ y: e.target.value })} />
+              </Field>
+            </Row>
+          )}
         </>
       );
       break;
     }
+    case "callout":
+      form = (
+        <>
+          <Field label={t("layout.content.calloutKind")}>
+            <Select
+              value={String(p.kind ?? "note")}
+              onChange={(kind) => setProps({ kind: kind === "note" ? undefined : kind })}
+              options={["note", "tip", "warning", "important", "success"].map((k) => ({ value: k, label: t(`layout.content.calloutKind.${k}`) }))}
+            />
+          </Field>
+          <Field label={t("layout.content.title")}>
+            <Input value={String(c.title ?? "")} onChange={(e) => setContent({ title: e.target.value || undefined })} />
+          </Field>
+          <Field label={t("layout.content.text")}>
+            <TextArea rows={4} value={inlineToString(c.text)} onChange={(e) => setContent({ text: e.target.value })} />
+          </Field>
+          <Switch checked={p.icon !== false} onChange={(on) => setProps({ icon: on ? undefined : false })} label={t("layout.content.icon")} />
+          {hasRuns(c.text) && runsWarning}
+        </>
+      );
+      break;
+    case "tags": {
+      // One tag per line; "text | color" keeps a tag's color (a token like $color.success or #hex).
+      const items = ((c.items as unknown[]) ?? []).map((item) => (typeof item === "string" ? item : `${String((item as Json).text ?? "")}${(item as Json).color ? ` | ${String((item as Json).color)}` : ""}`));
+      form = (
+        <Field label={t("layout.content.tags")} hint={t("layout.content.tagsHint")}>
+          <TextArea
+            rows={6}
+            value={items.join("\n")}
+            onChange={(e) =>
+              setContent({
+                items: e.target.value
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .map((line) => {
+                    const [text, color] = line.split("|").map((s) => s.trim());
+                    return color ? { text, color } : (text as string);
+                  }),
+              })
+            }
+          />
+        </Field>
+      );
+      break;
+    }
+    case "progress": {
+      const kind = String(p.kind ?? "bar");
+      const items = ((c.items as Json[]) ?? []).map((item) => ({ ...item }));
+      const write = (next: Json[]) => setContent({ items: next });
+      const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
+      form = (
+        <>
+          <Field label={t("layout.content.progressKind")}>
+            <Select value={kind} onChange={(k) => setProps({ kind: k === "bar" ? undefined : k })} options={["bar", "stars", "dots"].map((k) => ({ value: k, label: t(`layout.content.progressKind.${k}`) }))} />
+          </Field>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, paddingBottom: 8, borderBottom: "1px solid var(--color-outline)" }}>
+              <Row gap={4} style={{ alignItems: "flex-end" }}>
+                <Field label={t("layout.content.label")} style={{ flex: 1 }}>
+                  <Input value={String(item.label ?? "")} onChange={(e) => write(items.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+                </Field>
+                <ItemActions index={i} count={items.length} labels={labels} onMove={(a, b) => write(move(items, a, b))} onRemove={(j) => write(items.filter((_, k) => k !== j))} />
+              </Row>
+              <Row gap={4}>
+                <Field label={t("layout.content.value")} style={{ flex: 1 }}>
+                  <Input inputMode="decimal" value={String(item.value ?? "")} onChange={(e) => write(items.map((x, j) => (j === i ? { ...x, value: num(e.target.value) ?? 0 } : x)))} />
+                </Field>
+                <Field label={t("layout.content.max")} style={{ flex: 1 }}>
+                  <Input inputMode="decimal" value={item.max === undefined ? "" : String(item.max)} placeholder={kind === "bar" ? "100" : "5"} onChange={(e) => write(items.map((x, j) => (j === i ? { ...x, max: num(e.target.value) } : x)).map((x) => (x.max === undefined ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== "max")) : x)))} />
+                </Field>
+                <Field label={t("layout.content.shownAs")} style={{ flex: 1 }}>
+                  <Input value={String(item.text ?? "")} onChange={(e) => write(items.map((x, j) => (j === i ? { ...x, text: e.target.value || undefined } : x)))} />
+                </Field>
+              </Row>
+            </div>
+          ))}
+          <Button variant="ghost" icon="add" iconPosition="start" onClick={() => write([...items, { label: t("layout.sample.item1"), value: 50 }])}>
+            {t("layout.content.addItem")}
+          </Button>
+          <Switch checked={p.showValue !== false} onChange={(on) => setProps({ showValue: on ? undefined : false })} label={t("layout.content.showValues")} />
+        </>
+      );
+      break;
+    }
+    case "cover": {
+      const meta = ((c.meta as Json[]) ?? []).map((m) => `${String(m.label ?? "")}: ${String(m.value ?? "")}`).join("\n");
+      form = (
+        <>
+          <Field label={t("layout.content.eyebrow")}>
+            <Input value={String(c.eyebrow ?? "")} onChange={(e) => setContent({ eyebrow: e.target.value || undefined })} />
+          </Field>
+          <Field label={t("layout.content.title")}>
+            <Input value={String(c.title ?? "")} onChange={(e) => setContent({ title: e.target.value })} />
+          </Field>
+          <Field label={t("layout.content.subtitle")}>
+            <TextArea rows={2} value={String(c.subtitle ?? "")} onChange={(e) => setContent({ subtitle: e.target.value || undefined })} />
+          </Field>
+          <Field label={t("layout.content.meta")} hint={t("layout.content.metaHint")}>
+            <TextArea
+              rows={3}
+              value={meta}
+              onChange={(e) => {
+                const lines = e.target.value
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .map((line) => {
+                    const at = line.indexOf(":");
+                    return at < 0 ? { label: line, value: "" } : { label: line.slice(0, at).trim(), value: line.slice(at + 1).trim() };
+                  });
+                setContent({ meta: lines.length ? lines.slice(0, 8) : undefined });
+              }}
+            />
+          </Field>
+          <Field label={t("layout.content.background")} hint={t("layout.content.backgroundHint")}>
+            <Input value={typeof p.background === "string" ? p.background : ""} onChange={(e) => setProps({ background: e.target.value || undefined })} />
+          </Field>
+          <Row>
+            <Field label={t("layout.content.vertical")} style={{ flex: 1 }}>
+              <Select value={String(p.vertical ?? "middle")} onChange={(v) => setProps({ vertical: v === "middle" ? undefined : v })} options={["top", "middle", "bottom"].map((v) => ({ value: v, label: t(`layout.content.vertical.${v}`) }))} />
+            </Field>
+            <Field label={t("layout.content.align")} style={{ flex: 1 }}>
+              <Select value={String(p.align ?? "left")} onChange={(v) => setProps({ align: v === "left" ? undefined : v })} options={["left", "center"].map((v) => ({ value: v, label: t(`layout.style.align.${v}`) }))} />
+            </Field>
+          </Row>
+          <Switch checked={p.fullBleed === true} onChange={(on) => setProps({ fullBleed: on || undefined })} label={t("layout.content.fullBleed")} />
+        </>
+      );
+      break;
+    }
+    case "toc": {
+      const levels = (p.levels as string[] | undefined) ?? ["title-1", "title-2"];
+      const toggle = (level: string, on: boolean) => {
+        const next = ["title-1", "title-2", "title-3"].filter((l) => (l === level ? on : levels.includes(l)));
+        setProps({ levels: next.length && next.join() !== "title-1,title-2" ? next : undefined });
+      };
+      form = (
+        <>
+          <Field label={t("layout.content.title")} hint={t("layout.content.tocTitleHint")}>
+            <Input value={String(c.title ?? "")} onChange={(e) => set({ content: e.target.value ? { title: e.target.value } : {}, props: draft.props })} />
+          </Field>
+          <span style={{ ...textStyle.fieldLabel, color: "var(--color-dim)" }}>{t("layout.content.tocLevels")}</span>
+          {["title-1", "title-2", "title-3"].map((level) => (
+            <Switch key={level} checked={levels.includes(level)} onChange={(on) => toggle(level, on)} label={t(`layout.role.${level}`)} />
+          ))}
+          <Switch checked={p.pages !== false} onChange={(on) => setProps({ pages: on ? undefined : false })} label={t("layout.content.tocPages")} />
+          <Switch checked={p.leaders !== false} onChange={(on) => setProps({ leaders: on ? undefined : false })} label={t("layout.content.tocLeaders")} />
+          <span style={{ ...textStyle.caption, color: "var(--color-faint)" }}>{t("layout.content.tocHint")}</span>
+        </>
+      );
+      break;
+    }
+    case "flow":
+      form = <FlowBlocksEditor blocks={((c.blocks as (string | Json)[]) ?? []).slice()} onChange={(blocks) => setContent({ blocks: blocks.length ? blocks : [""] })} />;
+      break;
     case "image":
       form = (
         <>
@@ -430,6 +702,13 @@ export function ContentEditor({ component, tokens, commit, readOnly }: { compone
           </Row>
           <Field label={t("layout.content.fit")}>
             <Select value={String(p.fit ?? "contain")} onChange={(fit) => setProps({ fit: fit === "contain" ? undefined : fit })} options={["contain", "cover"].map((f) => ({ value: f, label: t(`layout.content.fit.${f}`) }))} />
+          </Field>
+          <Field label={t("layout.content.caption")}>
+            <Input value={inlineToString(c.caption)} onChange={(e) => setContent({ caption: e.target.value || undefined })} />
+          </Field>
+          <Switch checked={p.figure === true} onChange={(on) => setProps({ figure: on || undefined })} label={t("layout.content.figure")} />
+          <Field label={t("layout.content.href")} hint={t("layout.content.hrefHint")}>
+            <Input value={String(p.href ?? "")} onChange={(e) => setProps({ href: e.target.value })} />
           </Field>
         </>
       );

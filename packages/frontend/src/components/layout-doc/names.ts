@@ -67,6 +67,25 @@ export function displayName(component: Component, t: T): string {
     case "image":
       name = plainText(c.alt);
       break;
+    case "flow": {
+      // The first title (or paragraph) of the text, without its # prefix.
+      const strings = Array.isArray(c.blocks) ? (c.blocks as unknown[]).filter((b): b is string => typeof b === "string") : [];
+      const first = strings.find((b) => /^#{1,3} /.test(b)) ?? strings[0] ?? "";
+      name = plainText(first.replace(/^(#{1,3}|>) /, ""));
+      break;
+    }
+    case "callout":
+      name = plainText(c.title) || plainText(c.text);
+      break;
+    case "tags":
+      name = Array.isArray(c.items) ? (c.items as unknown[]).map((i) => (typeof i === "string" ? i : plainText((i as Json).text))).slice(0, 3).join(", ") : "";
+      break;
+    case "progress":
+      name = first(c.items, "label");
+      break;
+    case "cover":
+      name = plainText(c.title);
+      break;
     default:
       name = "";
   }
@@ -118,7 +137,14 @@ export function partsOf(component: Component): string[] {
     const roles = paragraphs.map((p) => (typeof p === "string" ? defaultRole : String((p as { role?: string }).role ?? defaultRole)));
     return [...new Set(roles)];
   }
-  return componentDefs[component.type]?.variants ?? [];
+  const content = ((component as { content?: Json }).content ?? {}) as Json;
+  const props = ((component as { props?: Json }).props ?? {}) as Json;
+  const parts = componentDefs[component.type]?.variants ?? [];
+  // Only the parts this block has: a footer when it has one, the callout's own kind.
+  if (component.type === "table") return parts.filter((p) => p !== "footer" || content.footer !== undefined);
+  if (component.type === "image") return parts.filter((p) => p !== "caption" || content.caption !== undefined || props.figure === true);
+  if (component.type === "callout") return ["title", String(props.kind ?? "note")].filter((p) => p !== "title" || content.title !== undefined);
+  return parts;
 }
 
 /** A part's name for people ("Header", "Label", "Title 2"). */

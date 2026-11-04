@@ -4,4 +4,22 @@
  * not carry the whole library; test/marketing.test.ts fails when the library gains a
  * type this list lacks.
  */
-export const GCD_COMPONENT_TYPES = ["text", "list", "table", "code", "steps", "timeline", "card", "kpi", "chart", "image", "divider"] as const;
+export const GCD_COMPONENT_TYPES = [
+  "text",
+  "flow",
+  "list",
+  "table",
+  "code",
+  "steps",
+  "timeline",
+  "card",
+  "callout",
+  "kpi",
+  "chart",
+  "progress",
+  "tags",
+  "image",
+  "cover",
+  "toc",
+  "divider",
+] as const;
