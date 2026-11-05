@@ -106,6 +106,21 @@ async def test_portal_returns_url_for_existing_customer(client_factory, stripe_e
 
 
 @pytest.mark.asyncio
+async def test_a_stripe_refusal_is_a_clear_502(client_factory, stripe_enabled):
+    """E.g. a restricted key without Customer Portal: Write. Not a bare 500."""
+    import stripe
+
+    user = User(id="u_bill_perm", email="perm@test.com", name="B", credits=5, stripe_customer_id="cus_perm")
+    mock_client = _mock_stripe_client()
+    mock_client.v1.billing_portal.sessions.create.side_effect = stripe.PermissionError("more_permissions_required")
+    async with client_factory(user) as client:
+        with patch("app.services.billing._client", return_value=mock_client):
+            res = await client.post("/api/billing/portal")
+    assert res.status_code == 502
+    assert "payment provider" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_webhook_checkout_completed_upgrades_plan(client_factory, stripe_enabled):
     user = User(id="u_bill7", email="b7@test.com", name="B", credits=5, stripe_customer_id="cus_webhook1")
     async with client_factory(user) as seed_client:
@@ -152,6 +167,31 @@ async def test_checkout_refused_when_already_subscribed(client_factory, stripe_e
             res = await client.post("/api/billing/checkout", json={"plan": "pro"})
     assert res.status_code == 409
     mock_client.v1.checkout.sessions.create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_checkout_asks_stripe_when_the_webhook_was_lost(client_factory, stripe_enabled):
+    """Paid, but the webhook never arrived: the plan still reads Free. A second
+    checkout must not open a second subscription; the plan is healed instead."""
+    user = User(id="u_bill_lost", email="lost@test.com", name="B", credits=5, stripe_customer_id="cus_lost")
+    async with client_factory(user) as seed_client:
+        await seed_client.get("/api/users/me")
+
+    mock_client = _mock_stripe_client()
+    mock_client.v1.subscriptions.list.return_value = {"data": [
+        {"id": "sub_old_canceled", "status": "canceled", "items": {"data": [{"price": {"id": "price_pro_123"}}]}},
+        {"id": "sub_paid", "status": "active", "items": {"data": [{"price": {"id": "price_pro_123"}}]}},
+    ]}
+    async with client_factory(user) as client:
+        with patch("app.services.billing._client", return_value=mock_client):
+            res = await client.post("/api/billing/checkout", json={"plan": "pro"})
+    assert res.status_code == 409
+    mock_client.v1.checkout.sessions.create.assert_not_called()
+    assert mock_client.v1.subscriptions.list.call_args.kwargs["params"]["customer"] == "cus_lost"
+
+    async with TestSession() as session:
+        healed = (await session.execute(select(User).where(User.id == "u_bill_lost"))).scalar_one()
+        assert healed.plan == "pro" and healed.stripe_subscription_id == "sub_paid"
 
 
 @pytest.mark.asyncio

@@ -87,6 +87,20 @@ async def _get_or_create_customer(db: AsyncSession, user: User, client: stripe.S
     return customer.id
 
 
+LIVE_STATUSES = ("active", "trialing", "past_due")
+
+
+async def _live_subscription(client: stripe.StripeClient, customer_id: str):
+    """The customer's subscription that is still being paid for, if any."""
+    result = await run_in_threadpool(
+        client.v1.subscriptions.list, params={"customer": customer_id, "status": "all", "limit": 10}
+    )
+    for subscription in _safe_get(result, "data", []) or []:
+        if _safe_get(subscription, "status") in LIVE_STATUSES:
+            return subscription
+    return None
+
+
 async def create_checkout_session(
     db: AsyncSession, user: User, plan: str
 ) -> str:
@@ -102,6 +116,17 @@ async def create_checkout_session(
     client = _client()
     price_id = _price_id_for_plan(plan)
     customer_id = await _get_or_create_customer(db, user, client)
+
+    # The local plan only changes when Stripe's webhook lands. If it is late (or was
+    # lost), the check above passes and a second payment would open a second
+    # subscription. Stripe is the source of truth: ask it, and heal the plan here.
+    live = await _live_subscription(client, customer_id)
+    if live is not None:
+        await _sync_plan_from_subscription(db, customer_id, live)
+        raise HTTPException(
+            status_code=409,
+            detail="You already have a subscription. Manage it from the billing page.",
+        )
 
     session = await run_in_threadpool(client.v1.checkout.sessions.create, params={
         "mode": "subscription",
