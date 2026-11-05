@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Eyebrow } from "@/components/ui";
 import { apiCreateCheckoutSession, apiFetchMe } from "@/utils/api";
 import { track } from "@/analytics";
+import { usePageScroll } from "@/components/shared/usePageScroll";
 
 /**
  * Pieces shared by the marketing pages (Home, How it works, Pricing). Layout
@@ -16,10 +17,7 @@ export function useMarketingPage() {
   const { openSignIn } = useClerk();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.body.style.overflow = "auto";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
+  usePageScroll();
 
   const start = () => {
     track("cta_clicked", { target: "start", page: window.location.pathname, signed_in: Boolean(isSignedIn) });

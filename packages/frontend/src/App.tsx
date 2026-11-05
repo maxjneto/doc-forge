@@ -30,6 +30,7 @@ function AppInner() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/legal/:doc" element={<LegalPage />} />
+        <Route path="/contact" element={<LegalPage doc="contact" />} />
         {/* Public read-only view — outside ProtectedRoute on purpose: the
             token in the URL is the capability, not a session. */}
         <Route path="/public/:token" element={<PublicDocumentPage />} />

@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { MarketingNav } from "@/components/marketing";
 import { GCD_COMPONENT_TYPES } from "@/components/marketing/componentTypes";
 import { ClosingCta, CodeBlock, Panel, SectionHead, Shot, leadStyle, useMarketingPage } from "@/components/marketing/parts";
-import { AppFooter, TopBar } from "@/components/shared";
+import { AppFooter, SiteHeader } from "@/components/shared";
 import { useI18n } from "@/i18n";
 import { MCP_CGD_URL } from "@/utils/mcpUrl";
 
@@ -187,8 +186,8 @@ export function HowItWorksPage() {
 
   return (
     <div className="df-mk hide-scrollbar">
-      {isSignedIn ? <TopBar dashboardNav /> : <MarketingNav active="how-it-works" />}
-      <main style={{ paddingTop: isSignedIn ? 56 : 0 }}>
+      <SiteHeader />
+      <main>
         <header className="df-mk-wrap" style={{ paddingTop: 80, paddingBottom: 56, display: "flex", flexDirection: "column", gap: 20 }}>
           <SectionHead eyebrow={copy.eyebrow} title={<span style={{ fontSize: "clamp(40px, 6vw, 58px)", letterSpacing: "-.045em" }}>{copy.title}</span>} lead={copy.lead} maxWidth={860} />
           <nav className="df-mk-toc" aria-label={copy.eyebrow}>

@@ -5,7 +5,7 @@ import { setAnalyticsContext, track } from "@/analytics";
 import { useDocument } from "@/hooks/useDocument";
 import { EditorLayout } from "@/components/editor/EditorLayout";
 import { canCommentAs, canEditAs, ContextPills, type DocumentRole } from "@/components/document";
-import { TopBar } from "@/components/shared";
+import { SiteHeader } from "@/components/shared";
 import { apiFetchMembers, apiUpdateDocumentTitle } from "@/utils/api";
 import { useI18n } from "@/i18n";
 
@@ -66,7 +66,7 @@ export function DocumentPage() {
   // title, so the top bar only brands and navigates.
   return (
     <div className="h-screen w-full overflow-hidden bg-bg text-text antialiased selection:bg-heat-strong">
-      <TopBar />
+      <SiteHeader fixed />
       {document.documentMode === "layout" ? (
         <Suspense fallback={null}>
           <LayoutDocumentView

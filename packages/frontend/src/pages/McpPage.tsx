@@ -1,7 +1,7 @@
 import { MCP_URL } from "@/utils/mcpUrl";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { TopBar } from "@/components/shared";
+import { AppFooter, SiteHeader, usePageScroll } from "@/components/shared";
 import { Button, Eyebrow, IconButton, InlineCode, Input, Page, PageHeader, Pill, RichText } from "@/components/ui";
 import { apiListApiKeys, apiCreateApiKey, apiRevokeApiKey, apiUpdateApiKeyHarness } from "@/utils/api";
 import { HARNESS_META, isHarness } from "@/utils/harness";
@@ -24,6 +24,7 @@ const HARNESS_OPTIONS: Tab[] = ["claude_code", "codex", "cursor", "generic"];
 const tabLabel = (tab: Tab, t: T) => (tab === "generic" ? t("mcp.genericAgent") : HARNESS_META[tab].label);
 
 export function McpPage() {
+  usePageScroll();
   const { getToken } = useAuth();
   const { t, dateLocale } = useI18n();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
@@ -103,7 +104,7 @@ export function McpPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
-      <TopBar dashboardNav />
+      <SiteHeader />
 
       <Page>
         <PageHeader title="DocForge MCP" lead={t("mcp.lead")} />
@@ -267,6 +268,7 @@ export function McpPage() {
           </div>
         </section>
       </Page>
+      <AppFooter />
     </div>
   );
 }

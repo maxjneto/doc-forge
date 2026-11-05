@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { MarketingNav } from "@/components/marketing";
 import { ClosingCta, Panel, h2Style, leadStyle, useMarketingPage, useProCheckout } from "@/components/marketing/parts";
-import { AppFooter } from "@/components/shared";
+import { AppFooter, SiteHeader } from "@/components/shared";
 import { Button, Eyebrow } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { apiFetchTiers, type Tier } from "@/utils/api";
@@ -126,7 +125,7 @@ export function PricingPage() {
 
   return (
     <div className="df-mk hide-scrollbar">
-      <MarketingNav active="pricing" />
+      <SiteHeader />
       <main>
         <section style={{ position: "relative", overflow: "hidden" }}>
           <div className="df-mk-gridbg" aria-hidden />

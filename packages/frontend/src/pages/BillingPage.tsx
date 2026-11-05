@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { TopBar } from "@/components/shared";
+import { AppFooter, SiteHeader, usePageScroll } from "@/components/shared";
 import {
   apiCreatePortalSession,
   apiFetchMe,
@@ -21,6 +21,7 @@ interface UsageState {
 }
 
 export function BillingPage() {
+  usePageScroll();
   const { getToken } = useAuth();
   const { t, dateLocale } = useI18n();
   const navigate = useNavigate();
@@ -126,7 +127,7 @@ export function BillingPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
-      <TopBar dashboardNav />
+      <SiteHeader />
 
       <Page>
         {checkoutStatus === "success" && <Banner tone="ok">{t("billing.checkoutSuccess")}</Banner>}
@@ -184,6 +185,7 @@ export function BillingPage() {
           </div>
         </Card>
       </Page>
+      <AppFooter />
     </div>
   );
 }

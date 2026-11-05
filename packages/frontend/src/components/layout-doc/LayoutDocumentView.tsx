@@ -926,5 +926,5 @@ function surfaceName(surface: Surface, t: (key: string, vars?: Record<string, st
 }
 
 function Centered({ children }: { children: ReactNode }) {
-  return <div style={{ height: "100%", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>{children}</div>;
+  return <div style={{ height: "100%", paddingTop: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>{children}</div>;
 }
