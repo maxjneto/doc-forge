@@ -70,6 +70,23 @@ export function initAnalytics(): void {
     },
   });
   enabled = true;
+  applyStoredConsent();
+}
+
+/**
+ * A choice made on an earlier visit holds on this one. The banner only shows (and
+ * only calls setConsent) when there is no choice yet, and PostHog's own opt-in flag
+ * can be missing or stale (cleared storage, a choice made before this build), so
+ * without this a returning visitor who accepted would stay opted out for good.
+ */
+function applyStoredConsent(): void {
+  const consent = readConsent();
+  if (consent === "accepted") {
+    if (!posthog.has_opted_in_capturing()) posthog.opt_in_capturing();
+    if (!isPublicPath(window.location.pathname)) posthog.startSessionRecording();
+  } else if (consent === "declined" && !posthog.has_opted_out_capturing()) {
+    posthog.opt_out_capturing();
+  }
 }
 
 export function analyticsEnabled(): boolean {
