@@ -6,7 +6,8 @@
 
 ```
 src/
-  App.tsx              routes; Clerk and PostHog providers; cookie consent
+  App.tsx              routes; Clerk provider; analytics init; cookie consent
+  analytics/           the only way to PostHog: track(), context, consent, privacy masks (see analytics.md)
   pages/               one component per route
   components/
     editor/            the Markdown editor and its review panels
