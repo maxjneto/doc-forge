@@ -215,6 +215,13 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
     elif status_ in ("canceled", "unpaid", "incomplete_expired"):
         user.plan = "free"
         user.stripe_subscription_id = None
+    # This week's allowance follows the plan: what was already used still counts,
+    # the rest moves by the difference (free → Pro: 15 left becomes 100 left).
+    from app.services.credits import weekly_document_allowance
+
+    delta = weekly_document_allowance(user.plan) - weekly_document_allowance(previous_plan)
+    if delta:
+        user.credits = max(0, (user.credits or 0) + delta)
     await db.commit()
 
     # The money events, last step of the activation funnel. The plan also goes on

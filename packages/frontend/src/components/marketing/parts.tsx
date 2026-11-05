@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Eyebrow } from "@/components/ui";
-import { apiCreateCheckoutSession } from "@/utils/api";
+import { apiCreateCheckoutSession, apiFetchMe } from "@/utils/api";
 import { track } from "@/analytics";
 
 /**
@@ -28,12 +28,35 @@ export function useMarketingPage() {
   return { isSignedIn: Boolean(isSignedIn), start, navigate };
 }
 
-/** "Get Pro": the Stripe checkout when signed in, else sign in and come back to the pricing page. */
+/**
+ * "Get Pro": the Stripe checkout when signed in, else sign in and come back to the
+ * pricing page. Knows the signed-in plan, so a subscriber is sent to manage it
+ * instead of being offered (and refused) a second subscription.
+ */
 export function useProCheckout(errorMessage: string) {
   const { isSignedIn, getToken } = useAuth();
   const { openSignIn } = useClerk();
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      setPlan(null);
+      return;
+    }
+    let cancelled = false;
+    apiFetchMe(getToken)
+      .then((me) => !cancelled && setPlan(me.plan))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, getToken]);
+
+  const subscribed = plan !== null && plan !== "free";
+  const manage = () => navigate("/billing");
 
   const upgrade = async () => {
     track("cta_clicked", { target: "pro_checkout", page: window.location.pathname, signed_in: Boolean(isSignedIn) });
@@ -45,12 +68,16 @@ export function useProCheckout(errorMessage: string) {
     setError(null);
     try {
       window.location.href = await apiCreateCheckoutSession("pro", getToken);
-    } catch {
-      setError(errorMessage);
+    } catch (reason) {
       setBusy(false);
+      if (reason instanceof Error && reason.message === "ALREADY_SUBSCRIBED") {
+        manage();
+        return;
+      }
+      setError(errorMessage);
     }
   };
-  return { upgrade, busy, error };
+  return { upgrade, busy, error, subscribed, manage };
 }
 
 export const h2Style: CSSProperties = { margin: 0, fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.07, letterSpacing: "-.038em", fontWeight: 600 };

@@ -140,6 +140,8 @@ export async function apiCreateCheckoutSession(
     headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
     body: JSON.stringify({ plan }),
   });
+  // 409: this account already pays (the backend checks Stripe itself).
+  if (res.status === 409) throw new Error("ALREADY_SUBSCRIBED");
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { detail?: string }).detail ?? "Failed to start checkout");

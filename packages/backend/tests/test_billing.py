@@ -152,6 +152,8 @@ async def test_webhook_checkout_completed_upgrades_plan(client_factory, stripe_e
         db_user = result.scalar_one()
         assert db_user.plan == "pro"
         assert db_user.stripe_subscription_id == "sub_123"
+        # The week's allowance follows the plan: 5 left of 15 (10 used) is 90 left of 100.
+        assert db_user.credits == 90
 
 
 @pytest.mark.asyncio
@@ -251,6 +253,8 @@ async def test_webhook_subscription_deleted_reverts_to_free(client_factory, stri
         db_user = result.scalar_one()
         assert db_user.plan == "free"
         assert db_user.stripe_subscription_id is None
+        # And back: 5 left of 100 (95 used) is more than the free 15, so 0, never negative.
+        assert db_user.credits == 0
 
 
 @pytest.mark.asyncio
