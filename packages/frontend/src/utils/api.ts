@@ -178,6 +178,16 @@ export async function apiFetchMe(getToken: GetToken): Promise<CurrentUser> {
   return res.json() as Promise<CurrentUser>;
 }
 
+/** The cookie choice, kept on the account: the backend's events are anonymous unless it is "accepted". */
+export async function apiUpdateAnalyticsConsent(consent: "accepted" | "declined", getToken: GetToken): Promise<void> {
+  const res = await fetch(`${API_BASE}/users/me`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken, { "Content-Type": "application/json" }),
+    body: JSON.stringify({ analytics_consent: consent }),
+  });
+  if (!res.ok) throw new Error("Failed to save the analytics choice");
+}
+
 export async function apiListDocuments(getToken: GetToken, includeArchived = false): Promise<Document[]> {
   const search = includeArchived ? "?include_archived=true" : "";
   const res = await fetch(`${API_BASE}/documents${search}`, {
@@ -667,6 +677,19 @@ export async function apiSaveLayoutVersion(
 }
 
 /** Rename a saved version or change its note; `name: null` takes it off the saved list. */
+/** "Reviewed": a person went over what agents changed. Recorded by the backend (north star). */
+export async function apiLayoutReviewed(
+  documentId: string,
+  review: { outcome: "kept" | "undone"; changes: number; effects: number },
+  getToken: GetToken,
+): Promise<void> {
+  await fetch(`${API_BASE}/documents/${documentId}/layout/reviewed`, {
+    method: "POST",
+    headers: { ...(await authHeaders(getToken)), "Content-Type": "application/json" },
+    body: JSON.stringify(review),
+  }).catch(() => undefined);
+}
+
 export async function apiUpdateLayoutRevision(
   documentId: string,
   revision: number,

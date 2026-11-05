@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useParams } from "react-router-dom";
 import { DocumentOutline, LanguageSwitcher, MarkdownRenderer } from "@/components/shared";
 import { API_BASE } from "@/utils/api";
+import { pauseRecording } from "@/analytics";
 import { parseHeadings } from "@/utils/documentStructure";
 import { scrollToDocumentHeading, useDocumentScrollSpy } from "@/utils/useDocumentScrollSpy";
 import { useI18n } from "@/i18n";
@@ -42,6 +43,9 @@ export function PublicDocumentPage() {
   const navigateTo = useCallback((slug: string) => {
     if (scrollToDocumentHeading(scrollRef.current, contentRef.current, slug)) setActiveSlug(slug);
   }, []);
+
+  // The token in this URL is the capability to read the document: no session recording here.
+  useEffect(() => pauseRecording(), []);
 
   useEffect(() => {
     let cancelled = false;

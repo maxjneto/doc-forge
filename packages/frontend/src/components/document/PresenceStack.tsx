@@ -2,6 +2,8 @@ import { useI18n } from "@/i18n";
 import type { Presence } from "@/types";
 import { relativeTime } from "@/utils/time";
 import { ActorAvatar } from "./Actor";
+import { useEffect, useRef } from "react";
+import { track } from "@/analytics";
 
 const SHOWN = 4;
 
@@ -11,6 +13,14 @@ const SHOWN = 4;
  */
 export function PresenceStack({ presence }: { presence: Presence | null }) {
   const { t, dateLocale } = useI18n();
+  const people = presence?.people.filter((p) => !p.isMe).length ?? 0;
+  const agents = presence?.agents.length ?? 0;
+  const seen = useRef(false);
+  useEffect(() => {
+    if (seen.current || people + agents === 0) return;
+    seen.current = true;
+    track("collab_session_joined", { people, agents });
+  }, [people, agents]);
   if (!presence) return null;
   const others = [
     ...presence.people
@@ -28,7 +38,7 @@ export function PresenceStack({ presence }: { presence: Presence | null }) {
   const hidden = others.slice(SHOWN);
 
   return (
-    <div className="df-presence" role="group" aria-label={t("doc.presence.label", { count: others.length })}>
+    <div className="df-presence ph-no-capture" role="group" aria-label={t("doc.presence.label", { count: others.length })}>
       {others.slice(0, SHOWN).map((o) => (
         <span key={o.key} title={o.title} className="df-presence__item">
           <ActorAvatar actor={o.actor} size={26} ring />

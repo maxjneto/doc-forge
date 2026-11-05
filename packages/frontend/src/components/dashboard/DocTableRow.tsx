@@ -69,7 +69,7 @@ export function DocTableRow({
 
   return (
     <div
-      className="df-row"
+      className="df-row ph-sensitive"
       role="link"
       tabIndex={0}
       onClick={renaming ? undefined : () => { if (!consumeDocumentDragClick(doc.id)) onClick(); }}
@@ -128,6 +128,7 @@ export function DocTableRow({
             />
           ) : (
             <div
+              className="ph-no-capture"
               title={doc.title}
               style={{
                 fontSize: 13,

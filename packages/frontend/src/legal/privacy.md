@@ -1,6 +1,6 @@
 # Privacy Policy
 
-*Last updated: October 28, 2026*
+*Last updated: November 4, 2026*
 
 This Privacy Policy describes how DocForge ("we", "us", "our") collects, uses, and shares information when you use the Service. This policy is intended to comply with the **Lei Geral de Proteção de Dados (LGPD)** — Brazilian Federal Law No. 13,709/2018.
 
@@ -18,7 +18,8 @@ This Privacy Policy describes how DocForge ("we", "us", "our") collects, uses, a
 
 - **At registration and login** — via Clerk authentication (OAuth or email/password flow)
 - **During use** — when you or an agent using one of your API keys create or change documents
-- **In the browser** — product analytics run only after you accept cookies
+- **In the browser** — product analytics, session recordings, click heatmaps, page performance and error reports run only after you accept cookies
+- **On our servers** — usage events about your account (for example: a document was created, an agent called a tool, a change was reviewed). They never contain document text. If you have not accepted cookies, these events are anonymous: they carry a one-way pseudonym instead of your user ID and no email, plan or other profile data
 
 ## 3. Purpose of Processing
 
@@ -27,8 +28,8 @@ This Privacy Policy describes how DocForge ("we", "us", "our") collects, uses, a
 | User authentication and account management | Execution of contract (Art. 7, V) |
 | Storing, versioning and publishing documents | Execution of contract (Art. 7, V) |
 | Billing for paid plans | Execution of contract (Art. 7, V) |
-| Service improvement and debugging | Legitimate interest (Art. 7, IX) |
-| Browser analytics | Consent (Art. 7, I) |
+| Service improvement and debugging, including anonymous server-side usage events and error reports | Legitimate interest (Art. 7, IX) |
+| Browser analytics, session recordings and usage events tied to your account | Consent (Art. 7, I) |
 
 ## 4. Data Sharing
 
@@ -37,7 +38,7 @@ We share data only with the providers that run parts of the Service:
 | Provider | Purpose |
 |---|---|
 | **Clerk** | Authentication and identity management |
-| **PostHog** | Product analytics (in the browser only after consent; text in the editor is masked in session recordings) |
+| **PostHog** | Product analytics and error reports. In the browser only after consent. Session recordings mask all document text (in both editors, panels, comments and titles) and hide images; public-link pages are never recorded and their links are never sent |
 | **Stripe** | Payment processing for paid plans |
 
 DocForge does not send your documents to AI model providers. The AI agents you connect run on your side, under your own agreements with their providers.

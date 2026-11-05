@@ -3,6 +3,7 @@ import { useAuth, useClerk } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { Eyebrow } from "@/components/ui";
 import { apiCreateCheckoutSession } from "@/utils/api";
+import { track } from "@/analytics";
 
 /**
  * Pieces shared by the marketing pages (Home, How it works, Pricing). Layout
@@ -20,7 +21,10 @@ export function useMarketingPage() {
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  const start = () => (isSignedIn ? navigate("/home") : openSignIn({ afterSignInUrl: "/home", afterSignUpUrl: "/home" }));
+  const start = () => {
+    track("cta_clicked", { target: "start", page: window.location.pathname, signed_in: Boolean(isSignedIn) });
+    return isSignedIn ? navigate("/home") : openSignIn({ afterSignInUrl: "/home", afterSignUpUrl: "/home" });
+  };
   return { isSignedIn: Boolean(isSignedIn), start, navigate };
 }
 
@@ -32,6 +36,7 @@ export function useProCheckout(errorMessage: string) {
   const [error, setError] = useState<string | null>(null);
 
   const upgrade = async () => {
+    track("cta_clicked", { target: "pro_checkout", page: window.location.pathname, signed_in: Boolean(isSignedIn) });
     if (!isSignedIn) {
       openSignIn({ afterSignInUrl: "/pricing", afterSignUpUrl: "/pricing" });
       return;
@@ -95,6 +100,8 @@ export function CodeBlock({ code, copyLabel, copiedLabel, prompt = false, style 
 }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
+    // Marketing snippets are our own text; the first words say which one it was.
+    track("snippet_copied", { page: window.location.pathname, snippet: code.trim().split(/\s+/).slice(0, 3).join(" ") });
     navigator.clipboard?.writeText(code.replace(/\\\n\s*/g, "")).then(() => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);

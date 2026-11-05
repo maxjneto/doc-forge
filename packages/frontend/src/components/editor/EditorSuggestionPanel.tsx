@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import posthog from "posthog-js";
 import type { Suggestion } from "@/types";
 import {
   apiFetchSuggestions,
@@ -35,11 +34,6 @@ function SuggestionCard({ suggestion, index, onResolved, readOnly = false }: Sug
     setError(null);
     try {
       await apiAcceptSuggestion(suggestion.id, getToken);
-      posthog.capture("suggestion_reviewed", {
-        document_id: suggestion.documentId,
-        suggestion_id: suggestion.id,
-        decision: "accepted",
-      });
       onResolved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to accept suggestion");
@@ -53,12 +47,6 @@ function SuggestionCard({ suggestion, index, onResolved, readOnly = false }: Sug
     setBusy(true);
     try {
       await apiRejectSuggestion(suggestion.id, comment.trim() || null, getToken);
-      posthog.capture("suggestion_reviewed", {
-        document_id: suggestion.documentId,
-        suggestion_id: suggestion.id,
-        decision: "rejected",
-        has_comment: Boolean(comment.trim()),
-      });
       onResolved();
     } finally {
       setBusy(false);

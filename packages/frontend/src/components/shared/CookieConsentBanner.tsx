@@ -1,45 +1,20 @@
 import { useState } from "react";
-import posthog from "posthog-js";
+import { setConsent, storedConsent, type Consent } from "@/analytics";
 import { useI18n } from "@/i18n";
 
-const CONSENT_KEY = "docforge_cookie_consent";
-
-function readConsent(): string | null {
-  try {
-    return localStorage.getItem(CONSENT_KEY);
-  } catch {
-    return null;
-  }
-}
-
-/** True when this browser accepted analytics cookies, now or on an earlier visit. */
-export function hasAnalyticsConsent(): boolean {
-  return readConsent() === "accepted";
-}
-
 interface CookieConsentBannerProps {
-  onOptIn?: () => void;
+  onChoice?: (consent: Consent) => void;
 }
 
-export default function CookieConsentBanner({ onOptIn }: CookieConsentBannerProps) {
+export default function CookieConsentBanner({ onChoice }: CookieConsentBannerProps) {
   const { t } = useI18n();
-  const [visible, setVisible] = useState(
-    () => readConsent() === null
-  );
+  const [visible, setVisible] = useState(() => storedConsent() === null);
 
   if (!visible) return null;
 
-  function handleAccept() {
-    localStorage.setItem(CONSENT_KEY, "accepted");
-    posthog.opt_in_capturing();
-    posthog.startSessionRecording();
-    onOptIn?.();
-    setVisible(false);
-  }
-
-  function handleDecline() {
-    localStorage.setItem(CONSENT_KEY, "declined");
-    posthog.opt_out_capturing();
+  function choose(consent: Consent) {
+    setConsent(consent);
+    onChoice?.(consent);
     setVisible(false);
   }
 
@@ -50,13 +25,13 @@ export default function CookieConsentBanner({ onOptIn }: CookieConsentBannerProp
       </p>
       <div className="flex shrink-0 gap-2">
         <button
-          onClick={handleDecline}
+          onClick={() => choose("declined")}
           className="rounded-md px-4 py-2 text-body text-dim hover:text-text transition-colors"
         >
           {t("cookie.decline")}
         </button>
         <button
-          onClick={handleAccept}
+          onClick={() => choose("accepted")}
           className="rounded-md bg-heat px-4 py-2 text-body font-medium text-on-heat hover:bg-heat-hi transition-colors"
         >
           {t("cookie.accept")}

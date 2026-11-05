@@ -8,6 +8,7 @@ import { HARNESS_META, isHarness } from "@/utils/harness";
 import type { ApiKey, ApiKeyCreateResponse } from "@/types";
 import { useI18n } from "@/i18n";
 import { relativeTime, shortDate } from "@/utils/time";
+import { track } from "@/analytics";
 
 type Tab = "claude_code" | "codex" | "cursor" | "generic";
 type T = (key: string, vars?: Record<string, string | number>) => string;
@@ -92,6 +93,8 @@ export function McpPage() {
   }
 
   function copy(text: string, key: string) {
+    // Never the key itself: only which snippet was copied, or that a new key was.
+    track(key === "new-key" ? "api_key_copied" : "mcp_snippet_copied", key === "new-key" ? {} : { snippet: key });
     void navigator.clipboard.writeText(text).then(() => {
       setCopied(key);
       setTimeout(() => setCopied(null), 1500);

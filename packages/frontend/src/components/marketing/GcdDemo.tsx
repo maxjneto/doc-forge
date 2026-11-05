@@ -3,6 +3,7 @@ import { createEngine, reviewLayout, type Engine } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
 import { loadRegistry } from "@/components/layout-doc/fonts";
 import demo from "./demo/report-demo.json";
+import { track } from "@/analytics";
 
 /**
  * The Home's live demo: the report template built step by step with the same
@@ -144,7 +145,7 @@ export default function GcdDemo() {
           )) : <div style={{ color: "var(--color-faint)" }}>{copy.loading}</div>}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <button type="button" className="df-btn df-btn--secondary" style={{ minHeight: 44 }} onClick={play} disabled={!html}>
+          <button type="button" className="df-btn df-btn--secondary" style={{ minHeight: 44 }} onClick={() => { track("demo_interacted", { action: "replay" }); play(); }} disabled={!html}>
             <span className="material-symbols-outlined" aria-hidden style={{ fontSize: 16 }}>replay</span>
             {copy.replay}
           </button>
@@ -154,7 +155,7 @@ export default function GcdDemo() {
               key={t.id}
               type="button"
               aria-pressed={i === theme}
-              onClick={() => setTheme(i)}
+              onClick={() => { track("demo_interacted", { action: "theme", theme: t.id }); setTheme(i); }}
               style={{ minHeight: 44, padding: "0 16px", borderRadius: "var(--radius-pill)", border: `1px solid ${i === theme ? "var(--color-heat)" : "var(--color-outline-md)"}`, background: i === theme ? "var(--color-heat-wash)" : "transparent", color: "var(--color-text)", fontSize: "var(--text-body-sm)", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
             >
               {t.name}

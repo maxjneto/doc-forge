@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "@/components/ui";
 import { useI18n } from "@/i18n";
+import { maskForRecording } from "@/analytics";
 
 /** Page gaps and shadows off: the slides sit one under the other, exactly one slide tall each. */
 const STAGE_CSS = "<style>html,body{background:transparent!important;overflow:hidden!important}.dfl-doc{padding:0!important}.dfl-page{margin:0!important;box-shadow:none!important}</style>";
@@ -61,7 +62,7 @@ export function PresentMode({ html, pages, width, height, start, onClose }: { ht
     return () => clearTimeout(timer);
   }, [page]);
 
-  const srcDoc = html.replace("</head>", `${STAGE_CSS}</head>`);
+  const srcDoc = maskForRecording(html.replace("</head>", `${STAGE_CSS}</head>`));
   return createPortal(
     <div ref={stage} className="df-present" data-idle={idle || undefined} onMouseMove={() => setIdle(false)} role="dialog" aria-label={t("layout.slides.presenting")}>
       <div className="df-present__frame" style={{ width: width * scale, height: height * scale }} onClick={() => setPage((p) => Math.min(pages, p + 1))}>

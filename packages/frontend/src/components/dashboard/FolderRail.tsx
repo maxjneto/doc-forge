@@ -270,6 +270,7 @@ export function FolderRail({
           ) : (
             <button
               onClick={() => { if (!consumeFolderDragClick(folder.id)) onSelect(folder.id); }}
+              className="ph-no-capture"
               title={folder.name}
               style={{ flex: 1, minWidth: 0, padding: "6px 0 6px 4px", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: 0, background: "transparent", color: active ? "var(--color-text)" : "var(--color-dim)", font: "inherit", fontSize: 12.5, cursor: "inherit" }}
             >

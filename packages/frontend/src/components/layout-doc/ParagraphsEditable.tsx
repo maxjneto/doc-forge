@@ -164,6 +164,8 @@ export const ParagraphsEditable = forwardRef<ParagraphsHandle, ParagraphsEditabl
         aria-label={props["aria-label"]}
         contentEditable
         suppressContentEditableWarning
+        // What people type here is document text: masked in session recordings.
+        data-ph-mask
         className={className}
         style={style}
         onKeyDown={onKeyDown}

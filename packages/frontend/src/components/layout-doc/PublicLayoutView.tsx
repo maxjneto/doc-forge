@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createEngine, readDocument } from "@docforge-lib/layout";
 import { useI18n } from "@/i18n";
+import { maskForRecording } from "@/analytics";
 import { loadRegistry } from "./fonts";
 
 /**
@@ -8,7 +9,8 @@ import { loadRegistry } from "./fonts";
  * other site that loads it with @docforge-lib/layout). Read only: no editing layer.
  * Loaded lazily, so the Markdown reader does not carry the library.
  */
-export default function PublicLayoutView({ content, title }: { content: unknown; title: string }) {
+// `title` is accepted but not put on the iframe: attributes are not masked in session recordings.
+export default function PublicLayoutView({ content }: { content: unknown; title?: string }) {
   const { t } = useI18n();
   const frame = useRef<HTMLIFrameElement>(null);
   const [html, setHtml] = useState<string | null>(null);
@@ -37,8 +39,8 @@ export default function PublicLayoutView({ content, title }: { content: unknown;
   return (
     <iframe
       ref={frame}
-      title={title}
-      srcDoc={html}
+      title={t("layout.frame")}
+      srcDoc={maskForRecording(html)}
       // No script runs inside; same origin lets the fonts load and the height be read.
       sandbox="allow-same-origin allow-modals"
       onLoad={() => {

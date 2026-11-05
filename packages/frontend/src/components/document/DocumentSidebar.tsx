@@ -109,7 +109,7 @@ export function DocumentSidebar<T extends string>({ tabs, active, open, onSelect
             <span style={{ ...textStyle.group, color: "var(--color-text)" }}>{current?.label}</span>
             <IconButton icon="right_panel_close" label={t("layout.side.hide")} onClick={onClose} />
           </header>
-          <div className={body === "flush" ? "df-side-panel__body df-side-panel__body--flush" : "df-side-panel__body"}>{children}</div>
+          <div className={body === "flush" ? "df-side-panel__body df-side-panel__body--flush ph-sensitive" : "df-side-panel__body ph-sensitive"}>{children}</div>
         </aside>
       )}
       <nav className="df-side-rail" aria-label={t("doc.panels")}>

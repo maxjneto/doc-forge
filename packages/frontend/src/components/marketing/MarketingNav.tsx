@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { BrandMark } from "./BrandMark";
 import { LanguageSwitcher } from "@/components/shared";
 import { useI18n } from "@/i18n";
+import { track } from "@/analytics";
 
 type NavKey = "home" | "how-it-works" | "pricing" | null;
 
@@ -14,6 +15,7 @@ export function MarketingNav({ active = null }: { active?: NavKey }) {
   const { t } = useI18n();
 
   function handleCta() {
+    track("cta_clicked", { target: "start", location: "nav", page: window.location.pathname, signed_in: Boolean(isSignedIn) });
     if (isSignedIn) navigate("/home");
     else openSignIn({ afterSignInUrl: "/home", afterSignUpUrl: "/home" });
   }

@@ -198,7 +198,7 @@ export const EditorCenterPanel = forwardRef<EditorCenterHandle, EditorCenterPane
           ref={scrollRef}
           onScroll={reportSourceViewport}
           style={{ flex: 1, overflowY: "auto" }}
-          className="df-scroll-thin editor-content"
+          className="df-scroll-thin editor-content ph-sensitive"
         >
           {openArtifact ? (
             <div>
