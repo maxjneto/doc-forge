@@ -50,6 +50,7 @@ from app.schemas.layout import (
     LayoutPublishState,
     LayoutReplaceRequest,
     LayoutReviewData,
+    LayoutReviewedRequest,
     LayoutReviewResponse,
     LayoutRevisionItem,
     LayoutRevisionResponse,
@@ -73,10 +74,10 @@ from app.services.layout_notes import record_changes
 from app.services.observability import capture_account_event, capture_event
 
 
-def _track(request: Request, user_id: str, document_id: uuid.UUID | str, event: str, props: dict | None = None) -> None:
+def _track(request: Request, user: User | str, document_id: uuid.UUID | str, event: str, props: dict | None = None) -> None:
     """A layout usage event, tagged with who acted: `agent` (API key, i.e. MCP) or `person`."""
     source = "agent" if getattr(request.state, "api_key_id", None) else "person"
-    capture_event(str(user_id), str(document_id), event, {"source": source, **(props or {})})
+    capture_event(user, str(document_id), event, {"source": source, "document_mode": LAYOUT_MODE, **(props or {})})
 
 router = APIRouter(tags=["layout"])
 
@@ -264,13 +265,11 @@ async def create_layout_document(
         await refund_document_creation(db, user_id)
         raise
 
-    if api_key_id:
-        capture_event(str(user_id), str(doc.id), "mcp_layout_document_created", {"has_content": payload.content is not None})
     _track(
-        request, user_id, doc.id, "layout_document_created",
+        request, current_user, doc.id, "document_created",
         {
             "template": payload.template or ("content" if payload.content is not None else "blank"),
-            "format": "slide" if any(s.get("size") == "Slide" for s in content.get("surfaces", [])) else "page",
+            "document_kind": "slides" if any(s.get("size") == "Slide" for s in content.get("surfaces", [])) else "page",
             "components": len(content.get("components", [])),
         },
     )
@@ -379,8 +378,25 @@ async def publish_layout(
     )
     await db.commit()
     await db.refresh(layout)
-    _track(request, current_user.id, document_id, "layout_published", {"revision": revision, "behind": layout.revision - revision})
+    _track(request, current_user, document_id, "document_published", {"revision": revision, "behind": layout.revision - revision})
     return _publish_state(document_id, doc, layout)
+
+
+@router.post("/documents/{document_id}/layout/reviewed", status_code=204)
+async def layout_reviewed(
+    request: Request,
+    document_id: uuid.UUID,
+    payload: LayoutReviewedRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """A person reviewed the agents' changes. Recorded here, not only in the browser,
+    because "agent changes reviewed by a person" is the product's north star and must
+    count whether or not the person accepted analytics cookies."""
+    await _load(db, document_id, current_user, "read")
+    _track(request, current_user, document_id, "agent_changes_reviewed", {
+        "outcome": payload.outcome, "changes": payload.changes, "effects": payload.effects,
+    })
 
 
 @router.delete("/documents/{document_id}/layout/publish", response_model=LayoutPublishState)
@@ -403,7 +419,7 @@ async def unpublish_layout(
     )
     await db.commit()
     await db.refresh(layout)
-    _track(request, current_user.id, document_id, "layout_unpublished")
+    _track(request, current_user, document_id, "document_unpublished")
     return _publish_state(document_id, doc, layout)
 
 
@@ -471,7 +487,7 @@ async def read_public_layout(
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
     content, notes = await layout_service.for_reader(layout.published_content, format)
-    capture_event(str(doc.user_id), str(doc.id), "layout_public_read", {"source": "public", "format": target, "downgraded": bool(notes)})
+    capture_event(str(doc.user_id), str(doc.id), "public_document_read", {"source": "public", "document_mode": LAYOUT_MODE, "format": target, "downgraded": bool(notes)})
     return JSONResponse(
         {
             "document_id": str(doc.id),
@@ -572,7 +588,6 @@ async def render_layout_image(
     result = await layout_service.render_image(layout.content, page, scale, ids)
     if not result.get("png"):
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="The layout service cannot draw images (resvg is not installed).")
-    _track(request, current_user.id, document_id, "layout_page_rendered", {"page": page, "scale": scale, "highlight": len(ids or [])})
     return LayoutImageResponse(
         document_id=str(document_id),
         revision=layout.revision,
@@ -596,7 +611,7 @@ async def review_layout(
     _, layout = await _load(db, document_id, current_user, "read")
     result = await layout_service.review(layout.content)
     codes = sorted({f.get("code", "") for f in result["findings"]})
-    _track(request, current_user.id, document_id, "layout_reviewed", {"findings": len(result["findings"]), "codes": ",".join(codes)})
+    _track(request, current_user, document_id, "layout_checked", {"findings": len(result["findings"]), "codes": ",".join(codes)})
     return LayoutReviewResponse(document_id=str(document_id), revision=layout.revision, findings=result["findings"], text=result["text"])
 
 
@@ -634,7 +649,7 @@ async def apply_layout_ops(
     )
     op_types = sorted({str(op.get("op")) for op in payload.ops if isinstance(op, dict)})
     _track(
-        request, current_user.id, document_id, "layout_write",
+        request, current_user, document_id, "layout_changed",
         {"ops": count, "op_types": ",".join(op_types), "side_effects": len(changes), "has_note": bool(payload.note), "revision": revision},
     )
     return LayoutWriteResponse(
@@ -756,7 +771,7 @@ async def replace_layout(
         changes=changes,
     )
     # The editor replaces the whole document for undo, redo, "undo all" and restoring a version.
-    _track(request, current_user.id, document_id, "layout_replaced", {"side_effects": len(changes), "revision": revision})
+    _track(request, current_user, document_id, "layout_changed", {"replaced": True, "side_effects": len(changes), "revision": revision})
     return LayoutWriteResponse(
         document_id=str(document_id),
         ok=True,
@@ -910,7 +925,7 @@ async def create_layout_annotation(
     sse_service.publish(str(document_id), SSEEvent(type="layout_note_changed", payload={"doc_id": str(document_id), "note_id": str(note.id)}))
     if payload.code == "review-request":
         review = payload.review or LayoutReviewData()
-        _track(request, current_user.id, document_id, "layout_review_requested", {"questions": len(review.questions), "focus": len(review.focus)})
+        _track(request, current_user, document_id, "review_requested", {"questions": len(review.questions), "focus": len(review.focus)})
     elif payload.code == "review-answer":
         minutes = None
         if payload.request_id:
@@ -920,13 +935,13 @@ async def create_layout_annotation(
                 asked = None
             if asked is not None and asked.created_at is not None and note.created_at is not None:
                 minutes = round((note.created_at - asked.created_at).total_seconds() / 60, 1)
-        _track(request, current_user.id, document_id, "layout_review_answered", {"answers": len(payload.answers or {}), "minutes_to_answer": minutes})
+        _track(request, current_user, document_id, "review_answered", {"answers": len(payload.answers or {}), "minutes_to_answer": minutes})
     elif parent is not None:
-        _track(request, current_user.id, document_id, "layout_note_replied", {"to_agent_request": bool(parent.for_agent), "thread_by_agent": parent.api_key_id is not None})
+        _track(request, current_user, document_id, "comment_created", {"reply": True, "to_agent_request": bool(parent.for_agent), "thread_by_agent": parent.api_key_id is not None})
     else:
         _track(
-            request, current_user.id, document_id, "layout_annotation_created",
-            {"anchor": "rect" if "rect" in anchor else "component" if anchor.get("component") else "document", "for_agent": bool(payload.for_agent)},
+            request, current_user, document_id, "comment_created",
+            {"reply": False, "anchor": "rect" if "rect" in anchor else "component" if anchor.get("component") else "document", "for_agent": bool(payload.for_agent)},
         )
     return _note_response(note, author=(await _authors(db, [note])).get(note.id))
 
@@ -954,7 +969,7 @@ async def update_layout_note(
     await db.refresh(note)
     sse_service.publish(str(note.document_id), SSEEvent(type="layout_note_changed", payload={"doc_id": str(note.document_id), "note_id": str(note.id)}))
     _track(
-        request, current_user.id, note.document_id, "layout_note_status",
+        request, current_user, note.document_id, "comment_status_changed",
         {"status": payload.status or note.status, "kind": note.kind, "code": note.code or "", "for_agent": bool(note.for_agent)},
     )
     return _note_response(note, author=(await _authors(db, [note])).get(note.id))
@@ -1076,7 +1091,7 @@ async def save_layout_version(
     await db_service.log_activity(db, document_id, "snapshot", description=f"Version saved: {row.name}", api_key_id=getattr(request.state, "api_key_id", None))
     await db.commit()
     sse_service.publish(str(document_id), SSEEvent(type="layout_version_saved", payload={"doc_id": str(document_id), "revision": row.revision}))
-    _track(request, current_user.id, document_id, "layout_version_saved", {"revision": row.revision, "has_note": bool(row.note), "behind": layout.revision - row.revision})
+    _track(request, current_user, document_id, "version_saved", {"revision": row.revision, "has_note": bool(row.note), "behind": layout.revision - row.revision})
     return _revision_item(row, (await _authors(db, [row])).get(row.id))
 
 
@@ -1100,7 +1115,7 @@ async def update_layout_revision(
     await db.commit()
     await db.refresh(row)
     sse_service.publish(str(document_id), SSEEvent(type="layout_version_saved", payload={"doc_id": str(document_id), "revision": row.revision}))
-    _track(request, current_user.id, document_id, "layout_version_updated", {"revision": row.revision, "unsaved": row.name is None})
+    _track(request, current_user, document_id, "version_renamed", {"revision": row.revision, "unsaved": row.name is None})
     return _revision_item(row, (await _authors(db, [row])).get(row.id))
 
 
@@ -1174,7 +1189,7 @@ async def create_layout_theme(
     await db.commit()
     await db.refresh(theme)
     capture_account_event(
-        str(current_user.id), "layout_theme_saved",
+        current_user, "theme_saved",
         {"source": "agent" if theme.api_key_id else "person", "groups": ",".join(sorted(tokens)), "colors": len(tokens.get("color") or {})},
     )
     return _theme_response(theme)

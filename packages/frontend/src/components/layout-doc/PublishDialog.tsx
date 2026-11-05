@@ -4,7 +4,7 @@ import { Button, Dialog, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { apiGetLayoutPublication, apiPublishLayout, apiUnpublishLayout, type LayoutPublication } from "@/utils/api";
 import { relativeTime } from "@/utils/time";
-import { track } from "./track";
+import { track } from "@/analytics";
 
 const codeBox = {
   flex: 1,
@@ -84,7 +84,7 @@ export function PublishDialog({
                   onClick={() => {
                     void navigator.clipboard.writeText(link);
                     setCopied(true);
-                    track("layout_public_link_copied");
+                    track("public_link_copied");
                   }}
                 >
                   {copied ? t("share.copied") : t("common.copy")}

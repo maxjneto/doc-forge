@@ -36,7 +36,7 @@ import { useLayoutEditor, type EditorWords } from "./useLayoutEditor";
 import { useThemes } from "./useThemes";
 import { displayName } from "./names";
 import { withDraft } from "./themes";
-import { track } from "./track";
+import { extendAnalyticsContext, track } from "@/analytics";
 import { relativeTime } from "@/utils/time";
 
 interface LayoutDocumentViewProps {
@@ -199,6 +199,7 @@ function LayoutWorkspace({
   const surfaces = doc.surfaces;
   const activeSurface = surfaceId && surfaces.some((s) => s.id === surfaceId) ? surfaceId : surfaces[0]?.id;
   const slides = deck && activeSurface === primary.id;
+  useEffect(() => extendAnalyticsContext({ document_kind: deck ? "slides" : "page" }), [deck]);
   // What the page shows: a past version, or the document with the design draft over it.
   const shown = useMemo(() => (viewing ? viewing.content : withDraft(previewDoc ?? doc, draft?.tokens ?? null)), [viewing, doc, draft, previewDoc]);
   useEffect(() => setPreviewDoc(null), [doc]);
@@ -301,11 +302,13 @@ function LayoutWorkspace({
       const key = e.key.toLowerCase();
       if (mod && e.key === "/") {
         e.preventDefault();
+        track("layout_shortcut_used", { key: "mod+/" });
         setShortcutsOpen((open) => !open);
         return;
       }
       if (mod && key === "s" && canEdit) {
         e.preventDefault();
+        track("layout_shortcut_used", { key: "mod+s" });
         setSaveRequested(true);
         openSide("history");
         return;
@@ -323,12 +326,15 @@ function LayoutWorkspace({
       if (!mod || !editable) return;
       if (key === "z" && !e.shiftKey) {
         e.preventDefault();
+        track("layout_undo", { via: "shortcut" });
         editor.undo();
       } else if ((key === "z" && e.shiftKey) || key === "y") {
         e.preventDefault();
+        track("layout_redo", { via: "shortcut" });
         editor.redo();
       } else if (key === "d" && selectedComponent) {
         e.preventDefault();
+        track("layout_shortcut_used", { key: "mod+d", type: selectedComponent.type });
         const g = layout.components[selectedComponent.id];
         pasteInto({ block: blockOf(selectedComponent, { w: g?.box.w ?? 0, h: g?.declared.h ?? undefined }) }, "duplicated");
       }
@@ -480,7 +486,7 @@ function LayoutWorkspace({
               icon="download"
               iconPosition="start"
               onClick={() => {
-                track("document_exported", { document_id: documentId, mode: "layout", format: "pdf", pages: layout.pages.length, slides });
+                track("document_exported", { format: "pdf", pages: layout.pages.length });
                 canvas.current?.print();
               }}
             >
@@ -591,7 +597,7 @@ function LayoutWorkspace({
                 icon="restore"
                 iconPosition="start"
                 onClick={() => {
-                  track("layout_version_restored", { back: editor.revision - viewing.revision });
+                  track("version_restored", { back: editor.revision - viewing.revision });
                   editor.replaceAll(viewing.content);
                   setViewing(null);
                   setAnnouncement(t("layout.history.restored", { revision: viewing.revision }));
@@ -714,7 +720,6 @@ function LayoutWorkspace({
                 onCancelPending={() => setPending(null)}
                 onReply={async (thread: Thread, message: string) => {
                   await apiReplyLayoutNote(documentId, thread.root.id, message, getToken);
-                  track("layout_comment_replied", { thread_by_agent: thread.root.byAgent, for_agent: thread.root.forAgent });
                   await refreshComments();
                 }}
                 onStatus={async (thread, status) => {
@@ -921,5 +926,5 @@ function surfaceName(surface: Surface, t: (key: string, vars?: Record<string, st
 }
 
 function Centered({ children }: { children: ReactNode }) {
-  return <div style={{ height: "100%", paddingTop: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>{children}</div>;
+  return <div style={{ height: "100%", paddingTop: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>{children}</div>;
 }

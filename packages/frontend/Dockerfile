@@ -35,12 +35,18 @@ ARG VITE_API_BASE=/api
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG VITE_POSTHOG_KEY
 ARG VITE_POSTHOG_HOST=https://us.i.posthog.com
+# Where PostHog's own UI lives (the toolbar), since VITE_POSTHOG_HOST is our /ingest proxy.
+ARG VITE_POSTHOG_UI_HOST=https://us.posthog.com
+# The git SHA of this build; every analytics event carries it as app_version.
+ARG VITE_APP_VERSION=dev
 # Where agents connect, shown in every setup snippet of the app.
 ARG VITE_MCP_URL=https://mcp.doc-forge.dev/mcp
 ENV VITE_API_BASE=$VITE_API_BASE \
     VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY \
     VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY \
     VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST \
+    VITE_POSTHOG_UI_HOST=$VITE_POSTHOG_UI_HOST \
+    VITE_APP_VERSION=$VITE_APP_VERSION \
     VITE_MCP_URL=$VITE_MCP_URL
 
 RUN npm run build

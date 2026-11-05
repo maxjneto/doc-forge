@@ -1,6 +1,7 @@
 /**
  * Stand-in for `@clerk/clerk-react` in the design preview (vite.preview.config.ts).
- * Always signed in as a fixed user; every action is a no-op.
+ * Signed in as a fixed user; every action is a no-op. Open any page with
+ * `?signedOut` to see it signed out for the rest of the tab (`?signedIn` undoes it).
  */
 import type { ReactNode } from "react";
 
@@ -14,16 +15,25 @@ const user = {
 
 const getToken = async () => "preview-token";
 
+function signedIn(): boolean {
+  const query = new URLSearchParams(window.location.search);
+  if (query.has("signedOut")) sessionStorage.setItem("preview.signedOut", "1");
+  if (query.has("signedIn")) sessionStorage.removeItem("preview.signedOut");
+  return sessionStorage.getItem("preview.signedOut") !== "1";
+}
+
 export function ClerkProvider({ children }: { children: ReactNode; publishableKey?: string }) {
   return <>{children}</>;
 }
 
 export function useAuth() {
-  return { isLoaded: true, isSignedIn: true, userId: user.id, getToken, signOut: async () => {} };
+  const isSignedIn = signedIn();
+  return { isLoaded: true, isSignedIn, userId: isSignedIn ? user.id : null, getToken, signOut: async () => {} };
 }
 
 export function useUser() {
-  return { isLoaded: true, isSignedIn: true, user };
+  const isSignedIn = signedIn();
+  return { isLoaded: true, isSignedIn, user: isSignedIn ? user : null };
 }
 
 export function useClerk() {

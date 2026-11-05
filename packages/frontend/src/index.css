@@ -860,7 +860,7 @@ textarea.font-mono,
 .df-tpl__slide { flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 4px; border-radius: var(--radius-xs); border: 1px solid var(--color-outline-md); }
 
 /* ─── Document shell: the bar, the status line and who is here (both editors) ─── */
-.df-doc-shell { height: 100%; padding-top: 56px; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
+.df-doc-shell { height: 100%; padding-top: 60px; display: flex; flex-direction: column; overflow: hidden; background: var(--color-bg); }
 .df-doc-shell__main { flex: 1; min-height: 0; display: flex; overflow: hidden; }
 .df-doc-shell__work { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .df-doc-bar { height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 20px; border-bottom: 1px solid var(--color-outline); background: var(--color-chrome); }
@@ -932,18 +932,51 @@ textarea.font-mono,
 .df-menu__hint { display: block; margin-top: 1px; font-size: 10px; color: var(--color-faint); }
 .df-menu__error { padding: 8px; font-size: 11.5px; line-height: 1.4; color: var(--color-error); }
 
-/* ─── Marketing navigation ────────────────────────────────────
-   On a phone the text links give way to the brand, the language and the call
-   to action; the pages they lead to are linked from the page itself. */
-.df-marketing-nav { padding: 0 40px; }
-.df-marketing-nav__right { gap: 24px; padding-left: 16px; }
-.df-marketing-nav__cta { padding: 8px 16px; }
-@media (max-width: 640px) {
-  .df-marketing-nav { padding: 0 16px; }
-  .df-marketing-nav__right { gap: 10px; }
-  .df-marketing-nav__cta { padding: 7px 11px; }
-  .df-marketing-nav__links { display: none !important; }
+/* ─── Site header ─────────────────────────────────────────────
+   One bar for every screen (SiteHeader). Text links on the right, the active
+   one in full text colour. On a phone they fold into the menu button. */
+.df-site-nav { padding: 0 40px; }
+.df-site-nav__right { margin-left: auto; display: flex; align-items: center; gap: 24px; padding-left: 16px; }
+.df-site-nav__links { display: flex; align-items: center; gap: 24px; }
+.df-site-nav__link {
+  font-size: var(--text-body);
+  color: var(--color-dim);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: color var(--duration-fast) ease;
 }
+.df-site-nav__link:hover, .df-site-nav__link[aria-current="page"] { color: var(--color-text); }
+.df-site-nav__link:focus-visible { outline: 2px solid var(--color-heat); outline-offset: 4px; border-radius: var(--radius-xs); }
+.df-site-nav__cta { padding: 8px 16px; font-size: var(--text-body); white-space: nowrap; box-shadow: 0 0 0 1px var(--color-heat-strong), 0 4px 14px var(--color-heat-strong); }
+.df-site-nav__menu { display: none; }
+.df-site-nav__sheet {
+  position: absolute; top: 100%; left: 0; right: 0;
+  display: flex; flex-direction: column;
+  padding: 8px 16px 16px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-outline);
+  box-shadow: var(--shadow-pop);
+}
+.df-site-nav__sheet .df-site-nav__link { padding: 12px 4px; font-size: var(--text-title); border-bottom: 1px solid var(--color-outline); }
+.df-site-nav__sheet .df-site-nav__link:last-child { border-bottom: 0; }
+@media (max-width: 860px) {
+  .df-site-nav { padding: 0 16px; }
+  .df-site-nav__right { gap: 10px; }
+  .df-site-nav__cta { padding: 7px 11px; }
+  .df-site-nav__links { display: none; }
+  .df-site-nav__menu { display: inline-flex; }
+}
+
+/* ─── Site footer ─────────────────────────────────────────────── */
+.df-site-footer { border-top: 1px solid var(--color-outline); background: var(--color-bg); padding: 24px 40px; margin-top: auto; }
+.df-site-footer__row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.df-site-footer__status { display: flex; align-items: center; gap: 8px; font-size: var(--text-caption); font-weight: 600; letter-spacing: var(--tracking-data); text-transform: uppercase; color: var(--color-heat-hi); }
+.df-site-footer__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--color-heat); box-shadow: 0 0 8px var(--color-heat-line); }
+.df-site-footer__links { display: flex; gap: 24px; flex-wrap: wrap; }
+.df-site-footer__links a { font-size: var(--text-caption); font-weight: 600; letter-spacing: var(--tracking-data); text-transform: uppercase; color: var(--color-dim); text-decoration: none; transition: color var(--duration-fast) ease; }
+.df-site-footer__links a:hover, .df-site-footer__links a[aria-current="page"] { color: var(--color-text); }
+@media (max-width: 640px) { .df-site-footer { padding: 20px 16px; } }
 
 /* ─── Marketing pages (Home, How it works, Pricing) ──────────── */
 .df-mk { background: var(--color-bg); color: var(--color-text); min-height: 100vh; font-family: var(--font-sans); }
@@ -987,3 +1020,36 @@ textarea.font-mono,
 }
 @media (max-width: 560px) { .df-mk-grid-4, .df-mk-grid-5 { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .df-mk-pop { animation: none; } }
+
+/* ─── Legal pages (privacy, terms, contact) ──────────────────── */
+.df-legal-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.df-legal-tabs a { font-size: var(--text-body-sm); color: var(--color-dim); text-decoration: none; padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--color-outline-md); background: var(--color-bg); transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease; }
+.df-legal-tabs a:hover { color: var(--color-text); border-color: var(--color-heat-line); }
+.df-legal-tabs a[aria-current="page"] { color: var(--color-text); border-color: var(--color-heat); background: var(--color-heat-wash); }
+.df-legal { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 64px; padding-top: 56px; padding-bottom: 96px; }
+.df-legal__toc { position: sticky; top: 92px; align-self: start; display: flex; flex-direction: column; gap: 2px; }
+.df-legal__toc a { font-size: var(--text-body-sm); line-height: 1.4; color: var(--color-faint); text-decoration: none; padding: 6px 0 6px 12px; border-left: 1px solid var(--color-outline-md); transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease; }
+.df-legal__toc a:hover { color: var(--color-text); border-left-color: var(--color-heat); }
+
+/* Long-form reading text from Markdown: the legal pages. */
+.df-prose { font-size: var(--text-body); line-height: 1.75; color: var(--color-dim); }
+.df-prose > :first-child { margin-top: 0; }
+.df-prose h2 { margin: 48px 0 14px; font-size: var(--text-heading); line-height: 1.25; letter-spacing: -0.03em; font-weight: 600; color: var(--color-text); scroll-margin-top: 84px; }
+.df-prose p { margin: 0 0 16px; }
+.df-prose strong { color: var(--color-text); font-weight: 600; }
+.df-prose em { font-style: normal; color: var(--color-faint); }
+.df-prose a { color: var(--color-heat-soft); }
+.df-prose ul { margin: 0 0 16px; padding-left: 20px; list-style: disc; }
+.df-prose li { margin: 6px 0; padding-left: 4px; }
+.df-prose li::marker { color: var(--color-heat); }
+.df-prose__table { margin: 4px 0 20px; overflow-x: auto; border: 1px solid var(--color-outline-md); border-radius: var(--radius-md); }
+.df-prose table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); line-height: 1.55; }
+.df-prose th { text-align: left; font-weight: 600; color: var(--color-text); background: var(--color-surface); padding: 11px 16px; border-bottom: 1px solid var(--color-outline-md); }
+.df-prose td { padding: 11px 16px; border-bottom: 1px solid var(--color-outline); vertical-align: top; }
+.df-prose tr:last-child td { border-bottom: 0; }
+.df-prose td:first-child { color: var(--color-text); white-space: nowrap; }
+@media (max-width: 860px) {
+  .df-legal { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 40px; }
+  .df-legal__toc { display: none; }
+  .df-prose td:first-child { white-space: normal; }
+}

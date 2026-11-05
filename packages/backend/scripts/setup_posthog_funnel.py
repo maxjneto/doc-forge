@@ -4,11 +4,13 @@ is "documents with agent writing reviewed by a human, per week").
 
 This is a script, not app code — it calls PostHog's Insights REST API once
 to create a saved Funnel insight, wired to events already emitted by the
-backend (app/services/observability.py + app/auth.py):
-  1. mcp_connected           — first authenticated call from an agent's API key
-  2. mcp_document_created    — first document created via MCP
-  3. suggestion_accepted     — a suggestion was reviewed and accepted
-  4. subscription_converted  — free → paid plan transition (Stripe webhook)
+backend (catalogue: docs/architecture/analytics.md). Every step is a SERVER event
+on purpose: for people who did not accept analytics the backend uses a pseudonym the
+browser never sees, so a funnel mixing browser and server events would break for them.
+  1. agent_connected         — first authenticated call from an agent's API key
+  2. document_created        — a document (Markdown or layout), by a person or an agent
+  3. agent_changes_reviewed  — a person reviewed what agents changed (the north star)
+  4. subscription_started    — free → paid plan transition (Stripe webhook)
 
 Requires TWO different PostHog credentials (not the app's ingestion key):
   POSTHOG_PERSONAL_API_KEY   Settings → Personal API Keys (needs insight:write)
@@ -41,16 +43,19 @@ import httpx
 FUNNEL_NAME = "DocForge Activation Funnel"
 
 FUNNEL_STEPS = [
-    ("mcp_connected", "Agent connected via MCP"),
-    ("mcp_document_created", "First document created via MCP"),
-    ("suggestion_accepted", "First suggestion reviewed & accepted"),
-    ("subscription_converted", "Converted to a paid plan"),
+    ("agent_connected", "Agent connected via MCP"),
+    ("document_created", "Document created"),
+    ("agent_changes_reviewed", "Agent changes reviewed by a person"),
+    ("subscription_started", "Converted to a paid plan"),
 ]
 
 
 def _funnel_query() -> dict:
     return {
         "kind": "FunnelsQuery",
+        # Production only: staging and local runs (if any reach the project) stay out.
+        "properties": [{"type": "event", "key": "environment", "operator": "exact", "value": ["production"]}],
+        "filterTestAccounts": True,
         "series": [
             {"kind": "EventsNode", "event": event, "name": event, "custom_name": label}
             for event, label in FUNNEL_STEPS

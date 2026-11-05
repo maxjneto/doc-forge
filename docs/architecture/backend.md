@@ -147,7 +147,7 @@ Markdown documents export as Markdown, PDF or Word, rendered in pure Python (`ma
 
 ## Telemetry
 
-PostHog, off unless `POSTHOG_ENABLED=true`. The backend records product events (document created, suggestion accepted, layout write…) and, for every request made with an API key, the route, status and duration (`mcp_api_request`). The MCP server reports each tool call's duration and response size (`POST /api/telemetry/mcp-tool`). `scripts/setup_posthog_funnel.py` creates the activation funnel in PostHog.
+PostHog, off unless `POSTHOG_ENABLED=true`. The backend records product events (document created, agent changes reviewed, subscription started…), failed agent requests (`agent_request_failed`) and unhandled errors. The MCP server reports each tool call's duration and response size (`POST /api/telemetry/mcp-tool`). Events go under the Clerk id only for people who accepted analytics; everyone else is an anonymous pseudonym. `scripts/setup_posthog_funnel.py` creates the activation funnel in PostHog. Catalogue, privacy rules and configuration: [analytics.md](analytics.md).
 
 ## Configuration
 

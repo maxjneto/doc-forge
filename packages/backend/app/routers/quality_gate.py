@@ -130,7 +130,7 @@ async def submit_quality_findings(
         api_key_id=api_key_id,
     )
     rows = await _replace_open_findings(db, document_id, cleaned)
-    capture_event(str(current_user.id), str(document_id), "quality_gate_run", {
+    capture_event(current_user, str(document_id), "quality_gate_run", {
         "route": "agent", "findings": len(rows),
     })
     return [AuditFindingResponse.model_validate(r) for r in rows]

@@ -45,6 +45,7 @@ function OutlineNode({
       <button
         ref={buttonRef}
         onClick={() => onNavigate(node.heading.slug)}
+        className="ph-no-capture"
         title={node.heading.text}
         style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", margin: "1px 0", padding: "5px 8px", textAlign: "left", border: 0, borderLeft: `2px solid ${active ? "var(--color-heat)" : "transparent"}`, borderRadius: "var(--radius-sm)", background: active ? "var(--color-heat-tint)" : "transparent", color: active ? "var(--color-heat-soft)" : restColor, font: "inherit", fontSize: node.heading.level === 1 ? 12.5 : 11.5, fontWeight: active ? 600 : node.heading.level === 1 ? 500 : 400, cursor: "pointer", transition: "color 120ms ease, background 120ms ease" }}
       >

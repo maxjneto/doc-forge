@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { MarketingNav } from "@/components/marketing";
 import { ClosingCta, CodeBlock, Panel, SectionHead, Shot, h2Style, leadStyle, useMarketingPage, useProCheckout } from "@/components/marketing/parts";
-import { AppFooter } from "@/components/shared";
+import { AppFooter, SiteHeader } from "@/components/shared";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { apiFetchTiers, type Tier } from "@/utils/api";
@@ -177,7 +176,7 @@ export function LandingPage() {
 
   return (
     <div className="df-mk hide-scrollbar">
-      <MarketingNav active="home" />
+      <SiteHeader />
       <main>
         {/* Hero */}
         <section style={{ position: "relative", overflow: "hidden" }}>

@@ -16,6 +16,7 @@ import { NumberField, Row, SectionTitle, Select } from "./fields";
 import { partLabel, partsOf, tokenName } from "../names";
 import { resolveComponentStyle } from "../inlineStyle";
 import { ColorPicker } from "../ColorPicker";
+import { track, trackThrottled } from "@/analytics";
 
 /** The properties people reach for first; the rest wait behind "All properties". */
 const GROUPS: { key: string; props: StyleProp[] }[] = [
@@ -281,8 +282,13 @@ export function StyleEditor({ doc, component, geometry, tokens, families, commit
     if (activeScope.kind === "type") return [{ op: "setStyle", layer: "document", selector, style }];
     return [{ op: "setStyle", layer: "label", label: activeScope.name, style }];
   };
-  const set = (prop: StyleProp, value: string | number | boolean) => commit(write({ [prop]: value }));
+  const styleProps = { part: activePart ?? "block", scope: activeScope.kind, type: component.type };
+  const set = (prop: StyleProp, value: string | number | boolean) => {
+    trackThrottled("layout_style_changed", { ...styleProps, prop }, `style:${component.id}:${activePart}:${prop}`);
+    commit(write({ [prop]: value }));
+  };
   const reset = (prop: StyleProp) => {
+    track("layout_style_reset", { ...styleProps, prop });
     const rest = { ...own };
     delete rest[prop];
     const keep = Object.keys(rest).length ? rest : null;
@@ -315,6 +321,7 @@ export function StyleEditor({ doc, component, geometry, tokens, families, commit
     onPreview(result.ok && result.doc ? result.doc : null);
   };
   const applyPreset = (p: Preset) => {
+    track("layout_look_applied", { look: p.key, scope: activeScope.kind, type: component.type });
     onPreview?.(null);
     commit(presetOps(p));
   };

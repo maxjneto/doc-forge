@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { MarketingNav } from "@/components/marketing";
 import { ClosingCta, Panel, h2Style, leadStyle, useMarketingPage, useProCheckout } from "@/components/marketing/parts";
-import { AppFooter } from "@/components/shared";
+import { AppFooter, SiteHeader } from "@/components/shared";
 import { Button, Eyebrow } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { apiFetchTiers, type Tier } from "@/utils/api";
@@ -21,6 +20,7 @@ const COPY = {
     startFree: "Start for free",
     upgrade: "Get Pro",
     soon: "Coming soon",
+    current: "Your plan · Manage",
     kinds: "GCDs (pages and slide decks) and Markdown",
     weekly: (n: string) => `${n} new documents a week`,
     agents: (n: string) => `${n} connected agents`,
@@ -66,6 +66,7 @@ const COPY = {
     startFree: "Começar grátis",
     upgrade: "Assinar o Pro",
     soon: "Em breve",
+    current: "Seu plano · Gerenciar",
     kinds: "GCDs (páginas e apresentações) e Markdown",
     weekly: (n: string) => `${n} documentos novos por semana`,
     agents: (n: string) => `${n} agentes conectados`,
@@ -124,7 +125,7 @@ export function PricingPage() {
 
   return (
     <div className="df-mk hide-scrollbar">
-      <MarketingNav active="pricing" />
+      <SiteHeader />
       <main>
         <section style={{ position: "relative", overflow: "hidden" }}>
           <div className="df-mk-gridbg" aria-hidden />
@@ -155,9 +156,15 @@ export function PricingPage() {
                   note={copy.proNote}
                   lines={[copy.everything, copy.weekly(number(pro.limits.weeklyDocumentCreations)), copy.agents(number(pro.limits.maxApiKeys)), versions(pro), ...(word(pro) ? [copy.word] : [])]}
                   cta={
-                    <Button size="lg" variant="primary" style={{ width: "100%" }} disabled={!pro.available || checkout.busy} onClick={checkout.upgrade}>
-                      {pro.available ? copy.upgrade : copy.soon}
-                    </Button>
+                    checkout.subscribed ? (
+                      <Button size="lg" variant="secondary" style={{ width: "100%" }} onClick={checkout.manage}>
+                        {copy.current}
+                      </Button>
+                    ) : (
+                      <Button size="lg" variant="primary" style={{ width: "100%" }} disabled={!pro.available || checkout.busy} onClick={checkout.upgrade}>
+                        {pro.available ? copy.upgrade : copy.soon}
+                      </Button>
+                    )
                   }
                 />
               </div>

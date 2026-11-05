@@ -1,4 +1,5 @@
-export { TopBar } from "./TopBar";
+export { SiteHeader, SITE_HEADER_HEIGHT } from "./SiteHeader";
+export { usePageScroll } from "./usePageScroll";
 export { MarkdownRenderer } from "./MarkdownRenderer";
 export { ProtectedRoute } from "./ProtectedRoute";
 export { NewDocumentDialog } from "./NewDocumentDialog";

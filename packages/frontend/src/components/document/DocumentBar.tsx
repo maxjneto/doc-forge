@@ -58,8 +58,8 @@ export function DocumentBar({ title, onRenameTitle, status, presence, actions, e
             className="df-doc-bar__rename"
           />
         ) : (
-          <span className={onRenameTitle ? "df-row df-doc-bar__title" : "df-doc-bar__title"}>
-            <h1 title={title}>{title}</h1>
+          <span className={onRenameTitle ? "df-row df-doc-bar__title ph-sensitive" : "df-doc-bar__title ph-sensitive"}>
+            <h1 className="ph-no-capture" title={title}>{title}</h1>
             {onRenameTitle && (
               <span className="df-row-actions">
                 <IconButton

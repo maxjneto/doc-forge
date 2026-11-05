@@ -16,6 +16,21 @@
 		}
 	}
 
+	# PostHog through our own domain: blockers that drop *.posthog.com would
+	# otherwise erase a large part of a developer audience. The frontend is built
+	# with VITE_POSTHOG_HOST=https://<domain>/ingest.
+	handle_path /ingest/static/* {
+		rewrite * /static{path}
+		reverse_proxy https://us-assets.i.posthog.com:443 {
+			header_up Host us-assets.i.posthog.com
+		}
+	}
+	handle_path /ingest/* {
+		reverse_proxy https://us.i.posthog.com:443 {
+			header_up Host us.i.posthog.com
+		}
+	}
+
 	# Everything else is the single-page app (nginx already falls back to
 	# index.html for client-side routes).
 	handle {

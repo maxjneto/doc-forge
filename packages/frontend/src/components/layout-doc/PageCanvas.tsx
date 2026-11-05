@@ -10,7 +10,7 @@ import { InlineCardEditor, InlineCodeEditor, InlineEntriesEditor, InlineKpiEdito
 import { partLabel, partsOf } from "./names";
 import { insertOps, type InsertKey } from "./defaults";
 import { SlashMenu } from "./SlashMenu";
-import { track } from "./track";
+import { maskForRecording, track } from "@/analytics";
 
 /** The rendered page puts 24px around and between pages (lib screen CSS). */
 const PAD = 24;
@@ -715,7 +715,7 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
   const docFrames = framesOf(layout.pages).frames;
 
   return (
-    <div ref={scroller} onScroll={onScroll} style={{ flex: 1, overflow: "auto", background: "var(--color-sink)" }}>
+    <div ref={scroller} onScroll={onScroll} className="ph-sensitive" style={{ flex: 1, overflow: "auto", background: "var(--color-sink)" }}>
       <div style={{ width: geometry.width * zoom, height: geometry.height * zoom, margin: "0 auto", position: "relative" }}>
         <div style={{ width: geometry.width, height: geometry.height, transform: `scale(${zoom})`, transformOrigin: "0 0", position: "absolute", left: 0, top: 0 }}>
           {([0, 1] as const).map((slot) => (
@@ -724,8 +724,8 @@ export const PageCanvas = forwardRef<PageCanvasHandle, PageCanvasProps>(function
               ref={(el) => {
                 frames.current[slot] = el;
               }}
-              title={slot === active ? (content.meta?.title ?? "layout") : "next render"}
-              srcDoc={slots[slot]}
+              title={slot === active ? t("layout.frame") : "next render"}
+              srcDoc={maskForRecording(slots[slot])}
               onLoad={() => onFrameLoad(slot)}
               // No scripts in the rendered page: same-origin is only there so fonts load and print() can be called.
               sandbox="allow-same-origin allow-modals"

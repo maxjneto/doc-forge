@@ -18,6 +18,7 @@ from app.models import Document, DocumentMember, Folder, Section, SectionVersion
 from app.models.organization import ROLES
 from app.models.user import User
 from app.services import access
+from app.services.observability import capture_account_event, capture_event
 
 router = APIRouter(tags=["organization"])
 
@@ -130,6 +131,7 @@ async def create_folder(
     db.add(folder)
     await db.commit()
     await db.refresh(folder)
+    capture_account_event(current_user, "folder_created", {"nested": folder.parent_id is not None})
     return FolderResponse(
         id=str(folder.id),
         name=folder.name,
@@ -198,6 +200,7 @@ async def move_document(
         await _own_folder(payload.folder_id, current_user, db)
     doc.folder_id = payload.folder_id
     await db.commit()
+    capture_event(current_user, str(document_id), "document_moved", {"to_root": payload.folder_id is None})
 
 
 # ─── Sharing ─────────────────────────────────────────────────
@@ -279,6 +282,7 @@ async def share_document(
         )
     )
     member = existing.scalar_one_or_none()
+    existing_member = member is not None
     if member:
         member.role = payload.role
     else:
@@ -294,6 +298,10 @@ async def share_document(
         db.add(member)
     await db.commit()
     await db.refresh(member)
+    capture_event(current_user, str(document_id), "document_shared", {
+        "document_mode": doc.document_mode, "via": "person", "role": member.role,
+        "invitee_has_account": member.principal_id is not None, "role_changed": existing_member,
+    })
     return MemberResponse(
         id=str(member.id),
         email=member.invited_email,
@@ -320,6 +328,7 @@ async def unshare_document(
         raise HTTPException(status_code=404, detail="Member not found")
     await db.delete(member)
     await db.commit()
+    capture_event(current_user, str(document_id), "document_unshared", {"role": member.role})
 
 
 # Deliberately not /documents/shared-with-me: the documents router declares
@@ -382,6 +391,9 @@ async def set_public_link(
     doc = await access.require(db, document_id, current_user, "manage")
     doc.public_token = secrets.token_urlsafe(24) if enabled else None
     await db.commit()
+    capture_event(current_user, str(document_id), "document_shared" if enabled else "document_unshared", {
+        "document_mode": doc.document_mode, "via": "public_link",
+    })
     return PublicLinkResponse(token=doc.public_token, enabled=bool(doc.public_token))
 
 

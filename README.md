@@ -72,7 +72,7 @@ Open http://localhost:5173. Signing in needs a (free) Clerk development instance
 | Agents | MCP over Streamable HTTP (Python MCP SDK) |
 | Data | PostgreSQL 16; Redis optional (SSE fan-out across replicas) |
 | Auth and billing | Clerk (people), hashed API keys (agents), Stripe |
-| Analytics | PostHog (in the browser only after cookie consent) |
+| Analytics | PostHog: in the browser only after cookie consent, anonymous on the server otherwise, never document text ([docs](docs/architecture/analytics.md)) |
 | Infrastructure | Docker Compose on a VPS, Caddy (automatic HTTPS), GitHub Actions → GHCR → SSH deploy |
 
 ## Legal

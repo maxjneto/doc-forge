@@ -32,7 +32,7 @@ from app.services import db as db_service
 from app.services import export as export_service
 from app.services import presence as presence_service
 from app.services import sse as sse_service
-from app.services.observability import capture_event
+from app.services.observability import capture_event, source_of
 
 router = APIRouter(tags=["documents"])
 
@@ -204,6 +204,7 @@ async def export_document(
     mime, ext = export_service.EXPORT_FORMATS[fmt]
     data = export_service.render(fmt, md)
     filename = export_service.safe_filename(doc.title, ext)
+    capture_event(current_user, str(document_id), "document_exported", {"document_mode": "markdown", "format": fmt})
     return Response(
         content=data,
         media_type=mime,
@@ -307,8 +308,7 @@ async def _create_editor_document(
     await db.commit()
 
     api_key_id = getattr(request.state, "api_key_id", None)
-    if api_key_id:
-        capture_event(str(current_user.id), str(doc.id), "mcp_document_created")
+    capture_event(current_user, str(doc.id), "document_created", {"source": source_of(request), "document_mode": "markdown", "template": "blank"})
     await db_service.log_activity(
         db, doc.id, "document_created",
         description="Document created via Editor",
@@ -520,6 +520,7 @@ async def publish_document(
     )
     await db.commit()
     await db.refresh(active)
+    capture_event(current_user, str(document_id), "document_published", {"document_mode": "markdown"})
 
     return PublishResponse(
         published_version_id=str(active.id),

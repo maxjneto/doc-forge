@@ -4,7 +4,6 @@ import { CommentComposer, CommentFilter, CommentThread, type CommentMessage, typ
 import { useI18n } from "@/i18n";
 import { apiAnswerLayoutReview, apiUpdateLayoutNote, type LayoutNote, type LayoutRect } from "@/utils/api";
 import type { Thread } from "../history";
-import { track } from "../track";
 import { TextArea } from "./fields";
 
 type GetToken = () => Promise<string | null>;
@@ -165,7 +164,6 @@ function ReviewRequest({
       if (comment.trim()) lines.push(comment.trim());
       const message = lines.join("\n") || t("layout.review.seen");
       await apiAnswerLayoutReview(documentId, request, answers, message, getToken);
-      track("layout_review_answer_sent", { answered: Object.keys(answers).length, questions: questions.length, comment: Boolean(comment.trim()) });
       await apiUpdateLayoutNote(request.id, "resolved", getToken, message);
       onAnswered();
     } finally {
@@ -191,9 +189,9 @@ function ReviewRequest({
       )}
       {questions.map((q, i) => (
         <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={{ ...textStyle.bodySm, color: "var(--color-text)", fontWeight: 500 }}>{q.text}</span>
+          <span id={`df-review-q-${i}`} style={{ ...textStyle.bodySm, color: "var(--color-text)", fontWeight: 500 }}>{q.text}</span>
           {(q.options ?? []).length > 0 && (
-            <div role="radiogroup" aria-label={q.text} className="df-seg">
+            <div role="radiogroup" aria-labelledby={`df-review-q-${i}`} className="df-seg">
               {(q.options ?? []).map((option) => (
                 <button key={option} type="button" role="radio" aria-checked={answers[i] === option} aria-pressed={answers[i] === option} disabled={!canComment} onClick={() => setAnswers((a) => ({ ...a, [i]: option }))}>
                   {option}

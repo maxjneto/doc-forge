@@ -3,7 +3,7 @@ import type { ApplyResult, LayoutDocument, ReviewFinding } from "@docforge-lib/l
 import { Button, textStyle } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { displayName } from "../names";
-import { track } from "../track";
+import { track } from "@/analytics";
 
 interface HealthSectionProps {
   doc: LayoutDocument;

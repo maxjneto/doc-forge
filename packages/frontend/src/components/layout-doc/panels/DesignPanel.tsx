@@ -7,7 +7,7 @@ import { ColorField } from "../ColorPicker";
 import { docFont, loadAppFonts } from "../fonts";
 import { tokenName } from "../names";
 import { COLOR_GROUPS, completeTheme, currentTheme, draftSize, presetKey, RADIUS_PRESETS, readability, TYPE_SCALES } from "../themes";
-import { track } from "../track";
+import { track } from "@/analytics";
 import type { ThemeLibrary } from "../useThemes";
 import { ClassesSection } from "./ClassesEditor";
 import { NumberField, SectionTitle } from "./fields";
@@ -84,7 +84,6 @@ export function DesignPanel({ doc, layout, families, library, draft, setDraft, c
       merged[key] = { ...(merged[key] ?? {}), ...(values as object) } as never;
     }
     const theme = await library.save(name, merged);
-    track("layout_theme_saved_ui", { colors: Object.keys(merged.color ?? {}).length });
     setSaving(null);
     setSavedName(theme.name);
     if (draft) setDraft({ ...draft, theme: theme.name });
