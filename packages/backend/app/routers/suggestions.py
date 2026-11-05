@@ -28,7 +28,7 @@ from app.services import access, actor
 from app.services import db as db_service
 from app.services.hunks import apply_hunks, diff_hunks
 from app.services.merge import changed_passages
-from app.services.observability import capture_event
+from app.services.observability import capture_event, source_of
 
 router = APIRouter(tags=["suggestions"])
 
@@ -145,7 +145,8 @@ async def create_suggestion(
     # Re-fetch with relationships eager-loaded for the response
     suggestion = await db_service.get_suggestion(db, created.id)
     if api_key_id:
-        capture_event(str(current_user.id), str(section.document_id), "mcp_suggestion_created", {
+        capture_event(current_user, str(section.document_id), "suggestion_created", {
+            "source": source_of(request), "document_mode": "markdown",
             "content_length": len(payload.content),
             "has_note": bool(payload.note),
         })
@@ -217,7 +218,7 @@ async def accept_suggestion(
     except db_service.SuggestionConflict as e:
         raise HTTPException(status_code=409, detail=str(e))
     suggestion = await db_service.get_suggestion(db, suggestion_id)
-    capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_accepted", {})
+    capture_event(current_user, str(suggestion.document_id), "agent_changes_reviewed", {"document_mode": "markdown", "outcome": "accepted", "changes": 1})
     return await _to_response(db, suggestion)
 
 
@@ -238,7 +239,8 @@ async def reject_suggestion(
         db, suggestion, comment=comment, author_user_id=current_user.id
     )
     suggestion = await db_service.get_suggestion(db, suggestion_id)
-    capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_rejected", {
+    capture_event(current_user, str(suggestion.document_id), "agent_changes_reviewed", {
+        "document_mode": "markdown", "outcome": "rejected", "changes": 1,
         "has_comment": bool(comment),
     })
     return await _to_response(db, suggestion)
@@ -314,7 +316,8 @@ async def triage_suggestion(
             db, suggestion, comment=payload.comment, author_user_id=current_user.id
         )
         suggestion = await db_service.get_suggestion(db, suggestion_id)
-        capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_rejected", {
+        capture_event(current_user, str(suggestion.document_id), "agent_changes_reviewed", {
+            "document_mode": "markdown", "outcome": "rejected", "changes": 1,
             "via": "triage",
         })
         return await _to_response(db, suggestion)
@@ -362,7 +365,8 @@ async def triage_suggestion(
     await db.commit()
 
     suggestion = await db_service.get_suggestion(db, suggestion_id)
-    capture_event(str(current_user.id), str(suggestion.document_id), "suggestion_triaged", {
+    capture_event(current_user, str(suggestion.document_id), "agent_changes_reviewed", {
+        "document_mode": "markdown", "outcome": "triaged", "changes": len(hunks), "via": "triage",
         "accepted": len(accepted),
         "total": len(hunks),
     })
@@ -446,8 +450,7 @@ async def reply_feedback(
         api_key_id=api_key_id,
         parent_id=root.id,
     )
-    if api_key_id:
-        capture_event(str(current_user.id), str(root.document_id), "mcp_feedback_replied", {})
+    capture_event(current_user, str(root.document_id), "comment_created", {"source": source_of(request), "document_mode": "markdown", "reply": True})
     return (await _feedback_responses(db, [reply], current_user.id))[0]
 
 
@@ -484,6 +487,5 @@ async def resolve_feedback(
         resolution_note=payload.resolution_note if payload else None,
         api_key_id=api_key_id,
     )
-    if api_key_id:
-        capture_event(str(current_user.id), str(feedback.document_id), "mcp_feedback_resolved", {})
+    capture_event(current_user, str(feedback.document_id), "comment_status_changed", {"source": source_of(request), "document_mode": "markdown", "status": "resolved"})
     return (await _feedback_responses(db, [feedback], current_user.id))[0]

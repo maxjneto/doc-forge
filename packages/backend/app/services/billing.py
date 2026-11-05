@@ -113,6 +113,9 @@ async def create_checkout_session(
         "metadata": {"docforge_user_id": user.id, "plan": plan},
     })
     logger.info("[billing] checkout session created | user_id={} plan={}", user.id, plan)
+    from app.services.observability import capture_account_event
+
+    capture_account_event(user, "checkout_started", {"plan": plan, "currency": settings.PRICE_CURRENCY})
     return session.url
 
 
@@ -189,12 +192,12 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
         user.stripe_subscription_id = None
     await db.commit()
 
-    # Funnel step: conversion (MCP connect → first
-    # doc → first suggestion reviewed → conversion). Free-to-paid transition
-    # is the actual money event; downgrades are logged but not double-counted
-    # as a distinct funnel step.
-    if previous_plan == "free" and user.plan in ("pro", "team"):
-        capture_account_event(user.id, "subscription_converted", {"plan": user.plan})
+    # The money events, last step of the activation funnel. The plan also goes on
+    # the person (for people who accepted analytics) so every chart can split by it.
+    if previous_plan == "free" and user.plan != "free":
+        capture_account_event(user, "subscription_started", {"plan": user.plan}, person={"plan": user.plan})
+    elif previous_plan != "free" and user.plan == "free":
+        capture_account_event(user, "subscription_canceled", {"plan": previous_plan, "status": status_}, person={"plan": "free"})
 
     logger.info(
         "[billing] plan synced from subscription | user_id={} plan={} status={}",

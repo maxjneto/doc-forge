@@ -92,6 +92,14 @@ class LayoutStateResponse(BaseModel):
     notes: list[str] = []
 
 
+class LayoutReviewedRequest(BaseModel):
+    """A person went over what agents changed since they last looked ("Reviewed" in the editor)."""
+
+    outcome: Literal["kept", "undone"] = "kept"
+    changes: int = Field(default=0, ge=0, le=100_000)
+    effects: int = Field(default=0, ge=0, le=100_000)
+
+
 class LayoutPublishRequest(BaseModel):
     # The revision to publish; default: the current one.
     revision: int | None = Field(default=None, ge=1)

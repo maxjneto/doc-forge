@@ -28,15 +28,18 @@ class McpToolCall(BaseModel):
     document_id: str | None = Field(default=None, max_length=64)
     # Tool-specific detail worth slicing by (map mode, number of ops…). Small and flat.
     detail: dict[str, str | int | float | bool] = Field(default_factory=dict, max_length=12)
+    # Which toolset the agent connected with (/mcp/markdown, /mcp/cgd), or "all".
+    toolset: str | None = Field(default=None, max_length=20)
 
 
 @router.post("/telemetry/mcp-tool", status_code=204)
 async def report_mcp_tool_call(payload: McpToolCall, current_user: User = Depends(get_current_user)):
     capture_account_event(
-        current_user.id,
+        current_user,
         "mcp_tool_called",
         {
             "tool": payload.tool,
+            "toolset": payload.toolset or "all",
             "ok": payload.ok,
             "duration_ms": round(payload.duration_ms, 1),
             "response_chars": payload.response_chars,
