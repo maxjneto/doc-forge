@@ -60,6 +60,8 @@ def get_tiers() -> list[dict]:
             "cta": "Upgrade to Pro" if settings.STRIPE_ENABLED else "Coming soon",
             "highlight": True,
             "available": settings.STRIPE_ENABLED,
+            # Free days on a first subscription (the checkout decides per person).
+            "trial_days": settings.STRIPE_TRIAL_DAYS if settings.STRIPE_ENABLED else 0,
         },
     ]
 

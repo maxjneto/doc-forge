@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_PRICE_ID_PRO: str = ""
     STRIPE_PRICE_ID_TEAM: str = ""
+    # Free days on a person's first subscription (card up front; 0 turns trials off).
+    STRIPE_TRIAL_DAYS: int = 7
     STRIPE_PORTAL_RETURN_URL: str = "http://localhost:5173/billing"
     STRIPE_CHECKOUT_SUCCESS_URL: str = "http://localhost:5173/billing?checkout=success"
     STRIPE_CHECKOUT_CANCEL_URL: str = "http://localhost:5173/billing?checkout=cancel"

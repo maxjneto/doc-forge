@@ -101,6 +101,8 @@ export interface Tier {
   cta: string;
   highlight: boolean;
   available: boolean;
+  /** Free days on a first subscription; 0 = no trial. */
+  trialDays: number;
 }
 
 export async function apiFetchTiers(): Promise<Tier[]> {
@@ -127,6 +129,7 @@ export async function apiFetchTiers(): Promise<Tier[]> {
       cta: raw.cta as string,
       highlight: Boolean(raw.highlight),
       available: Boolean(raw.available),
+      trialDays: Number(raw.trial_days ?? 0),
     };
   });
 }

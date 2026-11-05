@@ -87,18 +87,29 @@ async def _get_or_create_customer(db: AsyncSession, user: User, client: stripe.S
     return customer.id
 
 
+# Still paid for, or about to be (past_due keeps the plan while Stripe retries the card).
 LIVE_STATUSES = ("active", "trialing", "past_due")
+# The plan ends. "paused" only happens to a trial that ended without a card.
+ENDED_STATUSES = ("canceled", "unpaid", "incomplete_expired", "paused")
+# Checkouts abandoned before the first payment (3D Secure left halfway): not a used trial.
+NEVER_STARTED = ("incomplete", "incomplete_expired")
 
 
-async def _live_subscription(client: stripe.StripeClient, customer_id: str):
-    """The customer's subscription that is still being paid for, if any."""
+async def _subscription_history(client: stripe.StripeClient, customer_id: str) -> list:
+    """Every subscription this customer has had, newest first."""
     result = await run_in_threadpool(
-        client.v1.subscriptions.list, params={"customer": customer_id, "status": "all", "limit": 10}
+        client.v1.subscriptions.list, params={"customer": customer_id, "status": "all", "limit": 20}
     )
-    for subscription in _safe_get(result, "data", []) or []:
-        if _safe_get(subscription, "status") in LIVE_STATUSES:
-            return subscription
-    return None
+    return list(_safe_get(result, "data", []) or [])
+
+
+def _trial_days(history: list) -> int:
+    """Free days for this checkout: only on a person's first subscription."""
+    if settings.STRIPE_TRIAL_DAYS <= 0:
+        return 0
+    if any(_safe_get(subscription, "status") not in NEVER_STARTED for subscription in history):
+        return 0
+    return settings.STRIPE_TRIAL_DAYS
 
 
 async def create_checkout_session(
@@ -120,7 +131,8 @@ async def create_checkout_session(
     # The local plan only changes when Stripe's webhook lands. If it is late (or was
     # lost), the check above passes and a second payment would open a second
     # subscription. Stripe is the source of truth: ask it, and heal the plan here.
-    live = await _live_subscription(client, customer_id)
+    history = await _subscription_history(client, customer_id)
+    live = next((s for s in history if _safe_get(s, "status") in LIVE_STATUSES), None)
     if live is not None:
         await _sync_plan_from_subscription(db, customer_id, live)
         raise HTTPException(
@@ -128,19 +140,31 @@ async def create_checkout_session(
             detail="You already have a subscription. Manage it from the billing page.",
         )
 
+    trial_days = _trial_days(history)
+    subscription_data: dict = {"metadata": {"docforge_user_id": user.id, "plan": plan}}
+    if trial_days:
+        subscription_data["trial_period_days"] = trial_days
+        # The card is always asked for, so the trial turns into Pro unless they cancel.
+        # Should a trial ever end without one, it ends: no "paused" limbo.
+        subscription_data["trial_settings"] = {"end_behavior": {"missing_payment_method": "cancel"}}
+
     session = await run_in_threadpool(client.v1.checkout.sessions.create, params={
         "mode": "subscription",
         "customer": customer_id,
         "line_items": [{"price": price_id, "quantity": 1}],
+        "payment_method_collection": "always",
+        "subscription_data": subscription_data,
         "success_url": settings.STRIPE_CHECKOUT_SUCCESS_URL,
         "cancel_url": settings.STRIPE_CHECKOUT_CANCEL_URL,
         "client_reference_id": user.id,
         "metadata": {"docforge_user_id": user.id, "plan": plan},
     })
-    logger.info("[billing] checkout session created | user_id={} plan={}", user.id, plan)
+    logger.info("[billing] checkout session created | user_id={} plan={} trial_days={}", user.id, plan, trial_days)
     from app.services.observability import capture_account_event
 
-    capture_account_event(user, "checkout_started", {"plan": plan, "currency": settings.PRICE_CURRENCY})
+    capture_account_event(
+        user, "checkout_started", {"plan": plan, "currency": settings.PRICE_CURRENCY, "trial_days": trial_days}
+    )
     return session.url
 
 
@@ -181,7 +205,21 @@ def _extract_price_id(subscription) -> str | None:
     return None
 
 
-async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subscription: dict) -> None:
+def _ended_during_trial(subscription) -> bool:
+    trial_end = _safe_get(subscription, "trial_end")
+    ended_at = _safe_get(subscription, "ended_at") or _safe_get(subscription, "canceled_at")
+    return bool(trial_end and ended_at and ended_at <= trial_end)
+
+
+async def _sync_plan_from_subscription(
+    db: AsyncSession, customer_id: str, subscription: dict, previous_status: str | None = None
+) -> None:
+    """Make the account's plan match a subscription.
+
+    `previous_status` is the status the subscription had before this event
+    (Stripe's `previous_attributes`), when known: it tells a trial that just
+    turned paid apart from one that is still running.
+    """
     from app.services.observability import capture_account_event
 
     result = await db.execute(select(User).where(User.stripe_customer_id == customer_id))
@@ -194,7 +232,7 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
     status_ = _safe_get(subscription, "status")
 
     if (
-        status_ in ("canceled", "unpaid", "incomplete_expired")
+        status_ in ENDED_STATUSES
         and user.stripe_subscription_id
         and user.stripe_subscription_id != subscription_id
     ):
@@ -212,7 +250,7 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
         price_id = _extract_price_id(subscription)
         user.plan = _plan_for_price_id(price_id) if price_id else user.plan
         user.stripe_subscription_id = subscription_id
-    elif status_ in ("canceled", "unpaid", "incomplete_expired"):
+    elif status_ in ENDED_STATUSES:
         user.plan = "free"
         user.stripe_subscription_id = None
     # This week's allowance follows the plan: what was already used still counts,
@@ -226,10 +264,22 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
 
     # The money events, last step of the activation funnel. The plan also goes on
     # the person (for people who accepted analytics) so every chart can split by it.
+    # subscription_started always means paying: a trial starts as trial_started and
+    # becomes subscription_started (from_trial) when its first charge goes through.
     if previous_plan == "free" and user.plan != "free":
-        capture_account_event(user, "subscription_started", {"plan": user.plan}, person={"plan": user.plan})
+        if status_ == "trialing":
+            capture_account_event(user, "trial_started", {"plan": user.plan}, person={"plan": user.plan})
+        else:
+            capture_account_event(user, "subscription_started", {"plan": user.plan, "from_trial": False}, person={"plan": user.plan})
     elif previous_plan != "free" and user.plan == "free":
-        capture_account_event(user, "subscription_canceled", {"plan": previous_plan, "status": status_}, person={"plan": "free"})
+        capture_account_event(
+            user,
+            "subscription_canceled",
+            {"plan": previous_plan, "status": status_, "during_trial": _ended_during_trial(subscription)},
+            person={"plan": "free"},
+        )
+    elif previous_status == "trialing" and status_ == "active":
+        capture_account_event(user, "subscription_started", {"plan": user.plan, "from_trial": True})
 
     logger.info(
         "[billing] plan synced from subscription | user_id={} plan={} status={}",
@@ -266,7 +316,18 @@ async def handle_webhook_event(db: AsyncSession, payload: bytes, sig_header: str
             await _sync_plan_from_subscription(db, customer_id, subscription)
     elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
         customer_id = _safe_get(data, "customer")
+        subscription_id = _safe_get(data, "id")
         if customer_id:
-            await _sync_plan_from_subscription(db, customer_id, data)
+            # Stripe does not promise order: an "updated: active" sent before a
+            # cancellation can arrive after it and would hand Pro back. So the
+            # event only says *which* subscription changed; its state is read
+            # from Stripe now. If that read fails, the 500 makes Stripe retry.
+            subscription = data
+            if subscription_id:
+                subscription = await run_in_threadpool(_client().v1.subscriptions.retrieve, subscription_id)
+            previous = _safe_get(event["data"], "previous_attributes") or {}
+            await _sync_plan_from_subscription(
+                db, customer_id, subscription, previous_status=_safe_get(previous, "status")
+            )
     else:
         logger.debug("[billing] ignoring unhandled webhook event type={}", event_type)
