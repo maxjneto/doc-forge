@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import posthog from "posthog-js";
 
 import { apiCreateDocument, apiCreateLayoutDocument, type LayoutTemplateSlug } from "@/utils/api";
 import { useI18n } from "@/i18n";
@@ -97,13 +96,11 @@ export function NewDocumentDialog({ onClose, remaining, weeklyLimit }: NewDocume
       if (kind === "layout") {
         const blank = template === "blank" || template === "blank-slides";
         const id = await apiCreateLayoutDocument(title.trim(), blank ? null : template, getToken, template === "blank-slides" ? "slide" : null);
-        posthog.capture("document_created", { mode: "layout", template });
         onClose();
         navigate(`/document/${id}`);
         return;
       }
       const doc = await apiCreateDocument(title.trim(), getToken);
-      posthog.capture("document_created", { mode: "editor" });
       onClose();
       navigate(`/document/${doc.id}`);
     } catch (reason) {

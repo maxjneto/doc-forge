@@ -2,9 +2,11 @@ import hashlib
 import secrets
 import uuid
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
@@ -21,6 +23,7 @@ from app.schemas.api_key import (
 )
 from app.services import tiers as tiers_service
 from app.services.credits import next_credit_reset, weekly_document_allowance
+from app.services.observability import capture_account_event
 
 router = APIRouter(tags=["users"])
 
@@ -43,6 +46,26 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "next_document_creations_reset_at": next_credit_reset(),
         "plan": current_user.plan,
     }
+
+
+class MeUpdate(BaseModel):
+    analytics_consent: Literal["accepted", "declined"]
+
+
+@router.patch("/users/me", status_code=204)
+async def update_me(
+    payload: MeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The cookie choice from the banner. Server-side analytics follow it: anonymous
+    unless accepted (see app/services/observability.py)."""
+    if current_user.analytics_consent == payload.analytics_consent:
+        return
+    await db.execute(update(User).where(User.id == current_user.id).values(analytics_consent=payload.analytics_consent))
+    await db.commit()
+    current_user.analytics_consent = payload.analytics_consent
+    capture_account_event(current_user, "analytics_consent_set", {"consent": payload.analytics_consent})
 
 
 @router.post("/users/api-keys", response_model=ApiKeyCreateResponse, status_code=201)

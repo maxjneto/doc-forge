@@ -121,7 +121,7 @@ async def _get_user_by_api_key(raw_key: str, db: AsyncSession) -> User | None:
         # PostHog volume sane.
         from app.services.observability import capture_account_event
 
-        capture_account_event(user.id, "mcp_connected", {"harness": api_key.harness})
+        capture_account_event(user, "agent_connected", {"harness": api_key.harness})
     return user
 
 
@@ -154,6 +154,7 @@ async def get_current_user(
         api_key_id = result.scalar_one_or_none()
         request.state.api_key_id = api_key_id
         request.state.user_id = user.id
+        request.state.user = user
         actor.bind(user.id)
         logger.debug("[auth] API key auth succeeded | user={} key_id={}", user.id, api_key_id)
         return await refresh_credits_if_due(db, user)

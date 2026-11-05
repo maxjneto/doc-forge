@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import stripe
 from fastapi import HTTPException
+from fastapi.concurrency import run_in_threadpool
 from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,11 +47,21 @@ def _price_id_for_plan(plan: str) -> str:
 
 
 def _plan_for_price_id(price_id: str) -> str:
+    """The plan an ACTIVE subscription on this price grants.
+
+    A price we don't know (an older Pro price after a price change, a price
+    created by hand in the dashboard) still belongs to someone who is paying,
+    so it grants Pro instead of silently dropping them to Free.
+    """
     prices = {
-        settings.STRIPE_PRICE_ID_PRO: "pro",
-        settings.STRIPE_PRICE_ID_TEAM: "team",
+        pid: plan
+        for pid, plan in ((settings.STRIPE_PRICE_ID_PRO, "pro"), (settings.STRIPE_PRICE_ID_TEAM, "team"))
+        if pid
     }
-    return prices.get(price_id, "free")
+    if price_id in prices:
+        return prices[price_id]
+    logger.warning("[billing] active subscription on an unknown price, granting Pro | price_id={}", price_id)
+    return "pro"
 
 
 async def _get_or_create_customer(db: AsyncSession, user: User, client: stripe.StripeClient) -> str:
@@ -64,7 +75,10 @@ async def _get_or_create_customer(db: AsyncSession, user: User, client: stripe.S
     """
     if user.stripe_customer_id:
         return user.stripe_customer_id
-    customer = client.v1.customers.create(params={"email": user.email, "metadata": {"docforge_user_id": user.id}})
+    customer = await run_in_threadpool(
+        client.v1.customers.create,
+        params={"email": user.email, "metadata": {"docforge_user_id": user.id}},
+    )
     await db.execute(
         update(User).where(User.id == user.id).values(stripe_customer_id=customer.id)
     )
@@ -73,16 +87,48 @@ async def _get_or_create_customer(db: AsyncSession, user: User, client: stripe.S
     return customer.id
 
 
+LIVE_STATUSES = ("active", "trialing", "past_due")
+
+
+async def _live_subscription(client: stripe.StripeClient, customer_id: str):
+    """The customer's subscription that is still being paid for, if any."""
+    result = await run_in_threadpool(
+        client.v1.subscriptions.list, params={"customer": customer_id, "status": "all", "limit": 10}
+    )
+    for subscription in _safe_get(result, "data", []) or []:
+        if _safe_get(subscription, "status") in LIVE_STATUSES:
+            return subscription
+    return None
+
+
 async def create_checkout_session(
     db: AsyncSession, user: User, plan: str
 ) -> str:
     """Create a Checkout Session for a subscription upgrade. Returns the redirect URL."""
     _require_configured()
+    if user.plan != "free" and user.stripe_subscription_id:
+        # A second checkout would start a second subscription and bill twice.
+        # Plan changes and cancellations go through the customer portal.
+        raise HTTPException(
+            status_code=409,
+            detail="You already have a subscription. Manage it from the billing page.",
+        )
     client = _client()
     price_id = _price_id_for_plan(plan)
     customer_id = await _get_or_create_customer(db, user, client)
 
-    session = client.v1.checkout.sessions.create(params={
+    # The local plan only changes when Stripe's webhook lands. If it is late (or was
+    # lost), the check above passes and a second payment would open a second
+    # subscription. Stripe is the source of truth: ask it, and heal the plan here.
+    live = await _live_subscription(client, customer_id)
+    if live is not None:
+        await _sync_plan_from_subscription(db, customer_id, live)
+        raise HTTPException(
+            status_code=409,
+            detail="You already have a subscription. Manage it from the billing page.",
+        )
+
+    session = await run_in_threadpool(client.v1.checkout.sessions.create, params={
         "mode": "subscription",
         "customer": customer_id,
         "line_items": [{"price": price_id, "quantity": 1}],
@@ -92,6 +138,9 @@ async def create_checkout_session(
         "metadata": {"docforge_user_id": user.id, "plan": plan},
     })
     logger.info("[billing] checkout session created | user_id={} plan={}", user.id, plan)
+    from app.services.observability import capture_account_event
+
+    capture_account_event(user, "checkout_started", {"plan": plan, "currency": settings.PRICE_CURRENCY})
     return session.url
 
 
@@ -101,7 +150,7 @@ async def create_portal_session(db: AsyncSession, user: User) -> str:
     client = _client()
     if not user.stripe_customer_id:
         raise HTTPException(status_code=404, detail="No billing account yet — subscribe first.")
-    session = client.v1.billing_portal.sessions.create(params={
+    session = await run_in_threadpool(client.v1.billing_portal.sessions.create, params={
         "customer": user.stripe_customer_id,
         "return_url": settings.STRIPE_PORTAL_RETURN_URL,
     })
@@ -166,14 +215,21 @@ async def _sync_plan_from_subscription(db: AsyncSession, customer_id: str, subsc
     elif status_ in ("canceled", "unpaid", "incomplete_expired"):
         user.plan = "free"
         user.stripe_subscription_id = None
+    # This week's allowance follows the plan: what was already used still counts,
+    # the rest moves by the difference (free → Pro: 15 left becomes 100 left).
+    from app.services.credits import weekly_document_allowance
+
+    delta = weekly_document_allowance(user.plan) - weekly_document_allowance(previous_plan)
+    if delta:
+        user.credits = max(0, (user.credits or 0) + delta)
     await db.commit()
 
-    # Funnel step: conversion (MCP connect → first
-    # doc → first suggestion reviewed → conversion). Free-to-paid transition
-    # is the actual money event; downgrades are logged but not double-counted
-    # as a distinct funnel step.
-    if previous_plan == "free" and user.plan in ("pro", "team"):
-        capture_account_event(user.id, "subscription_converted", {"plan": user.plan})
+    # The money events, last step of the activation funnel. The plan also goes on
+    # the person (for people who accepted analytics) so every chart can split by it.
+    if previous_plan == "free" and user.plan != "free":
+        capture_account_event(user, "subscription_started", {"plan": user.plan}, person={"plan": user.plan})
+    elif previous_plan != "free" and user.plan == "free":
+        capture_account_event(user, "subscription_canceled", {"plan": previous_plan, "status": status_}, person={"plan": "free"})
 
     logger.info(
         "[billing] plan synced from subscription | user_id={} plan={} status={}",
@@ -206,7 +262,7 @@ async def handle_webhook_event(db: AsyncSession, payload: bytes, sig_header: str
         subscription_id = _safe_get(data, "subscription")
         if customer_id and subscription_id:
             client = _client()
-            subscription = client.v1.subscriptions.retrieve(subscription_id)
+            subscription = await run_in_threadpool(client.v1.subscriptions.retrieve, subscription_id)
             await _sync_plan_from_subscription(db, customer_id, subscription)
     elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
         customer_id = _safe_get(data, "customer")

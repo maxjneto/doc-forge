@@ -339,9 +339,32 @@ async function previewAgent() {
   emit("layout_updated");
 }
 
+/**
+ * Preview only, for the marketing captures (marketing/capture): write to the report the way an
+ * agent (or a person) would and tell the open editor. `replace` swaps the whole document, `ops` go
+ * through the library, `notes` are pinned as given, `title` renames it, `reset` clears the history.
+ */
+async function previewWrite(input: { replace?: unknown; ops?: unknown[]; note?: string; byAgent?: boolean; notes?: Record<string, unknown>[]; title?: string; reset?: boolean }) {
+  if (input.title) {
+    const doc = fx.documents.find((d) => d.id === "doc-layout-q3");
+    if (doc) doc.title = input.title;
+  }
+  if (input.reset) {
+    layoutStore.notes = [];
+    layoutStore.revisions = [];
+  }
+  const result = input.ops || input.replace
+    ? await layoutWrite(layoutStore, input.ops ?? null, input.replace ?? null, { byAgent: input.byAgent ?? true, note: input.note })
+    : null;
+  for (const note of input.notes ?? []) layoutStore.notes.push({ revision: layoutStore.revision, created_at: new Date().toISOString(), ...note });
+  emit("layout_updated");
+  return result;
+}
+
 export function installMockApi() {
   const realFetch = window.fetch.bind(window);
   (window as unknown as { __previewAgent: () => Promise<void> }).__previewAgent = previewAgent;
+  (window as unknown as { __previewWrite: typeof previewWrite }).__previewWrite = previewWrite;
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;

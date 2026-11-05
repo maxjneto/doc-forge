@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import posthog from "posthog-js";
+import { track } from "@/analytics";
 import type { SectionVersion } from "@/types";
 import {
   apiFetchVersions,
@@ -324,7 +324,7 @@ interface EditorVersionPanelProps {
 
 /** Versions tab content — full height; the tab bar carries the "Versions"
  * label, so no own header here. */
-export function EditorVersionPanel({ sectionId, documentId, currentContent, refreshTick, onVersionSwitch }: EditorVersionPanelProps) {
+export function EditorVersionPanel({ sectionId, currentContent, refreshTick, onVersionSwitch }: EditorVersionPanelProps) {
   const { getToken } = useAuth();
   const { t } = useI18n();
   const [versions, setVersions] = useState<SectionVersion[]>([]);
@@ -352,11 +352,7 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
       setVersions((prev) =>
         prev.map((v) => (v.isActive ? { ...v, content: updated.content } : v))
       );
-      posthog.capture("editor_changes_saved", {
-        document_id: documentId,
-        section_id: sectionId,
-        content_length: currentContent.length,
-      });
+      track("markdown_changes_saved", { section_id: sectionId, content_length: currentContent.length });
     } finally {
       setSaving(false);
     }
@@ -373,7 +369,6 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
     setSnapshotting(true);
     try {
       await apiCreateVersionSnapshot(sectionId, getToken);
-      posthog.capture("editor_version_created", { section_id: sectionId });
       // Re-fetch so old versions have their latest auto-saved content in state
       await refetchVersions();
       setSelectedId(null);
@@ -387,7 +382,7 @@ export function EditorVersionPanel({ sectionId, documentId, currentContent, refr
     setSwitching(true);
     try {
       await apiRestoreVersion(sectionId, version.id, getToken);
-      posthog.capture("editor_version_restored", { section_id: sectionId, version_id: version.id });
+      track("version_restored", { via: "history" });
       const fresh = await apiFetchVersions(sectionId, getToken);
       setVersions(fresh.slice().reverse());
       const target = fresh.find((v) => v.id === version.id);

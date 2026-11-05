@@ -48,3 +48,6 @@ htmlcov/
 .claude/
 # Deploy bookkeeping on the VPS checkout
 .deployed-tag
+
+# Marketing kit pipeline and renders (videos, images); kept local, see marketing/README.md
+/marketing/

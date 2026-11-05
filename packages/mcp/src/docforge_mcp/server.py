@@ -77,6 +77,14 @@ def _detail(kwargs: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _telemetry_toolset() -> str:
+    """The toolset for the usage report; telemetry must never fail a tool."""
+    try:
+        return _toolset() or "all"
+    except Exception:  # noqa: BLE001
+        return "all"
+
+
 def _tool(*dargs: Any, **dkwargs: Any):
     """`mcp.tool`, plus a usage report after each call."""
     register = _register_tool(*dargs, **dkwargs)
@@ -96,6 +104,7 @@ def _tool(*dargs: Any, **dkwargs: Any):
                     chars, images = _content_size(result) if ok else (0, 0)
                     payload = {
                         "tool": fn.__name__,
+                        "toolset": _telemetry_toolset(),
                         "ok": ok,
                         "duration_ms": (time.perf_counter() - start) * 1000,
                         "response_chars": chars,

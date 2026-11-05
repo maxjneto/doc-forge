@@ -3,7 +3,7 @@ import type { ApplyResult, LayoutDocument, LayoutResult } from "@docforge-lib/la
 import { useI18n } from "@/i18n";
 import { TYPE_ICON } from "./defaults";
 import { guideSpan, isAlignedRow, partLabel, rowRebuildOp, rowsOf } from "./names";
-import { track } from "./track";
+import { track } from "@/analytics";
 
 interface SelectionBarProps {
   id: string;

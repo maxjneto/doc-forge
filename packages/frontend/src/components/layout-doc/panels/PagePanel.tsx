@@ -6,6 +6,7 @@ import { Field, Row, SectionTitle, Select } from "./fields";
 import { AutoAdjust } from "./AutoAdjust";
 import { describeChange } from "../changes";
 import { MARGINS, TYPE_SCALES } from "../themes";
+import { track } from "@/analytics";
 
 type PageSize = "A4" | "Letter" | "Slide" | "custom";
 
@@ -97,8 +98,11 @@ function MasterSection({ doc, layout, commit, readOnly }: { doc: LayoutDocument;
   const current = { header: ids.has(HEADER_ID), footer: ids.has(FOOTER_ID), pages: master?.pages === "except-first" ? ("except-first" as const) : ("all" as const) };
   const others = [...ids].filter((id) => id !== HEADER_ID && id !== FOOTER_ID);
   const change = (patch: Partial<typeof current>) => {
-    const ops = masterOps(doc, layout, { ...current, ...patch });
-    if (ops.length) commit(ops);
+    const next = { ...current, ...patch };
+    const ops = masterOps(doc, layout, next);
+    if (!ops.length) return;
+    commit(ops);
+    track("layout_master_changed", { changed: Object.keys(patch).join(","), header: Boolean(next.header), footer: Boolean(next.footer) });
   };
   return (
     <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>

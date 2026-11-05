@@ -3,7 +3,7 @@ import { renderPageSvg, type ApplyResult, type Engine, type LayoutDocument, type
 import { IconButton } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { newComponentId } from "./defaults";
-import { track } from "./track";
+import { track } from "@/analytics";
 
 /** The ops that add a slide after `after` (0 = first) with a title on it, so the new slide exists and is ready to type in. */
 export function newSlideOps(doc: LayoutDocument, layout: LayoutResult, after: number, title: string): { ops: unknown[]; id: string } {

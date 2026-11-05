@@ -12,7 +12,7 @@ import {
   apiUpdateFolder,
   apiSetDocumentArchived,
 } from "@/utils/api";
-import { TopBar, NewDocumentDialog } from "@/components/shared";
+import { AppFooter, SiteHeader, usePageScroll, NewDocumentDialog } from "@/components/shared";
 import {
   DocTableRow,
   FolderRail,
@@ -29,6 +29,7 @@ import { useI18n } from "@/i18n";
 import { fullDate, relativeTime } from "@/utils/time";
 
 export function HomePage() {
+  usePageScroll();
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const { t, dateLocale } = useI18n();
@@ -231,7 +232,7 @@ export function HomePage() {
         flexDirection: "column",
       }}
     >
-      <TopBar dashboardNav />
+      <SiteHeader />
       <FolderDragOverlay />
       <DocumentDragOverlay />
 
@@ -465,6 +466,7 @@ export function HomePage() {
           </section>
         </div>
       </Page>
+      <AppFooter />
 
       {sharing && (
           <ShareDialog

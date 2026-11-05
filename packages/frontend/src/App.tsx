@@ -1,13 +1,12 @@
-import { useState } from "react";
-import posthog from "posthog-js";
-import { PostHogProvider } from "posthog-js/react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { HomePage, DocumentPage, LandingPage, LegalPage, HowItWorksPage, PricingPage, McpPage, BillingPage, PublicDocumentPage } from "./pages";
 import { ProtectedRoute } from "./components/shared";
 import CookieConsentBanner from "./components/shared/CookieConsentBanner";
 import { useClerkPosthogIdentity } from "./hooks/useClerkPosthogIdentity";
-import { I18nProvider } from "./i18n";
+import { I18nProvider, useI18n } from "./i18n";
+import { initAnalytics, setAnalyticsLocale, storedConsent } from "./analytics";
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
@@ -15,29 +14,23 @@ if (!CLERK_PUBLISHABLE_KEY) {
   throw new Error("VITE_CLERK_PUBLISHABLE_KEY is not set");
 }
 
-if (import.meta.env.VITE_POSTHOG_KEY) {
-  posthog.init(import.meta.env.VITE_POSTHOG_KEY as string, {
-    api_host: (import.meta.env.VITE_POSTHOG_HOST as string) ?? "https://us.i.posthog.com",
-    opt_out_capturing_by_default: true,
-    capture_pageview: true,
-    capture_pageleave: true,
-    session_recording: {
-      maskTextSelector: "[data-ph-mask], .editor-content, .markdown-preview",
-    },
-  });
-}
+initAnalytics();
 
 function AppInner() {
-  const [consentGiven, setConsentGiven] = useState(false);
-  useClerkPosthogIdentity(consentGiven);
+  // A choice made on an earlier visit counts too, or returning people would never be identified.
+  const [consent, setConsent] = useState(storedConsent);
+  useClerkPosthogIdentity(consent);
+  const { locale } = useI18n();
+  useEffect(() => setAnalyticsLocale(locale), [locale]);
   return (
     <>
-      <CookieConsentBanner onOptIn={() => setConsentGiven(true)} />
+      <CookieConsentBanner onChoice={setConsent} />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/legal/:doc" element={<LegalPage />} />
+        <Route path="/contact" element={<LegalPage doc="contact" />} />
         {/* Public read-only view — outside ProtectedRoute on purpose: the
             token in the URL is the capability, not a session. */}
         <Route path="/public/:token" element={<PublicDocumentPage />} />
@@ -54,14 +47,12 @@ function AppInner() {
 
 export default function App() {
   return (
-    <PostHogProvider client={posthog}>
-      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <I18nProvider>
-          <BrowserRouter>
-            <AppInner />
-          </BrowserRouter>
-        </I18nProvider>
-      </ClerkProvider>
-    </PostHogProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <I18nProvider>
+        <BrowserRouter>
+          <AppInner />
+        </BrowserRouter>
+      </I18nProvider>
+    </ClerkProvider>
   );
 }

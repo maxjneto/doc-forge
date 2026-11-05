@@ -25,7 +25,7 @@ from app.services.db import (
     restore_version,
     update_section_content,
 )
-from app.services.observability import capture_event
+from app.services.observability import capture_event, source_of
 
 router = APIRouter(tags=["sections"])
 
@@ -92,11 +92,12 @@ async def create_section_snapshot(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
-    if api_key_id:
-        capture_event(str(current_user.id), str(section.document_id), "mcp_snapshot_saved", {
-            "has_name": bool(payload.version_name if payload else None),
-            "has_summary": bool(payload.change_summary if payload else None),
-        })
+    capture_event(current_user, str(section.document_id), "version_saved", {
+        "source": source_of(request),
+        "document_mode": "markdown",
+        "has_name": bool(payload.version_name if payload else None),
+        "has_summary": bool(payload.change_summary if payload else None),
+    })
 
     return SectionVersionResponse.model_validate(version)
 
@@ -189,10 +190,11 @@ async def update_section_content_endpoint(
                 db, section_id, section.document_id, content,
                 note=note, api_key_id=api_key_id, base_content=base,
             )
-            capture_event(str(current_user.id), str(section.document_id), "mcp_suggestion_created", {
+            capture_event(current_user, str(section.document_id), "suggestion_created", {
+                "source": source_of(request), "document_mode": "markdown",
                 "content_length": len(content),
                 "has_note": bool(note),
-                "mode": payload.mode,
+                "write_mode": payload.mode,
             })
             return SectionWriteResponse(
                 mode="suggestion",
@@ -211,10 +213,11 @@ async def update_section_content_endpoint(
         raise HTTPException(status_code=409, detail=str(e))
 
     if api_key_id:
-        capture_event(str(current_user.id), str(section.document_id), "mcp_section_written", {
+        capture_event(current_user, str(section.document_id), "markdown_changed", {
+            "source": source_of(request), "document_mode": "markdown",
             "content_length": len(content),
             "has_note": bool(note),
-            "mode": payload.mode,
+            "write_mode": payload.mode,
         })
 
     return SectionVersionResponse.model_validate(version)
@@ -248,7 +251,6 @@ async def restore_section_version(
 
     restored = await restore_version(db, section_id, version_id, doc_id=section.document_id, api_key_id=api_key_id)
 
-    if api_key_id:
-        capture_event(str(current_user.id), str(section.document_id), "mcp_version_activated", {})
+    capture_event(current_user, str(section.document_id), "version_restored", {"source": source_of(request), "document_mode": "markdown"})
 
     return VersionRestoreResponse(success=True, active_version_id=restored.id)

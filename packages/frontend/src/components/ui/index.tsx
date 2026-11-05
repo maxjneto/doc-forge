@@ -530,7 +530,7 @@ export function Meter({ value, max }: { value: number; max: number }) {
 // ─── Page ─────────────────────────────────────────────────────────
 
 /**
- * The body of every signed-in screen: same top clearance under the TopBar,
+ * The body of every signed-in screen: same top clearance under the header,
  * same side gutters, one of two widths. `wide` is for tables (the library);
  * `default` for settings and reading pages.
  */
@@ -542,7 +542,7 @@ export function Page({ width = "default", children }: { width?: "default" | "wid
         width: "100%",
         maxWidth: width === "wide" ? 1440 : 1040,
         margin: "0 auto",
-        padding: "88px 40px 80px",
+        padding: "32px 40px 80px",
       }}
     >
       {children}

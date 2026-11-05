@@ -46,7 +46,7 @@ Branches: work happens on `feat/*` and `fix/*` branches, merged into `develop` b
 | Secret | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk publishable key of the **production** instance |
 | Secret | `VITE_POSTHOG_KEY` | optional |
 | Variable | `VITE_MCP_URL` | e.g. `https://mcp.doc-forge.dev/mcp` (shown in every setup snippet) |
-| Variable | `VITE_POSTHOG_HOST` | optional |
+| Variable | `VITE_POSTHOG_HOST` | optional; default `https://doc-forge.dev/ingest` (the Caddy proxy) |
 | Secret | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | the server, and a key made only for deploys |
 | Secret | `VPS_PATH` | optional, default `$HOME/docforge` |
 | Variable | `DOCFORGE_URL` | e.g. `https://doc-forge.dev`, checked after each deploy |

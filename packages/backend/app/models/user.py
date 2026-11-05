@@ -19,6 +19,9 @@ class User(Base):
     plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # The cookie choice from the browser: "accepted" | "declined" | None (never answered).
+    # Server-side analytics about this account are anonymous unless it is "accepted".
+    analytics_consent: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")

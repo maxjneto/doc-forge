@@ -79,6 +79,8 @@ services:
       IS_PRODUCTION: "true"
       CORS_ORIGINS: '["https://${DOCFORGE_DOMAIN}"]'
       CLERK_AUTHORIZED_PARTIES: '["https://${DOCFORGE_DOMAIN}"]'
+      # The image tag is the git SHA: analytics events carry it as app_version.
+      APP_VERSION: ${IMAGE_TAG:-latest}
       STRIPE_PORTAL_RETURN_URL: https://${DOCFORGE_DOMAIN}/billing
       STRIPE_CHECKOUT_SUCCESS_URL: https://${DOCFORGE_DOMAIN}/billing?checkout=success
       STRIPE_CHECKOUT_CANCEL_URL: https://${DOCFORGE_DOMAIN}/billing?checkout=cancel

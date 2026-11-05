@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { TopBar } from "@/components/shared";
+import { AppFooter, SiteHeader, usePageScroll } from "@/components/shared";
 import {
   apiCreatePortalSession,
   apiFetchMe,
@@ -21,6 +21,7 @@ interface UsageState {
 }
 
 export function BillingPage() {
+  usePageScroll();
   const { getToken } = useAuth();
   const { t, dateLocale } = useI18n();
   const navigate = useNavigate();
@@ -58,6 +59,34 @@ export function BillingPage() {
       });
     return () => { cancelled = true; };
   }, [getToken]);
+
+  // Back from a paid checkout: Stripe's webhook may land a few seconds after the
+  // redirect, so the plan can still read Free. Ask again until it changes (≈ 30 s).
+  const [awaitingPlan] = useState(() => searchParams.get("checkout") === "success");
+  const plan = usage?.user.plan;
+  useEffect(() => {
+    if (!awaitingPlan || plan !== "free") return;
+    let cancelled = false;
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (tries > 15) {
+        clearInterval(timer);
+        return;
+      }
+      apiFetchMe(getToken)
+        .then((user) => {
+          if (cancelled || user.plan === "free") return;
+          clearInterval(timer);
+          setUsage((current) => (current ? { ...current, user } : current));
+        })
+        .catch(() => {});
+    }, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [awaitingPlan, plan, getToken]);
 
   useEffect(() => {
     if (!checkoutStatus) return;
@@ -98,7 +127,7 @@ export function BillingPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text)", display: "flex", flexDirection: "column" }}>
-      <TopBar dashboardNav />
+      <SiteHeader />
 
       <Page>
         {checkoutStatus === "success" && <Banner tone="ok">{t("billing.checkoutSuccess")}</Banner>}
@@ -156,6 +185,7 @@ export function BillingPage() {
           </div>
         </Card>
       </Page>
+      <AppFooter />
     </div>
   );
 }

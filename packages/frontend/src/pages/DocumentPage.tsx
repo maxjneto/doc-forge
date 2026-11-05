@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
 import { useCallback, useEffect, useState, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import posthog from "posthog-js";
+import { setAnalyticsContext, track } from "@/analytics";
 import { useDocument } from "@/hooks/useDocument";
 import { EditorLayout } from "@/components/editor/EditorLayout";
 import { canCommentAs, canEditAs, ContextPills, type DocumentRole } from "@/components/document";
-import { TopBar } from "@/components/shared";
+import { SiteHeader } from "@/components/shared";
 import { apiFetchMembers, apiUpdateDocumentTitle } from "@/utils/api";
 import { useI18n } from "@/i18n";
 
@@ -34,15 +34,14 @@ export function DocumentPage() {
     };
   }, [documentId, getToken]);
 
-  // Fire document_opened once when a document is loaded
+  // Every event from inside the document says which one it is about and who is acting.
+  const mode = document?.documentMode;
   useEffect(() => {
-    if (!documentId || !document) return;
-    posthog.capture("document_opened", {
-      document_id: documentId,
-      document_type: document.documentMode,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId, Boolean(document)]);
+    if (!documentId || !mode || !role) return;
+    setAnalyticsContext({ document_id: documentId, document_mode: mode, role });
+    track("document_opened");
+    return () => setAnalyticsContext(null);
+  }, [documentId, mode, role]);
 
   const handleRenameTitle = useCallback(async (title: string) => {
     if (!documentId) return;
@@ -67,7 +66,7 @@ export function DocumentPage() {
   // title, so the top bar only brands and navigates.
   return (
     <div className="h-screen w-full overflow-hidden bg-bg text-text antialiased selection:bg-heat-strong">
-      <TopBar />
+      <SiteHeader fixed />
       {document.documentMode === "layout" ? (
         <Suspense fallback={null}>
           <LayoutDocumentView

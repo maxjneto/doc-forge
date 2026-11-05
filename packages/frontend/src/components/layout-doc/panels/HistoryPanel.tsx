@@ -3,11 +3,11 @@ import type { ApplyResult, Comparison, Engine, LayoutDocument } from "@docforge-
 import { Button, IconButton, Input, Pill, textStyle } from "@/components/ui";
 import { ActorAvatar, useActorName } from "@/components/document";
 import { useI18n } from "@/i18n";
-import { apiGetLayoutRevision, apiListLayoutRevisions, apiSaveLayoutVersion, apiUpdateLayoutRevision, type LayoutNote, type LayoutRevisionItem } from "@/utils/api";
+import { apiGetLayoutRevision, apiLayoutReviewed, apiListLayoutRevisions, apiSaveLayoutVersion, apiUpdateLayoutRevision, type LayoutNote, type LayoutRevisionItem } from "@/utils/api";
 import { fullDate, relativeTime } from "@/utils/time";
 import { describeChange } from "../changes";
 import { describeRevision, GENERIC_DESCRIPTION, groupTimeline } from "../history";
-import { track } from "../track";
+import { track } from "@/analytics";
 import type { ExternalChange } from "../useLayoutEditor";
 import { SectionTitle } from "./fields";
 
@@ -104,7 +104,6 @@ export function HistoryPanel(props: HistoryPanelProps) {
   const saveVersion = async () => {
     if (!saving?.name.trim()) return;
     await apiSaveLayoutVersion(documentId, saving.name.trim(), saving.note.trim() || null, getToken);
-    track("layout_version_saved_ui", { has_note: Boolean(saving.note.trim()) });
     setSaving(null);
     void reload();
   };
@@ -160,7 +159,7 @@ export function HistoryPanel(props: HistoryPanelProps) {
               <Button
                 variant="ghost"
                 onClick={() => {
-                  track("layout_agent_changes_reviewed", { kept: comparison.edits.length, effects: comparison.effects.length });
+                  void apiLayoutReviewed(documentId, { outcome: "kept", changes: comparison.edits.length, effects: comparison.effects.length }, getToken);
                   onDismissExternal();
                 }}
               >
@@ -232,7 +231,7 @@ export function HistoryPanel(props: HistoryPanelProps) {
               icon="history"
               iconPosition="start"
               onClick={() => {
-                track("layout_agent_changes_undone_all", { count: comparison.edits.length });
+                void apiLayoutReviewed(documentId, { outcome: "undone", changes: comparison.edits.length, effects: comparison.effects.length }, getToken);
                 replaceAll(external.before);
               }}
             >

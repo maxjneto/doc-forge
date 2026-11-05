@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     POSTHOG_API_KEY: str = ""
     POSTHOG_HOST: str = "https://us.i.posthog.com"
     POSTHOG_ENABLED: bool = False
+    # Secret for the pseudonyms of people who did not accept analytics (anon_<HMAC>).
+    # Keep it stable: changing it splits everyone's anonymous history.
+    POSTHOG_ANON_SALT: str = ""
+    # The deployed image tag (git SHA); every event carries it as app_version.
+    APP_VERSION: str = "dev"
 
     model_config = {"env_file": ENV_FILE, "extra": "ignore"}
 
