@@ -33,6 +33,15 @@ def _mock_stripe_client():
     return client
 
 
+async def _post_webhook(client, event, current=None):
+    """Deliver `event`; `current` is what Stripe answers when the subscription is read back."""
+    mock_client = _mock_stripe_client()
+    mock_client.v1.subscriptions.retrieve.return_value = current if current is not None else event["data"]["object"]
+    with patch("stripe.Webhook.construct_event", return_value=event),          patch("app.services.billing._client", return_value=mock_client):
+        res = await client.post("/api/webhooks/stripe", content=b"{}", headers={"stripe-signature": "t=1,v1=fake"})
+    return res, mock_client
+
+
 @pytest.mark.asyncio
 async def test_checkout_disabled_by_default(client_factory):
     """Without STRIPE_ENABLED, checkout/portal fail clearly instead of crashing."""
@@ -214,10 +223,7 @@ async def test_webhook_active_on_unknown_price_keeps_paid_plan(client_factory, s
         }},
     }
     async with client_factory(user) as client:
-        with patch("stripe.Webhook.construct_event", return_value=fake_event):
-            res = await client.post(
-                "/api/webhooks/stripe", content=b"{}", headers={"stripe-signature": "t=1,v1=fake"},
-            )
+        res, _ = await _post_webhook(client, fake_event)
     assert res.status_code == 200
 
     async with TestSession() as session:
@@ -240,12 +246,7 @@ async def test_webhook_subscription_deleted_reverts_to_free(client_factory, stri
     }
 
     async with client_factory(user) as client:
-        with patch("stripe.Webhook.construct_event", return_value=fake_event):
-            res = await client.post(
-                "/api/webhooks/stripe",
-                content=b"{}",
-                headers={"stripe-signature": "t=1,v1=fake"},
-            )
+        res, _ = await _post_webhook(client, fake_event)
     assert res.status_code == 200
 
     async with TestSession() as session:
@@ -277,12 +278,7 @@ async def test_webhook_deleted_ignores_stale_subscription(client_factory, stripe
     }
 
     async with client_factory(user) as client:
-        with patch("stripe.Webhook.construct_event", return_value=fake_event):
-            res = await client.post(
-                "/api/webhooks/stripe",
-                content=b"{}",
-                headers={"stripe-signature": "t=1,v1=fake"},
-            )
+        res, _ = await _post_webhook(client, fake_event)
     assert res.status_code == 200
 
     async with TestSession() as session:
@@ -290,6 +286,136 @@ async def test_webhook_deleted_ignores_stale_subscription(client_factory, stripe
         db_user = result.scalar_one()
         assert db_user.plan == "pro"
         assert db_user.stripe_subscription_id == "sub_current"
+
+
+def _sub(id_, status, **extra):
+    return {"id": id_, "status": status, "items": {"data": [{"price": {"id": "price_pro_123"}}]}, **extra}
+
+
+async def _seed(client_factory, user):
+    async with client_factory(user) as seed_client:
+        await seed_client.get("/api/users/me")
+
+
+async def _plan_of(user_id):
+    async with TestSession() as session:
+        return (await session.execute(select(User).where(User.id == user_id))).scalar_one()
+
+
+@pytest.mark.asyncio
+async def test_first_checkout_gets_the_trial_with_a_card(client_factory, stripe_enabled):
+    user = User(id="u_trial1", email="t1@test.com", name="T", credits=5)
+    mock_client = _mock_stripe_client()
+    mock_client.v1.subscriptions.list.return_value = {"data": []}
+    async with client_factory(user) as client:
+        with patch("app.services.billing._client", return_value=mock_client):
+            res = await client.post("/api/billing/checkout", json={"plan": "pro"})
+    assert res.status_code == 200
+    params = mock_client.v1.checkout.sessions.create.call_args.kwargs["params"]
+    assert params["subscription_data"]["trial_period_days"] == 7
+    assert params["payment_method_collection"] == "always"
+    assert params["subscription_data"]["trial_settings"]["end_behavior"]["missing_payment_method"] == "cancel"
+
+
+@pytest.mark.asyncio
+async def test_no_second_trial_after_any_real_subscription(client_factory, stripe_enabled):
+    user = User(id="u_trial2", email="t2@test.com", name="T", credits=5, stripe_customer_id="cus_t2")
+    await _seed(client_factory, user)
+    mock_client = _mock_stripe_client()
+    mock_client.v1.subscriptions.list.return_value = {"data": [_sub("sub_gone", "canceled")]}
+    async with client_factory(user) as client:
+        with patch("app.services.billing._client", return_value=mock_client):
+            res = await client.post("/api/billing/checkout", json={"plan": "pro"})
+    assert res.status_code == 200
+    params = mock_client.v1.checkout.sessions.create.call_args.kwargs["params"]
+    assert "trial_period_days" not in params["subscription_data"]
+
+
+@pytest.mark.asyncio
+async def test_an_abandoned_checkout_does_not_use_up_the_trial(client_factory, stripe_enabled):
+    user = User(id="u_trial3", email="t3@test.com", name="T", credits=5, stripe_customer_id="cus_t3")
+    await _seed(client_factory, user)
+    mock_client = _mock_stripe_client()
+    mock_client.v1.subscriptions.list.return_value = {"data": [_sub("sub_3ds", "incomplete_expired")]}
+    async with client_factory(user) as client:
+        with patch("app.services.billing._client", return_value=mock_client):
+            await client.post("/api/billing/checkout", json={"plan": "pro"})
+    params = mock_client.v1.checkout.sessions.create.call_args.kwargs["params"]
+    assert params["subscription_data"]["trial_period_days"] == 7
+
+
+@pytest.mark.asyncio
+async def test_trials_can_be_turned_off(client_factory, stripe_enabled, monkeypatch):
+    monkeypatch.setattr(settings, "STRIPE_TRIAL_DAYS", 0)
+    user = User(id="u_trial4", email="t4@test.com", name="T", credits=5)
+    mock_client = _mock_stripe_client()
+    mock_client.v1.subscriptions.list.return_value = {"data": []}
+    async with client_factory(user) as client:
+        with patch("app.services.billing._client", return_value=mock_client):
+            await client.post("/api/billing/checkout", json={"plan": "pro"})
+        tiers = {t["slug"]: t for t in (await client.get("/api/tiers")).json()["tiers"]}
+    params = mock_client.v1.checkout.sessions.create.call_args.kwargs["params"]
+    assert "trial_period_days" not in params["subscription_data"]
+    assert tiers["pro"]["trial_days"] == 0
+
+
+@pytest.mark.asyncio
+async def test_trial_grants_pro_then_turns_paid(client_factory, stripe_enabled):
+    user = User(id="u_trial5", email="t5@test.com", name="T", credits=5, stripe_customer_id="cus_t5")
+    await _seed(client_factory, user)
+    events = []
+    with patch("app.services.observability.capture_account_event", side_effect=lambda u, e, *a, **k: events.append(e)):
+        async with client_factory(user) as client:
+            started = {"type": "customer.subscription.updated", "data": {"object": _sub("sub_t5", "trialing", customer="cus_t5")}}
+            res, _ = await _post_webhook(client, started)
+            assert res.status_code == 200
+            assert (await _plan_of("u_trial5")).plan == "pro"
+
+            converted = {
+                "type": "customer.subscription.updated",
+                "data": {"object": _sub("sub_t5", "active", customer="cus_t5"), "previous_attributes": {"status": "trialing"}},
+            }
+            await _post_webhook(client, converted)
+    assert (await _plan_of("u_trial5")).plan == "pro"
+    assert events == ["trial_started", "subscription_started"]
+
+
+@pytest.mark.asyncio
+async def test_a_late_active_event_does_not_undo_a_cancellation(client_factory, stripe_enabled):
+    """Stripe can deliver an older "active" after the cancellation: Stripe's current state wins."""
+    user = User(id="u_order", email="o@test.com", name="O", credits=5, plan="pro",
+                stripe_customer_id="cus_order", stripe_subscription_id="sub_order")
+    await _seed(client_factory, user)
+    async with client_factory(user) as client:
+        deleted = {"type": "customer.subscription.deleted", "data": {"object": _sub("sub_order", "canceled", customer="cus_order")}}
+        await _post_webhook(client, deleted)
+        late = {"type": "customer.subscription.updated", "data": {"object": _sub("sub_order", "active", customer="cus_order")}}
+        _, mock_client = await _post_webhook(client, late, current=_sub("sub_order", "canceled", customer="cus_order"))
+    mock_client.v1.subscriptions.retrieve.assert_called_with("sub_order")
+    db_user = await _plan_of("u_order")
+    assert db_user.plan == "free" and db_user.stripe_subscription_id is None
+
+
+@pytest.mark.asyncio
+async def test_past_due_keeps_pro_while_stripe_retries_and_unpaid_ends_it(client_factory, stripe_enabled):
+    user = User(id="u_due", email="d@test.com", name="D", credits=5, plan="pro",
+                stripe_customer_id="cus_due", stripe_subscription_id="sub_due")
+    await _seed(client_factory, user)
+    async with client_factory(user) as client:
+        await _post_webhook(client, {"type": "customer.subscription.updated", "data": {"object": _sub("sub_due", "past_due", customer="cus_due")}})
+        assert (await _plan_of("u_due")).plan == "pro"
+        await _post_webhook(client, {"type": "customer.subscription.updated", "data": {"object": _sub("sub_due", "unpaid", customer="cus_due")}})
+    assert (await _plan_of("u_due")).plan == "free"
+
+
+@pytest.mark.asyncio
+async def test_a_paused_trial_drops_to_free(client_factory, stripe_enabled):
+    user = User(id="u_pause", email="p@test.com", name="P", credits=5, plan="pro",
+                stripe_customer_id="cus_pause", stripe_subscription_id="sub_pause")
+    await _seed(client_factory, user)
+    async with client_factory(user) as client:
+        await _post_webhook(client, {"type": "customer.subscription.updated", "data": {"object": _sub("sub_pause", "paused", customer="cus_pause")}})
+    assert (await _plan_of("u_pause")).plan == "free"
 
 
 @pytest.mark.asyncio

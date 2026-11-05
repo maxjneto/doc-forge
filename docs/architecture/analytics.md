@@ -57,8 +57,10 @@ Inside a document, browser events also carry `document_id`, `document_mode` (`ma
 | `agent_connected` | `harness`. First use of an API key |
 | `document_created` | `source`, `document_mode`, `document_kind`, `template` |
 | `agent_changes_reviewed` | `document_mode`, `outcome` (`kept`, `undone`, `accepted`, `rejected`, `triaged`), `changes`. **North star** |
-| `checkout_started` | `plan`, `currency` |
-| `subscription_started` / `subscription_canceled` | `plan`; sets `plan` on the person |
+| `checkout_started` | `plan`, `currency`, `trial_days` (0 when this checkout has no trial) |
+| `trial_started` | `plan`; sets `plan` on the person. Free days on a first subscription, card up front |
+| `subscription_started` | `plan`, `from_trial`; always means paying (a trial gets it when its first charge goes through); sets `plan` on the person when not from a trial |
+| `subscription_canceled` | `plan`, `status`, `during_trial`; sets `plan` on the person |
 | `analytics_consent_set` | `consent` |
 
 The activation funnel (`packages/backend/scripts/setup_posthog_funnel.py`) is `agent_connected → document_created → agent_changes_reviewed → subscription_started`, production only. It uses server events only, because a pseudonymous account has different ids in the browser and on the server.

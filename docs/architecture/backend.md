@@ -139,7 +139,10 @@ flowchart TD
 
 - **Plans** live in one place, `services/tiers.py`, and are served at `GET /api/tiers`, which the pricing and billing pages read. Limits are enforced on the server: active documents, connected agents (API keys), versions kept, export formats.
 - **Creating a document** (Markdown or layout, by a person or an agent) uses one creation from the week's allowance. The allowance refreshes on the first request after Monday 00:00 UTC; there is no scheduler. Editing, reviewing, publishing and sharing never use it.
-- **Billing** is Stripe, off by default (`STRIPE_ENABLED=false`, every billing endpoint then answers 409 instead of failing on missing keys). With it on: Checkout for upgrades, the customer portal for changes, and a webhook (`checkout.session.completed`, `customer.subscription.updated|deleted`) that sets the user's plan.
+- **Billing** is Stripe, off by default (`STRIPE_ENABLED=false`, every billing endpoint then answers 409 instead of failing on missing keys). With it on: Checkout for upgrades, the customer portal for changes, and a webhook (`checkout.session.completed`, `customer.subscription.updated|deleted`) that sets the user's plan. The webhook reads the subscription back from Stripe instead of trusting the event body, because Stripe does not promise delivery order (a late "active" must not undo a cancellation).
+  - **Trial:** `STRIPE_TRIAL_DAYS` (default 7, 0 turns it off) free days on a person's first subscription, card asked up front. A customer with any earlier subscription (other than a checkout abandoned before paying) gets none.
+  - **States:** `active`/`trialing` grant the plan; `past_due` keeps it while Stripe retries the card; `canceled`, `unpaid`, `incomplete_expired` and `paused` drop to Free. What happens after the last failed retry is a Stripe setting (Billing → failed payments): it must cancel or mark unpaid, never leave the subscription past due.
+  - **Refunds** are manual in the Stripe dashboard and do not touch the plan; cancelling the subscription does.
 
 ## Export
 

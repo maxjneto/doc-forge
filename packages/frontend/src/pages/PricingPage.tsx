@@ -16,6 +16,7 @@ const COPY = {
     free: "Free",
     freeNote: "Forever. No card.",
     proNote: "Cancel any time.",
+    trialNote: (days: number) => `${days} days free on your first subscription. Cancel any time.`,
     badge: "For weekly use",
     startFree: "Start for free",
     upgrade: "Get Pro",
@@ -62,6 +63,7 @@ const COPY = {
     free: "Grátis",
     freeNote: "Para sempre. Sem cartão.",
     proNote: "Cancele quando quiser.",
+    trialNote: (days: number) => `${days} dias grátis na primeira assinatura. Cancele quando quiser.`,
     badge: "Para quem faz toda semana",
     startFree: "Começar grátis",
     upgrade: "Assinar o Pro",
@@ -153,7 +155,7 @@ export function PricingPage() {
                   name="Pro"
                   price={money(pro)}
                   perMonth={copy.perMonth}
-                  note={copy.proNote}
+                  note={pro.trialDays > 0 ? copy.trialNote(pro.trialDays) : copy.proNote}
                   lines={[copy.everything, copy.weekly(number(pro.limits.weeklyDocumentCreations)), copy.agents(number(pro.limits.maxApiKeys)), versions(pro), ...(word(pro) ? [copy.word] : [])]}
                   cta={
                     checkout.subscribed ? (
